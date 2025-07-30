@@ -41,16 +41,17 @@ impl<T> ApiResponse<T> {
 #[derive(Deserialize)]
 pub struct CreateNodeRequest {
     name: String,
-    target: String,
-    node_type: String,
     description: Option<String>,
+    port: Option<i64>,
+    path: Option<String>,
+    domain: Option<String>,
+    ip: Option<String>
 }
 
 #[derive(Deserialize)]
 pub struct CreateTestRequest {
     name: String,
-    description: String,
-    version: String,
+    description: Option<String>,
     layers: serde_json::Value, // Will be parsed as Vec<Layer>
 }
 
@@ -92,9 +93,11 @@ pub async fn create_node(
 ) -> Result<Json<ApiResponse<NetworkNode>>, StatusCode> {
     let node = NetworkNode::new(
         request.name,
-        request.target,
-        request.node_type,
-        request.description,
+        request.domain,
+        request.ip,
+        request.port,
+        request.path,
+        request.description
     );
 
     match state.storage.save_node(&node).await {
@@ -123,8 +126,10 @@ pub async fn update_node(
 
     // Update fields
     node.name = request.name;
-    node.target = request.target;
-    node.node_type = request.node_type;
+    node.domain = request.domain;
+    node.ip = request.ip;
+    node.port = request.port;
+    node.path = request.path;
     node.description = request.description;
     node.updated_at = chrono::Utc::now();
 
@@ -177,7 +182,6 @@ pub async fn create_test(
     let test = Test::new(
         request.name,
         request.description,
-        request.version,
         layers,
     );
 
@@ -219,7 +223,7 @@ pub async fn run_diagnostics(
         let mut layer_success = true;
 
         for check in &layer.checks {
-            let result = network_checks::execute_check(&check.check_type, &check.config).await;
+            let result = network_checks::execute_check(&check.r#type, &check.config).await;
             if !result.success {
                 layer_success = false;
             }
@@ -230,7 +234,6 @@ pub async fn run_diagnostics(
         let layer_end_time = start_time + layer_duration;
 
         layer_results.push(crate::types::LayerResult {
-            id: layer.id.clone(),
             name: layer.name.clone(),
             description: layer.description.clone(),
             checks: check_results,
@@ -238,7 +241,6 @@ pub async fn run_diagnostics(
             start_time,
             end_time: layer_end_time,
             duration: layer_duration,
-            failure_actions: layer.failure_actions.clone(),
         });
     }
 

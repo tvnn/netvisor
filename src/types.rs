@@ -6,21 +6,25 @@ use chrono::{DateTime, Utc};
 pub struct NetworkNode {
     pub id: String,
     pub name: String,
-    pub target: String,
-    pub node_type: String,
+    pub domain: Option<String>,
+    pub ip: Option<String>,
+    pub port: Option<i64>,
+    pub path: Option<String>,
     pub description: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 impl NetworkNode {
-    pub fn new(name: String, target: String, node_type: String, description: Option<String>) -> Self {
+    pub fn new(name: String, domain: Option<String>, ip: Option<String>, port: Option<i64>, path: Option<String>, description: Option<String>) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4().to_string(),
             name,
-            target,
-            node_type,
+            domain,
+            ip,
+            port,
+            path,
             description,
             created_at: now,
             updated_at: now,
@@ -32,7 +36,7 @@ impl NetworkNode {
 pub struct CheckConfig {
     // Basic fields
     pub target: Option<String>,
-    pub port: Option<u16>,
+    pub port: Option<i64>,
     pub protocol: Option<String>, // 'http' | 'https'
     pub timeout: Option<u64>,
     pub domain: Option<String>,
@@ -127,8 +131,7 @@ pub struct CheckConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Check {
-    pub id: String,
-    pub check_type: String,
+    pub r#type: String,
     pub config: CheckConfig,
     pub name: Option<String>,
     pub description: Option<String>,
@@ -136,32 +139,28 @@ pub struct Check {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Layer {
-    pub id: String,
     pub name: String,
     pub description: String,
     pub checks: Vec<Check>,
-    pub failure_actions: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Test {
     pub id: String,
     pub name: String,
-    pub description: String,
-    pub version: String,
+    pub description: Option<String>,
     pub layers: Vec<Layer>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 impl Test {
-    pub fn new(name: String, description: String, version: String, layers: Vec<Layer>) -> Self {
+    pub fn new(name: String, description: Option<String>, layers: Vec<Layer>) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4().to_string(),
             name,
             description,
-            version,
             layers,
             created_at: now,
             updated_at: now,
@@ -171,7 +170,7 @@ impl Test {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckResult {
-    pub check_type: String,
+    pub r#type: String,
     pub config: CheckConfig,
     pub success: bool, 
     pub message: String,
@@ -184,7 +183,6 @@ pub struct CheckResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayerResult {
-    pub id: String,
     pub name: String,
     pub description: String,
     pub checks: Vec<CheckResult>,
@@ -192,7 +190,6 @@ pub struct LayerResult {
     pub start_time: u64,
     pub end_time: u64,
     pub duration: u64,
-    pub failure_actions: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

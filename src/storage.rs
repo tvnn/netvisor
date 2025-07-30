@@ -56,47 +56,46 @@ impl SqliteStorage {
         let pool = SqlitePool::connect(database_url).await?;
         
         // Create tables if they don't exist
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS nodes (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                target TEXT NOT NULL,
-                node_type TEXT NOT NULL,
-                description TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            );
+        // sqlx::query(
+        //     r#"
+        //     CREATE TABLE IF NOT EXISTS nodes (
+        //         id TEXT PRIMARY KEY,
+        //         name TEXT NOT NULL,
+        //         target TEXT NOT NULL,
+        //         description TEXT,
+        //         created_at TEXT NOT NULL,
+        //         updated_at TEXT NOT NULL
+        //     );
 
-            CREATE TABLE IF NOT EXISTS tests (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                description TEXT,
-                version TEXT NOT NULL,
-                config TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            );
+        //     CREATE TABLE IF NOT EXISTS tests (
+        //         id TEXT PRIMARY KEY,
+        //         name TEXT NOT NULL,
+        //         description TEXT,
+        //         version TEXT NOT NULL,
+        //         config TEXT NOT NULL,
+        //         created_at TEXT NOT NULL,
+        //         updated_at TEXT NOT NULL
+        //     );
 
-            CREATE TABLE IF NOT EXISTS diagnostic_results (
-                id TEXT PRIMARY KEY,
-                test_id TEXT NOT NULL,
-                test_name TEXT NOT NULL,
-                results TEXT NOT NULL,
-                success BOOLEAN NOT NULL,
-                duration_ms INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE
-            );
+        //     CREATE TABLE IF NOT EXISTS diagnostic_results (
+        //         id TEXT PRIMARY KEY,
+        //         test_id TEXT NOT NULL,
+        //         test_name TEXT NOT NULL,
+        //         results TEXT NOT NULL,
+        //         success BOOLEAN NOT NULL,
+        //         duration_ms INTEGER NOT NULL,
+        //         created_at TEXT NOT NULL,
+        //         FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE CASCADE
+        //     );
 
-            CREATE INDEX IF NOT EXISTS idx_nodes_created_at ON nodes(created_at);
-            CREATE INDEX IF NOT EXISTS idx_tests_created_at ON tests(created_at);
-            CREATE INDEX IF NOT EXISTS idx_diagnostic_results_test_id ON diagnostic_results(test_id);
-            CREATE INDEX IF NOT EXISTS idx_diagnostic_results_created_at ON diagnostic_results(created_at);
-            "#,
-        )
-        .execute(&pool)
-        .await?;
+        //     CREATE INDEX IF NOT EXISTS idx_nodes_created_at ON nodes(created_at);
+        //     CREATE INDEX IF NOT EXISTS idx_tests_created_at ON tests(created_at);
+        //     CREATE INDEX IF NOT EXISTS idx_diagnostic_results_test_id ON diagnostic_results(test_id);
+        //     CREATE INDEX IF NOT EXISTS idx_diagnostic_results_created_at ON diagnostic_results(created_at);
+        //     "#,
+        // )
+        // .execute(&pool)
+        // .await?;
         
         Ok(Self { pool })
     }
@@ -106,7 +105,7 @@ impl SqliteStorage {
 impl Storage for SqliteStorage {
     async fn get_nodes(&self) -> StorageResult<Vec<NetworkNode>> {
         let rows = sqlx::query!(
-            "SELECT id, name, target, node_type, description, created_at, updated_at FROM nodes ORDER BY created_at DESC"
+            "SELECT id, name, domain, ip, path, port, description, created_at, updated_at FROM nodes ORDER BY created_at DESC"
         )
         .fetch_all(&self.pool)
         .await?;
@@ -116,9 +115,11 @@ impl Storage for SqliteStorage {
             .map(|row| NetworkNode {
                 id: row.id,
                 name: row.name,
-                target: row.target,
-                node_type: row.node_type,
-                description: Some(row.description),
+                domain: row.domain,
+                ip: row.ip,
+                path: row.path,
+                port: row.port,
+                description: row.description,
                 created_at: chrono::DateTime::parse_from_rfc3339(&row.created_at)
                     .unwrap()
                     .with_timezone(&chrono::Utc),
@@ -133,7 +134,7 @@ impl Storage for SqliteStorage {
 
     async fn get_node(&self, id: &str) -> StorageResult<NetworkNode> {
         let row = sqlx::query!(
-            "SELECT id, name, target, node_type, description, created_at, updated_at FROM nodes WHERE id = ?",
+            "SELECT id, name, domain, ip, path, port, description, created_at, updated_at FROM nodes WHERE id = ?",
             id
         )
         .fetch_optional(&self.pool)
@@ -143,9 +144,11 @@ impl Storage for SqliteStorage {
         Ok(NetworkNode {
             id: row.id,
             name: row.name,
-            target: row.target,
-            node_type: row.node_type,
-            description: Some(row.description),
+            domain: row.domain,
+            ip: row.ip,
+            path: row.path,
+            port: row.port,
+            description: row.description,
             created_at: chrono::DateTime::parse_from_rfc3339(&row.created_at)
                 .unwrap()
                 .with_timezone(&chrono::Utc),
@@ -159,12 +162,14 @@ impl Storage for SqliteStorage {
         let created_at_str = node.created_at.to_rfc3339();
         let updated_at_str = node.updated_at.to_rfc3339();
         sqlx::query!(
-            "INSERT INTO nodes (id, name, target, node_type, description, created_at, updated_at) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO nodes (id, name, domain, ip, path, port, description, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             node.id,
             node.name,
-            node.target,
-            node.node_type,
+            node.domain,
+            node.ip,
+            node.path,
+            node.port,
             node.description,
             created_at_str,
             updated_at_str
@@ -178,10 +183,12 @@ impl Storage for SqliteStorage {
     async fn update_node(&self, id: &str, node: &NetworkNode) -> StorageResult<()> {
         let updated_at_str = node.updated_at.to_rfc3339();
         let result = sqlx::query!(
-            "UPDATE nodes SET name = ?, target = ?, node_type = ?, description = ?, updated_at = ? WHERE id = ?",
+            "UPDATE nodes SET name = ?, domain = ?, ip = ?, path = ?, port = ?, description = ?, updated_at = ? WHERE id = ?",
             node.name,
-            node.target,
-            node.node_type,
+            node.domain,
+            node.ip,
+            node.path,
+            node.port,
             node.description,
             updated_at_str,
             id
@@ -210,7 +217,7 @@ impl Storage for SqliteStorage {
 
     async fn get_tests(&self) -> StorageResult<Vec<Test>> {
         let rows = sqlx::query!(
-            "SELECT id, name, description, version, config, created_at, updated_at FROM tests ORDER BY created_at DESC"
+            "SELECT id, name, description, layers, created_at, updated_at FROM tests ORDER BY created_at DESC"
         )
         .fetch_all(&self.pool)
         .await?;
@@ -218,12 +225,11 @@ impl Storage for SqliteStorage {
         let tests = rows
             .into_iter()
             .map(|row| -> StorageResult<Test> {
-                let layers: Vec<Layer> = serde_json::from_str(&row.config)?;
+                let layers: Vec<Layer> = serde_json::from_str(&row.layers)?;
                 Ok(Test {
                     id: row.id,
                     name: row.name,
                     description: row.description,
-                    version: row.version,
                     layers,
                     created_at: chrono::DateTime::parse_from_rfc3339(&row.created_at)
                         .unwrap()
@@ -240,20 +246,19 @@ impl Storage for SqliteStorage {
 
     async fn get_test(&self, id: &str) -> StorageResult<Test> {
         let row = sqlx::query!(
-            "SELECT id, name, description, version, config, created_at, updated_at FROM tests WHERE id = ?",
+            "SELECT id, name, description, layers, created_at, updated_at FROM tests WHERE id = ?",
             id
         )
         .fetch_optional(&self.pool)
         .await?
         .ok_or(StorageError::NotFound)?;
 
-        let layers: Vec<Layer> = serde_json::from_str(&row.config)?;
+        let layers: Vec<Layer> = serde_json::from_str(&row.layers)?;
         
         Ok(Test {
             id: row.id,
             name: row.name,
             description: row.description,
-            version: row.version,
             layers,
             created_at: chrono::DateTime::parse_from_rfc3339(&row.created_at)
                 .unwrap()
@@ -265,18 +270,17 @@ impl Storage for SqliteStorage {
     }
 
     async fn save_test(&self, test: &Test) -> StorageResult<()> {
-        let config = serde_json::to_string(&test.layers)?;
+        let layers = serde_json::to_string(&test.layers)?;
         let created_at_str = test.created_at.to_rfc3339();
         let updated_at_str = test.updated_at.to_rfc3339();
         
         sqlx::query!(
-            "INSERT INTO tests (id, name, description, version, config, created_at, updated_at) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO tests (id, name, description, layers, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?)",
             test.id,
             test.name,
             test.description,
-            test.version,
-            config,
+            layers,
             created_at_str,
             updated_at_str
         )
@@ -287,15 +291,14 @@ impl Storage for SqliteStorage {
     }
 
     async fn update_test(&self, id: &str, test: &Test) -> StorageResult<()> {
-        let config = serde_json::to_string(&test.layers)?;
+        let layers = serde_json::to_string(&test.layers)?;
         let updated_at_str = test.updated_at.to_rfc3339();
         
         let result = sqlx::query!(
-            "UPDATE tests SET name = ?, description = ?, version = ?, config = ?, updated_at = ? WHERE id = ?",
+            "UPDATE tests SET name = ?, description = ?, layers = ?, updated_at = ? WHERE id = ?",
             test.name,
             test.description,
-            test.version,
-            config,
+            layers,
             updated_at_str,
             id
         )

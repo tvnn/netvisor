@@ -43,7 +43,7 @@ pub enum CheckError {
     // Failed(String),
 }
 
-pub async fn execute_check(check_type: &str, config: &CheckConfig) -> CheckResult {
+pub async fn execute_check(r#type: &str, config: &CheckConfig) -> CheckResult {
     let start_time = std::time::Instant::now();
     let start_timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -51,7 +51,7 @@ pub async fn execute_check(check_type: &str, config: &CheckConfig) -> CheckResul
         .as_millis() as u64;
     
     // Call the network_checks function directly - function names match check types exactly
-    let result = match check_type {
+    let result = match r#type {
         "connectivityCheck" => connectivity_check(&config).await,
         "directIpCheck" => direct_ip_check(&config).await,
         "serviceHealthCheck" => service_health_check(&config).await,
@@ -82,7 +82,7 @@ pub async fn execute_check(check_type: &str, config: &CheckConfig) -> CheckResul
         "tracerouteCheck" => traceroute_check(&config).await,
         "portScanCheck" => port_scan_check(&config).await,
         "cdnCheck" => cdn_check(&config).await,
-        _ => Err(CheckError::Config(format!("Unknown check type: {}", check_type)).to_string()),
+        _ => Err(CheckError::Config(format!("Unknown check type: {}", r#type)).to_string()),
     };
     
     let duration = start_time.elapsed().as_millis() as u64;
@@ -90,7 +90,7 @@ pub async fn execute_check(check_type: &str, config: &CheckConfig) -> CheckResul
     
     match result {
         Ok(details) => CheckResult {
-            check_type: check_type.to_string(),
+            r#type: r#type.to_string(),
             config: config.clone(),
             success: true,
             message: "Check completed successfully".to_string(),
@@ -101,7 +101,7 @@ pub async fn execute_check(check_type: &str, config: &CheckConfig) -> CheckResul
             end_time: end_timestamp,
         },
         Err(error) => CheckResult {
-            check_type: check_type.to_string(),
+            r#type: r#type.to_string(),
             config: config.clone(),
             success: false,
             message: format!("Check failed: {}", error),
