@@ -80,17 +80,16 @@ export interface Layer {
   name: string;
   description: string;
   checks: Check[];
-  failureActions?: string[];
 }
 
 export interface Test {
-  id?: string;
+  id: string;
   name: string;
   description: string;
   version: string;
   layers: Layer[];
-  createdAt?: string;
-  updatedAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CheckResult {
