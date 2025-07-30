@@ -194,6 +194,55 @@ pub async fn create_test(
     }
 }
 
+pub async fn update_test(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(request): Json<CreateTestRequest>,
+) -> Result<Json<ApiResponse<Test>>, StatusCode> {
+    // Get existing test to preserve timestamps
+    let mut test = match state.storage.get_test(&id).await {
+        Ok(test) => test,
+        Err(StorageError::NotFound) => return Ok(Json(ApiResponse::error("Test not found".to_string()))),
+        Err(e) => {
+            tracing::error!("Failed to get test: {}", e);
+            return Ok(Json(ApiResponse::error(format!("Failed to get test: {}", e))));
+        }
+    };
+
+    let layers = match serde_json::from_value(request.layers) {
+        Ok(layers) => layers,
+        Err(e) => return Ok(Json(ApiResponse::error(format!("Invalid layers format: {}", e)))),
+    };
+
+    // Update fields
+    test.name = request.name;
+    test.layers = layers;
+    test.description = request.description;
+    test.updated_at = chrono::Utc::now();
+
+    match state.storage.update_test(&id, &test).await {
+        Ok(_) => Ok(Json(ApiResponse::success(test))),
+        Err(e) => {
+            tracing::error!("Failed to update test: {}", e);
+            Ok(Json(ApiResponse::error(format!("Failed to update test: {}", e))))
+        }
+    }
+}
+
+pub async fn delete_test(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> Result<Json<ApiResponse<()>>, StatusCode> {
+    match state.storage.delete_test(&id).await {
+        Ok(_) => Ok(Json(ApiResponse::success(()))),
+        Err(StorageError::NotFound) => Ok(Json(ApiResponse::error("Test not found".to_string()))),
+        Err(e) => {
+            tracing::error!("Failed to delete test: {}", e);
+            Ok(Json(ApiResponse::error(format!("Failed to delete test: {}", e))))
+        }
+    }
+}
+
 // Diagnostic handlers
 pub async fn run_diagnostics(
     State(state): State<Arc<AppState>>,
@@ -303,7 +352,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
         
         // Test routes  
         .route("/api/tests", get(get_tests).post(create_test))
-        // TODO: Add update_test, delete_test routes
+        .route("/api/tests/:id", put(update_test).delete(delete_test))
         
         // Diagnostic routes
         .route("/api/diagnostics/run/:test_id", post(run_diagnostics))
