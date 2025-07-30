@@ -1,5 +1,5 @@
 import { writable, derived, type Writable, type Readable } from 'svelte/store';
-import { commands } from '../api-client';
+import { api } from '../api-client';
 import type { Test, NetworkNode, CheckConfig } from '../types';
 import { CHECK_TYPES } from './checks';
 
@@ -18,7 +18,7 @@ export const testActions = {
       };
       
       tests.update(current => [...current, newTest]);
-      await commands.saveTest(newTest);
+      await api.saveTest(newTest);
       
       return newTest;
     } catch (error) {
@@ -39,7 +39,7 @@ export const testActions = {
         current.map(t => t.id === id ? updatedTest : t)
       );
       
-      await commands.updateTest(id, updatedTest);
+      await api.updateTest(id, updatedTest);
       
       return updatedTest;
     } catch (error) {
@@ -51,7 +51,7 @@ export const testActions = {
   async delete(id: string): Promise<void> {
     try {
       tests.update(current => current.filter(t => t.id !== id));
-      await commands.deleteTest(id);
+      await api.deleteTest(id);
     } catch (error) {
       console.error('Failed to delete test:', error);
       throw error;
@@ -134,7 +134,6 @@ export function createBlankTest(): Omit<Test, 'id' | 'createdAt' | 'updatedAt'> 
   return {
     name: '',
     description: '',
-    version: '1.0',
     layers: []
   };
 }
@@ -142,7 +141,7 @@ export function createBlankTest(): Omit<Test, 'id' | 'createdAt' | 'updatedAt'> 
 // Load tests on app start
 export async function loadTests(): Promise<void> {
   try {
-    const loadedTests = await commands.getTests();
+    const loadedTests = await api.getTests();
     tests.set(loadedTests);
   } catch (error) {
     console.error('Failed to load tests:', error);

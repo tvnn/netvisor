@@ -109,7 +109,6 @@
           metadata={[
             { label: 'Layers', value: layerCount.toString() },
             { label: 'Tests', value: totalChecks.toString() },
-            { label: 'Version', value: test.version || 'v1.0' }
           ]}
           onEdit={() => editTest(test)}
           onCopy={() => handleDuplicateTest(test)}

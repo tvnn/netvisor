@@ -19,7 +19,7 @@
   } from 'lucide-svelte';
   import { tests } from '../../stores/tests';
   import { nodes } from '../../stores/nodes';
-  import { commands } from '../../api-client'
+  import { api } from '../../api-client'
   import { loadingActions, notificationActions } from '../../stores/ui';
   import type { Test, DiagnosticResults, NetworkNode } from '../../types/index'
 
@@ -108,7 +108,7 @@
   onMount(async () => {
     // Load any previous results
     try {
-      const results = await commands.getDiagnosticResults();
+      const results = await api.getDiagnosticResults();
       if (results) {
         currentResults = results;
         expandAllOnResults();
@@ -196,7 +196,7 @@
     try {
       notificationActions.info(`Starting diagnostics for ${selectedTest?.name}...`);
       
-      const results = await commands.runDiagnostics(interpolatedTest);
+      const results = await api.runDiagnostics(interpolatedTest);
       
       currentResults = results;
       expandAllOnResults();
@@ -259,7 +259,7 @@
     if (!currentResults) return;
     
     const filename = `diagnostic-results-${new Date().toISOString().split('T')[0]}.json`;
-    commands.exportData('diagnostics', currentResults, filename)
+    api.exportData('diagnostics', currentResults, filename)
       .then(() => {
         notificationActions.success('Results exported successfully');
       })
@@ -339,7 +339,7 @@
           >
             {#each $tests as test}
               <option value={test.id}>
-                {test.name} ({test.layers?.length || 0} layers, {test.layers?.reduce((sum, layer) => sum + (layer.checks?.length || 0), 0) || 0} tests)
+                {test.name} ({test.layers?.length || 0} layers, {test.layers?.reduce((sum, layer) => sum + (layer.checks?.length || 0), 0) || 0} checks)
               </option>
             {/each}
           </select>
@@ -362,7 +362,7 @@
                   <span>•</span>
                   <span>{selectedTest.layers?.length || 0} layers</span>
                   <span>•</span>
-                  <span>{selectedTest.layers?.reduce((sum, layer) => sum + (layer.checks?.length || 0), 0) || 0} total tests</span>
+                  <span>{selectedTest.layers?.reduce((sum, layer) => sum + (layer.checks?.length || 0), 0) || 0} total checks</span>
                 </div>
               </div>
             </div>
@@ -403,7 +403,7 @@
   {/if}
 
   <!-- Results Display -->
-  {#if currentResults}
+  {#if currentResults && currentResults.layers}
     <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
       <!-- Results Header -->
       <div class="p-6 border-b border-gray-700">
@@ -413,7 +413,7 @@
               {#if overallSuccess !== null}
                 <svelte:component this={getStatusIcon(overallSuccess)} class="w-5 h-5 {getStatusColor(overallSuccess)}" />
                 <h3 class="text-lg font-semibold text-white">
-                  {overallSuccess ? 'All Tests Passed' : 'Tests Failed'}
+                  {overallSuccess ? 'All Layers Passed' : 'Layers Failed'}
                 </h3>
               {:else}
                 <h3 class="text-lg font-semibold text-white">Test Results</h3>

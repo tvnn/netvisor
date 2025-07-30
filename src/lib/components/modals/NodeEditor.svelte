@@ -3,25 +3,15 @@
   import { nodeActions, validateNode } from '../../stores/nodes';
   import { modalActions, notificationActions } from '../../stores/ui';
 
-  interface NodeData {
-    id?: string;
-    name: string;
-    domain: string;
-    ip: string;
-    defaultPort: number;
-    path: string;
-    description: string;
-  }
-
   export let mode: 'create' | 'edit' = 'create';
-  export let node: NodeData | null = null;
+  export let node: NetworkNode | null = null;
 
-  // Initialize form data - no type field, no NODE_TYPES logic
-  let formData: NodeData = {
+  // Initialize form data
+  let formData: NetworkNode = {
     name: '',
     domain: '',
     ip: '',
-    defaultPort: 443,
+    port: 443,
     path: '',
     description: '',
     ...node
@@ -50,10 +40,6 @@
           delete cleanData[typedKey];
         }
       });
-
-      if (cleanData.defaultPort) {
-        cleanData.defaultPort = parseInt(cleanData.defaultPort.toString());
-      }
 
       if (mode === 'create') {
         await nodeActions.add(cleanData as NodeData);
@@ -134,19 +120,19 @@
     <!-- Default Port -->
     <div>
       <label for="node-port" class="block text-sm font-medium text-gray-300 mb-2">
-        Default Port
+        Port
       </label>
       <input
         id="node-port"
         type="number"
-        bind:value={formData.defaultPort}
+        bind:value={formData.port}
         min="1"
         max="65535"
         class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         placeholder="443"
       />
       <p class="text-xs text-gray-400 mt-1">
-        Default port for connectivity tests (1-65535)
+        Port for connectivity tests (1-65535)
       </p>
     </div>
 

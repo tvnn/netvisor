@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { commands } from '../lib/tauri-commands';
+  import { api } from '../lib/api-client';
   
   // Components
   import Sidebar from '../lib/components/Sidebar.svelte';
@@ -20,8 +20,8 @@
     try {
       // Load saved data from Tauri
       const [savedNodes, savedTests] = await Promise.all([
-        commands.getNodes(),
-        commands.getTests()
+        api.getNodes(),
+        api.getTests()
       ]);
       
       if (savedNodes) nodes.set(savedNodes);

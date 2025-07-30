@@ -1,12 +1,11 @@
 // Core type definitions for the Network Diagnostic Tool
 
-// Simplified NetworkNode without type restrictions
 export interface NetworkNode {
   id: string;
   name: string;
   domain?: string;
   ip?: string;
-  defaultPort?: number;
+  port?: number;
   path?: string; // For DNS over HTTPS endpoints, service paths, etc.
   description?: string;
   createdAt: string;
@@ -76,7 +75,6 @@ export interface Check {
 }
 
 export interface Layer {
-  id: string;
   name: string;
   description: string;
   checks: Check[];
@@ -86,7 +84,6 @@ export interface Test {
   id: string;
   name: string;
   description: string;
-  version: string;
   layers: Layer[];
   createdAt: string;
   updatedAt: string;
@@ -158,61 +155,4 @@ export interface LoadingState {
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
-}
-
-// Tauri command types
-export interface TauriCommands {
-  get_nodes(): Promise<NetworkNode[]>;
-  save_node(args: { node: NetworkNode }): Promise<boolean>;
-  update_node(args: { id: string; node: NetworkNode }): Promise<boolean>;
-  delete_node(args: { id: string }): Promise<boolean>;
-  
-  get_tests(): Promise<Test[]>;
-  save_test(args: { test: Test }): Promise<boolean>;
-  update_test(args: { id: string; test: Test }): Promise<boolean>;
-  delete_test(args: { id: string }): Promise<boolean>;
-  
-  run_diagnostics(args: { test: Test }): Promise<DiagnosticResults>;
-  get_diagnostic_results(): Promise<DiagnosticResults | null>;
-  
-  // Basic checks
-  check_connectivity(args: CheckConfig): Promise<CheckResult>;
-  check_dns_resolution(args: CheckConfig): Promise<CheckResult>;
-  check_ping(args: CheckConfig): Promise<CheckResult>;
-  
-  // Email checks
-  check_smtp(args: CheckConfig): Promise<CheckResult>;
-  check_imap(args: CheckConfig): Promise<CheckResult>;
-  check_pop3(args: CheckConfig): Promise<CheckResult>;
-  
-  // Security checks
-  check_ssl_certificate(args: CheckConfig): Promise<CheckResult>;
-  
-  // Local checks
-  check_dhcp_discovery(args: CheckConfig): Promise<CheckResult>;
-  check_subnet_scan(args: CheckConfig): Promise<CheckResult>;
-  
-  // Protocol checks
-  check_ftp(args: CheckConfig): Promise<CheckResult>;
-  check_ssh(args: CheckConfig): Promise<CheckResult>;
-  check_database(args: CheckConfig): Promise<CheckResult>;
-  check_ntp(args: CheckConfig): Promise<CheckResult>;
-  check_ldap(args: CheckConfig): Promise<CheckResult>;
-  check_sip(args: CheckConfig): Promise<CheckResult>;
-  
-  // Performance checks
-  check_bandwidth(args: CheckConfig): Promise<CheckResult>;
-  check_packet_loss(args: CheckConfig): Promise<CheckResult>;
-  check_jitter(args: CheckConfig): Promise<CheckResult>;
-  
-  // Advanced checks
-  check_mtu_discovery(args: CheckConfig): Promise<CheckResult>;
-  check_traceroute(args: CheckConfig): Promise<CheckResult>;
-  check_port_scan(args: CheckConfig): Promise<CheckResult>;
-  
-  // CDN checks
-  check_cdn(args: CheckConfig): Promise<CheckResult>;
-  
-  export_data(args: { type: string; data: any; filename: string }): Promise<boolean>;
-  import_data(args: { type: string; filepath: string }): Promise<{ success: boolean; data: any }>;
 }

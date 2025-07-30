@@ -89,7 +89,6 @@ class ApiClient {
       body: JSON.stringify({
         name: test.name,
         description: test.description,
-        version: test.version,
         layers: test.layers,
       }),
     });
@@ -101,7 +100,6 @@ class ApiClient {
       body: JSON.stringify({
         name: test.name,
         description: test.description,
-        version: test.version,
         layers: test.layers,
       }),
     });
@@ -147,7 +145,7 @@ class ApiClient {
 export const apiClient = new ApiClient();
 
 // Export commands interface
-export const commands = {
+export const api = {
   // Health
   health: () => apiClient.health(),
 

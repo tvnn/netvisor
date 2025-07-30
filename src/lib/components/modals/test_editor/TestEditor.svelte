@@ -15,16 +15,15 @@
   let formData: Test = {
     name: '',
     description: '',
-    version: '1.0',
     layers: [],
     ...test
   };
 
-  // Ensure layers have IDs and proper structure
+  // Ensure layers have proper structure
   if (formData.layers) {
     formData.layers = formData.layers.map((layer): Layer => ({
       ...layer,
-      id: layer.id || crypto.randomUUID(),
+      id: crypto.randomUUID(),
       description: layer.description || '',
       checks: layer.checks || [],
       failureActions: layer.failureActions || []
@@ -35,14 +34,14 @@
   if (mode === 'create' && formData.layers.length === 0) {
     const blank = createBlankTest();
     formData.layers = blank.layers.map((layer): Layer => ({
-      id: crypto.randomUUID(),
       name: layer.name || 'Layer 1',
+      id: crypto.randomUUID(),
       description: layer.description || '',
       checks: layer.checks.map((check): Check => ({
+        id: crypto.randomUUID(),
         type: check.type,
         config: check.config
       })),
-      failureActions: layer.failureActions || []
     }));
   }
 
@@ -103,7 +102,7 @@
 <div class="p-6 max-h-[80vh] overflow-y-auto">
   <form on:submit|preventDefault={handleSave} class="space-y-6">
     <!-- Basic Info -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
       <div>
         <label for="test-name" class="block text-sm font-medium text-gray-300 mb-2">
           Test Name <span class="text-red-400">*</span>
@@ -115,19 +114,6 @@
           required
           class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
           placeholder="e.g., Weekly Connectivity Check"
-        />
-      </div>
-
-      <div>
-        <label for="test-version" class="block text-sm font-medium text-gray-300 mb-2">
-          Version
-        </label>
-        <input
-          id="test-version"
-          type="text"
-          bind:value={formData.version}
-          class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-          placeholder="1.0"
         />
       </div>
     </div>

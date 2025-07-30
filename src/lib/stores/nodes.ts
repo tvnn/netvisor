@@ -1,5 +1,5 @@
 import { writable, derived, type Writable, type Readable } from 'svelte/store';
-import { commands } from '../api-client';
+import { api } from '../api-client';
 import type { NetworkNode, ValidationResult, Test } from '../types';
 
 // Store for all network nodes
@@ -16,12 +16,12 @@ export const nodeActions = {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
+
+      console.log('Sending node data:', newNode);
       
       // Update store
       nodes.update(current => [...current, newNode]);
-      
-      // Persist to Tauri
-      await commands.saveNode(newNode);
+      await api.saveNode(newNode);
       
       return newNode;
     } catch (error) {
@@ -42,7 +42,7 @@ export const nodeActions = {
         current.map(node => node.id === id ? updatedNode : node)
       );
       
-      await commands.updateNode(id, updatedNode);
+      await api.updateNode(id, updatedNode);
       
       return updatedNode;
     } catch (error) {
@@ -54,7 +54,7 @@ export const nodeActions = {
   async delete(id: string): Promise<void> {
     try {
       nodes.update(current => current.filter(node => node.id !== id));
-      await commands.deleteNode(id);
+      await api.deleteNode(id);
     } catch (error) {
       console.error('Failed to delete node:', error);
       throw error;
@@ -101,7 +101,7 @@ export function validateNode(node: Partial<NetworkNode>): string[] {
     errors.push('Invalid IP address format');
   }
   
-  if (node.defaultPort && (!Number.isInteger(Number(node.defaultPort)) || Number(node.defaultPort) < 1 || Number(node.defaultPort) > 65535)) {
+  if (node.port && (!Number.isInteger(Number(node.port)) || Number(node.port) < 1 || Number(node.port) > 65535)) {
     errors.push('Port must be between 1 and 65535');
   }
   
@@ -164,7 +164,7 @@ export function createBlankNode(): Omit<NetworkNode, 'id' | 'createdAt' | 'updat
     name: '',
     domain: '',
     ip: '',
-    defaultPort: undefined,
+    port: undefined,
     path: '',
     description: ''
   };
@@ -173,7 +173,7 @@ export function createBlankNode(): Omit<NetworkNode, 'id' | 'createdAt' | 'updat
 // Load nodes on app start
 export async function loadNodes(): Promise<void> {
   try {
-    const loadedNodes = await commands.getNodes();
+    const loadedNodes = await api.getNodes();
     nodes.set(loadedNodes);
   } catch (error) {
     console.error('Failed to load nodes:', error);

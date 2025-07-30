@@ -23,6 +23,7 @@
 
   function addCheck(): void {
     const newCheck: Check = {
+      id: crypto.randomUUID(),
       type: 'connectivityCheck',
       config: {}
     };
