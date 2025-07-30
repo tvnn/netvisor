@@ -1,10 +1,9 @@
 use axum::{
-    http::{header, Method, StatusCode, Uri},
-    response::{Html, Response},
+    http::{Method, Uri},
+    response::{Html, Response, IntoResponse},
     Router,
 };
 use clap::Parser;
-use rust_embed::RustEmbed;
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -23,11 +22,6 @@ use config::ServerConfig;
 use handlers::create_router;
 use storage::{SqliteStorage, Storage};
 
-#[derive(RustEmbed)]
-#[folder = "../netzoot-ui/build"]
-struct WebAssets;
-
-#[derive(Debug)]
 pub struct AppState {
     pub config: ServerConfig,
     pub storage: Box<dyn Storage>,
@@ -54,41 +48,16 @@ struct Cli {
     log_level: Option<String>,
 }
 
-async fn serve_web_assets(uri: Uri) -> Response {
-    let path = uri.path().trim_start_matches('/');
-    
-    // If it's an API route, return 404
-    if path.starts_with("api/") {
-        return StatusCode::NOT_FOUND.into_response();
-    }
-    
-    // Try to serve the requested file
-    let file_path = if path.is_empty() || path == "index.html" {
-        "index.html"
-    } else {
-        path
-    };
-    
-    match WebAssets::get(file_path) {
-        Some(content) => {
-            let mime_type = mime_guess::from_path(file_path).first_or_octet_stream();
-            Response::builder()
-                .header(header::CONTENT_TYPE, mime_type.as_ref())
-                .body(content.data.into())
-                .unwrap()
-        }
-        None => {
-            // For SPA, return index.html for unknown routes
-            match WebAssets::get("index.html") {
-                Some(content) => Html(String::from_utf8_lossy(&content.data).to_string()).into_response(),
-                None => StatusCode::NOT_FOUND.into_response(),
-            }
-        }
-    }
+async fn serve_web_assets(_uri: Uri) -> Response {
+    // Temporary placeholder - will implement once UI is built
+    Html("<h1>Netzoot API Server</h1><p>UI not built yet. API available at /api</p>").into_response()
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+
+    let _ = dotenv::dotenv();
+    
     let cli = Cli::parse();
     
     // Load configuration
@@ -129,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
     // Create main app with web assets fallback
     let app = Router::new()
         .merge(api_router)
-        .fallback(serve_web_assets)
+        .fallback(serve_web_assets)  // Keep this line
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())

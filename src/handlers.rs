@@ -1,22 +1,19 @@
 use axum::{
-    extract::{Path, State, WebSocketUpgrade, Query},
+    extract::{Path, State, Query},
     http::StatusCode,
-    response::{Json, Response},
-    routing::{get, post, put, delete},
+    response::{Json},
+    routing::{get, post, put},
     Router,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use uuid::Uuid;
 
-use crate::{AppState, types::*, storage::{Storage, StorageError}, checks};
-
-use crate::AppState;
+use crate::{AppState, types::*, storage::{StorageError}, network_checks};
 
 // API Response wrapper
 #[derive(Serialize)]
-struct ApiResponse<T> {
+pub struct ApiResponse<T> {
     success: bool,
     data: Option<T>,
     error: Option<String>,
@@ -42,7 +39,7 @@ impl<T> ApiResponse<T> {
 
 // Request/Response types
 #[derive(Deserialize)]
-struct CreateNodeRequest {
+pub struct CreateNodeRequest {
     name: String,
     target: String,
     node_type: String,
@@ -50,7 +47,7 @@ struct CreateNodeRequest {
 }
 
 #[derive(Deserialize)]
-struct CreateTestRequest {
+pub struct CreateTestRequest {
     name: String,
     description: String,
     version: String,
@@ -58,12 +55,12 @@ struct CreateTestRequest {
 }
 
 #[derive(Deserialize)]
-struct ExecuteCheckRequest {
+pub struct ExecuteCheckRequest {
     config: CheckConfig,
 }
 
 #[derive(Deserialize)]
-struct QueryParams {
+pub struct QueryParams {
     limit: Option<u32>,
     test_id: Option<String>,
 }
@@ -222,7 +219,7 @@ pub async fn run_diagnostics(
         let mut layer_success = true;
 
         for check in &layer.checks {
-            let result = checks::execute_check(&check.check_type, &check.config).await;
+            let result = network_checks::execute_check(&check.check_type, &check.config).await;
             if !result.success {
                 layer_success = false;
             }
@@ -265,7 +262,7 @@ pub async fn execute_check(
     Path(check_type): Path<String>,
     Json(request): Json<ExecuteCheckRequest>,
 ) -> Result<Json<ApiResponse<crate::types::CheckResult>>, StatusCode> {
-    let result = checks::execute_check(&check_type, &request.config).await;
+    let result = network_checks::execute_check(&check_type, &request.config).await;
     Ok(Json(ApiResponse::success(result)))
 }
 
@@ -289,8 +286,8 @@ pub async fn get_diagnostic_results(
 // Configuration handlers
 pub async fn get_config(
     State(state): State<Arc<AppState>>,
-) -> Json<ApiResponse<&crate::config::ServerConfig>> {
-    Json(ApiResponse::success(&state.config))
+) -> Json<ApiResponse<crate::config::ServerConfig>> {
+    Json(ApiResponse::success(state.config.clone()))
 }
 
 // Create the router

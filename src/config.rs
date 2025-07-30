@@ -50,7 +50,7 @@ impl ServerConfig {
             .add_source(config::Environment::with_prefix("NETZOOT"))
             .build()?;
 
-        let mut server_config: ServerConfig = config.try_deserialize().unwrap_or_default();
+        let server_config: ServerConfig = config.try_deserialize().unwrap_or_default();
 
         // Ensure database directory exists
         if let Some(parent) = server_config.database.path.parent() {

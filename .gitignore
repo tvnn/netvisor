@@ -1,2 +1,6 @@
 /target
 .DS_STORE
+.env
+netzoot.db
+migrations/
+.sqlx/

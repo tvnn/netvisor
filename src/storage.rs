@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{SqlitePool, Row};
+use sqlx::{SqlitePool};
 use crate::types::*;
 
 #[derive(Debug, thiserror::Error)]
@@ -118,7 +118,7 @@ impl Storage for SqliteStorage {
                 name: row.name,
                 target: row.target,
                 node_type: row.node_type,
-                description: row.description,
+                description: Some(row.description),
                 created_at: chrono::DateTime::parse_from_rfc3339(&row.created_at)
                     .unwrap()
                     .with_timezone(&chrono::Utc),
@@ -145,7 +145,7 @@ impl Storage for SqliteStorage {
             name: row.name,
             target: row.target,
             node_type: row.node_type,
-            description: row.description,
+            description: Some(row.description),
             created_at: chrono::DateTime::parse_from_rfc3339(&row.created_at)
                 .unwrap()
                 .with_timezone(&chrono::Utc),
@@ -156,6 +156,8 @@ impl Storage for SqliteStorage {
     }
 
     async fn save_node(&self, node: &NetworkNode) -> StorageResult<()> {
+        let created_at_str = node.created_at.to_rfc3339();
+        let updated_at_str = node.updated_at.to_rfc3339();
         sqlx::query!(
             "INSERT INTO nodes (id, name, target, node_type, description, created_at, updated_at) 
              VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -164,8 +166,8 @@ impl Storage for SqliteStorage {
             node.target,
             node.node_type,
             node.description,
-            node.created_at.to_rfc3339(),
-            node.updated_at.to_rfc3339()
+            created_at_str,
+            updated_at_str
         )
         .execute(&self.pool)
         .await?;
@@ -174,13 +176,14 @@ impl Storage for SqliteStorage {
     }
 
     async fn update_node(&self, id: &str, node: &NetworkNode) -> StorageResult<()> {
+        let updated_at_str = node.updated_at.to_rfc3339();
         let result = sqlx::query!(
             "UPDATE nodes SET name = ?, target = ?, node_type = ?, description = ?, updated_at = ? WHERE id = ?",
             node.name,
             node.target,
             node.node_type,
             node.description,
-            node.updated_at.to_rfc3339(),
+            updated_at_str,
             id
         )
         .execute(&self.pool)
@@ -263,6 +266,8 @@ impl Storage for SqliteStorage {
 
     async fn save_test(&self, test: &Test) -> StorageResult<()> {
         let config = serde_json::to_string(&test.layers)?;
+        let created_at_str = test.created_at.to_rfc3339();
+        let updated_at_str = test.updated_at.to_rfc3339();
         
         sqlx::query!(
             "INSERT INTO tests (id, name, description, version, config, created_at, updated_at) 
@@ -272,8 +277,8 @@ impl Storage for SqliteStorage {
             test.description,
             test.version,
             config,
-            test.created_at.to_rfc3339(),
-            test.updated_at.to_rfc3339()
+            created_at_str,
+            updated_at_str
         )
         .execute(&self.pool)
         .await?;
@@ -283,6 +288,7 @@ impl Storage for SqliteStorage {
 
     async fn update_test(&self, id: &str, test: &Test) -> StorageResult<()> {
         let config = serde_json::to_string(&test.layers)?;
+        let updated_at_str = test.updated_at.to_rfc3339();
         
         let result = sqlx::query!(
             "UPDATE tests SET name = ?, description = ?, version = ?, config = ?, updated_at = ? WHERE id = ?",
@@ -290,7 +296,7 @@ impl Storage for SqliteStorage {
             test.description,
             test.version,
             config,
-            test.updated_at.to_rfc3339(),
+            updated_at_str,
             id
         )
         .execute(&self.pool)
@@ -317,6 +323,8 @@ impl Storage for SqliteStorage {
 
     async fn save_diagnostic_result(&self, result: &DiagnosticResults) -> StorageResult<()> {
         let results_json = serde_json::to_string(&result.layers)?;
+        let total_duration_i64 = result.total_duration as i64;
+        let timestamp_str = result.timestamp.to_rfc3339();
         
         sqlx::query!(
             "INSERT INTO diagnostic_results (id, test_id, test_name, results, success, duration_ms, created_at) 
@@ -326,8 +334,8 @@ impl Storage for SqliteStorage {
             result.test_name,
             results_json,
             result.success,
-            result.total_duration as i64,
-            result.timestamp.to_rfc3339()
+            total_duration_i64,
+            timestamp_str
         )
         .execute(&self.pool)
         .await?;
@@ -338,23 +346,22 @@ impl Storage for SqliteStorage {
     async fn get_diagnostic_results(&self, test_id: Option<&str>, limit: Option<u32>) -> StorageResult<Vec<DiagnosticResults>> {
         let limit = limit.unwrap_or(100) as i64;
         
-        let rows = if let Some(test_id) = test_id {
-            sqlx::query!(
-                "SELECT id, test_id, test_name, results, success, duration_ms, created_at 
-                 FROM diagnostic_results WHERE test_id = ? ORDER BY created_at DESC LIMIT ?",
-                test_id, limit
-            )
-            .fetch_all(&self.pool)
-            .await?
-        } else {
-            sqlx::query!(
-                "SELECT id, test_id, test_name, results, success, duration_ms, created_at 
-                 FROM diagnostic_results ORDER BY created_at DESC LIMIT ?",
-                limit
-            )
-            .fetch_all(&self.pool)
-            .await?
-        };
+        // Use the same query structure for both cases
+        let test_id_param = test_id.unwrap_or("");
+        let use_test_filter = test_id.is_some();
+        let bit = if use_test_filter { 1 } else { 0 };
+        
+        let rows = sqlx::query!(
+            "SELECT id, test_id, test_name, results, success, duration_ms, created_at 
+            FROM diagnostic_results 
+            WHERE (? = 0 OR test_id = ?) 
+            ORDER BY created_at DESC LIMIT ?",
+            bit,
+            test_id_param,
+            limit
+        )
+        .fetch_all(&self.pool)
+        .await?;
 
         let results = rows
             .into_iter()

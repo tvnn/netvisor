@@ -6,13 +6,14 @@ description = "HTTP API server for Netzoot network diagnostics"
 
 [dependencies]
 # Web server
-axum = { version = "0.7", features = ["ws", "headers"] }
-tower = { version = "0.4", features = ["util"] }
+axum = "0.7.9"
+tower = "0.4.13" 
 tower-http = { version = "0.5", features = ["fs", "cors", "trace"] }
 tokio = { version = "1.0", features = ["full"] }
+dotenv = "0.15"
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+sqlx = { version = "0.8.2", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
