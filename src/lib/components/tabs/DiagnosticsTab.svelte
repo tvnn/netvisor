@@ -17,11 +17,11 @@
     Server,
     GitBranch
   } from 'lucide-svelte';
-  import { commands } from '../../tauri-commands';
   import { tests } from '../../stores/tests';
   import { nodes } from '../../stores/nodes';
+  import { commands } from '../../api-client'
   import { loadingActions, notificationActions } from '../../stores/ui';
-  import type { Test, DiagnosticResults, NetworkNode, CheckResult } from '../../types';
+  import type { Test, DiagnosticResults, NetworkNode } from '../../types/index'
 
   // Selected test for running diagnostics
   let selectedTestId: string | null = null;

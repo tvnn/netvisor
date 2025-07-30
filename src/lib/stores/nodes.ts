@@ -1,5 +1,5 @@
 import { writable, derived, type Writable, type Readable } from 'svelte/store';
-import { commands } from '../tauri-commands';
+import { commands } from '../api-client';
 import type { NetworkNode, ValidationResult, Test } from '../types';
 
 // Store for all network nodes

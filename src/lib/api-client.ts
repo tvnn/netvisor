@@ -1,4 +1,4 @@
-// API client for HTTP backend (replaces tauri-commands.ts)
+// API client for HTTP backend
 import type { NetworkNode, Test, DiagnosticResults, CheckResult, CheckConfig } from './types';
 
 interface ApiResponse<T> {
@@ -146,7 +146,7 @@ class ApiClient {
 // Export singleton instance
 export const apiClient = new ApiClient();
 
-// Export commands interface that matches the existing tauri-commands structure
+// Export commands interface
 export const commands = {
   // Health
   health: () => apiClient.health(),
@@ -167,6 +167,6 @@ export const commands = {
   runDiagnostics: (test: Test) => apiClient.runDiagnostics(test.id),
   getDiagnosticResults: (testId?: string, limit?: number) => apiClient.getDiagnosticResults(testId, limit),
 
-  // Checks - maintaining the same interface as the original tauri commands
+  // Checks
   executeCheck: (checkType: string, config: CheckConfig) => apiClient.executeCheck(checkType, config),
 };
