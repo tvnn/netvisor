@@ -1,10 +1,11 @@
-use super::{create_http_client, get_common_service_name};
+use super::{create_http_client};
 use serde_json::{json, Value};
 use std::net::ToSocketAddrs;
 use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use crate::components::tests::checks::CheckConfig;
+use crate::shared::utils::get_common_service_name;
 
 pub async fn ssl_certificate_check(config: &CheckConfig) -> Result<Value, String> {
     let target = config.target.as_ref().ok_or("Target hostname is required")?;

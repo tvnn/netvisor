@@ -1,6 +1,9 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH, Duration};
 use crate::components::tests::types::CheckConfig;
 use crate::components::diagnostics::types::CheckResult;
+use reqwest::Client;
+
+
 
 mod basic;
 mod vpn;
@@ -12,7 +15,6 @@ mod security;
 mod performance;
 mod analysis;
 mod cdn;
-mod utils;
 mod vlan;
 
 use basic::*;
@@ -26,10 +28,22 @@ use performance::*;
 use analysis::*;
 use cdn::*;
 
-pub use utils::{
-    create_http_client,
-    get_common_service_name,
-};
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
+const DEFAULT_USER_AGENT: &str = "Netzoot/1.0";
+
+// Create HTTP client with reasonable defaults
+pub fn create_http_client(timeout_ms: Option<u64>) -> Result<Client, String> {
+    let timeout = timeout_ms
+        .map(|ms| Duration::from_millis(ms))
+        .unwrap_or(DEFAULT_TIMEOUT);
+    
+    Client::builder()
+        .timeout(timeout)
+        .user_agent(DEFAULT_USER_AGENT)
+        .danger_accept_invalid_certs(false)
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum CheckError {

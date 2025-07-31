@@ -10,6 +10,7 @@ use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
 };
+use tokio::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
@@ -19,16 +20,22 @@ mod shared;
 use config::ServerConfig;
 use shared::handlers::create_router;
 
-use crate::{components::diagnostics::storage::DiagnosticStorage, shared::storage::StorageFactory};
-use crate::components::tests::storage::{TestStorage};
-use crate::components::nodes::storage::{NodeStorage};
+use crate::{
+    components::{
+        diagnostics::storage::DiagnosticStorage,
+        tests::storage::{TestStorage},
+        nodes::storage::{NodeStorage},
+        discovery::types::NetworkDiscovery
+    },
+    shared::storage::StorageFactory
+};
 
 pub struct AppState {
     pub config: ServerConfig,
     pub node_storage: Box<dyn NodeStorage>,
     pub test_storage: Box<dyn TestStorage>,
-    pub diagnostic_storage: Box<dyn DiagnosticStorage>
-    // pub discovery: Arc<Mutex<NetworkDiscovery>>,
+    pub diagnostic_storage: Box<dyn DiagnosticStorage>,
+    pub discovery: Arc<Mutex<NetworkDiscovery>>,
 }
 
 #[derive(Parser)]
@@ -91,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
     let sqlite_storage= StorageFactory::new_sqlite(&config.database_url()).await?;
 
     // Initialize discovery
-    // let discovery = NetworkDiscovery::new()?;
+    let discovery = NetworkDiscovery::new()?;
     
     // Create app state
     let state = Arc::new(AppState {
@@ -99,7 +106,7 @@ async fn main() -> anyhow::Result<()> {
         node_storage: sqlite_storage.nodes,
         test_storage: sqlite_storage.tests,
         diagnostic_storage: sqlite_storage.diagnostics,
-        // discovery: Arc::new(Mutex::new(discovery))
+        discovery: Arc::new(Mutex::new(discovery))
     });
     
     // Create router
