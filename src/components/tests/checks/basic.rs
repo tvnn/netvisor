@@ -1,10 +1,10 @@
-use crate::types::*;
-use crate::network_checks::create_http_client;
+use super::{create_http_client};
 use serde_json::{json, Value};
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
+use crate::components::tests::checks::CheckConfig;
 
 // Connectivity test - basic HTTP/HTTPS connection
 pub async fn connectivity_check(config: &CheckConfig) -> Result<Value, String> {

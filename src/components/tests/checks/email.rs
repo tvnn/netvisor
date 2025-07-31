@@ -1,10 +1,10 @@
-use crate::types::*;
 use serde_json::{json, Value};
 use std::net::{ToSocketAddrs};
 use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use crate::components::tests::checks::CheckConfig;
 
 // SMTP server connectivity test
 pub async fn smtp_check(config: &CheckConfig) -> Result<Value, String> {

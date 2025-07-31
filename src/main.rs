@@ -4,7 +4,7 @@ use axum::{
     Router,
 };
 use clap::Parser;
-use std::sync::Arc;
+use std::sync::{Arc};
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -13,18 +13,22 @@ use tower_http::{
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
-mod handlers;
-mod storage;
-mod types;
-mod network_checks;
+mod components;
+mod shared;
 
 use config::ServerConfig;
-use handlers::create_router;
-use storage::{SqliteStorage, Storage};
+use shared::handlers::create_router;
+
+use crate::{components::diagnostics::storage::DiagnosticStorage, shared::storage::StorageFactory};
+use crate::components::tests::storage::{TestStorage};
+use crate::components::nodes::storage::{NodeStorage};
 
 pub struct AppState {
     pub config: ServerConfig,
-    pub storage: Box<dyn Storage>,
+    pub node_storage: Box<dyn NodeStorage>,
+    pub test_storage: Box<dyn TestStorage>,
+    pub diagnostic_storage: Box<dyn DiagnosticStorage>
+    // pub discovery: Arc<Mutex<NetworkDiscovery>>,
 }
 
 #[derive(Parser)]
@@ -84,12 +88,18 @@ async fn main() -> anyhow::Result<()> {
         .init();
     
     // Initialize storage
-    let storage = SqliteStorage::new(&config.database_url()).await?;
+    let sqlite_storage= StorageFactory::new_sqlite(&config.database_url()).await?;
+
+    // Initialize discovery
+    // let discovery = NetworkDiscovery::new()?;
     
     // Create app state
     let state = Arc::new(AppState {
         config: config.clone(),
-        storage: Box::new(storage),
+        node_storage: sqlite_storage.nodes,
+        test_storage: sqlite_storage.tests,
+        diagnostic_storage: sqlite_storage.diagnostics,
+        // discovery: Arc::new(Mutex::new(discovery))
     });
     
     // Create router

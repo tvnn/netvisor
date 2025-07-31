@@ -28,6 +28,7 @@ thiserror = "1.0"
 # Networking
 reqwest = { version = "0.11", features = ["json", "stream"] }
 trust-dns-resolver = { version = "0.23", features = ["tokio-runtime"] }
+snmp2 = "0.4.8"
 
 # TLS and security
 rustls = "0.21"

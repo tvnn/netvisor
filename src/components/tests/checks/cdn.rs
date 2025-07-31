@@ -1,8 +1,8 @@
-use crate::types::*;
-use crate::network_checks::{create_http_client};
+use super::{create_http_client};
 use serde_json::{json, Value};
 use std::time::{Instant};
 use std::collections::HashMap;
+use crate::components::tests::checks::CheckConfig;
 
 pub async fn cdn_check(config: &CheckConfig) -> Result<Value, String> {
     let target = config.target.as_ref().ok_or("Target URL is required")?;

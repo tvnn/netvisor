@@ -1,11 +1,11 @@
-use crate::types::*;
 use serde_json::{json, Value};
-use crate::network_checks::{create_http_client};
+use super::{create_http_client};
 use std::net::{ToSocketAddrs};
 use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use futures::StreamExt;
+use crate::components::tests::checks::CheckConfig;
 
 pub async fn bandwidth_check(config: &CheckConfig) -> Result<Value, String> {
     let target = config.target.as_ref().ok_or("Target URL is required")?;

@@ -1,5 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::types::{CheckConfig, CheckResult};
+use crate::components::tests::types::CheckConfig;
+use crate::components::diagnostics::types::CheckResult;
 
 mod basic;
 mod vpn;
@@ -12,6 +13,7 @@ mod performance;
 mod analysis;
 mod cdn;
 mod utils;
+mod vlan;
 
 use basic::*;
 use vpn::*;
@@ -81,6 +83,10 @@ pub async fn execute_check(r#type: &str, config: &CheckConfig) -> CheckResult {
         "mtuDiscoveryCheck" => mtu_discovery_check(&config).await,
         "tracerouteCheck" => traceroute_check(&config).await,
         "portScanCheck" => port_scan_check(&config).await,
+        // "vlanTrunkCheck" => vlan_trunk_check(&config).await,
+        // "nativeVlanMismatchCheck" => native_vlan_mismatch_check(&config).await,
+        // "interVlanRoutingCheck" => inter_vlan_routing_check(&config).await,
+        // "vlanMembershipCheck" => vlan_membership_check(&config).await,
         "cdnCheck" => cdn_check(&config).await,
         _ => Err(CheckError::Config(format!("Unknown check type: {}", r#type)).to_string()),
     };

@@ -1,4 +1,3 @@
-use crate::types::*;
 use serde_json::{json, Value};
 use std::net::{ToSocketAddrs};
 use std::time::{Duration, Instant};
@@ -6,6 +5,7 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 use std::collections::HashMap;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use crate::components::tests::checks::CheckConfig;
 
 pub async fn ftp_check(config: &CheckConfig) -> Result<Value, String> {
     let target = config.target.as_ref().ok_or("FTP server target is required")?;

@@ -1,10 +1,10 @@
-use crate::types::*;
-use crate::network_checks::{create_http_client};
+use super::{create_http_client};
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 use tokio::time::timeout;
 use trust_dns_resolver::config::*;
 use trust_dns_resolver::TokioAsyncResolver;
+use crate::components::tests::checks::CheckConfig;
 
 // DNS resolution test
 pub async fn dns_resolution_check(config: &CheckConfig) -> Result<Value, String> {

@@ -1,10 +1,10 @@
-use crate::types::*;
 use serde_json::{json, Value};
 use std::net::{ToSocketAddrs};
 use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use std::net::Ipv4Addr;
+use crate::components::tests::checks::CheckConfig;
 
 // Local network gateway test - tests basic local network connectivity
 pub async fn local_gateway_check(config: &CheckConfig) -> Result<Value, String> {
