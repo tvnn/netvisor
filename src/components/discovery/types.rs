@@ -6,14 +6,15 @@ use tokio::sync::RwLock;
 use trust_dns_resolver::TokioAsyncResolver;
 
 pub struct NetworkDiscovery {
-    discovered_devices: Arc<RwLock<HashMap<String, DiscoveredDevice>>>,
-    rejected_devices: Arc<RwLock<HashSet<String>>>, // Track rejected device IPs
-    progress: Arc<RwLock<DiscoveryProgress>>,
-    stop_signal: Arc<RwLock<bool>>,
-    resolver: TokioAsyncResolver,
+    pub discovered_devices: Arc<RwLock<HashMap<String, DiscoveredDevice>>>,
+    pub rejected_devices: Arc<RwLock<HashSet<String>>>, // Track rejected device IPs
+    pub progress: Arc<RwLock<DiscoveryProgress>>,
+    pub stop_signal: Arc<RwLock<bool>>,
+    pub resolver: TokioAsyncResolver,
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct StartDiscoveryRequest {
     pub target_subnets: Vec<String>,
     pub discovery_depth: String,

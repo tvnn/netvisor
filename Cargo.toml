@@ -1,8 +1,8 @@
 [package]
-name = "netzoot-server"
+name = "netfrog-server"
 version = "0.1.0"
 edition = "2021"
-description = "HTTP API server for Netzoot network diagnostics"
+description = "HTTP API server for NetFrog network diagnostics"
 
 [dependencies]
 # Web server

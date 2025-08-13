@@ -1,10 +1,11 @@
 // src/discovery/snmp.rs
-use snmp2::{SyncSession, Value as SnmpValue};
+use snmp2::{SyncSession, Value, Oid};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use crate::components::discovery::types::DiscoveryConfig;
+use std::sync::Arc;
 
 const SYSTEM_DESCR: &str = "1.3.6.1.2.1.1.1.0";
 const SYSTEM_NAME: &str = "1.3.6.1.2.1.1.5.0";
@@ -12,17 +13,17 @@ const SYSTEM_CONTACT: &str = "1.3.6.1.2.1.1.4.0";
 const SYSTEM_LOCATION: &str = "1.3.6.1.2.1.1.6.0";
 
 fn create_snmp_session(target: &str, community: &str, timeout_ms: u64) -> Result<SyncSession, String> {
-    let session = SyncSession::new(
-        target, 
-        community.as_bytes(), 
-        Some(Duration::from_millis(timeout_ms)), 
+    let session = SyncSession::new_v2c(
+        target,
+        community.as_bytes(),
+        Some(Duration::from_millis(timeout_ms)),
         0
     ).map_err(|e| format!("Failed to create SNMP session: {}", e))?;
     
     Ok(session)
 }
 
-pub async fn test_snmp_connectivity(ip: &str, community: &str, timeout_ms: u64) -> Result<bool, Box<dyn std::error::Error>> {
+pub async fn test_snmp_connectivity(ip: &str, community: &str, timeout_ms: u64) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
     // Test SNMP connectivity by querying system description
     match query_snmp_get(ip, community, SYSTEM_DESCR, timeout_ms).await {
         Ok(_) => Ok(true),
@@ -38,12 +39,21 @@ pub async fn test_snmp_connectivity(ip: &str, community: &str, timeout_ms: u64) 
 }
 
 async fn query_snmp_get(target: &str, community: &str, oid: &str, timeout_ms: u64) -> Result<String, String> {
-    let session = create_snmp_session(target, community, timeout_ms)?;
+    let mut session = create_snmp_session(target, community, timeout_ms)?;
     
-    match session.get(oid.as_bytes()) {
-        Ok(response) => {
-            if let Some((_, value)) = response.first() {
-                let value_str = snmp_value_to_string(value);
+    // Parse OID string into u64 values
+    let oid_parts: Result<Vec<u64>, _> = oid.split('.')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.parse::<u64>())
+        .collect();
+    
+    let oid_vec = oid_parts.map_err(|e| format!("Invalid OID {}: {}", oid, e))?;
+    let parsed_oid = Oid::from(&oid_vec).map_err(|e| format!("Failed to create OID: {:?}", e))?; // Use {:?} instead of {}
+    
+    match session.get(&parsed_oid) {
+        Ok(mut response) => {
+            if let Some((_, value)) = response.varbinds.next() {
+                let value_str = snmp_value_to_string(&value);
                 Ok(value_str)
             } else {
                 Err("No response received".to_string())
@@ -66,7 +76,7 @@ pub async fn query_snmp_system_info(ip: &str, community: &str, timeout_ms: u64) 
     // Query system description (often contains vendor info)
     if let Ok(description) = query_snmp_get(ip, community, SYSTEM_DESCR, timeout_ms).await {
         if !description.is_empty() && description != "Unknown" {
-            info.insert("description".to_string(), description);
+            info.insert("description".to_string(), description.clone());
             
             // Try to extract vendor from description
             let vendor = extract_vendor_from_description(&description);
@@ -122,16 +132,16 @@ pub async fn snmp_discovery(
     results
 }
 
-fn snmp_value_to_string(value: &SnmpValue) -> String {
+fn snmp_value_to_string(value: &Value) -> String {
     match value {
-        SnmpValue::Integer(i) => i.to_string(),
-        SnmpValue::OctetString(s) => String::from_utf8_lossy(&s).to_string(),
-        SnmpValue::ObjectIdentifier(o) => String::from_utf8_lossy(&o).to_string(),
-        SnmpValue::IpAddress(ip) => format!("{}.{}.{}.{}", ip[0], ip[1], ip[2], ip[3]),
-        SnmpValue::Counter32(c) => c.to_string(),
-        SnmpValue::Gauge32(g) => g.to_string(),
-        SnmpValue::TimeTicks(t) => t.to_string(),
-        SnmpValue::Counter64(c) => c.to_string(),
+        Value::Integer(i) => i.to_string(),
+        Value::OctetString(s) => String::from_utf8_lossy(s).to_string(),
+        Value::ObjectIdentifier(o) => format!("{}", o), // ObjectIdentifier has Display
+        Value::IpAddress(ip) => format!("{}.{}.{}.{}", ip[0], ip[1], ip[2], ip[3]),
+        Value::Counter32(c) => c.to_string(),
+        Value::Unsigned32(g) => g.to_string(),
+        Value::Timeticks(t) => t.to_string(),
+        Value::Counter64(c) => c.to_string(),
         _ => "Unknown".to_string(),
     }
 }

@@ -34,7 +34,7 @@ impl Default for ServerConfig {
                 log_level: "info".to_string(),
             },
             database: DatabaseSettings {
-                path: PathBuf::from("./netzoot.db"),
+                path: PathBuf::from("./netfrog.db"),
             },
             web: WebSettings {
                 external_path: None,
@@ -46,8 +46,8 @@ impl Default for ServerConfig {
 impl ServerConfig {
     pub fn load() -> anyhow::Result<Self> {
         let config = config::Config::builder()
-            .add_source(config::File::with_name("netzoot.toml").required(false))
-            .add_source(config::Environment::with_prefix("NETZOOT"))
+            .add_source(config::File::with_name("netfrog.toml").required(false))
+            .add_source(config::Environment::with_prefix("NETFROG"))
             .build()?;
 
         let server_config: ServerConfig = config.try_deserialize().unwrap_or_default();

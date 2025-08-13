@@ -1530,7 +1530,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "netzoot-server"
+name = "netfrog-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",

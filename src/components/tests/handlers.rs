@@ -1,109 +1,106 @@
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
-    response::{Json},
+    response::Json,
+    routing::{get, post},
+    Router,
 };
 use std::sync::Arc;
-use crate::AppState;
-use crate::shared::handlers::ApiResponse;
-use crate::shared::storage::{StorageError};
+use crate::{
+    api::{ApiResult, ApiResponse, ApiError},
+    core::{TestResult, Node},
+    components::{
+        tests::execution::{execute_test, execute_node_tests, execute_adhoc_test},
+        nodes::service::NodeService,
+    },
+    AppState,
+};
 
-use crate::components::tests::types::{Test, CreateTestRequest, ExecuteCheckRequest};
-use crate::components::tests::checks;
-use crate::components::diagnostics::types::CheckResult;
-
-// Test handlers
-pub async fn get_tests(
-    State(state): State<Arc<AppState>>,
-) -> Result<Json<ApiResponse<Vec<Test>>>, StatusCode> {
-    match state.test_storage.get_tests().await {
-        Ok(tests) => Ok(Json(ApiResponse::success(tests))),
-        Err(e) => {
-            tracing::error!("Failed to get tests: {}", e);
-            Ok(Json(ApiResponse::error(format!("Failed to get tests: {}", e))))
-        }
-    }
+pub fn create_router() -> Router<Arc<AppState>> {
+    Router::new()
+        .route("/execute-adhoc", post(execute_adhoc_test_handler))
+        .route("/execute-node/:node_id", post(execute_node_tests_handler))
+        .route("/results/:node_id", get(get_node_test_results))
 }
 
-pub async fn create_test(
-    State(state): State<Arc<AppState>>,
-    Json(request): Json<CreateTestRequest>,
-) -> Result<Json<ApiResponse<Test>>, StatusCode> {
-    // Parse layers from JSON
-    let layers = match serde_json::from_value(request.layers) {
-        Ok(layers) => layers,
-        Err(e) => return Ok(Json(ApiResponse::error(format!("Invalid layers format: {}", e)))),
-    };
-
-    let test = Test::new(
-        request.name,
-        request.description,
-        layers,
-    );
-
-    match state.test_storage.save_test(&test).await {
-        Ok(_) => Ok(Json(ApiResponse::success(test))),
-        Err(e) => {
-            tracing::error!("Failed to create test: {}", e);
-            Ok(Json(ApiResponse::error(format!("Failed to create test: {}", e))))
-        }
-    }
+#[derive(serde::Deserialize)]
+pub struct ExecuteAdhocTestRequest {
+    pub node_id: String,
+    pub test_type: crate::core::TestType,
+    pub test_config: crate::core::TestConfiguration,
 }
 
-pub async fn update_test(
-    State(state): State<Arc<AppState>>,
-    Path(id): Path<String>,
-    Json(request): Json<CreateTestRequest>,
-) -> Result<Json<ApiResponse<Test>>, StatusCode> {
-    // Get existing test to preserve timestamps
-    let mut test = match state.test_storage.get_test(&id).await {
-        Ok(test) => test,
-        Err(StorageError::NotFound) => return Ok(Json(ApiResponse::error("Test not found".to_string()))),
-        Err(e) => {
-            tracing::error!("Failed to get test: {}", e);
-            return Ok(Json(ApiResponse::error(format!("Failed to get test: {}", e))));
-        }
-    };
-
-    let layers = match serde_json::from_value(request.layers) {
-        Ok(layers) => layers,
-        Err(e) => return Ok(Json(ApiResponse::error(format!("Invalid layers format: {}", e)))),
-    };
-
-    // Update fields
-    test.name = request.name;
-    test.layers = layers;
-    test.description = request.description;
-    test.updated_at = chrono::Utc::now();
-
-    match state.test_storage.update_test(&id, &test).await {
-        Ok(_) => Ok(Json(ApiResponse::success(test))),
-        Err(e) => {
-            tracing::error!("Failed to update test: {}", e);
-            Ok(Json(ApiResponse::error(format!("Failed to update test: {}", e))))
-        }
-    }
+#[derive(serde::Serialize)]
+pub struct TestExecutionResponse {
+    pub result: TestResult,
 }
 
-pub async fn delete_test(
-    State(state): State<Arc<AppState>>,
-    Path(id): Path<String>,
-) -> Result<Json<ApiResponse<()>>, StatusCode> {
-    match state.test_storage.delete_test(&id).await {
-        Ok(_) => Ok(Json(ApiResponse::success(()))),
-        Err(StorageError::NotFound) => Ok(Json(ApiResponse::error("Test not found".to_string()))),
-        Err(e) => {
-            tracing::error!("Failed to delete test: {}", e);
-            Ok(Json(ApiResponse::error(format!("Failed to delete test: {}", e))))
-        }
-    }
+#[derive(serde::Serialize)]
+pub struct NodeTestExecutionResponse {
+    pub node_id: String,
+    pub results: Vec<TestResult>,
+    pub executed_at: String,
 }
 
-// Individual check execution
-pub async fn execute_check(
-    Path(check_type): Path<String>,
-    Json(request): Json<ExecuteCheckRequest>,
-) -> Result<Json<ApiResponse<CheckResult>>, StatusCode> {
-    let result = checks::execute_check(&check_type, &request.config).await;
-    Ok(Json(ApiResponse::success(result)))
+/// Execute a single ad-hoc test
+async fn execute_adhoc_test_handler(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<ExecuteAdhocTestRequest>,
+) -> ApiResult<Json<ApiResponse<TestExecutionResponse>>> {
+    let node_service = NodeService::new(state.node_storage.clone());
+    
+    // Get the target node
+    let node = node_service.get_node(&request.node_id).await?
+        .ok_or_else(|| ApiError::node_not_found(&request.node_id))?;
+    
+    // Execute the test
+    let result = execute_adhoc_test(
+        request.test_type,
+        request.test_config,
+        &node,
+    ).await.map_err(|e| ApiError::test_execution_error(&e.to_string()))?;
+    
+    Ok(Json(ApiResponse::success(TestExecutionResponse { result })))
+}
+
+/// Execute all assigned tests on a node
+async fn execute_node_tests_handler(
+    State(state): State<Arc<AppState>>,
+    Path(node_id): Path<String>,
+) -> ApiResult<Json<ApiResponse<NodeTestExecutionResponse>>> {
+    let node_service = NodeService::new(state.node_storage.clone());
+    
+    // Get the target node
+    let node = node_service.get_node(&node_id).await?
+        .ok_or_else(|| ApiError::node_not_found(&node_id))?;
+    
+    // Execute all assigned tests
+    let results = execute_node_tests(&node).await
+        .map_err(|e| ApiError::test_execution_error(&e.to_string()))?;
+    
+    // Update node status based on results
+    let mut updated_node = node.clone();
+    updated_node.compute_status_from_tests(&results);
+    updated_node.last_seen = Some(chrono::Utc::now());
+    node_service.update_node(updated_node).await?;
+    
+    Ok(Json(ApiResponse::success(NodeTestExecutionResponse {
+        node_id: node_id.clone(),
+        results,
+        executed_at: chrono::Utc::now().to_rfc3339(),
+    })))
+}
+
+/// Get recent test results for a node (placeholder - you might want to store results)
+async fn get_node_test_results(
+    State(state): State<Arc<AppState>>,
+    Path(node_id): Path<String>,
+) -> ApiResult<Json<ApiResponse<Vec<TestResult>>>> {
+    let node_service = NodeService::new(state.node_storage.clone());
+    
+    // Verify node exists
+    let _node = node_service.get_node(&node_id).await?
+        .ok_or_else(|| ApiError::node_not_found(&node_id))?;
+    
+    // For now, return empty results - you might want to implement result storage later
+    Ok(Json(ApiResponse::success(Vec::new())))
 }

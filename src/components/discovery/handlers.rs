@@ -74,7 +74,7 @@ pub async fn accept_discovered_device(
     match discovery.accept_device(&device_id).await {
         Ok(node) => {
             // Save the new node to storage
-            match state.storage.save_node(&node).await {
+            match state.node_storage.save_node(&node).await {
                 Ok(_) => Ok(Json(ApiResponse::success(node))),
                 Err(e) => {
                     tracing::error!("Failed to save accepted device as node: {}", e);

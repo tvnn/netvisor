@@ -9,7 +9,7 @@ use tokio::time::timeout;
 use crate::shared::utils::get_common_service_name;
 use crate::components::discovery::types::{DiscoveryConfig, DeviceType};
 
-pub async fn ping_host(ip: &str, timeout_ms: u64) -> Result<bool, Box<dyn std::error::Error>> {
+pub async fn ping_host(ip: &str, timeout_ms: u64) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
     // Use TCP connect to port 80 as a proxy for "ping" since ICMP requires privileges
     let addr = format!("{}:80", ip);
     match timeout(Duration::from_millis(timeout_ms), TcpStream::connect(&addr)).await {
@@ -148,7 +148,7 @@ pub fn classify_device_type(ports: &[u16]) -> DeviceType {
     DeviceType::Unknown
 }
 
-pub async fn detect_services_on_ports(ip: &str, ports: &[u16], _timeout_ms: u64) -> Vec<String> {
+pub async fn detect_services_on_ports(_ip: &str, ports: &[u16], _timeout_ms: u64) -> Vec<String> {
     let mut services = Vec::new();
     
     for &port in ports {

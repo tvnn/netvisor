@@ -4,7 +4,7 @@ port = 3000
 log_level = "info"
 
 [database]
-path = "./netzoot.db"
+path = "./netfrog.db"
 
 [web]
 # external_path = "./web-dist"  # Optional: serve web UI from external directory

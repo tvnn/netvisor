@@ -1,9 +1,23 @@
+use crate::components::discovery::types::*;
+use super::{snmp,scanner};
+use std::net::Ipv4Addr;
+use std::time::Instant;
+use tokio::sync::RwLock;
+use trust_dns_resolver::{TokioAsyncResolver};
+use trust_dns_resolver::config::{ResolverOpts,ResolverConfig};
+use std::net::IpAddr;
+use std::sync::Arc;
+use uuid::Uuid;
+use anyhow::Result;
+use std::collections::{HashMap,HashSet};
+use crate::components::nodes::types::NetworkNode;
+
 impl NetworkDiscovery {
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new() -> Result<Self> {
         let resolver = TokioAsyncResolver::tokio(
             ResolverConfig::default(),
             ResolverOpts::default(),
-        )?;
+        );
 
         Ok(Self {
             discovered_devices: Arc::new(RwLock::new(HashMap::new())),

@@ -4,46 +4,37 @@ use axum::{
     Router,
 };
 use clap::Parser;
-use std::sync::{Arc};
+use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
     trace::TraceLayer,
 };
-use tokio::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
+mod core;
+mod api;
 mod components;
 mod shared;
 
 use config::ServerConfig;
 use shared::handlers::create_router;
-
-use crate::{
-    components::{
-        diagnostics::storage::DiagnosticStorage,
-        tests::storage::{TestStorage},
-        nodes::storage::{NodeStorage},
-        discovery::types::NetworkDiscovery
-    },
-    shared::storage::StorageFactory
-};
+use shared::storage::StorageFactory;
 
 pub struct AppState {
     pub config: ServerConfig,
-    pub node_storage: Box<dyn NodeStorage>,
-    pub test_storage: Box<dyn TestStorage>,
-    pub diagnostic_storage: Box<dyn DiagnosticStorage>,
-    pub discovery: Arc<Mutex<NetworkDiscovery>>,
+    pub node_storage: Arc<dyn components::nodes::storage::NodeStorage>,
+    pub node_group_storage: Arc<dyn components::node_groups::storage::NodeGroupStorage>,
+    pub diagnostic_storage: Arc<dyn shared::storage::DiagnosticStorage>,
 }
 
 #[derive(Parser)]
-#[command(name = "netzoot-server")]
-#[command(about = "Netzoot network diagnostics server")]
+#[command(name = "netfrog-server")]
+#[command(about = "NetFrog network diagnostics server")]
 struct Cli {
     /// Configuration file path
-    #[arg(short, long, default_value = "netzoot.toml")]
+    #[arg(short, long, default_value = "netfrog.toml")]
     config: String,
     
     /// Override server host
@@ -60,13 +51,11 @@ struct Cli {
 }
 
 async fn serve_web_assets(_uri: Uri) -> Response {
-    // Temporary placeholder - will implement once UI is built
-    Html("<h1>Netzoot API Server</h1><p>UI not built yet. API available at /api</p>").into_response()
+    Html("<h1>NetFrog API Server</h1><p>UI not built yet. API available at /api</p>").into_response()
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-
     let _ = dotenv::dotenv();
     
     let cli = Cli::parse();
@@ -95,18 +84,14 @@ async fn main() -> anyhow::Result<()> {
         .init();
     
     // Initialize storage
-    let sqlite_storage= StorageFactory::new_sqlite(&config.database_url()).await?;
-
-    // Initialize discovery
-    let discovery = NetworkDiscovery::new()?;
+    let storage = StorageFactory::new_sqlite(&config.database_url()).await?;
     
     // Create app state
     let state = Arc::new(AppState {
         config: config.clone(),
-        node_storage: sqlite_storage.nodes,
-        test_storage: sqlite_storage.tests,
-        diagnostic_storage: sqlite_storage.diagnostics,
-        discovery: Arc::new(Mutex::new(discovery))
+        node_storage: storage.nodes,
+        node_group_storage: storage.node_groups,
+        diagnostic_storage: storage.diagnostics,
     });
     
     // Create router
@@ -115,7 +100,7 @@ async fn main() -> anyhow::Result<()> {
     // Create main app with web assets fallback
     let app = Router::new()
         .merge(api_router)
-        .fallback(serve_web_assets)  // Keep this line
+        .fallback(serve_web_assets)
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())
@@ -130,7 +115,7 @@ async fn main() -> anyhow::Result<()> {
     let addr = format!("{}:{}", config.server.host, config.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     
-    tracing::info!("🚀 Netzoot server starting on http://{}", addr);
+    tracing::info!("🚀 NetFrog server starting on http://{}", addr);
     tracing::info!("📊 Web UI available at http://{}", addr);
     tracing::info!("🔧 API available at http://{}/api", addr);
     
