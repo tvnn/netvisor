@@ -26,7 +26,7 @@ export const nodeActions = {
     }
   },
 
-  async createNode(data: any): Promise<Node | null> {
+  async createNode(data: any) {
     loading.set(true);
     error.set(null);
     
@@ -49,7 +49,7 @@ export const nodeActions = {
     }
   },
 
-  async updateNode(id: string, data: any): Promise<Node | null> {
+  async updateNode(id: string, data: any) {
     loading.set(true);
     error.set(null);
     
@@ -74,7 +74,7 @@ export const nodeActions = {
     }
   },
 
-  async deleteNode(id: string): Promise<boolean> {
+  async deleteNode(id: string) {
     loading.set(true);
     error.set(null);
     
@@ -96,7 +96,7 @@ export const nodeActions = {
     }
   },
 
-  async assignTest(data: any): Promise<boolean> {
+  async assignTest(data: any) {
     try {
       const response = await api.assignTest(data);
       if (response.success) {
@@ -113,7 +113,7 @@ export const nodeActions = {
     }
   },
 
-  async setMonitoring(nodeId: string, enabled: boolean): Promise<boolean> {
+  async setMonitoring(nodeId: string, enabled: boolean) {
     try {
       const response = await api.setMonitoring(nodeId, enabled);
       if (response.success) {

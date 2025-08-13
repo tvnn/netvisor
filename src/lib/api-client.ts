@@ -1,5 +1,5 @@
-// API client for HTTP backend
-import type { NetworkNode, Test, DiagnosticResults, CheckResult, CheckConfig } from './types';
+// API client for NetFrog backend
+const API_BASE = 'http://localhost:3000/api';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -8,163 +8,107 @@ interface ApiResponse<T> {
 }
 
 class ApiClient {
-  private baseUrl: string;
-
-  constructor() {
-    // Auto-detect API endpoint
-    if (typeof window !== 'undefined') {
-      // In browser - use current origin with /api prefix
-      this.baseUrl = `${window.location.origin}/api`;
-    } else {
-      // SSR/build time - use default
-      this.baseUrl = 'http://localhost:3000/api';
-    }
-  }
-
-  private async request<T>(
-    endpoint: string, 
-    options: RequestInit = {}
-  ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+    const url = `${API_BASE}${endpoint}`;
     
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ 
+          success: false, 
+          error: `HTTP ${response.status}: ${response.statusText}` 
+        }));
+        return { success: false, error: errorData.error || `HTTP ${response.status}` };
+      }
+
+      return await response.json();
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Network error' 
+      };
     }
-
-    const result: ApiResponse<T> = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.error || 'API request failed');
-    }
-
-    return result.data!;
   }
 
   // Health check
-  async health(): Promise<Record<string, string>> {
-    return this.request('/health');
+  async getHealth() {
+    return this.request<string>('/health');
   }
 
   // Node operations
-  async getNodes(): Promise<NetworkNode[]> {
-    return this.request('/nodes');
+  async getNodes() {
+    return this.request<{ nodes: any[]; total: number }>('/nodes');
   }
 
-  async saveNode(node: Omit<NetworkNode, 'id' | 'created_at' | 'updated_at'>): Promise<NetworkNode> {
-    return this.request('/nodes', {
+  async getNode(id: string) {
+    return this.request<{ node: any }>(`/nodes/${id}`);
+  }
+
+  async createNode(data: any) {
+    return this.request<{ node: any }>('/nodes', {
       method: 'POST',
-      body: JSON.stringify(node),
+      body: JSON.stringify(data),
     });
   }
 
-  async updateNode(id: string, node: Omit<NetworkNode, 'id' | 'created_at' | 'updated_at'>): Promise<NetworkNode> {
-    return this.request(`/nodes/${id}`, {
+  async updateNode(id: string, data: any) {
+    return this.request<{ node: any }>(`/nodes/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(node),
+      body: JSON.stringify(data),
     });
   }
 
-  async deleteNode(id: string): Promise<void> {
-    return this.request(`/nodes/${id}`, {
+  async deleteNode(id: string) {
+    return this.request<void>(`/nodes/${id}`, {
       method: 'DELETE',
     });
   }
 
-  // Test operations
-  async getTests(): Promise<Test[]> {
-    return this.request('/tests');
-  }
-
-  async saveTest(test: Omit<Test, 'id' | 'created_at' | 'updated_at'>): Promise<Test> {
-    return this.request('/tests', {
+  async assignTest(data: any) {
+    return this.request<void>(`/nodes/${data.node_id}/assign-test`, {
       method: 'POST',
-      body: JSON.stringify({
-        name: test.name,
-        description: test.description,
-        layers: test.layers,
-      }),
+      body: JSON.stringify(data),
     });
   }
 
-  async updateTest(id: string, test: Omit<Test, 'id' | 'created_at' | 'updated_at'>): Promise<Test> {
-    return this.request(`/tests/${id}`, {
+  async setMonitoring(nodeId: string, enabled: boolean) {
+    return this.request<void>(`/nodes/${nodeId}/monitoring`, {
       method: 'PUT',
-      body: JSON.stringify({
-        name: test.name,
-        description: test.description,
-        layers: test.layers,
-      }),
+      body: JSON.stringify({ node_id: nodeId, enabled }),
     });
   }
 
-  async deleteTest(id: string): Promise<void> {
-    return this.request(`/tests/${id}`, {
+  // Node group operations
+  async getNodeGroups() {
+    return this.request<{ groups: any[]; total: number }>('/groups');
+  }
+
+  async createNodeGroup(data: any) {
+    return this.request<{ group: any }>('/groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateNodeGroup(id: string, data: any) {
+    return this.request<{ group: any }>(`/groups/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteNodeGroup(id: string) {
+    return this.request<void>(`/groups/${id}`, {
       method: 'DELETE',
     });
-  }
-
-  // Diagnostics
-  async runDiagnostics(testId: string): Promise<DiagnosticResults> {
-    return this.request(`/diagnostics/run/${testId}`, {
-      method: 'POST',
-    });
-  }
-
-  async getDiagnosticResults(testId?: string, limit?: number): Promise<DiagnosticResults[]> {
-    const params = new URLSearchParams();
-    if (testId) params.set('test_id', testId);
-    if (limit) params.set('limit', limit.toString());
-    
-    const query = params.toString();
-    return this.request(`/diagnostics/results${query ? `?${query}` : ''}`);
-  }
-
-  // Individual checks
-  async executeCheck(checkType: string, config: CheckConfig): Promise<CheckResult> {
-    return this.request(`/checks/${checkType}`, {
-      method: 'POST',
-      body: JSON.stringify({ config }),
-    });
-  }
-
-  // Configuration
-  async getConfig(): Promise<any> {
-    return this.request('/config');
   }
 }
 
-// Export singleton instance
-export const apiClient = new ApiClient();
-
-// Export commands interface
-export const api = {
-  // Health
-  health: () => apiClient.health(),
-
-  // Nodes
-  getNodes: () => apiClient.getNodes(),
-  saveNode: (node: Omit<NetworkNode, 'id' | 'created_at' | 'updated_at'>) => apiClient.saveNode(node),
-  updateNode: (id: string, node: Omit<NetworkNode, 'id' | 'created_at' | 'updated_at'>) => apiClient.updateNode(id, node),
-  deleteNode: (id: string) => apiClient.deleteNode(id),
-
-  // Tests  
-  getTests: () => apiClient.getTests(),
-  saveTest: (test: Omit<Test, 'id' | 'created_at' | 'updated_at'>) => apiClient.saveTest(test),
-  updateTest: (id: string, test: Omit<Test, 'id' | 'created_at' | 'updated_at'>) => apiClient.updateTest(id, test),
-  deleteTest: (id: string) => apiClient.deleteTest(id),
-
-  // Diagnostics
-  runDiagnostics: (test: Test) => apiClient.runDiagnostics(test.id),
-  getDiagnosticResults: (testId?: string, limit?: number) => apiClient.getDiagnosticResults(testId, limit),
-
-  // Checks
-  executeCheck: (checkType: string, config: CheckConfig) => apiClient.executeCheck(checkType, config),
-};
+export const api = new ApiClient();
