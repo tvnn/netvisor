@@ -194,10 +194,11 @@ impl DiagnosticStatus {
     }
 }
 
+// src/core/types.rs - Add this method to the Node implementation
+
 impl Node {
-    /// Create a new network node with defaults
     pub fn new(name: String) -> Self {
-        let now = Utc::now().to_rfc3339();
+        let now = chrono::Utc::now().to_rfc3339();
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             name,
@@ -220,47 +221,31 @@ impl Node {
         }
     }
 
-    /// Update the node's status based on test results
+    /// Compute and update node status based on test results
     pub fn compute_status_from_tests(&mut self, test_results: &[TestResult]) {
+        use crate::core::test_types::TestCriticality;
+        
         if test_results.is_empty() {
             self.current_status = NodeStatus::Unknown;
             return;
         }
-
+        
         let mut has_critical_failure = false;
         let mut has_important_failure = false;
-
-        // Check each assigned test against results
-        for assigned_test in &self.assigned_tests {
-            if !assigned_test.enabled {
-                continue;
-            }
-
-            // Find matching test result
-            let test_result = test_results.iter()
-                .find(|r| r.test_type == assigned_test.test_type);
-
-            if let Some(result) = test_result {
-                if !result.success {
+        
+        for result in test_results {
+            if !result.success {
+                // Find the criticality for this test type
+                if let Some(assigned_test) = self.assigned_tests.iter().find(|t| t.test_type == result.test_type) {
                     match assigned_test.criticality {
                         TestCriticality::Critical => has_critical_failure = true,
                         TestCriticality::Important => has_important_failure = true,
-                        TestCriticality::Informational => {
-                            // Informational failures don't affect status
-                        }
+                        TestCriticality::Informational => {}, // Doesn't affect status
                     }
-                }
-            } else {
-                // No result for this test - treat as failure based on criticality
-                match assigned_test.criticality {
-                    TestCriticality::Critical => has_critical_failure = true,
-                    TestCriticality::Important => has_important_failure = true,
-                    TestCriticality::Informational => {}
                 }
             }
         }
-
-        // Determine overall status
+        
         self.current_status = if has_critical_failure {
             NodeStatus::Failed
         } else if has_important_failure {
@@ -270,31 +255,38 @@ impl Node {
         };
     }
 
-    /// Get all tests assigned to this node with a specific criticality
-    pub fn get_tests_by_criticality(&self, criticality: TestCriticality) -> Vec<&AssignedTest> {
-        self.assigned_tests
-            .iter()
-            .filter(|t| t.criticality == criticality)
-            .collect()
+    /// Get the target for tests (IP, domain, or name in preference order)
+    pub fn get_target(&self) -> String {
+        self.ip.clone()
+            .or_else(|| self.domain.clone())
+            .unwrap_or_else(|| self.name.clone())
     }
 
-    /// Check if node has a specific capability
-    pub fn has_capability(&self, capability: &NodeCapability) -> bool {
-        self.capabilities.contains(capability)
+    /// Check if a test type is already assigned to this node
+    pub fn has_assigned_test(&self, test_type: &TestType) -> bool {
+        self.assigned_tests.iter().any(|t| &t.test_type == test_type)
+    }
+
+    /// Get assigned test by type
+    pub fn get_assigned_test(&self, test_type: &TestType) -> Option<&AssignedTest> {
+        self.assigned_tests.iter().find(|t| &t.test_type == test_type)
+    }
+
+    /// Get all enabled assigned tests
+    pub fn get_enabled_tests(&self) -> Vec<&AssignedTest> {
+        self.assigned_tests.iter().filter(|t| t.enabled).collect()
     }
 
     /// Get monitoring tests (tests with intervals set)
     pub fn get_monitoring_tests(&self) -> Vec<&AssignedTest> {
-        self.assigned_tests
-            .iter()
+        self.assigned_tests.iter()
             .filter(|t| t.enabled && t.monitor_interval_minutes.is_some())
             .collect()
     }
 
     /// Get diagnostic-only tests (tests without monitoring intervals)
     pub fn get_diagnostic_tests(&self) -> Vec<&AssignedTest> {
-        self.assigned_tests
-            .iter()
+        self.assigned_tests.iter()
             .filter(|t| t.enabled && t.monitor_interval_minutes.is_none())
             .collect()
     }

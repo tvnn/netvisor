@@ -19,7 +19,7 @@ pub async fn execute_dns_resolution_test(config: &DnsResolutionConfig) -> Result
     let duration = start.elapsed();
     
     let (success, message, details) = match result {
-        Ok(Ok(mut addresses)) => {
+        Ok(Ok(addresses)) => {
             let ips: Vec<String> = addresses
                 .map(|addr| addr.ip().to_string())
                 .collect();

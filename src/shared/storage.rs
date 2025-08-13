@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::components::{
     nodes::storage::{NodeStorage, SqliteNodeStorage},
     node_groups::storage::{NodeGroupStorage, SqliteNodeGroupStorage},
+    tests::storage::{TestStorage, SqliteTestStorage}
     // diagnostics::storage::{DiagnosticStorage, SqliteDiagnosticStorage},
 };
 use super::database::DatabaseMigrations;
@@ -12,7 +13,8 @@ use super::database::DatabaseMigrations;
 pub struct StorageFactory {
     pub nodes: Arc<dyn NodeStorage>,
     pub node_groups: Arc<dyn NodeGroupStorage>,
-    pub diagnostics: Arc<dyn DiagnosticStorage>,
+    pub tests: Arc<dyn TestStorage>
+    // pub diagnostics: Arc<dyn DiagnosticStorage>,
 }
 
 impl StorageFactory {
@@ -25,7 +27,8 @@ impl StorageFactory {
         Ok(Self {
             nodes: Arc::new(SqliteNodeStorage::new(pool.clone())),
             node_groups: Arc::new(SqliteNodeGroupStorage::new(pool.clone())),
-            diagnostics: Arc::new(SqliteDiagnosticStorage::new(pool)),
+            tests: Arc::new(SqliteTestStorage::new(pool.clone())),
+            // diagnostics: Arc::new(SqliteDiagnosticStorage::new(pool)),
         })
     }
 }

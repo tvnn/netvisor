@@ -28,10 +28,10 @@ pub enum TestType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TestCapabilityRequirements {
-    pub required_capabilities: Vec<NodeCapability>,
-    pub required_node_types: Vec<NodeType>,
-    pub forbidden_node_types: Vec<NodeType>,
+pub struct TestRecommendation {
+    pub ideal_node_types: Vec<NodeType>,
+    pub helpful_capabilities: Vec<NodeCapability>,
+    pub warning_message: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -81,93 +81,128 @@ impl TestType {
         }
     }
 
-    /// Get capability requirements for this test type
-    pub fn capability_requirements(&self) -> Option<TestCapabilityRequirements> {
+    /// Get recommendations for this test type (replaces hard restrictions)
+    pub fn get_recommendations(&self) -> TestRecommendation {
         match self {
-            // VPN tests require VPN-capable nodes
-            TestType::VpnConnectivity | TestType::VpnTunnel => Some(TestCapabilityRequirements {
-                required_capabilities: vec![],
-                required_node_types: vec![NodeType::VpnServer],
-                forbidden_node_types: vec![NodeType::Printer, NodeType::Camera, NodeType::IotDevice],
-            }),
-            
-            // DNS resolution tests work best with DNS servers but can run on any network-capable device
-            TestType::DnsResolution | TestType::DnsOverHttps => Some(TestCapabilityRequirements {
-                required_capabilities: vec![],
-                required_node_types: vec![], // Allow on any node type
-                forbidden_node_types: vec![NodeType::Printer], // Printers typically can't do DNS queries
-            }),
-            
-            // Service health tests require HTTP/HTTPS capabilities
-            TestType::ServiceHealth => Some(TestCapabilityRequirements {
-                required_capabilities: vec![NodeCapability::HttpService], // OR NodeCapability::HttpsService
-                required_node_types: vec![],
-                forbidden_node_types: vec![NodeType::Printer, NodeType::Camera],
-            }),
-            
-            // Daemon/SSH tests require remote access capabilities
-            TestType::DaemonCommand => Some(TestCapabilityRequirements {
-                required_capabilities: vec![], // Daemon will be installed separately
-                required_node_types: vec![NodeType::Router, NodeType::WebServer, NodeType::DatabaseServer, 
-                                         NodeType::MediaServer, NodeType::DnsServer, NodeType::VpnServer, 
-                                         NodeType::NasDevice, NodeType::Workstation],
-                forbidden_node_types: vec![NodeType::Printer, NodeType::Camera, NodeType::IotDevice],
-            }),
-            
-            TestType::SshScript => Some(TestCapabilityRequirements {
-                required_capabilities: vec![NodeCapability::SshAccess],
-                required_node_types: vec![],
-                forbidden_node_types: vec![NodeType::Printer, NodeType::Camera, NodeType::IotDevice],
-            }),
-            
-            // Basic connectivity tests can run against any network-accessible device
-            TestType::Connectivity | TestType::DirectIp | TestType::Ping | TestType::WellknownIp => None,
+            TestType::VpnConnectivity => TestRecommendation {
+                ideal_node_types: vec![NodeType::VpnServer],
+                helpful_capabilities: vec![],
+                warning_message: Some("VPN connectivity tests work best with VPN servers, but can test any network endpoint".to_string()),
+            },
+            TestType::VpnTunnel => TestRecommendation {
+                ideal_node_types: vec![NodeType::VpnServer],
+                helpful_capabilities: vec![],
+                warning_message: Some("VPN tunnel tests are designed for VPN servers and may not work as expected on other device types".to_string()),
+            },
+            TestType::ServiceHealth => TestRecommendation {
+                ideal_node_types: vec![NodeType::WebServer],
+                helpful_capabilities: vec![NodeCapability::HttpService, NodeCapability::HttpsService],
+                warning_message: Some("Service health tests work best with web servers, but can test any HTTP/HTTPS endpoint".to_string()),
+            },
+            TestType::DnsResolution => TestRecommendation {
+                ideal_node_types: vec![NodeType::DnsServer],
+                helpful_capabilities: vec![NodeCapability::DnsService],
+                warning_message: None, // DNS resolution can be tested from any device
+            },
+            TestType::DnsOverHttps => TestRecommendation {
+                ideal_node_types: vec![],
+                helpful_capabilities: vec![],
+                warning_message: None, // DoH can be tested from any device
+            },
+            TestType::DaemonCommand => TestRecommendation {
+                ideal_node_types: vec![
+                    NodeType::Router, NodeType::WebServer, NodeType::DatabaseServer, 
+                    NodeType::MediaServer, NodeType::DnsServer, NodeType::VpnServer, 
+                    NodeType::NasDevice, NodeType::Workstation
+                ],
+                helpful_capabilities: vec![],
+                warning_message: Some("Daemon commands require NetFrog daemon installation and may not work on IoT devices, printers, or cameras".to_string()),
+            },
+            TestType::SshScript => TestRecommendation {
+                ideal_node_types: vec![
+                    NodeType::Router, NodeType::WebServer, NodeType::DatabaseServer, 
+                    NodeType::MediaServer, NodeType::DnsServer, NodeType::VpnServer, 
+                    NodeType::NasDevice, NodeType::Workstation
+                ],
+                helpful_capabilities: vec![NodeCapability::SshAccess],
+                warning_message: Some("SSH tests require SSH access and may not work on IoT devices, printers, or cameras".to_string()),
+            },
+            // Basic connectivity tests work with any device
+            TestType::Connectivity | TestType::DirectIp | TestType::Ping | TestType::WellknownIp => {
+                TestRecommendation {
+                    ideal_node_types: vec![],
+                    helpful_capabilities: vec![],
+                    warning_message: None,
+                }
+            },
         }
     }
-    
-    /// Check if this test type is compatible with a node
-    pub fn is_compatible_with_node(&self, node: &Node) -> bool {
-        if let Some(requirements) = self.capability_requirements() {
-            // Check forbidden node types
-            if let Some(node_type) = &node.node_type {
-                if requirements.forbidden_node_types.contains(node_type) {
-                    return false;
-                }
-            }
-            
-            // Check required node types (if specified)
-            if !requirements.required_node_types.is_empty() {
-                if let Some(node_type) = &node.node_type {
-                    if !requirements.required_node_types.contains(node_type) {
-                        return false;
-                    }
-                } else {
-                    return false; // Required node type but node has no type
-                }
-            }
-            
-            // Check required capabilities (if specified)
-            if !requirements.required_capabilities.is_empty() {
-                for required_cap in &requirements.required_capabilities {
-                    if !node.capabilities.contains(required_cap) {
-                        return false;
-                    }
-                }
-            }
-        }
-        
+
+    /// Check if this test is compatible (now always returns true, but provides warning info)
+    pub fn is_compatible_with_node(&self, _node: &Node) -> bool {
+        // Always allow assignment - we'll show warnings in the UI instead
         true
     }
 
-    /// Generate contextual test description
-    pub fn generate_description(&self, node: &Node) -> String {
-        let node_type_str = node.node_type.as_ref()
-            .map(|t| t.display_name().to_lowercase())
-            .unwrap_or("device".to_string());
-            
+    /// Get warning message for assigning this test to a specific node
+    pub fn get_assignment_warning(&self, node: &Node) -> Option<String> {
+        let recommendations = self.get_recommendations();
+        
+        // Check if this is an ideal assignment
+        if let Some(node_type) = &node.node_type {
+            if recommendations.ideal_node_types.contains(node_type) {
+                return None; // Perfect match, no warning
+            }
+        }
+        
+        // Check if node has helpful capabilities
+        let has_helpful_caps = recommendations.helpful_capabilities.is_empty() || 
+            recommendations.helpful_capabilities.iter().any(|cap| node.capabilities.contains(cap));
+        
+        // Generate warning based on context
         match self {
-            TestType::Connectivity => format!("Can we reach your {}?", node_type_str),
-            TestType::DirectIp => format!("Can we connect directly to your {}?", node_type_str),
+            TestType::VpnConnectivity | TestType::VpnTunnel => {
+                if !matches!(node.node_type, Some(NodeType::VpnServer)) {
+                    Some(format!("⚠️ {} tests are typically used with VPN servers. This will test basic connectivity but may not provide VPN-specific insights.", self.display_name()))
+                } else {
+                    None
+                }
+            },
+            TestType::ServiceHealth => {
+                if !has_helpful_caps && !matches!(node.node_type, Some(NodeType::WebServer)) {
+                    Some("⚠️ Service health tests work best with web services. Ensure the target has an HTTP/HTTPS endpoint.".to_string())
+                } else {
+                    None
+                }
+            },
+            TestType::DaemonCommand => {
+                if matches!(node.node_type, Some(NodeType::Printer | NodeType::Camera | NodeType::IotDevice)) {
+                    Some("⚠️ Daemon commands may not work on this device type. Ensure NetFrog daemon can be installed.".to_string())
+                } else {
+                    None
+                }
+            },
+            TestType::SshScript => {
+                if !node.capabilities.contains(&NodeCapability::SshAccess) {
+                    Some("⚠️ SSH tests require SSH access. Ensure this device accepts SSH connections.".to_string())
+                } else {
+                    None
+                }
+            },
+            _ => None, // No warnings for basic connectivity tests
+        }
+    }
+
+    /// Generate contextual description for this test on a specific node
+    pub fn generate_context_description(&self, node: &Node) -> String {
+        let node_type_str = node.node_type
+            .as_ref()
+            .map(|t| t.display_name())
+            .unwrap_or("device");
+
+        match self {
+            TestType::Connectivity => format!("Can we connect to your {}?", node_type_str),
+            TestType::DirectIp => format!("Can we reach your {} directly by IP?", node_type_str),
             TestType::Ping => format!("Can we ping your {}?", node_type_str),
             TestType::WellknownIp => "Can we reach well-known internet services?".to_string(),
             TestType::DnsResolution => {

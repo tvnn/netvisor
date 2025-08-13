@@ -15,7 +15,8 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/api/health", get(health_check))
         .route("/api/status", get(system_status))
         .nest("/api/nodes", node_handlers::create_router())
-        .nest("/api/groups", group_handlers::create_router()) // TODO: Implement
+        .nest("/api/groups", group_handlers::create_router())
+        .nest("/api/tests", crate::components::tests::handlers::create_router())
         // .nest("/api/diagnostics", diagnostic_handlers::create_router()) // TODO: Implement
         // .nest("/api/monitoring", monitoring_handlers::create_router()) // TODO: Implement
         // .nest("/api/discovery", discovery_handlers::create_router()) // TODO: Implement

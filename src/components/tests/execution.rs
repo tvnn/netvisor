@@ -1,5 +1,6 @@
+// src/components/tests/execution.rs
 use anyhow::Result;
-use crate::core::{TestType, TestConfiguration, TestResult, Node};
+use crate::core::{TestType, TestConfiguration, TestCriticality, TestResult, Node, NodeStatus};
 use crate::components::tests::implementations::*;
 
 /// Execute a test with type-safe configuration
@@ -29,40 +30,55 @@ pub async fn execute_test(
         });
     }
 
+    // Validate test configuration matches test type
+    if let Err(e) = validate_test_config(test_type, config) {
+        return Ok(TestResult {
+            test_type: test_type.clone(),
+            success: false,
+            message: format!("Invalid test configuration: {}", e),
+            duration_ms: 0,
+            executed_at: chrono::Utc::now(),
+            details: Some(serde_json::json!({
+                "error": "invalid_configuration",
+                "details": e.to_string()
+            })),
+        });
+    }
+
     // Execute test based on type and configuration
     match (test_type, config) {
         (TestType::Connectivity, TestConfiguration::Connectivity(config)) => {
-            execute_connectivity_test(config).await
+            connectivity::execute_connectivity_test(config).await
         },
         (TestType::DirectIp, TestConfiguration::DirectIp(config)) => {
-            execute_direct_ip_test(config).await
+            connectivity::execute_direct_ip_test(config).await
         },
         (TestType::Ping, TestConfiguration::Ping(config)) => {
-            execute_ping_test(config).await
+            connectivity::execute_ping_test(config).await
         },
         (TestType::WellknownIp, TestConfiguration::WellknownIp(config)) => {
-            execute_wellknown_ip_test(config).await
+            connectivity::execute_wellknown_ip_test(config).await
         },
-        // (TestType::DnsResolution, TestConfiguration::DnsResolution(config)) => {
-        //     execute_dns_resolution_test(config).await
-        // },
-        // (TestType::DnsOverHttps, TestConfiguration::DnsOverHttps(config)) => {
-        //     execute_dns_over_https_test(config).await
-        // },
-        // (TestType::VpnConnectivity, TestConfiguration::VpnConnectivity(config)) => {
-        //     execute_vpn_connectivity_test(config).await
-        // },
-        // (TestType::VpnTunnel, TestConfiguration::VpnTunnel(config)) => {
-        //     execute_vpn_tunnel_test(config).await
-        // },
-        // (TestType::ServiceHealth, TestConfiguration::ServiceHealth(config)) => {
-        //     execute_service_health_test(config).await
-        // },
+        (TestType::DnsResolution, TestConfiguration::DnsResolution(config)) => {
+            dns::execute_dns_resolution_test(config).await
+        },
+        (TestType::DnsOverHttps, TestConfiguration::DnsOverHttps(config)) => {
+            dns::execute_dns_over_https_test(config).await
+        },
+        (TestType::VpnConnectivity, TestConfiguration::VpnConnectivity(config)) => {
+            vpn::execute_vpn_connectivity_test(config).await
+        },
+        (TestType::VpnTunnel, TestConfiguration::VpnTunnel(config)) => {
+            vpn::execute_vpn_tunnel_test(config).await
+        },
+        (TestType::ServiceHealth, TestConfiguration::ServiceHealth(config)) => {
+            service::execute_service_health_test(config).await
+        },
         // (TestType::DaemonCommand, TestConfiguration::DaemonCommand(config)) => {
-        //     execute_daemon_command_test(config).await
+        //     daemon::execute_daemon_command_test(config).await
         // },
         // (TestType::SshScript, TestConfiguration::SshScript(config)) => {
-        //     execute_ssh_script_test(config).await
+        //     daemon::execute_ssh_script_test(config).await
         // },
         // Type safety ensures this should never happen, but handle gracefully
         _ => {
@@ -130,10 +146,42 @@ pub fn validate_test_config(
     }
 }
 
+/// Compute node status from test results based on criticality
+pub fn compute_node_status_from_results(results: &[TestResult], assigned_tests: &[crate::core::types::AssignedTest]) -> crate::core::types::NodeStatus {
+    
+    if results.is_empty() {
+        return NodeStatus::Unknown;
+    }
+    
+    let mut has_critical_failure = false;
+    let mut has_important_failure = false;
+    
+    for result in results {
+        if !result.success {
+            // Find the criticality for this test type
+            if let Some(assigned_test) = assigned_tests.iter().find(|t| t.test_type == result.test_type) {
+                match assigned_test.criticality {
+                    TestCriticality::Critical => has_critical_failure = true,
+                    TestCriticality::Important => has_important_failure = true,
+                    TestCriticality::Informational => {}, // Doesn't affect status
+                }
+            }
+        }
+    }
+    
+    if has_critical_failure {
+        NodeStatus::Failed
+    } else if has_important_failure {
+        NodeStatus::Degraded
+    } else {
+        NodeStatus::Healthy
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{NodeType, NodeCapability};
+    use crate::core::{NodeType, NodeCapability, TestCriticality};
     use crate::components::tests::configs::*;
 
     #[tokio::test]
@@ -160,5 +208,77 @@ mod tests {
         let test_result = result.unwrap();
         assert!(!test_result.success);
         assert!(test_result.message.contains("not compatible"));
+    }
+    
+    #[test]
+    fn test_node_status_computation() {
+        use crate::core::types::AssignedTest;
+        
+        let assigned_tests = vec![
+            AssignedTest {
+                test_type: TestType::Connectivity,
+                test_config: TestConfiguration::Connectivity(ConnectivityConfig::default()),
+                monitor_interval_minutes: Some(5),
+                enabled: true,
+                criticality: TestCriticality::Critical,
+            },
+            AssignedTest {
+                test_type: TestType::Ping,
+                test_config: TestConfiguration::Ping(PingConfig::default()),
+                monitor_interval_minutes: Some(10),
+                enabled: true,
+                criticality: TestCriticality::Important,
+            },
+        ];
+        
+        // All tests passing
+        let all_pass_results = vec![
+            TestResult {
+                test_type: TestType::Connectivity,
+                success: true,
+                message: "Success".to_string(),
+                duration_ms: 100,
+                executed_at: chrono::Utc::now(),
+                details: None,
+            },
+            TestResult {
+                test_type: TestType::Ping,
+                success: true,
+                message: "Success".to_string(),
+                duration_ms: 50,
+                executed_at: chrono::Utc::now(),
+                details: None,
+            },
+        ];
+        
+        assert_eq!(
+            compute_node_status_from_results(&all_pass_results, &assigned_tests),
+            NodeStatus::Healthy
+        );
+        
+        // Critical test failing
+        let critical_fail_results = vec![
+            TestResult {
+                test_type: TestType::Connectivity,
+                success: false,
+                message: "Failed".to_string(),
+                duration_ms: 100,
+                executed_at: chrono::Utc::now(),
+                details: None,
+            },
+            TestResult {
+                test_type: TestType::Ping,
+                success: true,
+                message: "Success".to_string(),
+                duration_ms: 50,
+                executed_at: chrono::Utc::now(),
+                details: None,
+            },
+        ];
+        
+        assert_eq!(
+            compute_node_status_from_results(&critical_fail_results, &assigned_tests),
+            NodeStatus::Failed
+        );
     }
 }

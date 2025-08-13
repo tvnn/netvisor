@@ -1,15 +1,15 @@
 use async_trait::async_trait;
+use anyhow::Result;
 use sqlx::SqlitePool;
-use crate::shared::storage::{StorageResult,StorageError};
 use super::types::{Test,Layer};
 
 #[async_trait]
 pub trait TestStorage: Send + Sync {
-    async fn get_tests(&self) -> StorageResult<Vec<Test>>;
-    async fn get_test(&self, id: &str) -> StorageResult<Test>;
-    async fn save_test(&self, test: &Test) -> StorageResult<()>;
-    async fn update_test(&self, id: &str, test: &Test) -> StorageResult<()>;
-    async fn delete_test(&self, id: &str) -> StorageResult<()>;
+    async fn get_tests(&self) -> Result<Vec<Test>>;
+    async fn get_test(&self, id: &str) -> Result<Test>;
+    async fn save_test(&self, test: &Test) -> Result<()>;
+    async fn update_test(&self, id: &str, test: &Test) -> Result<()>;
+    async fn delete_test(&self, id: &str) -> Result<()>;
 }
 
 pub struct SqliteTestStorage {
@@ -25,7 +25,7 @@ impl SqliteTestStorage {
 
 #[async_trait]
 impl TestStorage for SqliteTestStorage {
-    async fn get_tests(&self) -> StorageResult<Vec<Test>> {
+    async fn get_tests(&self) -> Result<Vec<Test>> {
         let rows = sqlx::query!(
             "SELECT id, name, description, layers, created_at, updated_at FROM tests ORDER BY created_at DESC"
         )
@@ -34,7 +34,7 @@ impl TestStorage for SqliteTestStorage {
 
         let tests = rows
             .into_iter()
-            .map(|row| -> StorageResult<Test> {
+            .map(|row| -> Result<Test> {
                 let layers: Vec<Layer> = serde_json::from_str(&row.layers)?;
                 Ok(Test {
                     id: row.id,
@@ -49,12 +49,12 @@ impl TestStorage for SqliteTestStorage {
                         .with_timezone(&chrono::Utc),
                 })
             })
-            .collect::<StorageResult<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(tests)
     }
 
-    async fn get_test(&self, id: &str) -> StorageResult<Test> {
+    async fn get_test(&self, id: &str) -> Result<Test> {
         let row = sqlx::query!(
             "SELECT id, name, description, layers, created_at, updated_at FROM tests WHERE id = ?",
             id
@@ -79,7 +79,7 @@ impl TestStorage for SqliteTestStorage {
         })
     }
 
-    async fn save_test(&self, test: &Test) -> StorageResult<()> {
+    async fn save_test(&self, test: &Test) -> Result<()> {
         let layers = serde_json::to_string(&test.layers)?;
         let created_at_str = test.created_at.to_rfc3339();
         let updated_at_str = test.updated_at.to_rfc3339();
@@ -100,7 +100,7 @@ impl TestStorage for SqliteTestStorage {
         Ok(())
     }
 
-    async fn update_test(&self, id: &str, test: &Test) -> StorageResult<()> {
+    async fn update_test(&self, id: &str, test: &Test) -> Result<()> {
         let layers = serde_json::to_string(&test.layers)?;
         let updated_at_str = test.updated_at.to_rfc3339();
         
@@ -122,7 +122,7 @@ impl TestStorage for SqliteTestStorage {
         Ok(())
     }
 
-    async fn delete_test(&self, id: &str) -> StorageResult<()> {
+    async fn delete_test(&self, id: &str) -> Result<()> {
         let result = sqlx::query!("DELETE FROM tests WHERE id = ?", id)
             .execute(&self.pool)
             .await?;

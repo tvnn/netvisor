@@ -71,7 +71,7 @@ pub async fn execute_vpn_tunnel_test(config: &VpnTunnelConfig) -> Result<TestRes
     let start = Instant::now();
     
     let expected_subnet = &config.expected_subnet;
-    let timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
+    let _timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
     
     // This is a simplified VPN tunnel test
     // In a real implementation, you'd check if the local machine has routes to the VPN subnet

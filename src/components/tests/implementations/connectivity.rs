@@ -106,7 +106,7 @@ pub async fn execute_ping_test(config: &PingConfig) -> Result<TestResult> {
     let mut successful_pings = 0;
     let mut ping_times = Vec::new();
     
-    for i in 0..attempts {
+    for _i in 0..attempts {
         let ping_start = Instant::now();
         
         #[cfg(target_os = "windows")]
