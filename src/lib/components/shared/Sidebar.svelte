@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { Server, Activity } from 'lucide-svelte';
+  import { Server, Workflow } from 'lucide-svelte';
   
   export let activeTab: string;
   export let onTabChange: (tab: string) => void;
   
   const navItems = [
     { id: 'nodes', label: 'Nodes', icon: Server },
-    { id: 'diagnostics', label: 'Diagnostic Groups', icon: Activity },
+    { id: 'diagnostics', label: 'Diagnostic Groups', icon: Workflow },
   ];
 </script>
 

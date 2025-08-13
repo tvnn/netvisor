@@ -1,14 +1,13 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
   import { X, ArrowUp, ArrowDown, Trash2 } from 'lucide-svelte';
   import { nodes } from '../../stores/nodes';
   import type { NodeGroup } from '../../stores/node-groups';
-  import type { Node } from '../../types';
   
   export let group: NodeGroup | null = null;
   export let isOpen = false;
-  
-  const dispatch = createEventDispatcher();
+  export let onCreate: (data: any) => void = () => {};
+  export let onUpdate: (id: string, data: any) => void = () => {};
+  export let onClose: () => void = () => {};
   
   let formData = {
     name: '',
@@ -25,25 +24,27 @@
   $: title = isEditing ? `Edit ${group?.name}` : 'Create Node Group';
   $: availableNodes = $nodes.filter(node => !formData.node_sequence.includes(node.id));
   
-  // Initialize form data when group changes
-  $: if (group) {
-    formData = {
-      name: group.name,
-      description: group.description,
-      node_sequence: [...group.node_sequence],
-      auto_diagnostic_enabled: group.auto_diagnostic_enabled
-    };
-  } else {
+  // Initialize form data when group changes or modal opens
+  $: if (isOpen) {
     resetForm();
   }
   
   function resetForm() {
-    formData = {
-      name: '',
-      description: '',
-      node_sequence: [],
-      auto_diagnostic_enabled: true
-    };
+    if (group) {
+      formData = {
+        name: group.name,
+        description: group.description,
+        node_sequence: [...group.node_sequence],
+        auto_diagnostic_enabled: group.auto_diagnostic_enabled
+      };
+    } else {
+      formData = {
+        name: '',
+        description: '',
+        node_sequence: [],
+        auto_diagnostic_enabled: true
+      };
+    }
     selectedNodeId = '';
     errors = {};
   }
@@ -108,12 +109,10 @@
       };
       
       if (isEditing && group) {
-        dispatch('update', { id: group.id, data: requestData });
+        onUpdate(group.id, requestData);
       } else {
-        dispatch('create', requestData);
+        onCreate(requestData);
       }
-      
-      handleClose();
     } catch (error) {
       console.error('Form submission error:', error);
     } finally {
@@ -122,8 +121,8 @@
   }
   
   function handleClose() {
-    dispatch('close');
     resetForm();
+    onClose();
   }
   
   function handleBackdropClick(event: MouseEvent) {
@@ -205,7 +204,7 @@
         
         <!-- Node Sequence -->
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">
+          <label for="sequence" class="block text-sm font-medium text-gray-300 mb-2">
             Diagnostic Sequence *
           </label>
           

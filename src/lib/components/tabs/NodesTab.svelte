@@ -3,7 +3,7 @@
   import { Plus, Search } from 'lucide-svelte';
   import { nodes, nodeActions, loading, error } from '../../stores/nodes';
   import { nodeGroups, nodeGroupActions } from '../../stores/node-groups';
-  import type { Node } from '../../types';
+  import type { Node } from '../../types/nodes';
   import NodeCard from '../nodes/NodeCard.svelte';
   import NodeEditor from '../modals/NodeEditor.svelte';
   import TestAssignment from '../modals/TestAssignment.svelte';
@@ -30,7 +30,7 @@
   
   onMount(() => {
     nodeActions.loadNodes();
-    nodeGroupActions.loadGroups(); // Add this line!
+    nodeGroupActions.loadGroups();
   });
   
   function handleCreateNode() {
@@ -58,26 +58,46 @@
     showTestAssignment = true;
   }
   
-  async function handleNodeCreate(event: CustomEvent) {
-    const result = await nodeActions.createNode(event.detail);
+  // Updated to handle function props instead of events
+  async function handleNodeCreate(data: any) {
+    const result = await nodeActions.createNode(data);
     if (result) {
       showNodeEditor = false;
+      editingNode = null;
     }
   }
   
-  async function handleNodeUpdate(event: CustomEvent) {
-    const { id, data } = event.detail;
+  async function handleNodeUpdate(id: string, data: any) {
     const result = await nodeActions.updateNode(id, data);
     if (result) {
       showNodeEditor = false;
+      editingNode = null;
     }
   }
   
-  async function handleTestAssign(event: CustomEvent) {
-    const result = await nodeActions.assignTest(event.detail);
-    if (result) {
-      showTestAssignment = false;
+  async function handleTestAssign(node: Node, warning?: string) {
+    // Handle the test assignment - node is already updated from the API response
+    // You might want to show the warning to the user if present
+    if (warning) {
+      console.log('Test assignment warning:', warning);
+      // Optionally show a toast notification with the warning
     }
+    
+    // Refresh nodes to get the updated node with the new test
+    await nodeActions.loadNodes();
+    
+    showTestAssignment = false;
+    assigningTestNode = null;
+  }
+  
+  function handleCloseNodeEditor() {
+    showNodeEditor = false;
+    editingNode = null;
+  }
+  
+  function handleCloseTestAssignment() {
+    showTestAssignment = false;
+    assigningTestNode = null;
   }
 </script>
 
@@ -176,7 +196,6 @@
           groupNames={getGroupNames(node.node_groups)}
           onEdit={handleEditNode}
           onDelete={handleDeleteNode}
-          onToggleMonitoring={handleToggleMonitoring}
           onAssignTest={handleAssignTest}
         />
       {/each}
@@ -186,16 +205,16 @@
 
 <!-- Modals -->
 <NodeEditor
-  bind:isOpen={showNodeEditor}
+  isOpen={showNodeEditor}
   node={editingNode}
-  on:create={handleNodeCreate}
-  on:update={handleNodeUpdate}
-  on:close={() => { showNodeEditor = false; editingNode = null; }}
+  onCreate={handleNodeCreate}
+  onUpdate={handleNodeUpdate}
+  onClose={handleCloseNodeEditor}
 />
 
 <TestAssignment
-  bind:isOpen={showTestAssignment}
+  isOpen={showTestAssignment}
   node={assigningTestNode}
-  on:assign={handleTestAssign}
-  on:close={() => { showTestAssignment = false; assigningTestNode = null; }}
+  onAssigned={handleTestAssign}
+  onClose={handleCloseTestAssignment}
 />

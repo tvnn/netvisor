@@ -29,19 +29,26 @@
     }
   }
   
-  async function handleGroupCreate(event: CustomEvent) {
-    const result = await nodeGroupActions.createGroup(event.detail);
+  // Updated to handle function props instead of events
+  async function handleGroupCreate(data: any) {
+    const result = await nodeGroupActions.createGroup(data);
     if (result) {
       showGroupEditor = false;
+      editingGroup = null;
     }
   }
   
-  async function handleGroupUpdate(event: CustomEvent) {
-    const { id, data } = event.detail;
+  async function handleGroupUpdate(id: string, data: any) {
     const result = await nodeGroupActions.updateGroup(id, data);
     if (result) {
       showGroupEditor = false;
+      editingGroup = null;
     }
+  }
+  
+  function handleCloseGroupEditor() {
+    showGroupEditor = false;
+    editingGroup = null;
   }
   
   function getNodeNames(nodeIds: string[]): string[] {
@@ -57,7 +64,7 @@
   <div class="flex items-center justify-between">
     <div>
       <h2 class="text-2xl font-bold text-white">Diagnostic Groups</h2>
-      <p class="text-gray-400 mt-1">Manage diagnostic sequences and node groups</p>
+      <p class="text-gray-400 mt-1">Manage diagnostic groups</p>
     </div>
     <button
       on:click={handleCreateGroup}
@@ -199,14 +206,6 @@
               >
                 <Edit class="w-4 h-4" />
               </button>
-              
-              <button
-                class="p-1 text-gray-400 hover:text-white transition-colors"
-                title="Group settings"
-                disabled
-              >
-                <Settings class="w-4 h-4" />
-              </button>
             </div>
             
             <button
@@ -225,9 +224,9 @@
 
 <!-- Modal -->
 <NodeGroupEditor
-  bind:isOpen={showGroupEditor}
+  isOpen={showGroupEditor}
   group={editingGroup}
-  on:create={handleGroupCreate}
-  on:update={handleGroupUpdate}
-  on:close={() => { showGroupEditor = false; editingGroup = null; }}
+  onCreate={handleGroupCreate}
+  onUpdate={handleGroupUpdate}
+  onClose={handleCloseGroupEditor}
 />

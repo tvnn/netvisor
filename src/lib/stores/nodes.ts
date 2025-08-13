@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { Node } from '../types';
+import type { Node } from "$lib/types/nodes";
 import { api } from '../api-client';
 
 export const nodes = writable<Node[]>([]);

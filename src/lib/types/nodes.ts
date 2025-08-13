@@ -1,155 +1,120 @@
-import { writable } from 'svelte/store';
-import type { Node } from '../types';
-import { api } from '../api-client';
+import type { TestConfiguration, TestType } from "./tests";
 
-export const nodes = writable<Node[]>([]);
-export const loading = writable(false);
-export const error = writable<string | null>(null);
+export interface Node {
+  id: string;
+  name: string;
+  domain?: string;
+  ip?: string;
+  port?: number;
+  path?: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+  node_type?: NodeType;
+  capabilities: NodeCapability[];
+  assigned_tests: AssignedTest[];
+  monitoring_enabled: boolean;
+  node_groups: string[];
+  position?: GraphPosition;
+  current_status: NodeStatus;
+  subnet_membership: string[];
+  last_seen?: string;
+}
 
-export const nodeActions = {
-  async loadNodes() {
-    loading.set(true);
-    error.set(null);
-    
-    try {
-      const response = await api.getNodes();
-      if (response.success && response.data) {
-        nodes.set(response.data.nodes);
-      } else {
-        error.set(response.error || 'Failed to load nodes');
-      }
-    } catch (err) {
-      error.set('Network error');
-      console.error('Failed to load nodes:', err);
-    } finally {
-      loading.set(false);
-    }
-  },
+export type NodeType = 'Router' | 'Switch' | 'AccessPoint' | 'Firewall' |
+  'WebServer' | 'DatabaseServer' | 'MediaServer' | 'DnsServer' | 'VpnServer' | 'NasDevice' |
+  'Workstation' | 'IotDevice' | 'Printer' | 'Camera' |
+  'UnknownDevice';
 
-  async createNode(data: any) {
-    loading.set(true);
-    error.set(null);
-    
-    try {
-      const response = await api.createNode(data);
-      if (response.success && response.data) {
-        const newNode = response.data.node;
-        nodes.update(current => [...current, newNode]);
-        return newNode;
-      } else {
-        error.set(response.error || 'Failed to create node');
-        return null;
-      }
-    } catch (err) {
-      error.set('Network error');
-      console.error('Failed to create node:', err);
-      return null;
-    } finally {
-      loading.set(false);
-    }
-  },
+export type NodeCapability = 'SshAccess' | 'RdpAccess' | 'VncAccess' |
+  'HttpService' | 'HttpsService' |
+  'DatabaseService' |
+  'DnsService' | 'EmailService' | 'FtpService';
 
-  async updateNode(id: string, data: any) {
-    loading.set(true);
-    error.set(null);
-    
-    try {
-      const response = await api.updateNode(id, data);
-      if (response.success && response.data) {
-        const updatedNode = response.data.node;
-        nodes.update(current => 
-          current.map(node => node.id === id ? updatedNode : node)
-        );
-        return updatedNode;
-      } else {
-        error.set(response.error || 'Failed to update node');
-        return null;
-      }
-    } catch (err) {
-      error.set('Network error');
-      console.error('Failed to update node:', err);
-      return null;
-    } finally {
-      loading.set(false);
-    }
-  },
+export type NodeStatus = 'Healthy' | 'Degraded' | 'Failed' | 'Unknown';
 
-  async deleteNode(id: string) {
-    loading.set(true);
-    error.set(null);
-    
-    try {
-      const response = await api.deleteNode(id);
-      if (response.success) {
-        nodes.update(current => current.filter(node => node.id !== id));
-        return true;
-      } else {
-        error.set(response.error || 'Failed to delete node');
-        return false;
-      }
-    } catch (err) {
-      error.set('Network error');
-      console.error('Failed to delete node:', err);
-      return false;
-    } finally {
-      loading.set(false);
-    }
-  },
+export interface AssignedTest {
+  test_type: TestType;
+  test_config: TestConfiguration;
+  monitor_interval_minutes?: number;
+  enabled: boolean;
+  criticality: TestCriticality;
+}
 
-  async assignTest(data: any) {
-    try {
-      const response = await api.assignTest(data);
-      if (response.success) {
-        // Refresh the node to get updated assigned_tests
-        await this.refreshNode(data.node_id);
-        return true;
-      } else {
-        error.set(response.error || 'Failed to assign test');
-        return false;
-      }
-    } catch (err) {
-      error.set('Network error');
-      return false;
-    }
-  },
+export interface SubnetGroup {
+  id: string;
+  name: string;
+  cidr: string;
+  node_ids: string[];
+  vlan_id?: number;
+  created_at: string;
+  updated_at: string;
+}
 
-  async setMonitoring(nodeId: string, enabled: boolean) {
-    try {
-      const response = await api.setMonitoring(nodeId, enabled);
-      if (response.success) {
-        nodes.update(current => 
-          current.map(node => 
-            node.id === nodeId 
-              ? { ...node, monitoring_enabled: enabled }
-              : node
-          )
-        );
-        return true;
-      } else {
-        error.set(response.error || 'Failed to set monitoring');
-        return false;
-      }
-    } catch (err) {
-      error.set('Network error');
-      return false;
-    }
-  },
+export type TestCriticality = 'Critical' | 'Important' | 'Informational';
 
-  async refreshNode(nodeId: string) {
-    try {
-      const response = await api.getNode(nodeId);
-      if (response.success && response.data) {
-        const updatedNode = response.data.node;
-        nodes.update(current => 
-          current.map(node => node.id === nodeId ? updatedNode : node)
-        );
-      }
-    } catch (err) {
-      console.error('Failed to refresh node:', err);
-    }
-  },
+export interface GraphPosition {
+  x: number;
+  y: number;
+  z?: number;
+}
 
-  clearError() {
-    error.set(null);
+// Utility functions
+export function getNodeTypeDisplayName(nodeType: NodeType): string {
+  switch (nodeType) {
+    case 'Router': return 'Router';
+    case 'Switch': return 'Switch';
+    case 'AccessPoint': return 'Access Point';
+    case 'Firewall': return 'Firewall';
+    case 'WebServer': return 'Web Server';
+    case 'DatabaseServer': return 'Database Server';
+    case 'MediaServer': return 'Media Server';
+    case 'DnsServer': return 'DNS Server';
+    case 'VpnServer': return 'VPN Server';
+    case 'NasDevice': return 'NAS Device';
+    case 'Workstation': return 'Workstation';
+    case 'IotDevice': return 'IoT Device';
+    case 'Printer': return 'Printer';
+    case 'Camera': return 'Camera';
+    case 'UnknownDevice': return 'Unknown Device';
+    default: return nodeType;
   }
-};
+}
+export function getCriticalityDisplayName(criticality: TestCriticality): string {
+  switch (criticality) {
+    case 'Critical': return 'Critical';
+    case 'Important': return 'Important';
+    case 'Informational': return 'Informational';
+    default: return criticality;
+  }
+}
+
+export function getNodeStatusDisplayName(status: NodeStatus): string {
+  switch (status) {
+    case 'Healthy': return 'Healthy';
+    case 'Degraded': return 'Degraded';
+    case 'Failed': return 'Failed';
+    case 'Unknown': return 'Unknown';
+    default: return status;
+  }
+}
+
+export function getNodeStatusColor(status: NodeStatus): string {
+  switch (status) {
+    case 'Healthy': return 'text-green-400';
+    case 'Degraded': return 'text-yellow-400';
+    case 'Failed': return 'text-red-400';
+    case 'Unknown': return 'text-gray-400';
+    default: return 'text-gray-400';
+  }
+}
+
+export function getCriticalityColor(criticality: TestCriticality): string {
+  switch (criticality) {
+    case 'Critical': return 'text-red-400';
+    case 'Important': return 'text-yellow-400';
+    case 'Informational': return 'text-blue-400';
+    default: return 'text-gray-400';
+  }
+}
+
