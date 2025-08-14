@@ -1,8 +1,6 @@
 use anyhow::Result;
 use sqlx::SqlitePool;
 use std::sync::Arc;
-use async_trait::async_trait;
-use crate::components::diagnostics::types::DiagnosticExecution;
 
 
 use crate::components::{
@@ -33,44 +31,44 @@ impl StorageFactory {
     }
 }
 
-// Placeholder for diagnostic storage - will implement later
-pub struct SqliteDiagnosticStorage {
-    pool: SqlitePool,
-}
+// // Placeholder for diagnostic storage - will implement later
+// pub struct SqliteDiagnosticStorage {
+//     pool: SqlitePool,
+// }
 
-impl SqliteDiagnosticStorage {
-    pub fn new(pool: SqlitePool) -> Self {
-        Self { pool }
-    }
-}
+// impl SqliteDiagnosticStorage {
+//     pub fn new(pool: SqlitePool) -> Self {
+//         Self { pool }
+//     }
+// }
 
-#[async_trait]
-pub trait DiagnosticStorage: Send + Sync {
-    async fn create(&self, execution: &DiagnosticExecution) -> Result<()>;
-    async fn get_by_id(&self, id: &str) -> Result<Option<DiagnosticExecution>>;
-    async fn get_all(&self) -> Result<Vec<DiagnosticExecution>>;
-    async fn get_by_group(&self, group_id: &str) -> Result<Vec<DiagnosticExecution>>;
-}
+// #[async_trait]
+// pub trait DiagnosticStorage: Send + Sync {
+//     async fn create(&self, execution: &DiagnosticExecution) -> Result<()>;
+//     async fn get_by_id(&self, id: &str) -> Result<Option<DiagnosticExecution>>;
+//     async fn get_all(&self) -> Result<Vec<DiagnosticExecution>>;
+//     async fn get_by_group(&self, group_id: &str) -> Result<Vec<DiagnosticExecution>>;
+// }
 
-#[async_trait]
-impl DiagnosticStorage for SqliteDiagnosticStorage {
-    async fn create(&self, _execution: &DiagnosticExecution) -> Result<()> {
-        // TODO: Implement diagnostic storage
-        Ok(())
-    }
+// #[async_trait]
+// impl DiagnosticStorage for SqliteDiagnosticStorage {
+//     async fn create(&self, _execution: &DiagnosticExecution) -> Result<()> {
+//         // TODO: Implement diagnostic storage
+//         Ok(())
+//     }
 
-    async fn get_by_id(&self, _id: &str) -> Result<Option<DiagnosticExecution>> {
-        // TODO: Implement diagnostic storage
-        Ok(None)
-    }
+//     async fn get_by_id(&self, _id: &str) -> Result<Option<DiagnosticExecution>> {
+//         // TODO: Implement diagnostic storage
+//         Ok(None)
+//     }
 
-    async fn get_all(&self) -> Result<Vec<DiagnosticExecution>> {
-        // TODO: Implement diagnostic storage
-        Ok(Vec::new())
-    }
+//     async fn get_all(&self) -> Result<Vec<DiagnosticExecution>> {
+//         // TODO: Implement diagnostic storage
+//         Ok(Vec::new())
+//     }
 
-    async fn get_by_group(&self, _group_id: &str) -> Result<Vec<DiagnosticExecution>> {
-        // TODO: Implement diagnostic storage
-        Ok(Vec::new())
-    }
-}
+//     async fn get_by_group(&self, _group_id: &str) -> Result<Vec<DiagnosticExecution>> {
+//         // TODO: Implement diagnostic storage
+//         Ok(Vec::new())
+//     }
+// }

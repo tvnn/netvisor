@@ -69,6 +69,7 @@ impl Default for BaseTestConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "config")]
 pub enum TestConfiguration {
     Connectivity(ConnectivityConfig),
     DirectIp(DirectIpConfig),

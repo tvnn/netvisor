@@ -1,21 +1,20 @@
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     response::Json,
-    routing::{get, post, put, delete},
+    routing::{delete, get, post, put},
     Router,
 };
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use crate::{
     api::{
-        ApiResult, ApiError, ApiResponse
+        ApiError, ApiResponse, ApiResult
     },
     components::{
         nodes::{
             service::NodeService,
-            types::{Node, CreateNodeRequest, UpdateNodeRequest, AssignTestRequest, NodeResponse, NodeListResponse, NodeCompatibilityResponse}
+            types::{CapabilityRecommendations, CreateNodeRequest, Node, NodeCapability, NodeCompatibilityResponse, NodeListResponse, NodeResponse, NodeType, UpdateNodeRequest}
         },
         tests::types::TestType,
-        monitoring::types::SetMonitoringRequest
     },
     AppState,
 };
@@ -27,10 +26,8 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/:id", get(get_node))
         .route("/:id", put(update_node))
         .route("/:id", delete(delete_node))
-        .route("/:id/assign-test", post(assign_test))
-        .route("/:id/remove-test/:test_type", delete(remove_test))
-        .route("/:id/monitoring", put(set_monitoring))
         .route("/:id/compatibility", get(get_node_compatibility))
+        .route("/capability-recommendations", get(get_capability_recommendations_handler))
 }
 
 async fn create_node(
@@ -47,6 +44,7 @@ async fn create_node(
     node.base.description = request.node.description;
     node.base.capabilities = request.node.capabilities;
     node.base.node_type = request.node.node_type;
+    node.base.assigned_tests = request.node.assigned_tests;
             
     let created_node = service.create_node(node).await?;
     
@@ -116,6 +114,9 @@ async fn update_node(
     if let Some(monitoring_enabled) = request.monitoring_enabled {
         node.base.monitoring_enabled = monitoring_enabled;
     }
+    if let Some(assigned_tests) = request.assigned_tests {
+        node.base.assigned_tests = assigned_tests;
+    }
     
     let updated_node = service.update_node(node).await?;
     
@@ -136,51 +137,6 @@ async fn delete_node(
     }
     
     service.delete_node(&id).await?;
-    
-    Ok(Json(ApiResponse::success(())))
-}
-
-async fn assign_test(
-    State(state): State<Arc<AppState>>,
-    Path(_node_id): Path<String>,
-    Json(request): Json<AssignTestRequest>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = NodeService::new(state.node_storage.clone());
-    
-    service.assign_test_to_node(
-        &request.node_id,
-        request.test_type,
-        request.test_config,
-        request.criticality,
-        request.monitor_interval_minutes,
-    ).await?;
-    
-    Ok(Json(ApiResponse::success(())))
-}
-
-async fn remove_test(
-    State(state): State<Arc<AppState>>,
-    Path((node_id, test_type_str)): Path<(String, String)>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = NodeService::new(state.node_storage.clone());
-    
-    // Parse test type from string
-    let test_type: TestType = serde_json::from_str(&format!("\"{}\"", test_type_str))
-        .map_err(|_| ApiError::validation_error("Invalid test type"))?;
-    
-    service.remove_test_from_node(&node_id, &test_type).await?;
-    
-    Ok(Json(ApiResponse::success(())))
-}
-
-async fn set_monitoring(
-    State(state): State<Arc<AppState>>,
-    Path(_node_id): Path<String>,
-    Json(request): Json<SetMonitoringRequest>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = NodeService::new(state.node_storage.clone());
-    
-    service.set_monitoring_enabled(&request.node_id, request.enabled).await?;
     
     Ok(Json(ApiResponse::success(())))
 }
@@ -224,4 +180,22 @@ async fn get_node_compatibility(
         incompatible_test_types,
         missing_capabilities,
     })))
+}
+
+async fn get_capability_recommendations_handler(
+    Query(params): Query<HashMap<String, String>>,
+) -> ApiResult<Json<ApiResponse<CapabilityRecommendations>>> {
+    let node_type_str = params.get("node_type")
+        .ok_or_else(|| ApiError::validation_error("node_type parameter required"))?;
+    
+    let node_type: NodeType = serde_json::from_str(&format!("\"{}\"", node_type_str))
+        .map_err(|_| ApiError::validation_error("Invalid node type"))?;
+    
+    let recommendations = CapabilityRecommendations {
+        all_capabilities: NodeCapability::all(),
+        current_capabilities: vec![], // Not relevant for suggestions
+        suggested_capabilities: node_type.typical_capabilities(),
+    };
+    
+    Ok(Json(ApiResponse::success(recommendations)))
 }

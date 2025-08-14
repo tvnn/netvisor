@@ -205,7 +205,7 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
         id: row.get("id"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
-        last_seen: row.get("last_seen"),
+        last_seen,
         base: NodeBase {
             name: row.get("name"),
             domain: row.get("domain"),

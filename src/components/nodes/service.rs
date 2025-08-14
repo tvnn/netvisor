@@ -3,9 +3,9 @@ use std::sync::Arc;
 use crate::components::{
     nodes::{
         storage::NodeStorage,
-        types::{Node, NodeType, NodeCapability, TestCriticality, AssignedTest}
+        types::{Node, NodeType}
     },
-    tests::types::{TestType, TestConfiguration}
+    tests::types::{TestType}
 };
 
 pub struct NodeService {
@@ -37,13 +37,53 @@ impl NodeService {
         // Set default capabilities based on node type
         if node.base.capabilities.is_empty() {
             if let Some(node_type) = &node.base.node_type {
-                node.base.capabilities = node_type.suggested_capabilities();
+                node.base.capabilities = node_type.typical_capabilities();
             }
         }
 
         self.storage.create(&node).await?;
         Ok(node)
     }
+
+    /// Auto-detect and assign node type + capabilities from discovery results
+    // pub async fn auto_detect_from_discovery(
+    //     &self, 
+    //     node_id: &str, 
+    //     discovered_ports: &[u16]
+    // ) -> Result<Node> {
+    //     let mut node = self.get_node(node_id).await?
+    //         .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
+
+    //     // 1. Detect capabilities from open ports
+    //     let detected_capabilities: Vec<NodeCapability> = discovered_ports
+    //         .iter()
+    //         .filter_map(|&port| NodeCapability::from_port(port))
+    //         .collect();
+
+    //     // 2. Auto-detect node type from ports
+    //     let detected_type = NodeType::detect_from_open_ports(discovered_ports);
+
+    //     // 3. Update node if detection provides better info than current
+    //     if node.base.node_type.is_none() || node.base.node_type == Some(NodeType::UnknownDevice) {
+    //         node.base.node_type = Some(detected_type.clone());
+    //     }
+
+    //     // 4. Add detected capabilities (don't remove existing ones)
+    //     for capability in detected_capabilities {
+    //         if !node.base.capabilities.contains(&capability) {
+    //             node.base.capabilities.push(capability);
+    //         }
+    //     }
+
+    //     // 5. If no capabilities detected, use typical ones for the node type
+    //     if node.base.capabilities.is_empty() {
+    //         if let Some(node_type) = &node.base.node_type {
+    //             node.base.capabilities = node_type.typical_capabilities();
+    //         }
+    //     }
+
+    //     self.update_node(node).await
+    // }
 
     /// Get node by ID
     pub async fn get_node(&self, id: &str) -> Result<Option<Node>> {
@@ -65,145 +105,6 @@ impl NodeService {
     /// Delete node
     pub async fn delete_node(&self, id: &str) -> Result<()> {
         self.storage.delete(id).await
-    }
-
-    /// Assign a test to a node
-    pub async fn assign_test_to_node(
-        &self,
-        node_id: &str,
-        test_type: TestType,
-        config: TestConfiguration,
-        criticality: TestCriticality,
-        monitor_interval_minutes: Option<u32>,
-    ) -> Result<()> {
-        let mut node = self.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
-
-        // Validate test compatibility
-        if !test_type.is_compatible_with_node(&node) {
-            return Err(anyhow::anyhow!(
-                "Test {} is not compatible with node {} ({})",
-                test_type.display_name(),
-                node.base.name,
-                node.base.node_type.as_ref().map(|t| t.display_name()).unwrap_or("Unknown")
-            ));
-        }
-
-        // Remove existing test of same type
-        node.base.assigned_tests.retain(|t| t.test_type != test_type);
-
-        // Add new test
-        let assigned_test = AssignedTest {
-            test_type,
-            test_config: config,
-            monitor_interval_minutes,
-            enabled: true,
-            criticality,
-        };
-
-        node.base.assigned_tests.push(assigned_test);
-        self.update_node(node).await?;
-
-        Ok(())
-    }
-
-    /// Remove a test from a node
-    pub async fn remove_test_from_node(&self, node_id: &str, test_type: &TestType) -> Result<()> {
-        let mut node = self.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
-
-        node.base.assigned_tests.retain(|t| &t.test_type != test_type);
-        self.update_node(node).await?;
-
-        Ok(())
-    }
-
-    /// Enable/disable monitoring for a node
-    pub async fn set_monitoring_enabled(&self, node_id: &str, enabled: bool) -> Result<()> {
-        let mut node = self.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
-
-        node.base.monitoring_enabled = enabled;
-        self.update_node(node).await?;
-
-        Ok(())
-    }
-
-    /// Add node to a group
-    pub async fn add_to_group(&self, node_id: &str, group_id: &str) -> Result<()> {
-        let mut node = self.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
-
-        if !node.base.node_groups.contains(&group_id.to_string()) {
-            node.base.node_groups.push(group_id.to_string());
-            self.update_node(node).await?;
-        }
-
-        Ok(())
-    }
-
-    /// Remove node from a group
-    pub async fn remove_from_group(&self, node_id: &str, group_id: &str) -> Result<()> {
-        let mut node = self.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
-
-        node.base.node_groups.retain(|g| g != group_id);
-        self.update_node(node).await?;
-
-        Ok(())
-    }
-
-    /// Get nodes that have monitoring enabled
-    pub async fn get_monitoring_nodes(&self) -> Result<Vec<Node>> {
-        self.storage.get_monitoring_enabled().await
-    }
-
-    /// Get nodes in a specific group
-    pub async fn get_nodes_in_group(&self, group_id: &str) -> Result<Vec<Node>> {
-        self.storage.get_by_group(group_id).await
-    }
-
-    /// Update node type and auto-assign default capabilities
-    pub async fn update_node_type(&self, node_id: &str, node_type: NodeType) -> Result<()> {
-        let mut node = self.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
-
-        node.base.node_type = Some(node_type.clone());
-        
-        // Add default capabilities (don't overwrite existing ones)
-        let default_caps = node_type.suggested_capabilities();
-        for cap in default_caps {
-            if !node.base.capabilities.contains(&cap) {
-                node.base.capabilities.push(cap);
-            }
-        }
-
-        self.update_node(node).await?;
-        Ok(())
-    }
-
-    /// Add capability to node
-    pub async fn add_capability(&self, node_id: &str, capability: NodeCapability) -> Result<()> {
-        let mut node = self.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
-
-        if !node.base.capabilities.contains(&capability) {
-            node.base.capabilities.push(capability);
-            self.update_node(node).await?;
-        }
-
-        Ok(())
-    }
-
-    /// Remove capability from node
-    pub async fn remove_capability(&self, node_id: &str, capability: &NodeCapability) -> Result<()> {
-        let mut node = self.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
-
-        node.base.capabilities.retain(|c| c != capability);
-        self.update_node(node).await?;
-
-        Ok(())
     }
 
     /// Get compatible test types for a node

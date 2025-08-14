@@ -156,37 +156,7 @@ impl NodeGroupService {
         Ok(())
     }
 
-    /// Reorder nodes in group sequence
-    pub async fn reorder_group_nodes(&self, group_id: &str, new_sequence: Vec<String>) -> Result<()> {
-        let mut group = self.get_group(group_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 
-        // Validate all nodes exist
-        for node_id in &new_sequence {
-            if self.node_storage.get_by_id(node_id).await?.is_none() {
-                return Err(anyhow::anyhow!("Node with id '{}' not found", node_id));
-            }
-        }
-
-        group.base.node_sequence = new_sequence;
-        self.update_group(group).await?;
-        Ok(())
-    }
-
-    /// Get groups with auto-diagnostic enabled
-    pub async fn get_auto_diagnostic_groups(&self) -> Result<Vec<NodeGroup>> {
-        self.group_storage.get_auto_diagnostic_enabled().await
-    }
-
-    /// Enable/disable auto-diagnostic for a group
-    pub async fn set_auto_diagnostic(&self, group_id: &str, enabled: bool) -> Result<()> {
-        let mut group = self.get_group(group_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
-
-        group.base.auto_diagnostic_enabled = enabled;
-        self.update_group(group).await?;
-        Ok(())
-    }
 
     /// Get nodes in group sequence
     pub async fn get_group_nodes(&self, group_id: &str) -> Result<Vec<Node>> {
@@ -201,32 +171,5 @@ impl NodeGroupService {
         }
 
         Ok(nodes)
-    }
-
-    /// Validate group configuration
-    pub async fn validate_group(&self, group: &NodeGroup) -> Result<Vec<String>> {
-        let mut warnings = Vec::new();
-
-        // Check for duplicate nodes
-        let mut seen_nodes = std::collections::HashSet::new();
-        for node_id in &group.base.node_sequence {
-            if !seen_nodes.insert(node_id) {
-                warnings.push(format!("Duplicate node '{}' in sequence", node_id));
-            }
-        }
-
-        // Check if nodes exist
-        for node_id in &group.base.node_sequence {
-            if self.node_storage.get_by_id(node_id).await?.is_none() {
-                warnings.push(format!("Node '{}' not found", node_id));
-            }
-        }
-
-        // Check if group is empty
-        if group.base.node_sequence.is_empty() {
-            warnings.push("Group has no nodes in sequence".to_string());
-        }
-
-        Ok(warnings)
     }
 }

@@ -369,29 +369,6 @@ pub enum NodeType {
     UnknownDevice,  // Cannot determine primary function
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum NodeCapability {
-    // Remote Access
-    SshAccess, 
-    RdpAccess, 
-    VncAccess,
-    
-    // Web Services  
-    HttpService, 
-    HttpsService,
-    
-    // Simplified Database Service (combines all database types)
-    DatabaseService,
-    
-    // Other Services
-    DnsService, 
-    EmailService, 
-    FtpService,
-    
-    // Custom
-    CustomService(String, u16), // Named service on specific port
-}
-
 impl NodeType {
     pub fn display_name(&self) -> &'static str {
         match self {
@@ -413,54 +390,185 @@ impl NodeType {
         }
     }
 
-    /// Get suggested capabilities for this node type
-    pub fn suggested_capabilities(&self) -> Vec<NodeCapability> {
+    /// Get typical capabilities for this node type (for auto-assignment)
+    pub fn typical_capabilities(&self) -> Vec<NodeCapability> {
         match self {
-            NodeType::WebServer => vec![NodeCapability::HttpService, NodeCapability::HttpsService, NodeCapability::SshAccess],
-            NodeType::DatabaseServer => vec![NodeCapability::DatabaseService, NodeCapability::SshAccess],
-            NodeType::DnsServer => vec![NodeCapability::DnsService, NodeCapability::SshAccess],
-            NodeType::VpnServer => vec![NodeCapability::SshAccess],
-            NodeType::NasDevice => vec![NodeCapability::SshAccess, NodeCapability::HttpService],
-            NodeType::MediaServer => vec![NodeCapability::HttpService, NodeCapability::SshAccess],
-            NodeType::Router | NodeType::Switch | NodeType::AccessPoint => vec![NodeCapability::HttpService, NodeCapability::SshAccess],
-            NodeType::Firewall => vec![NodeCapability::HttpService, NodeCapability::SshAccess],
-            NodeType::Workstation => vec![NodeCapability::SshAccess, NodeCapability::RdpAccess, NodeCapability::VncAccess],
-            NodeType::Printer => vec![NodeCapability::HttpService],
-            NodeType::Camera => vec![NodeCapability::HttpService],
-            NodeType::IotDevice => vec![],
+            NodeType::VpnServer => vec![
+                NodeCapability::VpnService,
+                NodeCapability::SshAccess,
+                NodeCapability::HttpService,
+            ],
+            NodeType::Router => vec![
+                NodeCapability::HttpService,
+                NodeCapability::SshAccess,
+                NodeCapability::DhcpService,
+            ],
+            NodeType::Switch => vec![
+                NodeCapability::HttpService,
+                NodeCapability::SshAccess,
+            ],
+            NodeType::AccessPoint => vec![
+                NodeCapability::HttpService,
+                NodeCapability::SshAccess,
+            ],
+            NodeType::Firewall => vec![
+                NodeCapability::HttpService,
+                NodeCapability::SshAccess,
+            ],
+            NodeType::DnsServer => vec![
+                NodeCapability::DnsService,
+                NodeCapability::SshAccess,
+            ],
+            NodeType::WebServer => vec![
+                NodeCapability::HttpService,
+                NodeCapability::HttpsService,
+                NodeCapability::SshAccess,
+            ],
+            NodeType::DatabaseServer => vec![
+                NodeCapability::SshAccess,
+            ],
+            NodeType::MediaServer => vec![
+                NodeCapability::HttpService,
+                NodeCapability::SshAccess,
+            ],
+            NodeType::NasDevice => vec![
+                NodeCapability::SshAccess,
+                NodeCapability::HttpService,
+            ],
+            NodeType::Workstation => vec![
+                NodeCapability::SshAccess,
+            ],
+            NodeType::IotDevice => vec![
+                NodeCapability::HttpService,
+            ],
+            NodeType::Printer => vec![
+                NodeCapability::HttpService,
+            ],
+            NodeType::Camera => vec![
+                NodeCapability::HttpService,
+            ],
             NodeType::UnknownDevice => vec![],
         }
     }
+
+    /// Auto-detect capabilities from open ports (for discovery)
+    pub fn detect_from_open_ports(open_ports: &[u16]) -> Self {
+        let capabilities: Vec<NodeCapability> = open_ports
+            .iter()
+            .filter_map(|&port| NodeCapability::from_port(port))
+            .collect();
+
+        // Priority-based detection for VPN use case
+        if capabilities.contains(&NodeCapability::VpnService) {
+            return NodeType::VpnServer;
+        }
+
+        if capabilities.contains(&NodeCapability::DnsService) {
+            return NodeType::DnsServer;
+        }
+
+        // Check for router indicators
+        if capabilities.contains(&NodeCapability::DhcpService) {
+            return NodeType::Router;
+        }
+
+        // Web server if both HTTP and HTTPS
+        if capabilities.contains(&NodeCapability::HttpService) 
+            && capabilities.contains(&NodeCapability::HttpsService) {
+            return NodeType::WebServer;
+        }
+
+        // Default fallback
+        NodeType::UnknownDevice
+    }
+}
+
+// Capabilities
+
+#[derive(Debug, Serialize)]
+pub struct CapabilityRecommendations {
+    pub all_capabilities: Vec<NodeCapability>,
+    pub current_capabilities: Vec<NodeCapability>, 
+    pub suggested_capabilities: Vec<NodeCapability>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NodeCapability {
+    // Remote Access (core for VPN troubleshooting)
+    SshAccess,
+    HttpService,
+    HttpsService,
+    
+    // VPN-specific
+    VpnService,
+    
+    // Network Infrastructure  
+    DnsService,
+    DhcpService,
+    
+    // Custom service detection
+    CustomService(String, u16), // service_name, port
 }
 
 impl NodeCapability {
     pub fn display_name(&self) -> String {
         match self {
             NodeCapability::SshAccess => "SSH Access".to_string(),
-            NodeCapability::RdpAccess => "RDP Access".to_string(),
-            NodeCapability::VncAccess => "VNC Access".to_string(),
             NodeCapability::HttpService => "HTTP Service".to_string(),
             NodeCapability::HttpsService => "HTTPS Service".to_string(),
-            NodeCapability::DatabaseService => "Database Service".to_string(),
+            NodeCapability::VpnService => "VPN Service".to_string(),
             NodeCapability::DnsService => "DNS Service".to_string(),
-            NodeCapability::EmailService => "Email Service".to_string(),
-            NodeCapability::FtpService => "FTP Service".to_string(),
+            NodeCapability::DhcpService => "DHCP Service".to_string(),
             NodeCapability::CustomService(name, port) => format!("{} (Port {})", name, port),
         }
     }
 
-    /// Get all available capabilities for UI selection
-    pub fn all_capabilities() -> Vec<NodeCapability> {
+    /// Get the default port associated with this capability (for auto-detection)
+    pub fn default_port(&self) -> Option<u16> {
+        match self {
+            NodeCapability::SshAccess => Some(22),
+            NodeCapability::HttpService => Some(80),
+            NodeCapability::HttpsService => Some(443),
+            NodeCapability::VpnService => Some(51820), // Wireguard default
+            NodeCapability::DnsService => Some(53),
+            NodeCapability::DhcpService => Some(67),
+            NodeCapability::CustomService(_, port) => Some(*port),
+        }
+    }
+
+    /// Create capability from discovered port (for auto-detection)
+    pub fn from_port(port: u16) -> Option<Self> {
+        match port {
+            22 => Some(NodeCapability::SshAccess),
+            80 => Some(NodeCapability::HttpService),
+            443 => Some(NodeCapability::HttpsService),
+            53 => Some(NodeCapability::DnsService),
+            67 => Some(NodeCapability::DhcpService),
+            1194 | 1723 | 500 | 4500 | 51820 => Some(NodeCapability::VpnService),
+            _ => None, // Will be handled as CustomService if needed
+        }
+    }
+
+    pub fn all() -> Vec<Self> {  // CHANGE: Remove the semicolon, this should return Vec<Self>
         vec![
             NodeCapability::SshAccess,
-            NodeCapability::RdpAccess,
-            NodeCapability::VncAccess,
             NodeCapability::HttpService,
             NodeCapability::HttpsService,
-            NodeCapability::DatabaseService,
+            NodeCapability::VpnService,
             NodeCapability::DnsService,
-            NodeCapability::EmailService,
-            NodeCapability::FtpService,
+            NodeCapability::DhcpService,
+        ]
+    }
+
+    /// Get all standard capabilities (excluding CustomService)
+    pub fn all_standard() -> Vec<NodeCapability> {
+        vec![
+            NodeCapability::SshAccess,
+            NodeCapability::HttpService,
+            NodeCapability::HttpsService,
+            NodeCapability::VpnService,
+            NodeCapability::DnsService,
+            NodeCapability::DhcpService,
         ]
     }
 }

@@ -12,7 +12,7 @@ use crate::{
             service::TestService,
             types::{TestType, TestConfiguration,TestResult}
         },
-        nodes::types::{TestCriticality, Node},
+        nodes::types::{Node},
     },
     AppState,
 };
@@ -21,10 +21,6 @@ pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/execute-adhoc", post(execute_adhoc_test_handler))
         .route("/execute-node/:node_id", post(execute_node_tests_handler))
-        .route("/assign-test", post(assign_test_to_node_handler))
-        .route("/unassign-test", post(unassign_test_from_node_handler))
-        .route("/update-assignment", post(update_test_assignment_handler))
-        .route("/results/:node_id", get(get_node_test_results))
         .route("/types", get(get_test_types))
         .route("/compatibility/:node_id", get(get_compatible_tests))
 }
@@ -34,32 +30,6 @@ pub struct ExecuteAdhocTestRequest {
     pub node_id: String,
     pub test_type: TestType,
     pub test_config: TestConfiguration,
-}
-
-#[derive(serde::Deserialize)]
-pub struct AssignTestRequest {
-    pub node_id: String,
-    pub test_type: TestType,
-    pub test_config: TestConfiguration,
-    pub criticality: TestCriticality,
-    pub monitor_interval_minutes: Option<u32>,
-    pub enabled: Option<bool>,
-}
-
-#[derive(serde::Deserialize)]
-pub struct UnassignTestRequest {
-    pub node_id: String,
-    pub test_type: TestType,
-}
-
-#[derive(serde::Deserialize)]
-pub struct UpdateTestAssignmentRequest {
-    pub node_id: String,
-    pub test_type: TestType,
-    pub test_config: Option<TestConfiguration>,
-    pub criticality: Option<TestCriticality>,
-    pub monitor_interval_minutes: Option<Option<u32>>,
-    pub enabled: Option<bool>,
 }
 
 #[derive(serde::Serialize)]
@@ -145,72 +115,6 @@ async fn execute_node_tests_handler(
         new_status: execution_result.new_status.display_name().to_string(),
         executed_at: execution_result.executed_at.to_rfc3339(),
     })))
-}
-
-/// Assign a test to a node
-async fn assign_test_to_node_handler(
-    State(state): State<Arc<AppState>>,
-    Json(request): Json<AssignTestRequest>,
-) -> ApiResult<Json<ApiResponse<TestAssignmentApiResponse>>> {
-    let test_service = TestService::new(state.node_storage.clone());
-    
-    let assignment_result = test_service.assign_test_to_node(
-        &request.node_id,
-        request.test_type,
-        request.test_config,
-        request.criticality,
-        request.monitor_interval_minutes,
-        request.enabled,
-    ).await?;
-    
-    Ok(Json(ApiResponse::success(TestAssignmentApiResponse {
-        node: assignment_result.node,
-        warning: assignment_result.warning,
-    })))
-}
-
-/// Remove a test assignment from a node
-async fn unassign_test_from_node_handler(
-    State(state): State<Arc<AppState>>,
-    Json(request): Json<UnassignTestRequest>,
-) -> ApiResult<Json<ApiResponse<Node>>> {
-    let test_service = TestService::new(state.node_storage.clone());
-    
-    let updated_node = test_service.unassign_test_from_node(
-        &request.node_id,
-        request.test_type,
-    ).await?;
-    
-    Ok(Json(ApiResponse::success(updated_node)))
-}
-
-/// Update a test assignment configuration
-async fn update_test_assignment_handler(
-    State(state): State<Arc<AppState>>,
-    Json(request): Json<UpdateTestAssignmentRequest>,
-) -> ApiResult<Json<ApiResponse<Node>>> {
-    let test_service = TestService::new(state.node_storage.clone());
-    
-    let updated_node = test_service.update_test_assignment(
-        &request.node_id,
-        request.test_type,
-        request.test_config,
-        request.criticality,
-        request.monitor_interval_minutes,
-        request.enabled,
-    ).await?;
-    
-    Ok(Json(ApiResponse::success(updated_node)))
-}
-
-/// Get test results for a node (placeholder - would need result storage)
-async fn get_node_test_results(
-    State(_state): State<Arc<AppState>>,
-    Path(_node_id): Path<String>,
-) -> ApiResult<Json<ApiResponse<Vec<TestResult>>>> {
-    // TODO: Implement test result storage and retrieval
-    // For now, return empty results
-    Ok(Json(ApiResponse::success(vec![])))
 }
 
 /// Get all available test types with their metadata

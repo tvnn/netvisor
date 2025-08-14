@@ -7,7 +7,7 @@ use crate::{
             execution::{execute_adhoc_test, execute_node_tests, compute_node_status_from_results},
         },
         nodes::{
-            types::{AssignedTest,Node, NodeStatus, TestCriticality},
+            types::{NodeStatus},
             service::NodeService
         },
     },
@@ -66,59 +66,6 @@ impl TestService {
         })
     }
 
-    /// Assign a test to a node (now always succeeds but may include warnings)
-    pub async fn assign_test_to_node(
-        &self,
-        node_id: &str,
-        test_type: TestType,
-        test_config: TestConfiguration,
-        criticality: TestCriticality,
-        monitor_interval_minutes: Option<u32>,
-        enabled: Option<bool>,
-    ) -> Result<TestAssignmentResult> {
-        let mut node = self.node_service.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found: {}", node_id))?;
-        
-        // Check if already assigned
-        if node.base.assigned_tests.iter().any(|t| t.test_type == test_type) {
-            return Err(anyhow::anyhow!(
-                "Test {} is already assigned to node {}",
-                test_type.display_name(),
-                node.base.name
-            ));
-        }
-        
-        // Get warning if any
-        let warning = test_type.get_assignment_warning(&node);
-        
-        // Add the test assignment
-        let assigned_test = AssignedTest {
-            test_type,
-            test_config,
-            monitor_interval_minutes,
-            enabled: enabled.unwrap_or(true),
-            criticality,
-        };
-        
-        node.assign_test(assigned_test);
-        
-        let updated_node = self.node_service.update_node(node).await?;
-        
-        Ok(TestAssignmentResult {
-            node: updated_node,
-            warning,
-        })
-    }
-
-    /// Remove a test assignment from a node
-    pub async fn unassign_test_from_node(&self, node_id: &str, test_type: TestType) -> Result<Node> {
-        let mut node = self.node_service.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found: {}", node_id))?;
-
-        node.remove_test(&test_type);
-        self.node_service.update_node(node).await
-    }
-
     /// Get all available test types with recommendation info for a node
     pub async fn get_node_test_compatibility(&self, node_id: &str) -> Result<NodeTestCompatibility> {
         let node = self.node_service.get_node(node_id).await?
@@ -170,30 +117,6 @@ impl TestService {
         })
     }
 
-    /// Update test assignment configuration
-    pub async fn update_test_assignment(
-        &self,
-        node_id: &str,
-        test_type: TestType,
-        test_config: Option<TestConfiguration>,
-        criticality: Option<TestCriticality>,
-        monitor_interval_minutes: Option<Option<u32>>,
-        enabled: Option<bool>,
-    ) -> Result<Node> {
-        let mut node = self.node_service.get_node(node_id).await?
-            .ok_or_else(|| anyhow::anyhow!("Node not found: {}", node_id))?;
-        
-        // Use the specialized update method
-        node.update_test_fields(
-            &test_type,
-            test_config,
-            criticality,
-            monitor_interval_minutes,
-            enabled,
-        ).map_err(|e| anyhow::anyhow!("{}", e))?;
-        
-        self.node_service.update_node(node).await
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -204,12 +127,6 @@ pub struct NodeTestExecutionResult {
     pub previous_status: NodeStatus,
     pub new_status: NodeStatus,
     pub executed_at: chrono::DateTime<chrono::Utc>,
-}
-
-#[derive(Debug, Clone)]
-pub struct TestAssignmentResult {
-    pub node: Node,
-    pub warning: Option<String>,
 }
 
 #[derive(Debug, Clone)]

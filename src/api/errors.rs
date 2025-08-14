@@ -39,31 +39,6 @@ impl ApiError {
     pub fn group_not_found(group_id: &str) -> Self {
         Self::new(StatusCode::NOT_FOUND, format!("Group '{}' not found", group_id))
     }
-
-    pub fn test_execution_error(message: &str) -> Self {
-        Self::new(StatusCode::UNPROCESSABLE_ENTITY, format!("Test execution failed: {}", message))
-    }
-
-    pub fn incompatible_test(test_type: &str, node_type: &str) -> Self {
-        Self::new(
-            StatusCode::BAD_REQUEST,
-            format!("Test '{}' is not compatible with node type '{}'", test_type, node_type)
-        )
-    }
-
-    pub fn test_already_assigned(test_type: &str, node_name: &str) -> Self {
-        Self::new(
-            StatusCode::CONFLICT,
-            format!("Test '{}' is already assigned to node '{}'", test_type, node_name)
-        )
-    }
-
-    pub fn test_not_assigned(test_type: &str, node_name: &str) -> Self {
-        Self::new(
-            StatusCode::NOT_FOUND,
-            format!("Test '{}' is not assigned to node '{}'", test_type, node_name)
-        )
-    }
 }
 
 impl IntoResponse for ApiError {

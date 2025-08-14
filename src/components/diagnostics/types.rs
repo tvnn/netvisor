@@ -43,26 +43,6 @@ pub enum DiagnosticStatus {
     InProgress,  // Diagnostic still running
 }
 
-impl DiagnosticStatus {
-    pub fn display_name(&self) -> &'static str {
-        match self {
-            DiagnosticStatus::Success => "Success",
-            DiagnosticStatus::PartialFail => "Partial Failure",
-            DiagnosticStatus::Failed => "Failed",
-            DiagnosticStatus::InProgress => "In Progress",
-        }
-    }
-
-    pub fn color(&self) -> &'static str {
-        match self {
-            DiagnosticStatus::Success => "green",
-            DiagnosticStatus::PartialFail => "yellow",
-            DiagnosticStatus::Failed => "red",
-            DiagnosticStatus::InProgress => "blue",
-        }
-    }
-}
-
 // Remediation system
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Remediation {
