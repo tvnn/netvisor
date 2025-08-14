@@ -1,23 +1,41 @@
 import type { TestConfiguration, TestType } from "./tests";
 
-export interface Node {
-  id: string;
+// Base form data - what the form actually handles
+export interface NodeFormData {
   name: string;
-  domain?: string;
-  ip?: string;
-  port?: number;
-  path?: string;
-  description?: string;
-  created_at: string;
-  updated_at: string;
+  domain: string;
+  ip: string;
+  port: number;
+  path: string;
+  description: string;
+  node_type: NodeType;
+  capabilities: NodeCapability[];
+  monitoring_enabled: boolean;
+  assigned_tests: AssignedTest[];
+}
+
+// API data model - what the backend expects/returns
+export interface NodeApi {
+  name: string;
+  domain?: string;       
+  ip?: string;          
+  port?: number;        
+  path?: string;        
+  description?: string; 
   node_type?: NodeType;
   capabilities: NodeCapability[];
-  assigned_tests: AssignedTest[];
   monitoring_enabled: boolean;
+  assigned_tests: AssignedTest[];
   node_groups: string[];
   position?: GraphPosition;
   current_status: NodeStatus;
   subnet_membership: string[];
+}
+
+export interface Node extends NodeApi {
+  id: string;
+  created_at: string;
+  updated_at: string;
   last_seen?: string;
 }
 

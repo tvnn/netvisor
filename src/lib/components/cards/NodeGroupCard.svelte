@@ -1,11 +1,10 @@
 <!-- src/lib/components/node-groups/NodeGroupCard.svelte -->
 <script lang="ts">
   import { Edit, Settings, Trash2, Users, Play } from 'lucide-svelte';
-  import type { NodeGroup } from "$lib/types/node-groups";
   import type { Node } from "$lib/types/nodes";
   import GenericCard from '../common/Card.svelte';
   import type { CardListItem } from '$lib/types';
-  
+  import type { NodeGroup } from '../../stores/node-groups';
   export let group: NodeGroup;
   export let nodes: Node[] = [];
   export let onEdit: (group: NodeGroup) => void = () => {};
@@ -90,7 +89,7 @@
       },
       {
         label: 'Edit Group',
-        icon: Settings,
+        icon: Edit,
         color: 'text-gray-400',
         hoverColor: 'text-white',
         bgHover: 'hover:bg-gray-700',

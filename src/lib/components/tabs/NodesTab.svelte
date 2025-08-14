@@ -6,15 +6,11 @@
   import type { Node, AssignedTest } from '../../types/nodes';
   import { getTestTypeDisplayName } from '../../types/tests';
   import NodeCard from '../cards/NodeCard.svelte';
-  import NodeEditor from '../modals/NodeEditor.svelte';
-  import TestAssignment from '../modals/TestAssignment.svelte';
+  import NodeEditor from '../modals/NodeEditor/NodeEditor.svelte';
   
   let searchTerm = '';
   let showNodeEditor = false;
-  let showTestEditor = false;
   let editingNode: Node | null = null;
-  let assigningTestNode: Node | null = null;
-  let editingTest: AssignedTest | null = null;
   
   $: filteredNodes = $nodes.filter((node: Node) => 
     node.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,53 +47,6 @@
     }
   }
   
-  function handleToggleMonitoring(node: Node) {
-    nodeActions.setMonitoring(node.id, !node.monitoring_enabled);
-  }
-  
-  function handleAssignTest(node: Node) {
-    assigningTestNode = node;
-    showTestEditor = true;
-  }
-
-  async function handleDeleteTest(node: Node, test: AssignedTest) {
-    if (!confirm(`Are you sure you want to remove the ${getTestTypeDisplayName(test.test_type)} test from ${node.name}?`)) {
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/tests/unassign-test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          node_id: node.id,
-          test_type: test.test_type
-        }),
-      });
-
-      if (response.ok) {
-        // Refresh nodes to get the updated node list
-        await nodeActions.loadNodes();
-      } else {
-        const error = await response.json();
-        alert(`Failed to remove test: ${error.error || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('Error removing test:', error);
-      alert('Failed to remove test. Please try again.');
-    }
-  }
-
-  // Also update your handleEditTest function to clear editingTest when closing
-  function handleEditTest(node: Node, test: AssignedTest) {
-    assigningTestNode = node;
-    editingTest = test;
-    showTestEditor = true;
-  }
-  
-  // Updated to handle function props instead of events
   async function handleNodeCreate(data: any) {
     const result = await nodeActions.createNode(data);
     if (result) {
@@ -114,30 +63,9 @@
     }
   }
   
-  async function handleTestAssign(node: Node, warning?: string) {
-    // Handle the test assignment - node is already updated from the API response
-    // You might want to show the warning to the user if present
-    if (warning) {
-      console.log('Test assignment warning:', warning);
-      // Optionally show a toast notification with the warning
-    }
-    
-    // Refresh nodes to get the updated node with the new test
-    await nodeActions.loadNodes();
-    
-    showTestEditor = false;
-    assigningTestNode = null;
-  }
-  
   function handleCloseNodeEditor() {
     showNodeEditor = false;
     editingNode = null;
-  }
-  
-  function handleCloseTestAssignment() {
-    showTestEditor = false;
-    assigningTestNode = null;
-    editingTest = null;
   }
 </script>
 
@@ -236,28 +164,16 @@
           groupNames={getGroupNames(node.node_groups)}
           onEdit={handleEditNode}
           onDelete={handleDeleteNode}
-          onAssignTest={handleAssignTest}
-          onEditTest={handleEditTest}
-          onDeleteTest={handleDeleteTest}
         />
       {/each}
     </div>
   {/if}
 </div>
 
-<!-- Modals -->
 <NodeEditor
   isOpen={showNodeEditor}
   node={editingNode}
   onCreate={handleNodeCreate}
   onUpdate={handleNodeUpdate}
   onClose={handleCloseNodeEditor}
-/>
-
-<TestAssignment
-  isOpen={showTestEditor}
-  node={assigningTestNode}
-  test={editingTest}
-  onAssigned={handleTestAssign}
-  onClose={handleCloseTestAssignment}
 />

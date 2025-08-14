@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Plus, Users, Play, Settings, Trash2, Edit } from 'lucide-svelte';
+  import { Plus, Users, Play, Trash2, Edit } from 'lucide-svelte';
   import { nodeGroups, nodeGroupActions, loading, error } from '../../stores/node-groups';
   import { nodes } from '../../stores/nodes';
-  import type { NodeGroup } from '../../stores/node-groups';
+  import type { Node } from '../../types/nodes';
+  import type { NodeGroup } from '$lib/types/node-groups';
   import NodeGroupEditor from '../modals/NodeGroupEditor.svelte';
+	import NodeGroupCard from '../cards/NodeGroupCard.svelte';
   
   let showGroupEditor = false;
   let editingGroup: NodeGroup | null = null;
@@ -29,7 +31,6 @@
     }
   }
   
-  // Updated to handle function props instead of events
   async function handleGroupCreate(data: any) {
     const result = await nodeGroupActions.createGroup(data);
     if (result) {
@@ -50,12 +51,9 @@
     showGroupEditor = false;
     editingGroup = null;
   }
-  
-  function getNodeNames(nodeIds: string[]): string[] {
-    return nodeIds.map(id => {
-      const node = $nodes.find(n => n.id === id);
-      return node ? node.name : `Node ${id.slice(0, 8)}...`;
-    });
+
+  function getNodes(nodeIds: string[]): Node[] {
+    return nodeIds.map(id => $nodes.find(n => n.id === id)).filter(Boolean) as Node[];
   }
 </script>
 
@@ -136,88 +134,17 @@
     <!-- Node Groups Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {#each $nodeGroups as group (group.id)}
-        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-gray-600 transition-colors">
-          <!-- Header -->
-          <div class="flex items-start justify-between mb-3">
-            <div class="flex items-center gap-2">
-              <Users class="w-5 h-5 text-purple-400" />
-              <div>
-                <h3 class="font-semibold text-white">{group.name}</h3>
-                <p class="text-sm text-gray-400">{group.node_sequence.length} nodes</p>
-              </div>
-            </div>
-            
-            <!-- Auto-diagnostic indicator -->
-            {#if group.auto_diagnostic_enabled}
-              <div class="flex items-center gap-1">
-                <div class="w-2 h-2 rounded-full bg-green-500"></div>
-                <span class="text-xs text-green-400">Auto</span>
-              </div>
-            {:else}
-              <div class="flex items-center gap-1">
-                <div class="w-2 h-2 rounded-full bg-gray-500"></div>
-                <span class="text-xs text-gray-500">Manual</span>
-              </div>
-            {/if}
-          </div>
-
-          <!-- Description -->
-          {#if group.description}
-            <p class="text-sm text-gray-300 mb-3">{group.description}</p>
-          {/if}
-
-          <!-- Node sequence -->
-          <div class="mb-4">
-            <div class="text-xs text-gray-400 mb-2">Diagnostic Sequence:</div>
-            {#if group.node_sequence.length > 0}
-              <div class="space-y-1">
-                {#each getNodeNames(group.node_sequence).slice(0, 3) as nodeName, index}
-                  <div class="flex items-center gap-2 text-sm">
-                    <span class="text-gray-500">{index + 1}.</span>
-                    <span class="text-gray-300">{nodeName}</span>
-                  </div>
-                {/each}
-                {#if group.node_sequence.length > 3}
-                  <div class="text-xs text-gray-500 ml-4">
-                    +{group.node_sequence.length - 3} more nodes...
-                  </div>
-                {/if}
-              </div>
-            {:else}
-              <span class="text-xs text-gray-500">No nodes in sequence</span>
-            {/if}
-          </div>
-
-          <!-- Actions -->
-          <div class="flex items-center justify-between pt-3 border-t border-gray-700">
-            <div class="flex items-center gap-2">
-              <button
-                class="p-1 text-gray-400 hover:text-white transition-colors"
-                title="Run diagnostic"
-                disabled
-              >
-                <Play class="w-4 h-4" />
-              </button>
-              
-              <button
-                on:click={() => handleEditGroup(group)}
-                class="p-1 text-gray-400 hover:text-white transition-colors"
-                title="Edit group"
-              >
-                <Edit class="w-4 h-4" />
-              </button>
-            </div>
-            
-            <button
-              on:click={() => handleDeleteGroup(group)}
-              class="p-1 text-red-400 hover:text-red-300 transition-colors"
-              title="Delete group"
-            >
-              <Trash2 class="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      {/each}
+      <NodeGroupCard
+        {group}
+        nodes={getNodes(group.node_sequence)}
+        onEdit={() => handleEditGroup(group)}
+        onDelete={() => handleDeleteGroup(group)}
+        onExecute={() => {
+          // TODO: Implement diagnostic execution
+          console.log('Execute diagnostic for group:', group.name);
+        }}
+      />
+    {/each}
     </div>
   {/if}
 </div>

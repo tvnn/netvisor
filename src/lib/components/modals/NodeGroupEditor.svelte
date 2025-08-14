@@ -1,9 +1,8 @@
 <script lang="ts">
-  import type { NodeGroup } from "$lib/types/node-groups";
-  import type { Node } from "$lib/types/nodes";
   import { nodes } from '../../stores/nodes';
   import GenericEditModal from '../common/EditModal.svelte';
   import ListManager from '../common/ListManager.svelte';
+  import type { NodeGroupApi, NodeGroup, NodeGroupFormData } from '$lib/types/node-groups'
   
   export let group: NodeGroup | null = null;
   export let isOpen = false;
@@ -12,12 +11,7 @@
   export let onClose: () => void;
   export let onDelete: ((id: string) => Promise<void> | void) | null = null;
   
-  let formData = {
-    name: '',
-    description: '',
-    node_sequence: [] as string[],
-    auto_diagnostic_enabled: true
-  };
+  let formData = createEmptyFormData();
   
   let loading = false;
   let deleting = false;
@@ -30,23 +24,27 @@
   $: if (isOpen) {
     resetForm();
   }
+
+  function createEmptyFormData(): NodeGroupFormData {
+    return {
+      name: '',
+      description: '',
+      node_sequence: [] as string[],
+      auto_diagnostic_enabled: true
+    };
+  }
+
+  function nodeGroupToFormData(nodeGroup: NodeGroup): NodeGroupFormData {
+    return {
+      name: nodeGroup.name,
+      description: nodeGroup.description || '',
+      node_sequence: nodeGroup.node_sequence || [],
+      auto_diagnostic_enabled: nodeGroup.auto_diagnostic_enabled || true
+    };
+  }
   
   function resetForm() {
-    if (group) {
-      formData = {
-        name: group.name,
-        description: group.description,
-        node_sequence: [...group.node_sequence],
-        auto_diagnostic_enabled: group.auto_diagnostic_enabled
-      };
-    } else {
-      formData = {
-        name: '',
-        description: '',
-        node_sequence: [],
-        auto_diagnostic_enabled: true
-      };
-    }
+    formData = group ? nodeGroupToFormData(group) : createEmptyFormData();
     errors = {};
   }
   
@@ -65,9 +63,9 @@
   }
   
   async function handleSubmit(data: any) {
-    const groupData = {
+    const groupData: Partial<NodeGroupApi> = {
       name: formData.name.trim(),
-      description: formData.description.trim(),
+      ...(formData.description.trim() && { description: formData.description.trim() }),
       node_sequence: formData.node_sequence,
       auto_diagnostic_enabled: formData.auto_diagnostic_enabled
     };

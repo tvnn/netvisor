@@ -11,9 +11,6 @@
   export let groupNames: string[] = [];
   export let onEdit: (node: Node) => void = () => {};
   export let onDelete: (node: Node) => void = () => {};
-  export let onAssignTest: (node: Node) => void = () => {};
-  export let onEditTest: (node: Node, test: AssignedTest) => void = () => {};
-  // export let onDeleteTest: (node: Node, test: AssignedTest) => void = () => {}; // Removed as it's not used in this implementation
   
   // Get the display status - monitoring status takes precedence if disabled
   function getDisplayStatus() {
@@ -107,15 +104,7 @@
               ${test.monitor_interval_minutes ? `<span class="text-xs text-gray-500">${test.monitor_interval_minutes}m</span>` : ''}
             </div>
           `;
-        },
-        itemActions: (item: CardListItem) => [{
-          label: 'Edit Test',
-          icon: Settings,
-          color: 'text-gray-400',
-          hoverColor: 'text-white',
-          bgHover: 'hover:bg-gray-700',
-          onClick: () => onEditTest(node, item.metadata as AssignedTest)
-        }]
+        }
       }
     ],
     
@@ -129,16 +118,8 @@
         onClick: () => onDelete(node)
       },
       {
-        label: 'Assign Test',
-        icon: SquareActivity,
-        color: 'text-gray-400',
-        hoverColor: 'text-white',
-        bgHover: 'hover:bg-gray-700',
-        onClick: () => onAssignTest(node)
-      },
-      {
         label: 'Edit Node',
-        icon: Settings,
+        icon: Edit,
         color: 'text-gray-400',
         hoverColor: 'text-white',
         bgHover: 'hover:bg-gray-700',
