@@ -1,9 +1,13 @@
-<!-- src/lib/components/modals/NodeEditor/TestConfigPanel.svelte -->
 <script lang="ts">
   import { X } from 'lucide-svelte';
-  import type { AssignedTest, TestCriticality } from "$lib/types/nodes";
-  import type { TestType, TestConfiguration } from "$lib/types/tests";
-  import { getTestTypeDisplayName, getTestDescription } from "$lib/types/tests";
+  import type { AssignedTest } from "$lib/types/nodes";
+      import type { TestCriticality } from "$lib/types/nodes";
+  import { 
+    type TestConfiguration, 
+    extractConfigFromTest
+  } from "$lib/types/tests";
+  import type { TestType } from "$lib/config/tests/types";
+  import { getTestDisplay, getTestDescription } from "$lib/config/tests/types";
   
   export let test: AssignedTest | null = null;
   export let node: any;
@@ -86,152 +90,104 @@
     };
   }
   
-  function extractConfigFromTest(assignedTest: AssignedTest): any {
-    const config = assignedTest.test_config;
-    
-    if ('Connectivity' in config) {
-      return {
-        target: config.Connectivity.target,
-        port: config.Connectivity.port?.toString() || '',
-        timeout: config.Connectivity.timeout?.toString() || '30000',
-        expected_result: config.Connectivity.expected_result
-      };
-    } else if ('DirectIp' in config) {
-      return {
-        target: config.DirectIp.target,
-        port: config.DirectIp.port.toString(),
-        timeout: config.DirectIp.timeout?.toString() || '30000',
-        expected_result: config.DirectIp.expected_result
-      };
-    } else if ('Ping' in config) {
-      return {
-        target: config.Ping.target,
-        port: config.Ping.port?.toString() || '',
-        attempts: config.Ping.attempts?.toString() || '4',
-        timeout: config.Ping.timeout?.toString() || '30000',
-        expected_result: config.Ping.expected_result
-      };
-    } else if ('ServiceHealth' in config) {
-      return {
-        target: config.ServiceHealth.target,
-        port: config.ServiceHealth.port?.toString() || '',
-        path: config.ServiceHealth.path || '/',
-        timeout: config.ServiceHealth.timeout?.toString() || '30000',
-        expected_result: config.ServiceHealth.expected_result
-      };
-    } else if ('DnsResolution' in config) {
-      return {
-        domain: config.DnsResolution.domain,
-        timeout: config.DnsResolution.timeout?.toString() || '30000',
-        expected_result: config.DnsResolution.expected_result
-      };
-    } else if ('VpnConnectivity' in config) {
-      return {
-        target: config.VpnConnectivity.target,
-        port: config.VpnConnectivity.port?.toString() || '51820',
-        timeout: config.VpnConnectivity.timeout?.toString() || '30000',
-        expected_result: config.VpnConnectivity.expected_result
-      };
-    } else if ('VpnTunnel' in config) {
-      return {
-        expected_subnet: config.VpnTunnel.expected_subnet,
-        timeout: config.VpnTunnel.timeout?.toString() || '30000',
-        expected_result: config.VpnTunnel.expected_result
-      };
-    }
-    
-    return {};
-  }
-  
+  // FIXED: Use new discriminated union structure
   function getTestConfigForType(testType: TestType): TestConfiguration {
     const baseConfig = {
       timeout: parseInt(testConfig.timeout) || 30000,
-      expected_result: testConfig.expected_result || 'Success'
+      expected_result: (testConfig.expected_result || 'Success') as 'Success' | 'Failure'
     };
     
     switch (testType) {
       case 'Connectivity':
         return {
-          Connectivity: {
+          type: 'Connectivity',
+          config: {
             target: testConfig.target || nodeTarget,
             port: testConfig.port ? parseInt(testConfig.port) : undefined,
-            protocol: 'http',
-            timeout: baseConfig.timeout,
-            expected_result: baseConfig.expected_result
+            protocol: 'tcp' as 'tcp' | 'udp',
+            ...baseConfig
           }
         };
+        
       case 'DirectIp':
         return {
-          DirectIp: {
+          type: 'DirectIp',
+          config: {
             target: node?.ip || '',
             port: parseInt(testConfig.port) || 80,
-            timeout: baseConfig.timeout,
-            expected_result: baseConfig.expected_result
+            ...baseConfig
           }
         };
+        
       case 'Ping':
         return {
-          Ping: {
+          type: 'Ping',
+          config: {
             target: testConfig.target || nodeTarget,
-            port: testConfig.port ? parseInt(testConfig.port) : undefined,
             attempts: parseInt(testConfig.attempts) || 4,
-            timeout: baseConfig.timeout,
-            expected_result: baseConfig.expected_result
+            ...baseConfig
           }
         };
+        
       case 'WellknownIp':
         return {
-          WellknownIp: {
-            timeout: baseConfig.timeout,
-            expected_result: baseConfig.expected_result
+          type: 'WellknownIp',
+          config: {
+            ...baseConfig
           }
         };
+        
       case 'DnsResolution':
         return {
-          DnsResolution: {
+          type: 'DnsResolution',
+          config: {
             domain: testConfig.domain || 'example.com',
-            timeout: baseConfig.timeout,
-            expected_result: baseConfig.expected_result
+            ...baseConfig
           }
         };
+        
       case 'DnsOverHttps':
         return {
-          DnsOverHttps: {
+          type: 'DnsOverHttps',
+          config: {
             target: 'https://1.1.1.1/dns-query',
             domain: testConfig.domain || 'example.com',
             service_type: 'cloudflare',
-            timeout: baseConfig.timeout,
-            expected_result: baseConfig.expected_result
+            ...baseConfig
           }
         };
+        
       case 'ServiceHealth':
         return {
-          ServiceHealth: {
+          type: 'ServiceHealth',
+          config: {
             target: testConfig.target || nodeTarget,
             port: parseInt(testConfig.port) || 80,
             path: testConfig.path || '/',
             expected_status: 200,
-            timeout: baseConfig.timeout,
-            expected_result: baseConfig.expected_result
+            ...baseConfig
           }
         };
+        
       case 'VpnConnectivity':
         return {
-          VpnConnectivity: {
+          type: 'VpnConnectivity',
+          config: {
             target: testConfig.target || nodeTarget,
             port: parseInt(testConfig.port) || 51820,
-            timeout: baseConfig.timeout,
-            expected_result: baseConfig.expected_result
+            ...baseConfig
           }
         };
+        
       case 'VpnTunnel':
         return {
-          VpnTunnel: {
+          type: 'VpnTunnel',
+          config: {
             expected_subnet: testConfig.expected_subnet || '10.100.0.0/24',
-            timeout: baseConfig.timeout,
-            expected_result: baseConfig.expected_result
+            ...baseConfig
           }
         };
+        
       default:
         throw new Error(`Unsupported test type: ${testType}`);
     }
@@ -264,7 +220,7 @@
     >
       {#each testTypes as testType}
         <option value={testType}>
-          {getTestTypeDisplayName(testType)}
+          {getTestDisplay(testType)}
         </option>
       {/each}
     </select>
@@ -272,10 +228,10 @@
     <!-- Test Description -->
     <div class="mt-2 p-3 bg-gray-700/50 rounded-lg border border-gray-600">
       <p class="text-sm text-gray-300 mb-2">
-        {getTestDescription(selectedTestType).shortDescription}
+        {getTestDescription(selectedTestType).short}
       </p>
       <p class="text-xs text-gray-400">
-        {getTestDescription(selectedTestType).detailedDescription}
+        {getTestDescription(selectedTestType).detailed}
       </p>
     </div>
   </div>
@@ -454,13 +410,14 @@
       <label for="expected_result" class="block text-sm font-medium text-gray-400 mb-1">
         Expected Result
       </label>
-      <input
+      <select
         id="expected_result"
         bind:value={testConfig.expected_result}
-        type="text"
         class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="Success"
-      />
+      >
+        <option value="Success">Success</option>
+        <option value="Failure">Failure</option>
+      </select>
       <p class="text-xs text-gray-400 mt-1">
         Used to determine if the test passed or failed
       </p>

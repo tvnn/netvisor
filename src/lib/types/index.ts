@@ -1,11 +1,11 @@
 import type { Node } from "./nodes";
-import type { TestType, TestResult } from "./tests";
+import type { TestType } from "$lib/config/tests/types";
+import type { TestResult } from './tests';
 
 // Components
-
 export interface CardAction {
   label: string;
-  icon: any;
+  icon: any; // Svelte component
   color?: string;
   hoverColor?: string;
   bgHover?: string;
@@ -18,21 +18,24 @@ export interface CardSection {
   value: string;
 }
 
+export interface CardListItem {
+  id: string;
+  label: string;
+  icon?: any; // Svelte component instead of HTML
+  iconColor?: string;
+  bgColor?: string;
+  color?: string;
+  disabled?: boolean;
+  metadata?: any;
+  badge?: string; // For things like "5m", "Critical", etc.
+  badgeColor?: string;
+}
+
 export interface CardList {
   label: string;
   items: CardListItem[];
   emptyText?: string;
-  renderItem?: (item: CardListItem) => string;
   itemActions?: (item: CardListItem) => CardAction[];
-}
-
-export interface CardListItem {
-  id: string;
-  label: string;
-  metadata?: Record<string, any>;
-  color?: string;
-  bgColor?: string;
-  disabled?: boolean;
 }
 
 // API Response types

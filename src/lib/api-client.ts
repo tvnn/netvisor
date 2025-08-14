@@ -1,6 +1,7 @@
 import type { NodeGroupApi, NodeGroup } from "./types/node-groups";
-import type { NodeApi, Node, TestCriticality } from "./types/nodes";
-import type { TestConfiguration, TestType } from "./types/tests";
+import type { NodeApi, Node, CapabilityRecommendations, NodeType } from "./types/nodes";
+import type { TestConfiguration } from "./types/tests";
+import type { TestType } from "./config/tests/types";
 
 // API client for NetFrog backend
 const API_BASE = 'http://localhost:3000/api';
@@ -28,20 +29,6 @@ interface NodeGroupListResponse {
 
 interface NodeGroupResponse {
   group: NodeGroup;
-}
-
-interface TestAssignmentRequest {
-  node_id: string;
-  test_type: TestType;
-  test_config: TestConfiguration;
-  criticality: TestCriticality;
-  monitor_interval_minutes?: number;
-  enabled: boolean;
-}
-
-interface MonitoringRequest {
-  node_id: string;
-  enabled: boolean;
 }
 
 class ApiClient {
@@ -108,18 +95,8 @@ class ApiClient {
     });
   }
 
-  async assignTest(data: TestAssignmentRequest) {
-    return this.request<NodeResponse>(`/nodes/${data.node_id}/assign-test`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  async setMonitoring(nodeId: string, enabled: boolean) {
-    return this.request<NodeResponse>(`/nodes/${nodeId}/monitoring`, {
-      method: 'PUT',
-      body: JSON.stringify({ node_id: nodeId, enabled } as MonitoringRequest),
-    });
+  async getCapabilityRecommendations(nodeType: NodeType) {
+    return this.request<CapabilityRecommendations>(`/nodes/capability-recommendations?node_type=${nodeType}`);
   }
 
   // Node group operations

@@ -1,5 +1,6 @@
 import type { NodeStatus } from "./nodes";
-import type { TestConfiguration, TestResult, TestType } from "./tests";
+import type { TestConfiguration, TestResult } from "./tests";
+import type { TestType } from "$lib/config/tests/types";
 
 
 export interface DiagnosticExecution {

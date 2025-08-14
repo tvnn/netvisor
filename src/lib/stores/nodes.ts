@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { Node } from "$lib/types/nodes";
+import type { Node, NodeType } from "$lib/types/nodes";
 import { api } from '../api-client';
 
 export const nodes = writable<Node[]>([]);
@@ -96,45 +96,6 @@ export const nodeActions = {
     }
   },
 
-  async assignTest(data: any): Promise<boolean> {
-    try {
-      const response = await api.assignTest(data);
-      if (response.success) {
-        // Refresh the node to get updated assigned_tests
-        await this.refreshNode(data.node_id);
-        return true;
-      } else {
-        error.set(response.error || 'Failed to assign test');
-        return false;
-      }
-    } catch (err) {
-      error.set('Network error');
-      return false;
-    }
-  },
-
-  async setMonitoring(nodeId: string, enabled: boolean): Promise<boolean> {
-    try {
-      const response = await api.setMonitoring(nodeId, enabled);
-      if (response.success) {
-        nodes.update(current => 
-          current.map(node => 
-            node.id === nodeId 
-              ? { ...node, monitoring_enabled: enabled }
-              : node
-          )
-        );
-        return true;
-      } else {
-        error.set(response.error || 'Failed to set monitoring');
-        return false;
-      }
-    } catch (err) {
-      error.set('Network error');
-      return false;
-    }
-  },
-
   async refreshNode(nodeId: string) {
     try {
       const response = await api.getNode(nodeId);
@@ -146,6 +107,20 @@ export const nodeActions = {
       }
     } catch (err) {
       console.error('Failed to refresh node:', err);
+    }
+  },
+
+  async getCapabilityRecommendations(nodeType: NodeType) {
+    try {
+      const response = await api.getCapabilityRecommendations(nodeType);
+      if (response.success && response.data) {
+        return response.data;
+      } else {
+        return false;
+      }
+    } catch (err) {
+      console.error('Failed to get capability recommendations')
+      return false;
     }
   },
 

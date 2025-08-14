@@ -166,6 +166,7 @@
   <!-- Node Sequence Manager -->
   <ListManager
     label="Diagnostic Sequence"
+    helpText="When diagnostics are run, tests will be executed on nodes in the order specified below. This allows you to follow logical network paths and dependencies during troubleshooting."
     bind:items={formData.node_sequence}
     availableOptions={$nodes.map(node => ({
       id: node.id,
@@ -178,12 +179,4 @@
     getDisplayName={getNodeName}
     error={errors.nodes}
   />
-  
-  <!-- Info about diagnostic sequence -->
-  <div class="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3">
-    <p class="text-purple-300 text-sm">
-      <strong>Diagnostic Sequence:</strong> Tests will be executed on nodes in the order specified above. 
-      This allows you to follow logical network paths and dependencies during troubleshooting.
-    </p>
-  </div>
 </GenericEditModal>

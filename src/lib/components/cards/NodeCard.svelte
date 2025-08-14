@@ -1,11 +1,10 @@
-<!-- src/lib/components/nodes/NodeCard.svelte -->
 <script lang="ts">
-  import { Edit, Settings, Trash2, Server, SquareActivity, CircleAlert, TriangleAlert, OctagonAlert } from 'lucide-svelte';
-  import type { Node, AssignedTest } from "$lib/types/nodes";
-  import { getNodeStatusDisplayName, getNodeStatusColor, getNodeTypeDisplayName } from "$lib/types/nodes";
-  import { getTestTypeDisplayName } from "$lib/types/tests";
+  import { Edit, Trash2, Server, CircleAlert, TriangleAlert, OctagonAlert } from 'lucide-svelte';
+  import type { Node } from "$lib/types/nodes";
+  import { getNodeStatusDisplayName, getNodeStatusColor } from "$lib/config/nodes/status";
+  import { getNodeTypeDisplay, getNodeTypeIcon } from "$lib/config/nodes/types";
+  import { getTestDisplay } from "$lib/config/tests/types";
   import GenericCard from '../common/Card.svelte';
-  import type { CardListItem } from '$lib/types';
   
   export let node: Node;
   export let groupNames: string[] = [];
@@ -28,6 +27,20 @@
     return getNodeStatusColor(node.current_status);
   }
   
+  // Get criticality icon and color
+  function getCriticalityIconConfig(criticality: string) {
+    switch (criticality) {
+      case 'Critical':
+        return { icon: OctagonAlert, color: 'text-red-400' };
+      case 'Important':
+        return { icon: TriangleAlert, color: 'text-yellow-300' };
+      case 'Informational':
+        return { icon: CircleAlert, color: 'text-blue-300' };
+      default:
+        return { icon: CircleAlert, color: 'text-gray-400' };
+    }
+  }
+  
   // Build connection info
   $: connectionInfo = (() => {
     if (node.ip) {
@@ -41,10 +54,10 @@
   // Build card data
   $: cardData = {
     title: node.name,
-    subtitle: node.node_type ? getNodeTypeDisplayName(node.node_type) : 'Unknown Device',
+    subtitle: getNodeTypeDisplay(node.node_type),
     status: getDisplayStatus(),
     statusColor: getDisplayStatusColor(),
-    icon: Server,
+    icon: getNodeTypeIcon(node.node_type),
     iconColor: 'text-blue-400',
     
     sections: connectionInfo ? [{
@@ -64,7 +77,7 @@
         emptyText: 'No capabilities assigned'
       },
       {
-        label: 'Groups',
+        label: 'Diagnostic Groups',
         items: groupNames.map((name, i) => ({
           id: node.node_groups[i] || name,
           label: name,
@@ -75,36 +88,22 @@
       },
       {
         label: 'Tests',
-        items: node.assigned_tests.map(test => ({
-          id: test.test_type,
-          label: getTestTypeDisplayName(test.test_type),
-          metadata: test,
-          disabled: !test.enabled
-        })),
-        emptyText: 'No tests assigned',
-        renderItem: (item: CardListItem) => {
-          const test = item.metadata as AssignedTest;
-          const icon = test.criticality === 'Critical' ? 'text-red-400' :
-                      test.criticality === 'Important' ? 'text-yellow-300' : 'text-blue-300';
-          const iconComponent = test.criticality === 'Critical' ? 'OctagonAlert' :
-                               test.criticality === 'Important' ? 'TriangleAlert' : 'CircleAlert';
-          
-          return `
-            <div class="flex items-center space-x-2">
-              <svg class="w-4 h-4 ${icon}" fill="currentColor" viewBox="0 0 24 24">
-                ${test.criticality === 'Critical' ? 
-                  '<path d="M12 2L2 22h20L12 2zm0 4l7.5 13h-15L12 6z"/>' :
-                  test.criticality === 'Important' ?
-                  '<path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>' :
-                  '<circle cx="12" cy="12" r="10"/>'
-                }
-              </svg>
-              <span class="text-gray-300">${item.label}</span>
-              ${item.disabled ? '<span class="text-xs text-gray-500">(disabled)</span>' : ''}
-              ${test.monitor_interval_minutes ? `<span class="text-xs text-gray-500">${test.monitor_interval_minutes}m</span>` : ''}
-            </div>
-          `;
-        }
+        items: node.assigned_tests.map(test => {
+          const criticalityConfig = getCriticalityIconConfig(test.criticality);
+          return {
+            id: test.test_type,
+            label: getTestDisplay(test.test_type),
+            icon: criticalityConfig.icon,
+            iconColor: criticalityConfig.color,
+            bgColor: test.enabled ? 'bg-gray-700/50' : 'bg-gray-700/30',
+            color: test.enabled ? 'text-gray-300' : 'text-gray-500',
+            disabled: !test.enabled,
+            badge: test.monitor_interval_minutes ? `${test.monitor_interval_minutes}m` : undefined,
+            badgeColor: 'text-gray-500',
+            metadata: test
+          };
+        }),
+        emptyText: 'No tests assigned'
       }
     ],
     

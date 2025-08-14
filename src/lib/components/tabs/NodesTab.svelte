@@ -3,8 +3,7 @@
   import { Plus, Search } from 'lucide-svelte';
   import { nodes, nodeActions, loading, error } from '../../stores/nodes';
   import { nodeGroups, nodeGroupActions } from '../../stores/node-groups';
-  import type { Node, AssignedTest } from '../../types/nodes';
-  import { getTestTypeDisplayName } from '../../types/tests';
+  import type { Node } from '../../types/nodes';
   import NodeCard from '../cards/NodeCard.svelte';
   import NodeEditor from '../modals/NodeEditor/NodeEditor.svelte';
   

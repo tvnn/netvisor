@@ -1,16 +1,11 @@
-<!-- src/lib/components/modals/NodeEditor/BasicNodeForm.svelte -->
 <script lang="ts">
-  import type { NodeType } from "$lib/types/nodes";
-  import { getNodeTypeDisplayName } from "$lib/types/nodes";
+        import type { NodeType } from "$lib/types/nodes";
+    import { getNodeTypeDisplay, getNodeTypes } from "$lib/config/nodes/types";
   
   export let formData: any;
   export let errors: Record<string, string>;
   
-  const nodeTypes: NodeType[] = [
-    'Router', 'Switch', 'AccessPoint', 'Firewall',
-    'WebServer', 'DatabaseServer', 'MediaServer', 'DnsServer', 'VpnServer', 'NasDevice',
-    'Workstation', 'IotDevice', 'Printer', 'Camera', 'UnknownDevice'
-  ];
+  const nodeTypes: NodeType[] = getNodeTypes();
 </script>
 
 <div class="space-y-4">
@@ -38,7 +33,7 @@
     
     <div>
       <label for="node_type" class="block text-sm font-medium text-gray-300 mb-1">
-        Node Type
+        Type
       </label>
       <select
         id="node_type"
@@ -48,7 +43,7 @@
       >
         <option value="">Select node type</option>
         {#each nodeTypes as type}
-          <option value={type}>{getNodeTypeDisplayName(type)}</option>
+          <option value={type}>{getNodeTypeDisplay(type)}</option>
         {/each}
       </select>
     </div>
@@ -105,7 +100,7 @@
     </div>
   </div>
   
-  <!-- Path and Monitoring -->
+  <!-- Path -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
       <label for="path" class="block text-sm font-medium text-gray-300 mb-1">
@@ -119,18 +114,6 @@
         placeholder="/api"
         class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
-    </div>
-    
-    <div>
-      <label class="flex items-center space-x-2 pt-7">
-        <input
-          type="checkbox"
-          name="monitoring_enabled"
-          bind:checked={formData.monitoring_enabled}
-          class="rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
-        />
-        <span class="text-sm font-medium text-gray-300">Enable Monitoring</span>
-      </label>
     </div>
   </div>
   

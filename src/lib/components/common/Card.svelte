@@ -1,7 +1,5 @@
-<!-- src/lib/components/common/GenericCard.svelte -->
 <script lang="ts">
-  import { Edit, Settings, Trash2 } from 'lucide-svelte';
-  import type { CardAction, CardSection, CardList } from '$lib/types';
+  import type { CardAction, CardSection, CardList } from '$lib/types/index';
   
   export let title: string;
   export let subtitle: string = '';
@@ -12,7 +10,6 @@
   export let actions: CardAction[] = [];
   export let sections: CardSection[] = [];
   export let lists: CardList[] = [];
-  
 </script>
 
 <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-600 transition-colors flex flex-col h-full">
@@ -53,17 +50,29 @@
             {#each list.items as item}
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">
-                  {#if list.renderItem}
-                    {@html list.renderItem(item)}
-                  {:else}
+                  <!-- Item with proper Svelte icon support -->
+                  <div class="flex items-center space-x-2">
+                    <!-- Icon (if provided) -->
+                    {#if item.icon}
+                      <svelte:component this={item.icon} size={16} class={item.iconColor || 'text-gray-400'} />
+                    {/if}
+                    
+                    <!-- Main content -->
                     <span class="inline-block {item.bgColor || 'bg-blue-900/30'} {item.color || 'text-blue-300'} px-2 py-1 rounded text-xs">
                       {item.label}
                       {#if item.disabled}
                         <span class="text-xs text-gray-500">(disabled)</span>
                       {/if}
                     </span>
-                  {/if}
+                    
+                    <!-- Badge (if provided) -->
+                    {#if item.badge}
+                      <span class="text-xs {item.badgeColor || 'text-gray-500'}">{item.badge}</span>
+                    {/if}
+                  </div>
                 </div>
+                
+                <!-- Item actions -->
                 {#if list.itemActions}
                   <div class="flex items-center space-x-1">
                     {#each list.itemActions(item) as action}

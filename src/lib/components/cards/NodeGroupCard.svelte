@@ -1,10 +1,9 @@
-<!-- src/lib/components/node-groups/NodeGroupCard.svelte -->
 <script lang="ts">
-  import { Edit, Settings, Trash2, Users, Play } from 'lucide-svelte';
+  import { Edit, Trash2, Users, Play } from 'lucide-svelte';
   import type { Node } from "$lib/types/nodes";
+  import type { NodeGroup } from "$lib/types/node-groups";
   import GenericCard from '../common/Card.svelte';
-  import type { CardListItem } from '$lib/types';
-  import type { NodeGroup } from '../../stores/node-groups';
+  
   export let group: NodeGroup;
   export let nodes: Node[] = [];
   export let onEdit: (group: NodeGroup) => void = () => {};
@@ -57,15 +56,7 @@
           bgColor: 'bg-purple-900/30',
           color: 'text-purple-300'
         })),
-        emptyText: 'No nodes in sequence',
-        renderItem: (item: CardListItem) => {
-          return `
-            <div class="flex items-center space-x-2">
-              <span class="text-gray-400 font-mono text-sm min-w-[2rem]">${item.label.split('.')[0]}.</span>
-              <span class="text-purple-300">${item.label.split('. ')[1]}</span>
-            </div>
-          `;
-        }
+        emptyText: 'No nodes in sequence'
       }
     ],
     

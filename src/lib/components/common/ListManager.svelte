@@ -1,13 +1,21 @@
 <script lang="ts">
-  import { ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-svelte';
+  import { ArrowUp, ArrowDown, Trash2, Plus, Edit } from 'lucide-svelte';
   
   export let label: string;
-  export let items: string[] = [];
+  export let helpText: string = '';
+  export let items: any[] = [];
   export let availableOptions: ListOption[] = [];
   export let placeholder: string = 'Select an item to add';
   export let required: boolean = false;
   export let allowReorder: boolean = true;
-  export let getDisplayName: (id: string) => string = (id) => id;
+  export let allowEdit: boolean = false;
+  export let allowDirectAdd: boolean = true;
+  export let getDisplayName: (item: any) => string = (item) => item?.toString() || '';
+  export let getDisplayDetails: (item: any) => string = () => '';
+  export let getDisplayBadges: (item: any) => Badge[] = () => [];
+  export let onEdit: (item: any, index: number) => void = () => {};
+  export let onAdd: () => void = () => {};
+  export let emptyMessage: string = '';
   export let error: string = '';
   
   interface ListOption {
@@ -16,19 +24,31 @@
     subtitle?: string;
   }
   
+  interface Badge {
+    text: string;
+    color: string;
+    bgColor?: string;
+  }
+  
   let selectedItemId = '';
   
-  $: filteredOptions = availableOptions.filter(option => !items.includes(option.id));
+  $: filteredOptions = availableOptions.filter(option => !items.some(item => 
+    typeof item === 'string' ? item === option.id : item.id === option.id
+  ));
+  
+  $: computedEmptyMessage = emptyMessage || `No ${label.toLowerCase()} added yet`;
   
   function addItem() {
-    if (selectedItemId && !items.includes(selectedItemId)) {
+    if (selectedItemId && !items.some(item => 
+      typeof item === 'string' ? item === selectedItemId : item.id === selectedItemId
+    )) {
       items = [...items, selectedItemId];
       selectedItemId = '';
     }
   }
   
-  function removeItem(itemId: string) {
-    items = items.filter(id => id !== itemId);
+  function removeItem(index: number) {
+    items = items.filter((_, i) => i !== index);
   }
   
   function moveItemUp(index: number) {
@@ -49,46 +69,91 @@
 </script>
 
 <div>
-  <label class="block text-sm font-medium text-gray-300 mb-2">
-    {label}
-    {#if required}<span class="text-red-400">*</span>{/if}
-  </label>
-  
-  <!-- Add Item -->
-  <div class="flex gap-2 mb-3">
-    <select
-      bind:value={selectedItemId}
-      class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-    >
-      <option value="">{placeholder}</option>
-      {#each filteredOptions as option}
-        <option value={option.id}>
-          {option.label}
-          {#if option.subtitle}({option.subtitle}){/if}
-        </option>
-      {/each}
-    </select>
-    <button
-      type="button"
-      on:click={addItem}
-      disabled={!selectedItemId}
-      class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-    >
-      <Plus size={16} />
-      Add
-    </button>
+  <div class="flex justify-between items-start mb-2">
+    <div>
+      <label class="block text-sm font-medium text-gray-300">
+        {label}
+        {#if required}<span class="text-red-400">*</span>{/if}
+      </label>
+      {#if helpText}
+        <p class="text-sm text-gray-400 mt-1">
+          {helpText}
+        </p>
+      {/if}
+    </div>
+    
+    {#if !allowDirectAdd}
+      <button
+        type="button"
+        on:click={onAdd}
+        class="flex items-center gap-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+      >
+        <Plus size={16} />
+        {placeholder}
+      </button>
+    {/if}
   </div>
+  
+  <!-- Add Item Section -->
+  {#if allowDirectAdd && availableOptions.length > 0}
+    <div class="flex gap-2 mb-3 mt-4">
+      <select
+        bind:value={selectedItemId}
+        class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">{placeholder}</option>
+        {#each filteredOptions as option}
+          <option value={option.id}>
+            {option.label}
+            {#if option.subtitle}({option.subtitle}){/if}
+          </option>
+        {/each}
+      </select>
+      <button
+        type="button"
+        on:click={addItem}
+        disabled={!selectedItemId}
+        class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+      >
+        <Plus size={16} />
+        Add
+      </button>
+    </div>
+  {/if}
   
   <!-- Current Items -->
   {#if items.length > 0}
     <div class="space-y-2 mb-3">
-      {#each items as itemId, index}
-        <div class="flex items-center gap-2 bg-gray-700/50 rounded-lg p-3">
+      {#each items as item, index}
+        {@const displayName = getDisplayName(item)}
+        {@const displayDetails = getDisplayDetails(item)}
+        {@const badges = getDisplayBadges(item)}
+        
+        <div class="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg border border-gray-600">
           {#if allowReorder}
             <span class="text-gray-400 font-mono text-sm min-w-[2rem]">{index + 1}.</span>
           {/if}
-          <span class="flex-1 text-white">{getDisplayName(itemId)}</span>
           
+          <!-- Item Info -->
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-medium text-white">
+                {displayName}
+              </span>
+              {#each badges as badge}
+                <span class="text-xs px-2 py-1 rounded {badge.color} {badge.bgColor || 'bg-gray-800'}">
+                  {badge.text}
+                </span>
+              {/each}
+            </div>
+            {#if displayDetails}
+              <div class="text-sm text-gray-400">
+                {displayDetails}
+              </div>
+            {/if}
+          </div>
+          
+          <!-- Actions -->
           <div class="flex items-center gap-1">
             {#if allowReorder}
               <button
@@ -112,9 +177,20 @@
               </button>
             {/if}
             
+            {#if allowEdit}
+              <button
+                type="button"
+                on:click={() => onEdit(item, index)}
+                class="p-1 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded"
+                title="Edit"
+              >
+                <Edit size={16} />
+              </button>
+            {/if}
+            
             <button
               type="button"
-              on:click={() => removeItem(itemId)}
+              on:click={() => removeItem(index)}
               class="p-1 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded"
               title="Remove"
             >
@@ -126,7 +202,7 @@
     </div>
   {:else}
     <div class="text-gray-500 text-sm mb-3 p-3 bg-gray-700/30 rounded-lg text-center">
-      No {label.toLowerCase()} added yet
+      {computedEmptyMessage}
     </div>
   {/if}
   
