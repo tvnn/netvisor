@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::time::{Duration, Instant};
-use crate::core::{TestResult, TestType};
+use crate::components::tests::types::{TestResult, TestType};
 use crate::components::tests::configs::{VpnConnectivityConfig, VpnTunnelConfig};
 
 /// Execute VPN connectivity test

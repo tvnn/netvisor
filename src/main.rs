@@ -13,7 +13,6 @@ use tower_http::{
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
-mod core;
 mod api;
 mod components;
 mod shared;

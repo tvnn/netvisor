@@ -1,6 +1,9 @@
 use anyhow::Result;
 use sqlx::SqlitePool;
 use std::sync::Arc;
+use async_trait::async_trait;
+use crate::components::diagnostics::types::DiagnosticExecution;
+
 
 use crate::components::{
     nodes::storage::{NodeStorage, SqliteNodeStorage},
@@ -40,9 +43,6 @@ impl SqliteDiagnosticStorage {
         Self { pool }
     }
 }
-
-use async_trait::async_trait;
-use crate::core::DiagnosticExecution;
 
 #[async_trait]
 pub trait DiagnosticStorage: Send + Sync {

@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
-use crate::core::{NodeGroupBase,NodeGroup};
+use crate::components::node_groups::types::{NodeGroupBase,NodeGroup};
 
 #[async_trait]
 pub trait NodeGroupStorage: Send + Sync {

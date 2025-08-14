@@ -5,6 +5,32 @@ use std::collections::{HashSet, HashMap};
 use tokio::sync::RwLock;
 use trust_dns_resolver::TokioAsyncResolver;
 
+
+// API requests and responses
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DiscoverNetworkRequest {
+    pub subnet: Option<String>, // CIDR notation like "192.168.1.0/24"
+    pub port_scan: Option<bool>,
+    pub include_known_services: Option<bool>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DiscoveredDevice {
+    pub ip: String,
+    pub hostname: Option<String>,
+    pub mac_address: Option<String>,
+    pub open_ports: Vec<u16>,
+    pub suggested_node_type: NodeType,
+    pub detected_services: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NetworkDiscoveryResponse {
+    pub discovered_devices: Vec<DiscoveredDevice>,
+    pub scan_duration_ms: u64,
+    pub subnet_scanned: String,
+}
+
 pub struct NetworkDiscovery {
     pub discovered_devices: Arc<RwLock<HashMap<String, DiscoveredDevice>>>,
     pub rejected_devices: Arc<RwLock<HashSet<String>>>, // Track rejected device IPs

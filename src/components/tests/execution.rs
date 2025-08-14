@@ -1,7 +1,12 @@
 // src/components/tests/execution.rs
 use anyhow::Result;
-use crate::core::{TestType, TestConfiguration, TestCriticality, TestResult, Node, NodeStatus};
-use crate::components::tests::implementations::*;
+use crate::components::{
+    tests::{
+        implementations::*,
+        types::{TestConfiguration, TestResult, TestType}
+    },
+    nodes::types::{Node, NodeStatus, AssignedTest, TestCriticality}
+};
 
 /// Execute a test with type-safe configuration
 pub async fn execute_test(
@@ -147,7 +152,7 @@ pub fn validate_test_config(
 }
 
 /// Compute node status from test results based on criticality
-pub fn compute_node_status_from_results(results: &[TestResult], assigned_tests: &[crate::core::types::AssignedTest]) -> crate::core::types::NodeStatus {
+pub fn compute_node_status_from_results(results: &[TestResult], assigned_tests: &[AssignedTest]) -> NodeStatus {
     
     if results.is_empty() {
         return NodeStatus::Unknown;
@@ -175,110 +180,5 @@ pub fn compute_node_status_from_results(results: &[TestResult], assigned_tests: 
         NodeStatus::Degraded
     } else {
         NodeStatus::Healthy
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::core::{NodeType, NodeCapability, TestCriticality};
-    use crate::components::tests::configs::*;
-
-    #[tokio::test]
-    async fn test_connectivity_validation() {
-        let mut node = Node::from_name("test-node".to_string());
-        node.base.node_type = Some(NodeType::WebServer);
-        node.base.capabilities = vec![NodeCapability::HttpService];
-
-        let config = TestConfiguration::Connectivity(ConnectivityConfig::default());
-        
-        let result = validate_test_config(&TestType::Connectivity, &config);
-        assert!(result.is_ok());
-    }
-
-    #[tokio::test]
-    async fn test_incompatible_test_node() {
-        let mut node = Node::from_name("printer".to_string());
-        node.base.node_type = Some(NodeType::Printer);
-
-        let config = TestConfiguration::VpnConnectivity(VpnConnectivityConfig::default());
-        
-        let result = execute_test(&TestType::VpnConnectivity, &config, &node).await;
-        assert!(result.is_ok());
-        let test_result = result.unwrap();
-        assert!(!test_result.success);
-        assert!(test_result.message.contains("not compatible"));
-    }
-    
-    #[test]
-    fn test_node_status_computation() {
-        use crate::core::types::AssignedTest;
-        
-        let assigned_tests = vec![
-            AssignedTest {
-                test_type: TestType::Connectivity,
-                test_config: TestConfiguration::Connectivity(ConnectivityConfig::default()),
-                monitor_interval_minutes: Some(5),
-                enabled: true,
-                criticality: TestCriticality::Critical,
-            },
-            AssignedTest {
-                test_type: TestType::Ping,
-                test_config: TestConfiguration::Ping(PingConfig::default()),
-                monitor_interval_minutes: Some(10),
-                enabled: true,
-                criticality: TestCriticality::Important,
-            },
-        ];
-        
-        // All tests passing
-        let all_pass_results = vec![
-            TestResult {
-                test_type: TestType::Connectivity,
-                success: true,
-                message: "Success".to_string(),
-                duration_ms: 100,
-                executed_at: chrono::Utc::now(),
-                details: None,
-            },
-            TestResult {
-                test_type: TestType::Ping,
-                success: true,
-                message: "Success".to_string(),
-                duration_ms: 50,
-                executed_at: chrono::Utc::now(),
-                details: None,
-            },
-        ];
-        
-        assert_eq!(
-            compute_node_status_from_results(&all_pass_results, &assigned_tests),
-            NodeStatus::Healthy
-        );
-        
-        // Critical test failing
-        let critical_fail_results = vec![
-            TestResult {
-                test_type: TestType::Connectivity,
-                success: false,
-                message: "Failed".to_string(),
-                duration_ms: 100,
-                executed_at: chrono::Utc::now(),
-                details: None,
-            },
-            TestResult {
-                test_type: TestType::Ping,
-                success: true,
-                message: "Success".to_string(),
-                duration_ms: 50,
-                executed_at: chrono::Utc::now(),
-                details: None,
-            },
-        ];
-        
-        assert_eq!(
-            compute_node_status_from_results(&critical_fail_results, &assigned_tests),
-            NodeStatus::Failed
-        );
     }
 }

@@ -6,13 +6,12 @@ use axum::{
 };
 use std::sync::Arc;
 use crate::{
-    api::{
-        ApiResult, ApiResponse, ApiError,
-        CreateNodeGroupRequest, UpdateNodeGroupRequest,
-        NodeGroupResponse, NodeGroupListResponse
+    api::{ApiResult, ApiResponse, ApiError,},
+    components::node_groups::{
+        types::{NodeGroup, CreateNodeGroupRequest, NodeGroupResponse, NodeGroupListResponse, UpdateNodeGroupRequest},
+        service::NodeGroupService
     },
-    core::{NodeGroup},
-    components::node_groups::service::NodeGroupService,
+    components::nodes::types::NodeListResponse,
     AppState,
 };
 
@@ -127,7 +126,7 @@ async fn delete_node_group(
 async fn get_group_nodes(
     State(state): State<Arc<AppState>>,
     Path(group_id): Path<String>,
-) -> ApiResult<Json<ApiResponse<crate::api::NodeListResponse>>> {
+) -> ApiResult<Json<ApiResponse<NodeListResponse>>> {
     let service = NodeGroupService::new(
         state.node_group_storage.clone(),
         state.node_storage.clone(),
@@ -136,7 +135,7 @@ async fn get_group_nodes(
     let nodes = service.get_group_nodes(&group_id).await?;
     let total = nodes.len();
     
-    Ok(Json(ApiResponse::success(crate::api::NodeListResponse { nodes, total })))
+    Ok(Json(ApiResponse::success(NodeListResponse { nodes, total })))
 }
 
 async fn add_node_to_group(

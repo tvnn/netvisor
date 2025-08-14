@@ -1,7 +1,12 @@
 use anyhow::Result;
 use std::sync::Arc;
-use crate::core::{Node, NodeType, NodeCapability, AssignedTest, TestType, TestConfiguration, TestCriticality};
-use crate::components::nodes::storage::NodeStorage;
+use crate::components::{
+    nodes::{
+        storage::NodeStorage,
+        types::{Node, NodeType, NodeCapability, TestCriticality, AssignedTest}
+    },
+    tests::types::{TestType, TestConfiguration}
+};
 
 pub struct NodeService {
     storage: Arc<dyn NodeStorage>,

@@ -1,10 +1,15 @@
 use anyhow::Result;
 use std::sync::Arc;
 use crate::{
-    core::{TestType, TestConfiguration, TestResult, TestCriticality, Node},
     components::{
-        tests::execution::{execute_adhoc_test, execute_node_tests, compute_node_status_from_results},
-        nodes::service::NodeService,
+        tests::{
+            types::{TestType, TestConfiguration, TestResult},
+            execution::{execute_adhoc_test, execute_node_tests, compute_node_status_from_results},
+        },
+        nodes::{
+            types::{AssignedTest,Node, NodeStatus, TestCriticality},
+            service::NodeService
+        },
     },
 };
 
@@ -87,7 +92,7 @@ impl TestService {
         let warning = test_type.get_assignment_warning(&node);
         
         // Add the test assignment
-        let assigned_test = crate::core::types::AssignedTest {
+        let assigned_test = AssignedTest {
             test_type,
             test_config,
             monitor_interval_minutes,
@@ -196,8 +201,8 @@ pub struct NodeTestExecutionResult {
     pub node_id: String,
     pub node_name: String,
     pub results: Vec<TestResult>,
-    pub previous_status: crate::core::types::NodeStatus,
-    pub new_status: crate::core::types::NodeStatus,
+    pub previous_status: NodeStatus,
+    pub new_status: NodeStatus,
     pub executed_at: chrono::DateTime<chrono::Utc>,
 }
 

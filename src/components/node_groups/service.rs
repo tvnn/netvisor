@@ -1,8 +1,13 @@
 use anyhow::Result;
 use std::sync::Arc;
-use crate::core::NodeGroup;
-use crate::components::node_groups::storage::NodeGroupStorage;
-use crate::components::nodes::storage::NodeStorage;
+use crate::components::node_groups::{
+    storage::NodeGroupStorage,
+    types::NodeGroup
+};
+use crate::components::nodes::{
+    storage::NodeStorage,
+    types::Node
+};
 
 pub struct NodeGroupService {
     group_storage: Arc<dyn NodeGroupStorage>,
@@ -184,7 +189,7 @@ impl NodeGroupService {
     }
 
     /// Get nodes in group sequence
-    pub async fn get_group_nodes(&self, group_id: &str) -> Result<Vec<crate::core::Node>> {
+    pub async fn get_group_nodes(&self, group_id: &str) -> Result<Vec<Node>> {
         let group = self.get_group(group_id).await?
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 

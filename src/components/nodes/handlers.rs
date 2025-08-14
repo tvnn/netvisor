@@ -7,12 +7,16 @@ use axum::{
 use std::sync::Arc;
 use crate::{
     api::{
-        ApiResult, ApiError, ApiResponse,
-        CreateNodeRequest, UpdateNodeRequest, AssignTestRequest, SetMonitoringRequest,
-        NodeResponse, NodeListResponse, NodeCompatibilityResponse
+        ApiResult, ApiError, ApiResponse
     },
-    core::{Node, TestType},
-    components::nodes::service::NodeService,
+    components::{
+        nodes::{
+            service::NodeService,
+            types::{Node, CreateNodeRequest, UpdateNodeRequest, AssignTestRequest, NodeResponse, NodeListResponse, NodeCompatibilityResponse}
+        },
+        tests::types::TestType,
+        monitoring::types::SetMonitoringRequest
+    },
     AppState,
 };
 

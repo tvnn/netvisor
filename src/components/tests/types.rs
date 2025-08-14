@@ -1,151 +1,243 @@
 use serde::{Deserialize, Serialize};
+use crate::components::nodes::types::{NodeType, Node, NodeCapability};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use super::configs::*;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Test {
-    pub id: String,
-    pub name: String,
-    pub description: Option<String>,
-    pub layers: Vec<Layer>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+// API Requests and Responses
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TestResultResponse {
+    pub result: TestResult,
 }
 
-impl Test {
-    pub fn new(name: String, description: Option<String>, layers: Vec<Layer>) -> Self {
-        let now = Utc::now();
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum TestType {
+    // Basic Connectivity (VPN-focused subset)
+    Connectivity,
+    DirectIp,
+    Ping,
+    WellknownIp,
+    
+    // DNS Resolution  
+    DnsResolution,
+    DnsOverHttps,
+    
+    // VPN Connectivity
+    VpnConnectivity,
+    VpnTunnel,
+    
+    // Service Health
+    ServiceHealth,
+    
+    // Future daemon-based tests (Phase 5)
+    DaemonCommand,
+    SshScript,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestRecommendation {
+    pub ideal_node_types: Vec<NodeType>,
+    pub helpful_capabilities: Vec<NodeCapability>,
+    pub warning_message: Option<String>,
+}
+
+
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TestResult {
+    pub test_type: TestType,
+    pub success: bool,
+    pub message: String,
+    pub duration_ms: u64,
+    pub executed_at: DateTime<Utc>,
+    pub details: Option<serde_json::Value>, // Test-specific result data
+}
+
+// Base configuration shared by all test types
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BaseTestConfig {
+    pub timeout: Option<u64>,
+    pub expected_result: String,
+}
+
+impl Default for BaseTestConfig {
+    fn default() -> Self {
         Self {
-            id: Uuid::new_v4().to_string(),
-            name,
-            description,
-            layers,
-            created_at: now,
-            updated_at: now,
+            timeout: Some(30000), // 30 seconds default
+            expected_result: "Success".to_string(),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Layer {
-    pub name: String,
-    pub description: String,
-    pub checks: Vec<Check>,
+pub enum TestConfiguration {
+    Connectivity(ConnectivityConfig),
+    DirectIp(DirectIpConfig),
+    Ping(PingConfig),
+    WellknownIp(WellknownIpConfig),
+    DnsResolution(DnsResolutionConfig),
+    DnsOverHttps(DnsOverHttpsConfig),
+    VpnConnectivity(VpnConnectivityConfig),
+    VpnTunnel(VpnTunnelConfig),
+    ServiceHealth(ServiceHealthConfig),
+    DaemonCommand(DaemonCommandConfig),
+    SshScript(SshScriptConfig),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Check {
-    pub r#type: String,
-    pub config: CheckConfig,
-    pub name: Option<String>,
-    pub description: Option<String>,
-}
+impl TestType {
+    /// Get display name for this test type
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            TestType::Connectivity => "Connectivity",
+            TestType::DirectIp => "Direct IP",
+            TestType::Ping => "Ping",
+            TestType::WellknownIp => "Well-known IP",
+            TestType::DnsResolution => "DNS Resolution",
+            TestType::DnsOverHttps => "DNS over HTTPS",
+            TestType::VpnConnectivity => "VPN Connectivity",
+            TestType::VpnTunnel => "VPN Tunnel",
+            TestType::ServiceHealth => "Service Health",
+            TestType::DaemonCommand => "Daemon Command",
+            TestType::SshScript => "SSH Script",
+        }
+    }
 
-#[derive(Deserialize)]
-pub struct CreateTestRequest {
-    pub name: String,
-    pub description: Option<String>,
-    pub layers: serde_json::Value, // Will be parsed as Vec<Layer>
-}
+    /// Get recommendations for this test type (replaces hard restrictions)
+    pub fn get_recommendations(&self) -> TestRecommendation {
+        match self {
+            TestType::VpnConnectivity => TestRecommendation {
+                ideal_node_types: vec![NodeType::VpnServer],
+                helpful_capabilities: vec![],
+                warning_message: Some("VPN connectivity tests work best with VPN servers, but can test any network endpoint".to_string()),
+            },
+            TestType::VpnTunnel => TestRecommendation {
+                ideal_node_types: vec![NodeType::VpnServer],
+                helpful_capabilities: vec![],
+                warning_message: Some("VPN tunnel tests are designed for VPN servers and may not work as expected on other device types".to_string()),
+            },
+            TestType::ServiceHealth => TestRecommendation {
+                ideal_node_types: vec![NodeType::WebServer],
+                helpful_capabilities: vec![NodeCapability::HttpService, NodeCapability::HttpsService],
+                warning_message: Some("Service health tests work best with web servers, but can test any HTTP/HTTPS endpoint".to_string()),
+            },
+            TestType::DnsResolution => TestRecommendation {
+                ideal_node_types: vec![NodeType::DnsServer],
+                helpful_capabilities: vec![NodeCapability::DnsService],
+                warning_message: None, // DNS resolution can be tested from any device
+            },
+            TestType::DnsOverHttps => TestRecommendation {
+                ideal_node_types: vec![],
+                helpful_capabilities: vec![],
+                warning_message: None, // DoH can be tested from any device
+            },
+            TestType::DaemonCommand => TestRecommendation {
+                ideal_node_types: vec![
+                    NodeType::Router, NodeType::WebServer, NodeType::DatabaseServer, 
+                    NodeType::MediaServer, NodeType::DnsServer, NodeType::VpnServer, 
+                    NodeType::NasDevice, NodeType::Workstation
+                ],
+                helpful_capabilities: vec![],
+                warning_message: Some("Daemon commands require NetFrog daemon installation and may not work on IoT devices, printers, or cameras".to_string()),
+            },
+            TestType::SshScript => TestRecommendation {
+                ideal_node_types: vec![
+                    NodeType::Router, NodeType::WebServer, NodeType::DatabaseServer, 
+                    NodeType::MediaServer, NodeType::DnsServer, NodeType::VpnServer, 
+                    NodeType::NasDevice, NodeType::Workstation
+                ],
+                helpful_capabilities: vec![NodeCapability::SshAccess],
+                warning_message: Some("SSH tests require SSH access and may not work on IoT devices, printers, or cameras".to_string()),
+            },
+            // Basic connectivity tests work with any device
+            TestType::Connectivity | TestType::DirectIp | TestType::Ping | TestType::WellknownIp => {
+                TestRecommendation {
+                    ideal_node_types: vec![],
+                    helpful_capabilities: vec![],
+                    warning_message: None,
+                }
+            },
+        }
+    }
 
-#[derive(Deserialize)]
-pub struct ExecuteCheckRequest {
-    pub config: CheckConfig,
-}
+    /// Check if this test is compatible (now always returns true, but provides warning info)
+    pub fn is_compatible_with_node(&self, _node: &Node) -> bool {
+        // Always allow assignment - we'll show warnings in the UI instead
+        true
+    }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CheckConfig {
-    // Basic fields
-    pub target: Option<String>,
-    pub port: Option<i64>,
-    pub protocol: Option<String>, // 'http' | 'https'
-    pub timeout: Option<u64>,
-    pub domain: Option<String>,
-    pub path: Option<String>,
-    pub attempts: Option<u32>,
-    
-    // DNS fields
-    pub test_domain: Option<String>,
-    pub service_type: Option<String>, // 'google' | 'cloudflare' | 'pihole' | 'auto'
-    
-    // HTTP/Service health fields
-    pub expected_status: Option<u16>,
-    pub max_response_time: Option<u64>,
-    
-    // Email server fields
-    pub use_tls: Option<bool>,
-    pub use_ssl: Option<bool>,
-    
-    // SSL certificate fields
-    pub min_days_until_expiry: Option<u32>,
-    pub check_chain: Option<bool>,
-    
-    // Local network fields
-    pub interface: Option<String>,
-    pub subnet: Option<String>,
-    pub concurrent_scans: Option<u32>,
-    
-    // Protocol-specific fields
-    pub passive_mode: Option<bool>,
-    pub check_banner: Option<bool>,
-    pub db_type: Option<String>,
-    
-    // Performance test fields
-    pub test_duration: Option<u32>,
-    pub test_type: Option<String>, // 'download' | 'upload'
-    pub packet_count: Option<u32>,
-    pub interval_ms: Option<u64>,
-    pub sample_count: Option<u32>,
-    
-    // Advanced test fields
-    pub start_size: Option<u32>,
-    pub max_size: Option<u32>,
-    pub max_hops: Option<u32>,
-    pub timeout_per_hop: Option<u64>,
-    pub resolve_hostnames: Option<bool>,
-    pub port_range: Option<String>,
-    pub scan_type: Option<String>, // 'tcp' | 'udp'
-    
-    // CDN fields
-    pub expected_region: Option<String>,
-    pub check_headers: Option<bool>,
-    
-    // Additional protocol fields
-    pub max_time_drift: Option<u64>,
-    pub bind_dn: Option<String>,
-    pub transport: Option<String>, // 'udp' | 'tcp'
-}
+    /// Get warning message for assigning this test to a specific node
+    pub fn get_assignment_warning(&self, node: &Node) -> Option<String> {
+        let recommendations = self.get_recommendations();
+        
+        // Check if this is an ideal assignment
+        if let Some(node_type) = &node.base.node_type {
+            if recommendations.ideal_node_types.contains(node_type) {
+                return None; // Perfect match, no warning
+            }
+        }
+        
+        // Check if node has helpful capabilities
+        let has_helpful_caps = recommendations.helpful_capabilities.is_empty() || 
+            recommendations.helpful_capabilities.iter().any(|cap| node.base.capabilities.contains(cap));
+        
+        // Generate warning based on context
+        match self {
+            TestType::VpnConnectivity | TestType::VpnTunnel => {
+                if !matches!(node.base.node_type, Some(NodeType::VpnServer)) {
+                    Some(format!("⚠️ {} tests are typically used with VPN servers. This will test basic connectivity but may not provide VPN-specific insights.", self.display_name()))
+                } else {
+                    None
+                }
+            },
+            TestType::ServiceHealth => {
+                if !has_helpful_caps && !matches!(node.base.node_type, Some(NodeType::WebServer)) {
+                    Some("⚠️ Service health tests work best with web services. Ensure the target has an HTTP/HTTPS endpoint.".to_string())
+                } else {
+                    None
+                }
+            },
+            TestType::DaemonCommand => {
+                if matches!(node.base.node_type, Some(NodeType::Printer | NodeType::Camera | NodeType::IotDevice)) {
+                    Some("⚠️ Daemon commands may not work on this device type. Ensure NetFrog daemon can be installed.".to_string())
+                } else {
+                    None
+                }
+            },
+            TestType::SshScript => {
+                if !node.base.capabilities.contains(&NodeCapability::SshAccess) {
+                    Some("⚠️ SSH tests require SSH access. Ensure this device accepts SSH connections.".to_string())
+                } else {
+                    None
+                }
+            },
+            _ => None, // No warnings for basic connectivity tests
+        }
+    }
 
-// impl Default for CheckConfig {
-//     fn default() -> Self {
-//         Self {
-//             target: None,
-//             timeout: Some(5000),
-//             port: None,
-//             username: None,
-//             password: None,
-//             expected_response: None,
-//             follow_redirects: Some(true),
-//             user_agent: Some("Netzoot/1.0".to_string()),
-//             headers: None,
-//             method: Some("GET".to_string()),
-//             body: None,
-//             verify_ssl: Some(true),
-//             max_redirects: Some(5),
-//             custom_headers: None,
-//             dns_server: None,
-//             record_type: Some("A".to_string()),
-//             max_hosts: Some(254),
-//             concurrent_requests: Some(50),
-//             packet_count: Some(4),
-//             packet_size: Some(64),
-//             duration: Some(10000),
-//             max_hops: Some(30),
-//             timeout_per_hop: Some(5000),
-//             resolve_hostnames: Some(true),
-//             email: None,
-//             use_tls: Some(true),
-//             use_starttls: Some(true),
-//         }
-//     }
-// }
+    /// Generate contextual description for this test on a specific node
+    pub fn generate_context_description(&self, node: &Node) -> String {
+        let node_type_str = node.base.node_type
+            .as_ref()
+            .map(|t| t.display_name())
+            .unwrap_or("device");
+
+        match self {
+            TestType::Connectivity => format!("Can we connect to your {}?", node_type_str),
+            TestType::DirectIp => format!("Can we reach your {} directly by IP?", node_type_str),
+            TestType::Ping => format!("Can we ping your {}?", node_type_str),
+            TestType::WellknownIp => "Can we reach well-known internet services?".to_string(),
+            TestType::DnsResolution => {
+                if matches!(node.base.node_type, Some(NodeType::DnsServer)) {
+                    format!("Can we resolve names using your {}?", node_type_str)
+                } else {
+                    format!("Can your {} resolve DNS names?", node_type_str)
+                }
+            },
+            TestType::DnsOverHttps => format!("Can your {} use DNS over HTTPS?", node_type_str),
+            TestType::VpnConnectivity => format!("Can we reach your {}?", node_type_str),
+            TestType::VpnTunnel => format!("Is your {} tunnel working?", node_type_str),
+            TestType::ServiceHealth => format!("Is your {} responding properly?", node_type_str),
+            TestType::DaemonCommand => format!("Execute command on {}", node_type_str),
+            TestType::SshScript => format!("Run script via SSH on {}", node_type_str),
+        }
+    }
+}

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::core::test_types::BaseTestConfig;
+use crate::components::tests::types::BaseTestConfig;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConnectivityConfig {

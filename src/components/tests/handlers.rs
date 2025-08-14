@@ -7,8 +7,13 @@ use axum::{
 use std::sync::Arc;
 use crate::{
     api::{ApiResult, ApiResponse},
-    core::{TestResult, Node, TestType, TestConfiguration, TestCriticality},
-    components::tests::service::TestService,
+    components::{
+        tests::{
+            service::TestService,
+            types::{TestType, TestConfiguration,TestResult}
+        },
+        nodes::types::{TestCriticality, Node},
+    },
     AppState,
 };
 
@@ -212,7 +217,6 @@ async fn get_node_test_results(
 async fn get_test_types(
     State(_state): State<Arc<AppState>>,
 ) -> ApiResult<Json<ApiResponse<Vec<TestTypeInfo>>>> {
-    use crate::core::test_types::TestType;
     
     let test_types = vec![
         TestType::Connectivity,
