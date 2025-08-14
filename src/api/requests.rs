@@ -1,31 +1,27 @@
 use serde::{Deserialize, Serialize};
-use crate::core::{NodeType, NodeCapability, TestType, TestConfiguration, TestCriticality};
+use crate::core::{NodeBase, NodeGroupBase, NodeType, NodeCapability, AssignedTest, TestType, TestConfiguration, TestCriticality};
 
 // Node-related requests
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateNodeRequest {
-    pub name: String,
-    pub domain: Option<String>,
-    pub ip: Option<String>,
-    pub port: Option<u16>,
-    pub path: Option<String>,
-    pub description: Option<String>,
-    pub node_type: Option<NodeType>,
-    pub capabilities: Option<Vec<NodeCapability>>,
+    #[serde(flatten)]
+    pub node: NodeBase,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateNodeRequest {
     pub name: Option<String>,
-    pub domain: Option<String>,
-    pub ip: Option<String>,
-    pub port: Option<u16>,
-    pub path: Option<String>,
-    pub description: Option<String>,
-    pub node_type: Option<NodeType>,
+    pub domain: Option<Option<String>>,
+    pub ip: Option<Option<String>>,
+    pub port: Option<Option<u16>>,
+    pub path: Option<Option<String>>,
+    pub description: Option<Option<String>>,
+    pub node_type: Option<Option<NodeType>>,
     pub capabilities: Option<Vec<NodeCapability>>,
     pub monitoring_enabled: Option<bool>,
+    pub assigned_tests: Option<Vec<AssignedTest>>,
 }
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AssignTestRequest {
@@ -39,17 +35,15 @@ pub struct AssignTestRequest {
 // Node Group requests
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateNodeGroupRequest {
-    pub name: String,
-    pub description: String,
-    pub node_sequence: Vec<String>,
-    pub auto_diagnostic_enabled: Option<bool>,
+    #[serde(flatten)]
+    pub group: NodeGroupBase,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateNodeGroupRequest {
     pub name: Option<String>,
     pub description: Option<String>,
-    pub node_sequence: Option<Vec<String>>,
+    pub node_sequence: Option<Vec<String>>,  // Ordered diagnostic sequence
     pub auto_diagnostic_enabled: Option<bool>,
 }
 

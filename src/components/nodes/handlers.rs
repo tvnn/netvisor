@@ -35,21 +35,15 @@ async fn create_node(
 ) -> ApiResult<Json<ApiResponse<NodeResponse>>> {
     let service = NodeService::new(state.node_storage.clone());
     
-    let mut node = Node::new(request.name);
-    node.domain = request.domain;
-    node.ip = request.ip;
-    node.port = request.port;
-    node.path = request.path;
-    node.description = request.description;
-    
-    if let Some(node_type) = request.node_type {
-        node.node_type = Some(node_type);
-    }
-    
-    if let Some(capabilities) = request.capabilities {
-        node.capabilities = capabilities;
-    }
-    
+    let mut node = Node::from_name(request.node.name);
+    node.base.domain = request.node.domain;
+    node.base.ip = request.node.ip;
+    node.base.port = request.node.port;
+    node.base.path = request.node.path;
+    node.base.description = request.node.description;
+    node.base.capabilities = request.node.capabilities;
+    node.base.node_type = request.node.node_type;
+            
     let created_node = service.create_node(node).await?;
     
     Ok(Json(ApiResponse::success(NodeResponse {
@@ -92,31 +86,31 @@ async fn update_node(
     
     // Update fields if provided
     if let Some(name) = request.name {
-        node.name = name;
+        node.base.name = name;
     }
     if let Some(domain) = request.domain {
-        node.domain = Some(domain);
+        node.base.domain = domain;
     }
     if let Some(ip) = request.ip {
-        node.ip = Some(ip);
+        node.base.ip = ip;
     }
     if let Some(port) = request.port {
-        node.port = Some(port);
+        node.base.port = port;
     }
     if let Some(path) = request.path {
-        node.path = Some(path);
+        node.base.path = path;
     }
     if let Some(description) = request.description {
-        node.description = Some(description);
+        node.base.description = description;
     }
     if let Some(node_type) = request.node_type {
-        node.node_type = Some(node_type);
+        node.base.node_type = node_type;
     }
     if let Some(capabilities) = request.capabilities {
-        node.capabilities = capabilities;
+        node.base.capabilities = capabilities;
     }
     if let Some(monitoring_enabled) = request.monitoring_enabled {
-        node.monitoring_enabled = monitoring_enabled;
+        node.base.monitoring_enabled = monitoring_enabled;
     }
     
     let updated_node = service.update_node(node).await?;

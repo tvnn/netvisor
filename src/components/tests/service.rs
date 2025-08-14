@@ -37,25 +37,23 @@ impl TestService {
         let node = self.node_service.get_node(node_id).await?
             .ok_or_else(|| anyhow::anyhow!("Node not found: {}", node_id))?;
         
-        let previous_status = node.current_status.clone();
+        let previous_status = node.base.current_status.clone();
         
         // Execute all assigned tests
         let results = execute_node_tests(&node).await?;
         
         // Compute new status based on results
-        let new_status = compute_node_status_from_results(&results, &node.assigned_tests);
+        let new_status = compute_node_status_from_results(&results, &node.base.assigned_tests);
         
         // Update node with new status and last seen time
         let mut updated_node = node.clone();
-        updated_node.current_status = new_status.clone();
-        updated_node.last_seen = Some(chrono::Utc::now());
-        updated_node.updated_at = chrono::Utc::now().to_rfc3339();
+        updated_node.update_status_and_last_seen(&new_status);
         
         self.node_service.update_node(updated_node).await?;
         
         Ok(NodeTestExecutionResult {
             node_id: node.id,
-            node_name: node.name,
+            node_name: node.base.name,
             results,
             previous_status,
             new_status,
@@ -77,11 +75,11 @@ impl TestService {
             .ok_or_else(|| anyhow::anyhow!("Node not found: {}", node_id))?;
         
         // Check if already assigned
-        if node.assigned_tests.iter().any(|t| t.test_type == test_type) {
+        if node.base.assigned_tests.iter().any(|t| t.test_type == test_type) {
             return Err(anyhow::anyhow!(
                 "Test {} is already assigned to node {}",
                 test_type.display_name(),
-                node.name
+                node.base.name
             ));
         }
         
@@ -97,8 +95,7 @@ impl TestService {
             criticality,
         };
         
-        node.assigned_tests.push(assigned_test);
-        node.updated_at = chrono::Utc::now().to_rfc3339();
+        node.assign_test(assigned_test);
         
         let updated_node = self.node_service.update_node(node).await?;
         
@@ -112,19 +109,8 @@ impl TestService {
     pub async fn unassign_test_from_node(&self, node_id: &str, test_type: TestType) -> Result<Node> {
         let mut node = self.node_service.get_node(node_id).await?
             .ok_or_else(|| anyhow::anyhow!("Node not found: {}", node_id))?;
-        
-        let initial_len = node.assigned_tests.len();
-        node.assigned_tests.retain(|t| t.test_type != test_type);
-        
-        if node.assigned_tests.len() == initial_len {
-            return Err(anyhow::anyhow!(
-                "Test {} is not assigned to node {}",
-                test_type.display_name(),
-                node.name
-            ));
-        }
-        
-        node.updated_at = chrono::Utc::now().to_rfc3339();
+
+        node.remove_test(&test_type);
         self.node_service.update_node(node).await
     }
 
@@ -151,7 +137,7 @@ impl TestService {
         let mut other_tests = Vec::new();
         
         for test_type in all_test_types {
-            let is_assigned = node.assigned_tests.iter().any(|t| t.test_type == test_type);
+            let is_assigned = node.base.assigned_tests.iter().any(|t| t.test_type == test_type);
             let warning = test_type.get_assignment_warning(&node);
             
             let test_info = TestTypeCompatibilityInfo {
@@ -172,8 +158,8 @@ impl TestService {
         
         Ok(NodeTestCompatibility {
             node_id: node.id,
-            node_name: node.name,
-            node_type: node.node_type.as_ref().map(|t| t.display_name().to_string()),
+            node_name: node.base.name,
+            node_type: node.base.node_type.as_ref().map(|t| t.display_name().to_string()),
             recommended_tests,
             other_tests,
         })
@@ -192,30 +178,15 @@ impl TestService {
         let mut node = self.node_service.get_node(node_id).await?
             .ok_or_else(|| anyhow::anyhow!("Node not found: {}", node_id))?;
         
-        // Find the test assignment
-        let assigned_test = node.assigned_tests.iter_mut()
-            .find(|t| t.test_type == test_type)
-            .ok_or_else(|| anyhow::anyhow!(
-                "Test {} is not assigned to node {}",
-                test_type.display_name(),
-                node.name
-            ))?;
+        // Use the specialized update method
+        node.update_test_fields(
+            &test_type,
+            test_config,
+            criticality,
+            monitor_interval_minutes,
+            enabled,
+        ).map_err(|e| anyhow::anyhow!("{}", e))?;
         
-        // Update fields if provided
-        if let Some(config) = test_config {
-            assigned_test.test_config = config;
-        }
-        if let Some(crit) = criticality {
-            assigned_test.criticality = crit;
-        }
-        if let Some(interval) = monitor_interval_minutes {
-            assigned_test.monitor_interval_minutes = interval;
-        }
-        if let Some(en) = enabled {
-            assigned_test.enabled = en;
-        }
-        
-        node.updated_at = chrono::Utc::now().to_rfc3339();
         self.node_service.update_node(node).await
     }
 }

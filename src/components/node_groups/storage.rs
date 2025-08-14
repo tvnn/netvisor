@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
-use crate::core::NodeGroup;
+use crate::core::{NodeGroupBase,NodeGroup};
 
 #[async_trait]
 pub trait NodeGroupStorage: Send + Sync {
@@ -26,7 +26,7 @@ impl SqliteNodeGroupStorage {
 #[async_trait]
 impl NodeGroupStorage for SqliteNodeGroupStorage {
     async fn create(&self, group: &NodeGroup) -> Result<()> {
-        let node_sequence_json = serde_json::to_string(&group.node_sequence)?;
+        let node_sequence_json = serde_json::to_string(&group.base.node_sequence)?;
 
         sqlx::query(
             r#"
@@ -37,10 +37,10 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
             "#
         )
         .bind(&group.id)
-        .bind(&group.name)
-        .bind(&group.description)
+        .bind(&group.base.name)
+        .bind(&group.base.description)
         .bind(node_sequence_json)
-        .bind(group.auto_diagnostic_enabled)
+        .bind(group.base.auto_diagnostic_enabled)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
@@ -75,7 +75,7 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
     }
 
     async fn update(&self, group: &NodeGroup) -> Result<()> {
-        let node_sequence_json = serde_json::to_string(&group.node_sequence)?;
+        let node_sequence_json = serde_json::to_string(&group.base.node_sequence)?;
 
         sqlx::query(
             r#"
@@ -85,10 +85,10 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
             WHERE id = ?
             "#
         )
-        .bind(&group.name)
-        .bind(&group.description)
+        .bind(&group.base.name)
+        .bind(&group.base.description)
         .bind(node_sequence_json)
-        .bind(group.auto_diagnostic_enabled)
+        .bind(group.base.auto_diagnostic_enabled)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(&group.id)
         .execute(&self.pool)
@@ -126,9 +126,13 @@ fn row_to_node_group(row: sqlx::sqlite::SqliteRow) -> Result<NodeGroup> {
 
     Ok(NodeGroup {
         id: row.get("id"),
-        name: row.get("name"),
-        description: row.get("description"),
-        node_sequence,
-        auto_diagnostic_enabled: row.get("auto_diagnostic_enabled"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
+        base: NodeGroupBase {
+            name: row.get("name"),
+            description: row.get("description"),
+            node_sequence,
+            auto_diagnostic_enabled: row.get("auto_diagnostic_enabled"),
+        }  
     })
 }

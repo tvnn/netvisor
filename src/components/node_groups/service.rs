@@ -26,7 +26,7 @@ impl NodeGroupService {
         group.id = uuid::Uuid::new_v4().to_string();
 
         // Validate that all nodes in sequence exist
-        for node_id in &group.node_sequence {
+        for node_id in &group.base.node_sequence {
             if self.node_storage.get_by_id(node_id).await?.is_none() {
                 return Err(anyhow::anyhow!("Node with id '{}' not found", node_id));
             }
@@ -35,13 +35,10 @@ impl NodeGroupService {
         self.group_storage.create(&group).await?;
         
         // Add group reference to all nodes in the sequence
-        for node_id in &group.node_sequence {
+        for node_id in &group.base.node_sequence {
             if let Some(mut node) = self.node_storage.get_by_id(node_id).await? {
-                if !node.node_groups.contains(&group.id) {
-                    node.node_groups.push(group.id.clone());
-                    node.updated_at = chrono::Utc::now().to_rfc3339();
-                    self.node_storage.update(&node).await?;
-                }
+                node.add_to_group(group.id.clone());
+                self.node_storage.update(&node).await?;
             }
         }
 
@@ -61,7 +58,7 @@ impl NodeGroupService {
     /// Update group
     pub async fn update_group(&self, group: NodeGroup) -> Result<NodeGroup> {
         // Validate that all nodes in sequence exist
-        for node_id in &group.node_sequence {
+        for node_id in &group.base.node_sequence {
             if self.node_storage.get_by_id(node_id).await?.is_none() {
                 return Err(anyhow::anyhow!("Node with id '{}' not found", node_id));
             }
@@ -75,25 +72,21 @@ impl NodeGroupService {
 
         // Update node group references
         // Remove group from nodes no longer in sequence
-        for old_node_id in &old_group.node_sequence {
-            if !group.node_sequence.contains(old_node_id) {
+        for old_node_id in &old_group.base.node_sequence {
+            if !group.base.node_sequence.contains(old_node_id) {
                 if let Some(mut node) = self.node_storage.get_by_id(old_node_id).await? {
-                    node.node_groups.retain(|g| g != &group.id);
-                    node.updated_at = chrono::Utc::now().to_rfc3339();
+                    node.remove_from_group(&group.id);
                     self.node_storage.update(&node).await?;
                 }
             }
         }
 
         // Add group to new nodes in sequence
-        for new_node_id in &group.node_sequence {
-            if !old_group.node_sequence.contains(new_node_id) {
+        for new_node_id in &group.base.node_sequence {
+            if !old_group.base.node_sequence.contains(new_node_id) {
                 if let Some(mut node) = self.node_storage.get_by_id(new_node_id).await? {
-                    if !node.node_groups.contains(&group.id) {
-                        node.node_groups.push(group.id.clone());
-                        node.updated_at = chrono::Utc::now().to_rfc3339();
-                        self.node_storage.update(&node).await?;
-                    }
+                    node.add_to_group(group.id.clone());
+                    self.node_storage.update(&node).await?;
                 }
             }
         }
@@ -108,10 +101,9 @@ impl NodeGroupService {
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 
         // Remove group reference from all nodes
-        for node_id in &group.node_sequence {
+        for node_id in &group.base.node_sequence {
             if let Some(mut node) = self.node_storage.get_by_id(node_id).await? {
-                node.node_groups.retain(|g| g != id);
-                node.updated_at = chrono::Utc::now().to_rfc3339();
+                node.remove_from_group(&group.id);
                 self.node_storage.update(&node).await?;
             }
         }
@@ -131,17 +123,17 @@ impl NodeGroupService {
         }
 
         // Check if node is already in sequence
-        if group.node_sequence.contains(&node_id.to_string()) {
+        if group.base.node_sequence.contains(&node_id.to_string()) {
             return Ok(()); // Already in group
         }
 
         // Add node at specified position or end
         match position {
-            Some(pos) if pos <= group.node_sequence.len() => {
-                group.node_sequence.insert(pos, node_id.to_string());
+            Some(pos) if pos <= group.base.node_sequence.len() => {
+                group.base.node_sequence.insert(pos, node_id.to_string());
             },
             _ => {
-                group.node_sequence.push(node_id.to_string());
+                group.base.node_sequence.push(node_id.to_string());
             }
         }
 
@@ -154,7 +146,7 @@ impl NodeGroupService {
         let mut group = self.get_group(group_id).await?
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 
-        group.node_sequence.retain(|n| n != node_id);
+        group.base.node_sequence.retain(|n| n != node_id);
         self.update_group(group).await?;
         Ok(())
     }
@@ -171,7 +163,7 @@ impl NodeGroupService {
             }
         }
 
-        group.node_sequence = new_sequence;
+        group.base.node_sequence = new_sequence;
         self.update_group(group).await?;
         Ok(())
     }
@@ -186,7 +178,7 @@ impl NodeGroupService {
         let mut group = self.get_group(group_id).await?
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 
-        group.auto_diagnostic_enabled = enabled;
+        group.base.auto_diagnostic_enabled = enabled;
         self.update_group(group).await?;
         Ok(())
     }
@@ -197,7 +189,7 @@ impl NodeGroupService {
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 
         let mut nodes = Vec::new();
-        for node_id in &group.node_sequence {
+        for node_id in &group.base.node_sequence {
             if let Some(node) = self.node_storage.get_by_id(node_id).await? {
                 nodes.push(node);
             }
@@ -212,21 +204,21 @@ impl NodeGroupService {
 
         // Check for duplicate nodes
         let mut seen_nodes = std::collections::HashSet::new();
-        for node_id in &group.node_sequence {
+        for node_id in &group.base.node_sequence {
             if !seen_nodes.insert(node_id) {
                 warnings.push(format!("Duplicate node '{}' in sequence", node_id));
             }
         }
 
         // Check if nodes exist
-        for node_id in &group.node_sequence {
+        for node_id in &group.base.node_sequence {
             if self.node_storage.get_by_id(node_id).await?.is_none() {
                 warnings.push(format!("Node '{}' not found", node_id));
             }
         }
 
         // Check if group is empty
-        if group.node_sequence.is_empty() {
+        if group.base.node_sequence.is_empty() {
             warnings.push("Group has no nodes in sequence".to_string());
         }
 

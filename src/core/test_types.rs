@@ -149,7 +149,7 @@ impl TestType {
         let recommendations = self.get_recommendations();
         
         // Check if this is an ideal assignment
-        if let Some(node_type) = &node.node_type {
+        if let Some(node_type) = &node.base.node_type {
             if recommendations.ideal_node_types.contains(node_type) {
                 return None; // Perfect match, no warning
             }
@@ -157,33 +157,33 @@ impl TestType {
         
         // Check if node has helpful capabilities
         let has_helpful_caps = recommendations.helpful_capabilities.is_empty() || 
-            recommendations.helpful_capabilities.iter().any(|cap| node.capabilities.contains(cap));
+            recommendations.helpful_capabilities.iter().any(|cap| node.base.capabilities.contains(cap));
         
         // Generate warning based on context
         match self {
             TestType::VpnConnectivity | TestType::VpnTunnel => {
-                if !matches!(node.node_type, Some(NodeType::VpnServer)) {
+                if !matches!(node.base.node_type, Some(NodeType::VpnServer)) {
                     Some(format!("⚠️ {} tests are typically used with VPN servers. This will test basic connectivity but may not provide VPN-specific insights.", self.display_name()))
                 } else {
                     None
                 }
             },
             TestType::ServiceHealth => {
-                if !has_helpful_caps && !matches!(node.node_type, Some(NodeType::WebServer)) {
+                if !has_helpful_caps && !matches!(node.base.node_type, Some(NodeType::WebServer)) {
                     Some("⚠️ Service health tests work best with web services. Ensure the target has an HTTP/HTTPS endpoint.".to_string())
                 } else {
                     None
                 }
             },
             TestType::DaemonCommand => {
-                if matches!(node.node_type, Some(NodeType::Printer | NodeType::Camera | NodeType::IotDevice)) {
+                if matches!(node.base.node_type, Some(NodeType::Printer | NodeType::Camera | NodeType::IotDevice)) {
                     Some("⚠️ Daemon commands may not work on this device type. Ensure NetFrog daemon can be installed.".to_string())
                 } else {
                     None
                 }
             },
             TestType::SshScript => {
-                if !node.capabilities.contains(&NodeCapability::SshAccess) {
+                if !node.base.capabilities.contains(&NodeCapability::SshAccess) {
                     Some("⚠️ SSH tests require SSH access. Ensure this device accepts SSH connections.".to_string())
                 } else {
                     None
@@ -195,7 +195,7 @@ impl TestType {
 
     /// Generate contextual description for this test on a specific node
     pub fn generate_context_description(&self, node: &Node) -> String {
-        let node_type_str = node.node_type
+        let node_type_str = node.base.node_type
             .as_ref()
             .map(|t| t.display_name())
             .unwrap_or("device");
@@ -206,7 +206,7 @@ impl TestType {
             TestType::Ping => format!("Can we ping your {}?", node_type_str),
             TestType::WellknownIp => "Can we reach well-known internet services?".to_string(),
             TestType::DnsResolution => {
-                if matches!(node.node_type, Some(NodeType::DnsServer)) {
+                if matches!(node.base.node_type, Some(NodeType::DnsServer)) {
                     format!("Can we resolve names using your {}?", node_type_str)
                 } else {
                     format!("Can your {} resolve DNS names?", node_type_str)

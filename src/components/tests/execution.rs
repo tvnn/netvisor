@@ -17,15 +17,15 @@ pub async fn execute_test(
             message: format!(
                 "Test {} is not compatible with node {} ({})",
                 test_type.display_name(),
-                target_node.name,
-                target_node.node_type.as_ref().map(|t| t.display_name()).unwrap_or("Unknown")
+                target_node.base.name,
+                target_node.base.node_type.as_ref().map(|t| t.display_name()).unwrap_or("Unknown")
             ),
             duration_ms: 0,
             executed_at: chrono::Utc::now(),
             details: Some(serde_json::json!({
                 "error": "incompatible_test_node_combination",
                 "test_type": test_type,
-                "node_type": target_node.node_type
+                "node_type": target_node.base.node_type
             })),
         });
     }
@@ -96,7 +96,7 @@ pub async fn execute_node_tests(
 ) -> Result<Vec<TestResult>> {
     let mut results = Vec::new();
     
-    for assigned_test in &node.assigned_tests {
+    for assigned_test in &node.base.assigned_tests {
         if !assigned_test.enabled {
             continue;
         }
@@ -186,9 +186,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_connectivity_validation() {
-        let mut node = Node::new("test-node".to_string());
-        node.node_type = Some(NodeType::WebServer);
-        node.capabilities = vec![NodeCapability::HttpService];
+        let mut node = Node::from_name("test-node".to_string());
+        node.base.node_type = Some(NodeType::WebServer);
+        node.base.capabilities = vec![NodeCapability::HttpService];
 
         let config = TestConfiguration::Connectivity(ConnectivityConfig::default());
         
@@ -198,8 +198,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_incompatible_test_node() {
-        let mut node = Node::new("printer".to_string());
-        node.node_type = Some(NodeType::Printer);
+        let mut node = Node::from_name("printer".to_string());
+        node.base.node_type = Some(NodeType::Printer);
 
         let config = TestConfiguration::VpnConnectivity(VpnConnectivityConfig::default());
         

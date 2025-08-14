@@ -5,17 +5,13 @@ use crate::core::test_types::{TestType, TestConfiguration, TestCriticality};
 
 // Node Structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Node {
-    // Existing fields
-    pub id: String,
+pub struct NodeBase {
     pub name: String,
     pub domain: Option<String>,
     pub ip: Option<String>,
     pub port: Option<u16>,
     pub path: Option<String>,
     pub description: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
     
     // Node type system
     pub node_type: Option<NodeType>,
@@ -30,7 +26,16 @@ pub struct Node {
     pub position: Option<GraphPosition>,
     pub current_status: NodeStatus,
     pub subnet_membership: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Node {
+    pub id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub last_seen: Option<DateTime<Utc>>,
+    #[serde(flatten)]
+    pub base: NodeBase,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,12 +76,20 @@ pub struct SubnetGroup {
 
 // Node Group and Network Models
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NodeGroup {
-    pub id: String,
+pub struct NodeGroupBase {
     pub name: String,
-    pub description: String,
+    pub description: Option<String>,
     pub node_sequence: Vec<String>,  // Ordered diagnostic sequence
     pub auto_diagnostic_enabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NodeGroup {
+    pub id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    #[serde(flatten)]
+    pub base: NodeGroupBase,
 }
 
 // Network topology generated from node groups and subnet membership
@@ -194,21 +207,27 @@ impl DiagnosticStatus {
     }
 }
 
-// src/core/types.rs - Add this method to the Node implementation
-
 impl Node {
-    pub fn new(name: String) -> Self {
-        let now = chrono::Utc::now().to_rfc3339();
+    pub fn new(base: NodeBase) -> Self {
+        let now = chrono::Utc::now();
         Self {
             id: uuid::Uuid::new_v4().to_string(),
+            created_at: now,
+            updated_at: now,
+            last_seen: None,
+            base,
+        }
+    }
+    
+    // Helper constructor for just a name
+    pub fn from_name(name: String) -> Self {
+        let base = NodeBase {
             name,
             domain: None,
             ip: None,
             port: None,
             path: None,
             description: None,
-            created_at: now.clone(),
-            updated_at: now,
             node_type: None,
             capabilities: Vec::new(),
             assigned_tests: Vec::new(),
@@ -217,8 +236,98 @@ impl Node {
             position: None,
             current_status: NodeStatus::Unknown,
             subnet_membership: Vec::new(),
-            last_seen: None,
+        };
+        Self::new(base)
+    }
+
+    // Setters that handle side effects (timestamps)
+    pub fn set_node_type(&mut self, node_type: Option<NodeType>) {
+        self.base.node_type = node_type;
+        self.updated_at = chrono::Utc::now();
+    }
+    
+    pub fn set_monitoring_enabled(&mut self, enabled: bool) {
+        self.base.monitoring_enabled = enabled;
+        self.updated_at = chrono::Utc::now();
+    }
+    
+    pub fn set_current_status(&mut self, status: NodeStatus) {
+        self.base.current_status = status;
+        self.updated_at = chrono::Utc::now();
+    }
+
+    pub fn set_last_seen(&mut self, last_seen: DateTime<Utc>) {
+        self.last_seen = Some(last_seen);
+        self.updated_at = chrono::Utc::now();
+    }
+
+    // Test management methods
+    pub fn assign_test(&mut self, assigned_test: AssignedTest) {
+        // Remove existing test of the same type if it exists
+        self.base.assigned_tests.retain(|t| t.test_type != assigned_test.test_type);
+        self.base.assigned_tests.push(assigned_test);
+        self.updated_at = chrono::Utc::now();
+    }
+    
+    pub fn remove_test(&mut self, test_type: &TestType) -> bool {
+        let initial_len = self.base.assigned_tests.len();
+        self.base.assigned_tests.retain(|t| &t.test_type != test_type);
+        if self.base.assigned_tests.len() != initial_len {
+            self.updated_at = chrono::Utc::now();
+            true
+        } else {
+            false
         }
+    }
+
+    /// Update specific fields of an assigned test
+    pub fn update_test_fields(
+        &mut self, 
+        test_type: &TestType,
+        test_config: Option<TestConfiguration>,
+        criticality: Option<TestCriticality>,
+        monitor_interval_minutes: Option<Option<u32>>,
+        enabled: Option<bool>,
+    ) -> Result<(), String> {
+        if let Some(test) = self.base.assigned_tests.iter_mut().find(|t| &t.test_type == test_type) {
+            if let Some(config) = test_config {
+                test.test_config = config;
+            }
+            if let Some(crit) = criticality {
+                test.criticality = crit;
+            }
+            if let Some(interval) = monitor_interval_minutes {
+                test.monitor_interval_minutes = interval;
+            }
+            if let Some(en) = enabled {
+                test.enabled = en;
+            }
+            
+            self.updated_at = chrono::Utc::now();
+            Ok(())
+        } else {
+            Err(format!("Test {} not found", test_type.display_name()))
+        }
+    }
+    
+    // Node group management
+    pub fn add_to_group(&mut self, group_id: String) {
+        if !self.base.node_groups.contains(&group_id) {
+            self.base.node_groups.push(group_id);
+            self.updated_at = chrono::Utc::now();
+        }
+    }
+    
+    pub fn remove_from_group(&mut self, group_id: &str) {
+        self.base.node_groups.retain(|id| id != group_id);
+        self.updated_at = chrono::Utc::now();
+    }
+
+    // Combined operations
+    pub fn update_status_and_last_seen(&mut self, status: &NodeStatus) {
+        self.base.current_status = status.clone();
+        self.last_seen = Some(chrono::Utc::now());
+        self.updated_at = chrono::Utc::now();
     }
 
     /// Compute and update node status based on test results
@@ -226,7 +335,7 @@ impl Node {
         use crate::core::test_types::TestCriticality;
         
         if test_results.is_empty() {
-            self.current_status = NodeStatus::Unknown;
+            self.set_current_status(NodeStatus::Unknown);
             return;
         }
         
@@ -235,8 +344,7 @@ impl Node {
         
         for result in test_results {
             if !result.success {
-                // Find the criticality for this test type
-                if let Some(assigned_test) = self.assigned_tests.iter().find(|t| t.test_type == result.test_type) {
+                if let Some(assigned_test) = self.base.assigned_tests.iter().find(|t| t.test_type == result.test_type) {
                     match assigned_test.criticality {
                         TestCriticality::Critical => has_critical_failure = true,
                         TestCriticality::Important => has_important_failure = true,
@@ -246,48 +354,110 @@ impl Node {
             }
         }
         
-        self.current_status = if has_critical_failure {
+        let new_status = if has_critical_failure {
             NodeStatus::Failed
         } else if has_important_failure {
             NodeStatus::Degraded
         } else {
             NodeStatus::Healthy
         };
+        
+        self.set_current_status(new_status);
     }
 
     /// Get the target for tests (IP, domain, or name in preference order)
     pub fn get_target(&self) -> String {
-        self.ip.clone()
-            .or_else(|| self.domain.clone())
-            .unwrap_or_else(|| self.name.clone())
+        self.base.ip.clone()
+            .or_else(|| self.base.domain.clone())
+            .unwrap_or_else(|| self.base.name.to_string())
+    }
+}
+
+impl NodeGroup {
+    pub fn new(base: NodeGroupBase) -> Self {
+        let now = chrono::Utc::now();
+        Self {
+            id: uuid::Uuid::new_v4().to_string(),
+            created_at: now,
+            updated_at: now,
+            base,
+        }
     }
 
-    /// Check if a test type is already assigned to this node
-    pub fn has_assigned_test(&self, test_type: &TestType) -> bool {
-        self.assigned_tests.iter().any(|t| &t.test_type == test_type)
+    pub fn from_name(name: String) -> Self {
+        let base = NodeGroupBase {
+            name,
+            description: None,
+            node_sequence: Vec::new(),
+            auto_diagnostic_enabled: true,
+        };
+
+        Self::new(base)
     }
 
-    /// Get assigned test by type
-    pub fn get_assigned_test(&self, test_type: &TestType) -> Option<&AssignedTest> {
-        self.assigned_tests.iter().find(|t| &t.test_type == test_type)
+    // Setters with timestamp updates
+    pub fn set_auto_diagnostic_enabled(&mut self, enabled: bool) {
+        self.base.auto_diagnostic_enabled = enabled;
+        self.updated_at = chrono::Utc::now();
+    }
+    
+    pub fn set_description(&mut self, description: String) {
+        self.base.description = Some(description);
+        self.updated_at = chrono::Utc::now();
     }
 
-    /// Get all enabled assigned tests
-    pub fn get_enabled_tests(&self) -> Vec<&AssignedTest> {
-        self.assigned_tests.iter().filter(|t| t.enabled).collect()
+    // Node sequence management
+    pub fn add_node(&mut self, node_id: String) {
+        if !self.base.node_sequence.contains(&node_id) {
+            self.base.node_sequence.push(node_id);
+            self.updated_at = chrono::Utc::now();
+        }
+    }
+    
+    pub fn remove_node(&mut self, node_id: &str) -> bool {
+        let initial_len = self.base.node_sequence.len();
+        self.base.node_sequence.retain(|id| id != node_id);
+        if self.base.node_sequence.len() != initial_len {
+            self.updated_at = chrono::Utc::now();
+            true
+        } else {
+            false
+        }
+    }
+    
+    pub fn reorder_nodes(&mut self, new_sequence: Vec<String>) {
+        self.base.node_sequence = new_sequence;
+        self.updated_at = chrono::Utc::now();
+    }
+    
+    pub fn move_node_up(&mut self, node_id: &str) -> bool {
+        if let Some(index) = self.base.node_sequence.iter().position(|id| id == node_id) {
+            if index > 0 {
+                self.base.node_sequence.swap(index - 1, index);
+                self.updated_at = chrono::Utc::now();
+                return true;
+            }
+        }
+        false
+    }
+    
+    pub fn move_node_down(&mut self, node_id: &str) -> bool {
+        if let Some(index) = self.base.node_sequence.iter().position(|id| id == node_id) {
+            if index < self.base.node_sequence.len() - 1 {
+                self.base.node_sequence.swap(index, index + 1);
+                self.updated_at = chrono::Utc::now();
+                return true;
+            }
+        }
+        false
     }
 
-    /// Get monitoring tests (tests with intervals set)
-    pub fn get_monitoring_tests(&self) -> Vec<&AssignedTest> {
-        self.assigned_tests.iter()
-            .filter(|t| t.enabled && t.monitor_interval_minutes.is_some())
-            .collect()
+    // Read-only methods (no setters needed)
+    pub fn contains_node(&self, node_id: &str) -> bool {
+        self.base.node_sequence.contains(&node_id.to_string())
     }
 
-    /// Get diagnostic-only tests (tests without monitoring intervals)
-    pub fn get_diagnostic_tests(&self) -> Vec<&AssignedTest> {
-        self.assigned_tests.iter()
-            .filter(|t| t.enabled && t.monitor_interval_minutes.is_none())
-            .collect()
+    pub fn node_count(&self) -> usize {
+        self.base.node_sequence.len()
     }
 }

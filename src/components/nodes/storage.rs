@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
-use crate::core::{Node, NodeStatus, GraphPosition, AssignedTest};
+use crate::core::{Node, NodeBase, NodeStatus, GraphPosition, AssignedTest};
 
 #[async_trait]
 pub trait NodeStorage: Send + Sync {
@@ -27,12 +27,12 @@ impl SqliteNodeStorage {
 #[async_trait]
 impl NodeStorage for SqliteNodeStorage {
     async fn create(&self, node: &Node) -> Result<()> {
-        let capabilities_json = serde_json::to_string(&node.capabilities)?;
-        let assigned_tests_json = serde_json::to_string(&node.assigned_tests)?;
-        let node_groups_json = serde_json::to_string(&node.node_groups)?;
-        let position_json = node.position.as_ref().map(|p| serde_json::to_string(p)).transpose()?;
-        let subnet_membership_json = serde_json::to_string(&node.subnet_membership)?;
-        let node_type_str = node.node_type.as_ref().map(|t| serde_json::to_string(t)).transpose()?;
+        let capabilities_json = serde_json::to_string(&node.base.capabilities)?;
+        let assigned_tests_json = serde_json::to_string(&node.base.assigned_tests)?;
+        let node_groups_json = serde_json::to_string(&node.base.node_groups)?;
+        let position_json = node.base.position.as_ref().map(|p| serde_json::to_string(p)).transpose()?;
+        let subnet_membership_json = serde_json::to_string(&node.base.subnet_membership)?;
+        let node_type_str = node.base.node_type.as_ref().map(|t| serde_json::to_string(t)).transpose()?;
         let last_seen_str = node.last_seen.as_ref().map(|dt| dt.to_rfc3339());
 
         sqlx::query(
@@ -46,19 +46,19 @@ impl NodeStorage for SqliteNodeStorage {
             "#
         )
         .bind(&node.id)
-        .bind(&node.name)
-        .bind(&node.domain)
-        .bind(&node.ip)
-        .bind(node.port.map(|p| p as i64))
-        .bind(&node.path)
-        .bind(&node.description)
+        .bind(&node.base.name)
+        .bind(&node.base.domain)
+        .bind(&node.base.ip)
+        .bind(node.base.port.map(|p| p as i64))
+        .bind(&node.base.path)
+        .bind(&node.base.description)
         .bind(node_type_str)
         .bind(capabilities_json)
         .bind(assigned_tests_json)
-        .bind(node.monitoring_enabled)
+        .bind(node.base.monitoring_enabled)
         .bind(node_groups_json)
         .bind(position_json)
-        .bind(serde_json::to_string(&node.current_status)?)
+        .bind(serde_json::to_string(&node.base.current_status)?)
         .bind(subnet_membership_json)
         .bind(last_seen_str)
         .bind(&node.created_at)
@@ -95,12 +95,12 @@ impl NodeStorage for SqliteNodeStorage {
     }
 
     async fn update(&self, node: &Node) -> Result<()> {
-        let capabilities_json = serde_json::to_string(&node.capabilities)?;
-        let assigned_tests_json = serde_json::to_string(&node.assigned_tests)?;
-        let node_groups_json = serde_json::to_string(&node.node_groups)?;
-        let position_json = node.position.as_ref().map(|p| serde_json::to_string(p)).transpose()?;
-        let subnet_membership_json = serde_json::to_string(&node.subnet_membership)?;
-        let node_type_str = node.node_type.as_ref().map(|t| serde_json::to_string(t)).transpose()?;
+        let capabilities_json = serde_json::to_string(&node.base.capabilities)?;
+        let assigned_tests_json = serde_json::to_string(&node.base.assigned_tests)?;
+        let node_groups_json = serde_json::to_string(&node.base.node_groups)?;
+        let position_json = node.base.position.as_ref().map(|p| serde_json::to_string(p)).transpose()?;
+        let subnet_membership_json = serde_json::to_string(&node.base.subnet_membership)?;
+        let node_type_str = node.base.node_type.as_ref().map(|t| serde_json::to_string(t)).transpose()?;
         let last_seen_str = node.last_seen.as_ref().map(|dt| dt.to_rfc3339());
 
         sqlx::query(
@@ -113,19 +113,19 @@ impl NodeStorage for SqliteNodeStorage {
             WHERE id = ?
             "#
         )
-        .bind(&node.name)
-        .bind(&node.domain)
-        .bind(&node.ip)
-        .bind(node.port.map(|p| p as i64))
-        .bind(&node.path)
-        .bind(&node.description)
+        .bind(&node.base.name)
+        .bind(&node.base.domain)
+        .bind(&node.base.ip)
+        .bind(node.base.port.map(|p| p as i64))
+        .bind(&node.base.path)
+        .bind(&node.base.description)
         .bind(node_type_str)
         .bind(capabilities_json)
         .bind(assigned_tests_json)
-        .bind(node.monitoring_enabled)
+        .bind(node.base.monitoring_enabled)
         .bind(node_groups_json)
         .bind(position_json)
-        .bind(serde_json::to_string(&node.current_status)?)
+        .bind(serde_json::to_string(&node.base.current_status)?)
         .bind(subnet_membership_json)
         .bind(last_seen_str)
         .bind(&node.updated_at)
@@ -203,23 +203,25 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
 
     Ok(Node {
         id: row.get("id"),
-        name: row.get("name"),
-        domain: row.get("domain"),
-        ip: row.get("ip"),
-        port: row.get::<Option<i64>, _>("port").map(|p| p as u16),
-        path: row.get("path"),
-        description: row.get("description"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
-        node_type,
-        capabilities,
-        assigned_tests,
-        monitoring_enabled: row.get("monitoring_enabled"),
-        node_groups,
-        position,
-        current_status,
-        subnet_membership,
-        last_seen,
+        last_seen: row.get("last_seen"),
+        base: NodeBase {
+            name: row.get("name"),
+            domain: row.get("domain"),
+            ip: row.get("ip"),
+            port: row.get::<Option<i64>, _>("port").map(|p| p as u16),
+            path: row.get("path"),
+            description: row.get("description"),
+            node_type,
+            capabilities,
+            assigned_tests,
+            monitoring_enabled: row.get("monitoring_enabled"),
+            node_groups,
+            position,
+            current_status,
+            subnet_membership,
+        }        
     })
 }
 
@@ -248,9 +250,9 @@ mod tests {
         let pool = setup_test_db().await;
         let storage = SqliteNodeStorage::new(pool);
 
-        let mut node = Node::new("test-node".to_string());
-        node.node_type = Some(NodeType::WebServer);
-        node.capabilities = vec![NodeCapability::HttpService];
+        let mut node = Node::from_name("test-node".to_string());
+        node.base.node_type = Some(NodeType::WebServer);
+        node.base.capabilities = vec![NodeCapability::HttpService];
         
         // Create assigned test
         let test_config = TestConfiguration::Connectivity(ConnectivityConfig {
@@ -268,7 +270,7 @@ mod tests {
             criticality: TestCriticality::Important,
         };
         
-        node.assigned_tests.push(assigned_test);
+        node.base.assigned_tests.push(assigned_test);
 
         // Test create
         storage.create(&node).await.unwrap();
@@ -278,10 +280,10 @@ mod tests {
         assert!(retrieved.is_some());
         
         let retrieved_node = retrieved.unwrap();
-        assert_eq!(retrieved_node.name, node.name);
-        assert_eq!(retrieved_node.node_type, node.node_type);
-        assert_eq!(retrieved_node.capabilities, node.capabilities);
-        assert_eq!(retrieved_node.assigned_tests.len(), 1);
+        assert_eq!(retrieved_node.base.name, node.base.name);
+        assert_eq!(retrieved_node.base.node_type, node.base.node_type);
+        assert_eq!(retrieved_node.base.capabilities, node.base.capabilities);
+        assert_eq!(retrieved_node.base.assigned_tests.len(), 1);
     }
 
     #[tokio::test]
@@ -289,18 +291,18 @@ mod tests {
         let pool = setup_test_db().await;
         let storage = SqliteNodeStorage::new(pool);
 
-        let mut node = Node::new("test-node".to_string());
+        let mut node = Node::from_name("test-node".to_string());
         storage.create(&node).await.unwrap();
 
         // Update node
-        node.name = "updated-node".to_string();
-        node.description = Some("Updated description".to_string());
+        node.base.name = "updated-node".to_string();
+        node.base.description = Some("Updated description".to_string());
         storage.update(&node).await.unwrap();
 
         // Verify update
         let retrieved = storage.get_by_id(&node.id).await.unwrap().unwrap();
-        assert_eq!(retrieved.name, "updated-node");
-        assert_eq!(retrieved.description, Some("Updated description".to_string()));
+        assert_eq!(retrieved.base.name, "updated-node");
+        assert_eq!(retrieved.base.description, Some("Updated description".to_string()));
     }
 
     #[tokio::test]
@@ -308,7 +310,7 @@ mod tests {
         let pool = setup_test_db().await;
         let storage = SqliteNodeStorage::new(pool);
 
-        let node = Node::new("test-node".to_string());
+        let node = Node::from_name("test-node".to_string());
         storage.create(&node).await.unwrap();
 
         // Verify exists
@@ -327,18 +329,18 @@ mod tests {
         let storage = SqliteNodeStorage::new(pool);
 
         // Create nodes with different monitoring settings
-        let mut node1 = Node::new("monitored-node".to_string());
-        node1.monitoring_enabled = true;
+        let mut node1 = Node::from_name("monitored-node".to_string());
+        node1.base.monitoring_enabled = true;
         storage.create(&node1).await.unwrap();
 
-        let mut node2 = Node::new("non-monitored-node".to_string());
-        node2.monitoring_enabled = false;
+        let mut node2 = Node::from_name("non-monitored-node".to_string());
+        node2.base.monitoring_enabled = false;
         storage.create(&node2).await.unwrap();
 
         // Test monitoring filter
         let monitoring_nodes = storage.get_monitoring_enabled().await.unwrap();
         assert_eq!(monitoring_nodes.len(), 1);
-        assert_eq!(monitoring_nodes[0].name, "monitored-node");
-        assert!(monitoring_nodes[0].monitoring_enabled);
+        assert_eq!(monitoring_nodes[0].base.name, "monitored-node");
+        assert!(monitoring_nodes[0].base.monitoring_enabled);
     }
 }

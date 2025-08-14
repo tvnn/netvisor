@@ -26,7 +26,7 @@ pub struct AppState {
     pub config: ServerConfig,
     pub node_storage: Arc<dyn components::nodes::storage::NodeStorage>,
     pub node_group_storage: Arc<dyn components::node_groups::storage::NodeGroupStorage>,
-    pub diagnostic_storage: Arc<dyn shared::storage::DiagnosticStorage>,
+    // pub diagnostic_storage: Arc<dyn shared::storage::DiagnosticStorage>,
 }
 
 #[derive(Parser)]
@@ -91,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
         config: config.clone(),
         node_storage: storage.nodes,
         node_group_storage: storage.node_groups,
-        diagnostic_storage: storage.diagnostics,
+        // diagnostic_storage: storage.diagnostics,
     });
     
     // Create router

@@ -16,23 +16,23 @@ impl NodeService {
     pub async fn create_node(&self, mut node: Node) -> Result<Node> {
         // Generate ID and timestamps
         node.id = uuid::Uuid::new_v4().to_string();
-        let now = chrono::Utc::now().to_rfc3339();
+        let now = chrono::Utc::now();
         node.created_at = now.clone();
         node.updated_at = now;
 
         // Auto-detect node type and capabilities if not set
-        if node.node_type.is_none() {
-            if let Some(_ip) = &node.ip {
+        if node.base.node_type.is_none() {
+            if let Some(_ip) = &node.base.ip {
                 // TODO: Integrate with discovery service to detect open ports
                 // For now, set as unknown
-                node.node_type = Some(NodeType::UnknownDevice);
+                node.base.node_type = Some(NodeType::UnknownDevice);
             }
         }
 
         // Set default capabilities based on node type
-        if node.capabilities.is_empty() {
-            if let Some(node_type) = &node.node_type {
-                node.capabilities = node_type.suggested_capabilities();
+        if node.base.capabilities.is_empty() {
+            if let Some(node_type) = &node.base.node_type {
+                node.base.capabilities = node_type.suggested_capabilities();
             }
         }
 
@@ -52,7 +52,7 @@ impl NodeService {
 
     /// Update node
     pub async fn update_node(&self, mut node: Node) -> Result<Node> {
-        node.updated_at = chrono::Utc::now().to_rfc3339();
+        node.updated_at = chrono::Utc::now();
         self.storage.update(&node).await?;
         Ok(node)
     }
@@ -79,13 +79,13 @@ impl NodeService {
             return Err(anyhow::anyhow!(
                 "Test {} is not compatible with node {} ({})",
                 test_type.display_name(),
-                node.name,
-                node.node_type.as_ref().map(|t| t.display_name()).unwrap_or("Unknown")
+                node.base.name,
+                node.base.node_type.as_ref().map(|t| t.display_name()).unwrap_or("Unknown")
             ));
         }
 
         // Remove existing test of same type
-        node.assigned_tests.retain(|t| t.test_type != test_type);
+        node.base.assigned_tests.retain(|t| t.test_type != test_type);
 
         // Add new test
         let assigned_test = AssignedTest {
@@ -96,7 +96,7 @@ impl NodeService {
             criticality,
         };
 
-        node.assigned_tests.push(assigned_test);
+        node.base.assigned_tests.push(assigned_test);
         self.update_node(node).await?;
 
         Ok(())
@@ -107,7 +107,7 @@ impl NodeService {
         let mut node = self.get_node(node_id).await?
             .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
 
-        node.assigned_tests.retain(|t| &t.test_type != test_type);
+        node.base.assigned_tests.retain(|t| &t.test_type != test_type);
         self.update_node(node).await?;
 
         Ok(())
@@ -118,7 +118,7 @@ impl NodeService {
         let mut node = self.get_node(node_id).await?
             .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
 
-        node.monitoring_enabled = enabled;
+        node.base.monitoring_enabled = enabled;
         self.update_node(node).await?;
 
         Ok(())
@@ -129,8 +129,8 @@ impl NodeService {
         let mut node = self.get_node(node_id).await?
             .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
 
-        if !node.node_groups.contains(&group_id.to_string()) {
-            node.node_groups.push(group_id.to_string());
+        if !node.base.node_groups.contains(&group_id.to_string()) {
+            node.base.node_groups.push(group_id.to_string());
             self.update_node(node).await?;
         }
 
@@ -142,7 +142,7 @@ impl NodeService {
         let mut node = self.get_node(node_id).await?
             .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
 
-        node.node_groups.retain(|g| g != group_id);
+        node.base.node_groups.retain(|g| g != group_id);
         self.update_node(node).await?;
 
         Ok(())
@@ -163,13 +163,13 @@ impl NodeService {
         let mut node = self.get_node(node_id).await?
             .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
 
-        node.node_type = Some(node_type.clone());
+        node.base.node_type = Some(node_type.clone());
         
         // Add default capabilities (don't overwrite existing ones)
         let default_caps = node_type.suggested_capabilities();
         for cap in default_caps {
-            if !node.capabilities.contains(&cap) {
-                node.capabilities.push(cap);
+            if !node.base.capabilities.contains(&cap) {
+                node.base.capabilities.push(cap);
             }
         }
 
@@ -182,8 +182,8 @@ impl NodeService {
         let mut node = self.get_node(node_id).await?
             .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
 
-        if !node.capabilities.contains(&capability) {
-            node.capabilities.push(capability);
+        if !node.base.capabilities.contains(&capability) {
+            node.base.capabilities.push(capability);
             self.update_node(node).await?;
         }
 
@@ -195,7 +195,7 @@ impl NodeService {
         let mut node = self.get_node(node_id).await?
             .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
 
-        node.capabilities.retain(|c| c != capability);
+        node.base.capabilities.retain(|c| c != capability);
         self.update_node(node).await?;
 
         Ok(())
