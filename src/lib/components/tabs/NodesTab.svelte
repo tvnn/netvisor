@@ -3,16 +3,18 @@
   import { Plus, Search } from 'lucide-svelte';
   import { nodes, nodeActions, loading, error } from '../../stores/nodes';
   import { nodeGroups, nodeGroupActions } from '../../stores/node-groups';
-  import type { Node } from '../../types/nodes';
-  import NodeCard from '../nodes/NodeCard.svelte';
+  import type { Node, AssignedTest } from '../../types/nodes';
+  import { getTestTypeDisplayName } from '../../types/tests';
+  import NodeCard from '../cards/NodeCard.svelte';
   import NodeEditor from '../modals/NodeEditor.svelte';
   import TestAssignment from '../modals/TestAssignment.svelte';
   
   let searchTerm = '';
   let showNodeEditor = false;
-  let showTestAssignment = false;
+  let showTestEditor = false;
   let editingNode: Node | null = null;
   let assigningTestNode: Node | null = null;
+  let editingTest: AssignedTest | null = null;
   
   $: filteredNodes = $nodes.filter((node: Node) => 
     node.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -55,7 +57,44 @@
   
   function handleAssignTest(node: Node) {
     assigningTestNode = node;
-    showTestAssignment = true;
+    showTestEditor = true;
+  }
+
+  async function handleDeleteTest(node: Node, test: AssignedTest) {
+    if (!confirm(`Are you sure you want to remove the ${getTestTypeDisplayName(test.test_type)} test from ${node.name}?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/tests/unassign-test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          node_id: node.id,
+          test_type: test.test_type
+        }),
+      });
+
+      if (response.ok) {
+        // Refresh nodes to get the updated node list
+        await nodeActions.loadNodes();
+      } else {
+        const error = await response.json();
+        alert(`Failed to remove test: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error removing test:', error);
+      alert('Failed to remove test. Please try again.');
+    }
+  }
+
+  // Also update your handleEditTest function to clear editingTest when closing
+  function handleEditTest(node: Node, test: AssignedTest) {
+    assigningTestNode = node;
+    editingTest = test;
+    showTestEditor = true;
   }
   
   // Updated to handle function props instead of events
@@ -86,7 +125,7 @@
     // Refresh nodes to get the updated node with the new test
     await nodeActions.loadNodes();
     
-    showTestAssignment = false;
+    showTestEditor = false;
     assigningTestNode = null;
   }
   
@@ -96,8 +135,9 @@
   }
   
   function handleCloseTestAssignment() {
-    showTestAssignment = false;
+    showTestEditor = false;
     assigningTestNode = null;
+    editingTest = null;
   }
 </script>
 
@@ -197,6 +237,8 @@
           onEdit={handleEditNode}
           onDelete={handleDeleteNode}
           onAssignTest={handleAssignTest}
+          onEditTest={handleEditTest}
+          onDeleteTest={handleDeleteTest}
         />
       {/each}
     </div>
@@ -213,8 +255,9 @@
 />
 
 <TestAssignment
-  isOpen={showTestAssignment}
+  isOpen={showTestEditor}
   node={assigningTestNode}
+  test={editingTest}
   onAssigned={handleTestAssign}
   onClose={handleCloseTestAssignment}
 />

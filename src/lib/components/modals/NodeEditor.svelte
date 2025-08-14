@@ -1,14 +1,18 @@
 <!-- src/lib/components/modals/NodeEditor.svelte -->
 <script lang="ts">
-  import { X } from 'lucide-svelte';
-  import type { Node, NodeType, NodeCapability } from '../../types/nodes';
-  import { getNodeTypeDisplayName } from '../../types/nodes';
+  import type { Node, NodeType, NodeCapability } from "$lib/types/nodes";
+  import type { TestType } from "$lib/types/tests";
+  import { getNodeTypeDisplayName } from "$lib/types/nodes";
+  import { getTestTypeDisplayName } from "$lib/types/tests";
+  import GenericEditModal from '../common/EditModal.svelte';
+  import ListManager from '../common/ListManager.svelte';
   
   export let node: Node | null = null;
   export let isOpen = false;
-  export let onCreate: (data: any) => void = () => {};
-  export let onUpdate: (id: string, data: any) => void = () => {};
-  export let onClose: () => void = () => {};
+  export let onCreate: (data: any) => Promise<void> | void;
+  export let onUpdate: (id: string, data: any) => Promise<void> | void;
+  export let onClose: () => void;
+  export let onDelete: ((id: string) => Promise<void> | void) | null = null;
   
   let formData = {
     name: '',
@@ -17,36 +21,46 @@
     port: '',
     path: '',
     description: '',
-    node_type: undefined as NodeType | undefined,
+    node_type: '' as NodeType | '',
     capabilities: [] as NodeCapability[],
-    monitoring_enabled: false
+    monitoring_enabled: false,
+    assigned_tests: [] as string[]
   };
   
   let loading = false;
+  let deleting = false;
+  let errors: Record<string, string> = {};
   
-  // Available options
+  $: isEditing = node !== null;
+  $: title = isEditing ? `Edit ${node?.name}` : 'Create Node';
+  
+  // Available options for dropdowns
   const nodeTypes: NodeType[] = [
     'Router', 'Switch', 'AccessPoint', 'Firewall',
     'WebServer', 'DatabaseServer', 'MediaServer', 'DnsServer', 'VpnServer', 'NasDevice',
-    'Workstation', 'IotDevice', 'Printer', 'Camera',
-    'UnknownDevice'
+    'Workstation', 'IotDevice', 'Printer', 'Camera', 'UnknownDevice'
   ];
   
   const nodeCapabilities: NodeCapability[] = [
     'SshAccess', 'RdpAccess', 'VncAccess',
-    'HttpService', 'HttpsService',
-    'DatabaseService',
+    'HttpService', 'HttpsService', 'DatabaseService',
     'DnsService', 'EmailService', 'FtpService'
   ];
   
-  // Reset form when node changes or modal opens
+  const testTypes: TestType[] = [
+    'Connectivity', 'DirectIp', 'Ping', 'WellknownIp',
+    'DnsResolution', 'DnsOverHttps',
+    'VpnConnectivity', 'VpnTunnel',
+    'ServiceHealth'
+  ];
+  
+  // Initialize form data when node changes or modal opens
   $: if (isOpen) {
     resetForm();
   }
   
   function resetForm() {
     if (node) {
-      // Editing existing node
       formData = {
         name: node.name,
         domain: node.domain || '',
@@ -54,12 +68,12 @@
         port: node.port?.toString() || '',
         path: node.path || '',
         description: node.description || '',
-        node_type: node.node_type,
-        capabilities: [...(node.capabilities || [])],
-        monitoring_enabled: node.monitoring_enabled
+        node_type: node.node_type || '',
+        capabilities: [...node.capabilities],
+        monitoring_enabled: node.monitoring_enabled,
+        assigned_tests: node.assigned_tests.map(t => t.test_type)
       };
     } else {
-      // Creating new node
       formData = {
         name: '',
         domain: '',
@@ -67,250 +81,254 @@
         port: '',
         path: '',
         description: '',
-        node_type: undefined,
+        node_type: '',
         capabilities: [],
-        monitoring_enabled: false
+        monitoring_enabled: false,
+        assigned_tests: []
       };
     }
+    errors = {};
   }
   
-  function handleCapabilityToggle(capability: NodeCapability) {
-    if (formData.capabilities.includes(capability)) {
-      formData.capabilities = formData.capabilities.filter(c => c !== capability);
-    } else {
-      formData.capabilities = [...formData.capabilities, capability];
-    }
-  }
-  
-  function handleNodeTypeChange() {
-    // Auto-suggest capabilities based on node type
-    if (formData.node_type) {
-      // This would use the suggested_capabilities() method from the backend
-      // For now, just keep existing capabilities
-    }
-  }
-  
-  async function handleSubmit() {
-    loading = true;
+  function validateForm(): boolean {
+    errors = {};
     
+    if (!formData.name.trim()) {
+      errors.name = 'Name is required';
+    }
+    
+    if (formData.port && (isNaN(Number(formData.port)) || Number(formData.port) < 1 || Number(formData.port) > 65535)) {
+      errors.port = 'Port must be between 1 and 65535';
+    }
+    
+    return Object.keys(errors).length === 0;
+  }
+  
+  async function handleSubmit(data: any) {
+    // Convert form data to proper types
+    const nodeData = {
+      name: formData.name.trim(),
+      domain: formData.domain.trim() || undefined,
+      ip: formData.ip.trim() || undefined,
+      port: formData.port ? Number(formData.port) : undefined,
+      path: formData.path.trim() || undefined,
+      description: formData.description.trim() || undefined,
+      node_type: formData.node_type || undefined,
+      capabilities: formData.capabilities,
+      monitoring_enabled: formData.monitoring_enabled,
+      // Note: assigned_tests would need more complex handling for full test configs
+      // This is simplified for the generic approach
+    };
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    loading = true;
     try {
-      const submitData = {
-        name: formData.name,
-        domain: formData.domain || undefined,
-        ip: formData.ip || undefined,
-        port: formData.port ? parseInt(formData.port) : undefined,
-        path: formData.path || undefined,
-        description: formData.description || undefined,
-        node_type: formData.node_type,
-        capabilities: formData.capabilities,
-        monitoring_enabled: formData.monitoring_enabled
-      };
-      
-      if (node) {
-        // Update existing node
-        onUpdate(node.id, submitData);
+      if (isEditing && node) {
+        await onUpdate(node.id, nodeData);
       } else {
-        // Create new node
-        onCreate(submitData);
+        await onCreate(nodeData);
       }
-    } catch (error) {
-      console.error('Error saving node:', error);
     } finally {
       loading = false;
     }
   }
   
-  function handleClose() {
-    resetForm();
-    onClose();
+  async function handleDelete() {
+    if (onDelete && node) {
+      deleting = true;
+      try {
+        await onDelete(node.id);
+      } finally {
+        deleting = false;
+      }
+    }
+  }
+  
+  function getCapabilityDisplayName(capability: NodeCapability): string {
+    return capability; // Could be enhanced with a mapping function
+  }
+  
+  function getTestDisplayName(testType: string): string {
+    return getTestTypeDisplayName(testType as TestType);
   }
 </script>
 
-{#if isOpen}
-  <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-semibold text-white">
-          {node ? 'Edit Node' : 'Create Node'}
-        </h2>
-        <button
-          on:click={handleClose}
-          class="text-gray-400 hover:text-white"
-        >
-          <X size={24} />
-        </button>
-      </div>
-      
-      <form on:submit|preventDefault={handleSubmit} class="space-y-4">
-        <!-- Basic Information -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Name -->
-          <div>
-            <label for="name" class="block text-sm font-medium text-gray-300 mb-1">
-              Name *
-            </label>
-            <input
-              id="name"
-              bind:value={formData.name}
-              type="text"
-              required
-              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter node name"
-            />
-          </div>
-          
-          <!-- Node Type -->
-          <div>
-            <label for="node_type" class="block text-sm font-medium text-gray-300 mb-1">
-              Node Type
-            </label>
-            <select
-              id="node_type"
-              bind:value={formData.node_type}
-              on:change={handleNodeTypeChange}
-              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={undefined}>Select type...</option>
-              {#each nodeTypes as nodeType}
-                <option value={nodeType}>{getNodeTypeDisplayName(nodeType)}</option>
-              {/each}
-            </select>
-          </div>
-        </div>
-        
-        <!-- Network Information -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- IP Address -->
-          <div>
-            <label for="ip" class="block text-sm font-medium text-gray-300 mb-1">
-              IP Address
-            </label>
-            <input
-              id="ip"
-              bind:value={formData.ip}
-              type="text"
-              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="192.168.1.100"
-            />
-          </div>
-          
-          <!-- Domain -->
-          <div>
-            <label for="domain" class="block text-sm font-medium text-gray-300 mb-1">
-              Domain
-            </label>
-            <input
-              id="domain"
-              bind:value={formData.domain}
-              type="text"
-              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="example.com"
-            />
-          </div>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Port -->
-          <div>
-            <label for="port" class="block text-sm font-medium text-gray-300 mb-1">
-              Port
-            </label>
-            <input
-              id="port"
-              bind:value={formData.port}
-              type="number"
-              min="1"
-              max="65535"
-              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="80"
-            />
-          </div>
-          
-          <!-- Path -->
-          <div>
-            <label for="path" class="block text-sm font-medium text-gray-300 mb-1">
-              Path
-            </label>
-            <input
-              id="path"
-              bind:value={formData.path}
-              type="text"
-              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="/api"
-            />
-          </div>
-        </div>
-        
-        <!-- Description -->
-        <div>
-          <label for="description" class="block text-sm font-medium text-gray-300 mb-1">
-            Description
-          </label>
-          <textarea
-            id="description"
-            bind:value={formData.description}
-            rows="3"
-            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Optional description"
-          ></textarea>
-        </div>
-        
-        <!-- Capabilities -->
-        <div>
-          <label for="capabilities" class="block text-sm font-medium text-gray-300 mb-2">
-            Capabilities
-          </label>
-          <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {#each nodeCapabilities as capability}
-              <label class="flex items-center space-x-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={formData.capabilities.includes(capability)}
-                  on:change={() => handleCapabilityToggle(capability)}
-                  class="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500"
-                />
-                <span class="text-gray-300">{capability}</span>
-              </label>
-            {/each}
-          </div>
-        </div>
-        
-        <!-- Monitoring -->
-        <div>
-          <label class="flex items-center space-x-2">
-            <input
-              type="checkbox"
-              bind:checked={formData.monitoring_enabled}
-              class="rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500"
-            />
-            <span class="text-sm text-gray-300">Enable monitoring</span>
-          </label>
-        </div>
-        
-        <!-- Action Buttons -->
-        <div class="flex justify-end space-x-3 pt-4">
-          <button
-            type="button"
-            on:click={handleClose}
-            class="px-4 py-2 text-gray-300 hover:text-white border border-gray-600 rounded-md hover:border-gray-500 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={loading || !formData.name}
-            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? 'Saving...' : (node ? 'Update Node' : 'Create Node')}
-          </button>
-        </div>
-      </form>
+<GenericEditModal
+  {isOpen}
+  {title}
+  {loading}
+  {deleting}
+  onSubmit={handleSubmit}
+  {onClose}
+  onDelete={isEditing ? handleDelete : null}
+  submitLabel={isEditing ? 'Update Node' : 'Create Node'}
+>
+  <!-- Basic Information -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label for="name" class="block text-sm font-medium text-gray-300 mb-1">
+        Name *
+      </label>
+      <input
+        id="name"
+        name="name"
+        bind:value={formData.name}
+        type="text"
+        required
+        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class:border-red-500={errors.name}
+      />
+      {#if errors.name}
+        <p class="text-red-400 text-xs mt-1">{errors.name}</p>
+      {/if}
+    </div>
+    
+    <div>
+      <label for="node_type" class="block text-sm font-medium text-gray-300 mb-1">
+        Node Type
+      </label>
+      <select
+        id="node_type"
+        name="node_type"
+        bind:value={formData.node_type}
+        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option value="">Select node type</option>
+        {#each nodeTypes as type}
+          <option value={type}>{getNodeTypeDisplayName(type)}</option>
+        {/each}
+      </select>
     </div>
   </div>
-{/if}
-
-<style>
-  input[type="checkbox"] {
-    accent-color: #3b82f6;
-  }
-</style>
+  
+  <!-- Connection Information -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div>
+      <label for="ip" class="block text-sm font-medium text-gray-300 mb-1">
+        IP Address
+      </label>
+      <input
+        id="ip"
+        name="ip"
+        bind:value={formData.ip}
+        type="text"
+        placeholder="192.168.1.100"
+        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
+    
+    <div>
+      <label for="domain" class="block text-sm font-medium text-gray-300 mb-1">
+        Domain/Hostname
+      </label>
+      <input
+        id="domain"
+        name="domain"
+        bind:value={formData.domain}
+        type="text"
+        placeholder="server.local"
+        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
+    
+    <div>
+      <label for="port" class="block text-sm font-medium text-gray-300 mb-1">
+        Port
+      </label>
+      <input
+        id="port"
+        name="port"
+        bind:value={formData.port}
+        type="number"
+        min="1"
+        max="65535"
+        placeholder="80"
+        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class:border-red-500={errors.port}
+      />
+      {#if errors.port}
+        <p class="text-red-400 text-xs mt-1">{errors.port}</p>
+      {/if}
+    </div>
+  </div>
+  
+  <!-- Path and Description -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label for="path" class="block text-sm font-medium text-gray-300 mb-1">
+        Path
+      </label>
+      <input
+        id="path"
+        name="path"
+        bind:value={formData.path}
+        type="text"
+        placeholder="/api"
+        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
+    
+    <div>
+      <label class="flex items-center space-x-2 pt-7">
+        <input
+          type="checkbox"
+          name="monitoring_enabled"
+          bind:checked={formData.monitoring_enabled}
+          class="rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
+        />
+        <span class="text-sm font-medium text-gray-300">Enable Monitoring</span>
+      </label>
+    </div>
+  </div>
+  
+  <div>
+    <label for="description" class="block text-sm font-medium text-gray-300 mb-1">
+      Description
+    </label>
+    <textarea
+      id="description"
+      name="description"
+      bind:value={formData.description}
+      rows="3"
+      placeholder="Optional description..."
+      class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+    ></textarea>
+  </div>
+  
+  <!-- Capabilities List Manager -->
+  <ListManager
+    label="Capabilities"
+    bind:items={formData.capabilities}
+    availableOptions={nodeCapabilities.map(cap => ({
+      id: cap,
+      label: getCapabilityDisplayName(cap)
+    }))}
+    placeholder="Select a capability to add"
+    allowReorder={false}
+    getDisplayName={(id: string) => getCapabilityDisplayName(id as NodeCapability)}
+  />
+  
+  <!-- Tests List Manager (simplified - in real implementation you'd want full test config) -->
+  <!-- <ListManager
+    label="Assigned Tests"
+    bind:items={formData.assigned_tests}
+    availableOptions={testTypes.map(test => ({
+      id: test,
+      label: getTestDisplayName(test)
+    }))}
+    placeholder="Select a test to assign"
+    allowReorder={false}
+    getDisplayName={getTestDisplayName}
+  /> -->
+  
+  <!-- Note about test assignment -->
+  <div class="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3">
+    <p class="text-blue-300 text-sm">
+      <strong>Note:</strong> Test assignments are managed separately through the "Assign Test" button on the node card, 
+      as they require detailed configuration beyond just the test type.
+    </p>
+  </div>
+</GenericEditModal>

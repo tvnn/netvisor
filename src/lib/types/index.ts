@@ -1,6 +1,40 @@
 import type { Node } from "./nodes";
 import type { TestType, TestResult } from "./tests";
 
+// Components
+
+export interface CardAction {
+  label: string;
+  icon: any;
+  color?: string;
+  hoverColor?: string;
+  bgHover?: string;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+export interface CardSection {
+  label: string;
+  value: string;
+}
+
+export interface CardList {
+  label: string;
+  items: CardListItem[];
+  emptyText?: string;
+  renderItem?: (item: CardListItem) => string;
+  itemActions?: (item: CardListItem) => CardAction[];
+}
+
+export interface CardListItem {
+  id: string;
+  label: string;
+  metadata?: Record<string, any>;
+  color?: string;
+  bgColor?: string;
+  disabled?: boolean;
+}
+
 // API Response types
 export interface ApiResponse<T> {
   success: boolean;

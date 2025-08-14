@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import NodesTab from '../lib/components/tabs/NodesTab.svelte';
   import DiagnosticsTab from '../lib/components/tabs/DiagnosticsTab.svelte';
-  import Sidebar from '../lib/components/shared/Sidebar.svelte';
+  import Sidebar from '../lib/components/common/Sidebar.svelte';
   import { nodeActions } from '../lib/stores/nodes';
   
   let activeTab = 'nodes';

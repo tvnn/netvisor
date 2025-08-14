@@ -10,60 +10,64 @@ export type TestType = 'Connectivity' |
   'DaemonCommand' |
   'SshScript';
 
-export interface BaseTestConfig {
+export interface ConnectivityConfig {
   timeout?: number;
   expected_result: string;
-}
-
-export interface ConnectivityConfig {
-  base: BaseTestConfig;
   target: string;
   port?: number;
   protocol?: string;
 }
 
 export interface DirectIpConfig {
-  base: BaseTestConfig;
+  timeout?: number;
+  expected_result: string;
   target: string;
   port: number;
 }
 
 export interface PingConfig {
-  base: BaseTestConfig;
+  timeout?: number;
+  expected_result: string;
   target: string;
   port?: number;
   attempts?: number;
 }
 
 export interface WellknownIpConfig {
-  base: BaseTestConfig;
+  timeout?: number;
+  expected_result: string;
 }
 
 export interface DnsResolutionConfig {
-  base: BaseTestConfig;
+  timeout?: number;
+  expected_result: string;
   domain: string;
 }
 
 export interface DnsOverHttpsConfig {
-  base: BaseTestConfig;
+  timeout?: number;
+  expected_result: string;
   target: string;
   domain: string;
   service_type?: string;
 }
 
 export interface VpnConnectivityConfig {
-  base: BaseTestConfig;
+  timeout?: number;
+  expected_result: string;
   target: string;
   port?: number;
 }
 
 export interface VpnTunnelConfig {
-  base: BaseTestConfig;
+  timeout?: number;
+  expected_result: string;
   expected_subnet: string;
 }
 
 export interface ServiceHealthConfig {
-  base: BaseTestConfig;
+  timeout?: number;
+  expected_result: string;
   target: string;
   port?: number;
   path?: string;
@@ -71,7 +75,8 @@ export interface ServiceHealthConfig {
 }
 
 export interface DaemonCommandConfig {
-  base: BaseTestConfig;
+  timeout?: number;
+  expected_result: string;
   command: string;
   requires_confirmation?: boolean;
   rollback_command?: string;
@@ -79,7 +84,8 @@ export interface DaemonCommandConfig {
 }
 
 export interface SshScriptConfig {
-  base: BaseTestConfig;
+  timeout?: number;
+  expected_result: string;
   command: string;
   ssh_target: string;
   requires_confirmation?: boolean;

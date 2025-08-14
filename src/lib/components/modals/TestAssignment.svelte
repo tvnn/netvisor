@@ -1,12 +1,13 @@
 <script lang="ts">
-  import { X, AlertTriangle } from 'lucide-svelte';
-    import type { Node } from "$lib/types/nodes";
+  import { X, AlertTriangle, Trash2 } from 'lucide-svelte';
+  import type { Node, AssignedTest } from "$lib/types/nodes";
   import type { TestType } from "$lib/types/tests";
   import type { TestCriticality } from "$lib/types/nodes";
-    import { getTestTypeDisplayName } from "$lib/types/tests";
+  import { getTestTypeDisplayName } from "$lib/types/tests";
   import { getTestDescription } from "$lib/types/tests";
   
   export let node: Node | null = null;
+  export let test: AssignedTest | null = null;
   export let isOpen = false;
   export let onAssigned: (node: Node, warning?: string) => void = () => {};
   export let onClose: () => void = () => {};
@@ -14,6 +15,7 @@
   let selectedTestType: TestType = 'Connectivity';
   let selectedCriticality: TestCriticality = 'Important';
   let monitorInterval = '5';
+  let enabled = true;
   let testConfig = {
     port: '',
     domain: '',
@@ -25,6 +27,7 @@
     expected_result: 'Success'
   };
   let loading = false;
+  let deleting = false;
   let compatibilityInfo: any = null;
   let loadingCompatibility = false;
   
@@ -38,15 +41,14 @@
   const criticalityLevels: TestCriticality[] = ['Critical', 'Important', 'Informational'];
   
   $: existingTests = node?.assigned_tests.map(t => t.test_type) || [];
-  $: isTestAlreadyAssigned = existingTests.includes(selectedTestType);
+  $: isTestAlreadyAssigned = !test && existingTests.includes(selectedTestType);
   $: nodeTarget = node?.ip || node?.domain || node?.name || '';
+  $: isEditMode = test !== null;
   
   // Load compatibility info when node changes and reset form with node's values
   $: if (node && isOpen) {
     loadCompatibilityInfo();
-    // Reset form with node's values when node changes
-    testConfig.port = node.port?.toString() || '';
-    testConfig.target = nodeTarget;
+    resetForm();
   }
   
   async function loadCompatibilityInfo() {
@@ -66,19 +68,94 @@
   }
   
   function resetForm() {
-    selectedTestType = 'Connectivity';
-    selectedCriticality = 'Important';
-    monitorInterval = '5';
-    testConfig = {
-      port: node?.port?.toString() || '',
-      domain: '',
-      timeout: '30000',
-      path: '/',
-      target: nodeTarget,
-      expected_subnet: '10.100.0.0/24',
-      attempts: '4',
-      expected_result: 'Success'
-    };
+    if (test && node) {
+      // Edit mode - populate with existing test data
+      selectedTestType = test.test_type;
+      selectedCriticality = test.criticality;
+      monitorInterval = test.monitor_interval_minutes?.toString() || '';
+      enabled = test.enabled;
+      
+      // Extract config fields from the flattened structure
+      const config = extractConfigFromTest(test);
+      testConfig = {
+        ...testConfig,
+        ...config
+      };
+    } else {
+      // Create mode - reset to defaults
+      selectedTestType = 'Connectivity';
+      selectedCriticality = 'Important';
+      monitorInterval = '5';
+      enabled = true;
+      testConfig = {
+        port: node?.port?.toString() || '',
+        domain: '',
+        timeout: '30000',
+        path: '/',
+        target: nodeTarget,
+        expected_subnet: '10.100.0.0/24',
+        attempts: '4',
+        expected_result: 'Success'
+      };
+    }
+  }
+  
+  function extractConfigFromTest(test: AssignedTest): any {
+    const config = test.test_config;
+    
+    // Extract fields from the nested test configuration
+    if ('Connectivity' in config) {
+      return {
+        target: config.Connectivity.target,
+        port: config.Connectivity.port?.toString() || '',
+        timeout: config.Connectivity.timeout?.toString() || '30000',
+        expected_result: config.Connectivity.expected_result
+      };
+    } else if ('DirectIp' in config) {
+      return {
+        target: config.DirectIp.target,
+        port: config.DirectIp.port.toString(),
+        timeout: config.DirectIp.timeout?.toString() || '30000',
+        expected_result: config.DirectIp.expected_result
+      };
+    } else if ('Ping' in config) {
+      return {
+        target: config.Ping.target,
+        port: config.Ping.port?.toString() || '',
+        attempts: config.Ping.attempts?.toString() || '4',
+        timeout: config.Ping.timeout?.toString() || '30000',
+        expected_result: config.Ping.expected_result
+      };
+    } else if ('ServiceHealth' in config) {
+      return {
+        target: config.ServiceHealth.target,
+        port: config.ServiceHealth.port?.toString() || '',
+        path: config.ServiceHealth.path || '/',
+        timeout: config.ServiceHealth.timeout?.toString() || '30000',
+        expected_result: config.ServiceHealth.expected_result
+      };
+    } else if ('DnsResolution' in config) {
+      return {
+        domain: config.DnsResolution.domain,
+        timeout: config.DnsResolution.timeout?.toString() || '30000',
+        expected_result: config.DnsResolution.expected_result
+      };
+    } else if ('VpnConnectivity' in config) {
+      return {
+        target: config.VpnConnectivity.target,
+        port: config.VpnConnectivity.port?.toString() || '51820',
+        timeout: config.VpnConnectivity.timeout?.toString() || '30000',
+        expected_result: config.VpnConnectivity.expected_result
+      };
+    } else if ('VpnTunnel' in config) {
+      return {
+        expected_subnet: config.VpnTunnel.expected_subnet,
+        timeout: config.VpnTunnel.timeout?.toString() || '30000',
+        expected_result: config.VpnTunnel.expected_result
+      };
+    }
+    
+    return {};
   }
   
   function getTestConfigForType(testType: TestType) {
@@ -91,7 +168,7 @@
       case 'Connectivity':
         return {
           Connectivity: {
-            base: baseConfig,
+            ...baseConfig,
             target: testConfig.target || nodeTarget,
             port: testConfig.port ? parseInt(testConfig.port) : undefined,
             protocol: 'http'
@@ -100,7 +177,7 @@
       case 'DirectIp':
         return {
           DirectIp: {
-            base: baseConfig,
+            ...baseConfig,
             target: node?.ip || '',
             port: parseInt(testConfig.port) || 80
           }
@@ -108,7 +185,7 @@
       case 'Ping':
         return {
           Ping: {
-            base: baseConfig,
+            ...baseConfig,
             target: testConfig.target || nodeTarget,
             port: testConfig.port ? parseInt(testConfig.port) : undefined,
             attempts: parseInt(testConfig.attempts) || 4
@@ -117,20 +194,20 @@
       case 'WellknownIp':
         return {
           WellknownIp: {
-            base: baseConfig
+            ...baseConfig
           }
         };
       case 'DnsResolution':
         return {
           DnsResolution: {
-            base: baseConfig,
+            ...baseConfig,
             domain: testConfig.domain || 'example.com'
           }
         };
       case 'DnsOverHttps':
         return {
           DnsOverHttps: {
-            base: baseConfig,
+            ...baseConfig,
             target: 'https://1.1.1.1/dns-query',
             domain: testConfig.domain || 'example.com',
             service_type: 'cloudflare'
@@ -139,7 +216,7 @@
       case 'ServiceHealth':
         return {
           ServiceHealth: {
-            base: baseConfig,
+            ...baseConfig,
             target: testConfig.target || nodeTarget,
             port: parseInt(testConfig.port) || 80,
             path: testConfig.path || '/',
@@ -149,7 +226,7 @@
       case 'VpnConnectivity':
         return {
           VpnConnectivity: {
-            base: baseConfig,
+            ...baseConfig,
             target: testConfig.target || nodeTarget,
             port: parseInt(testConfig.port) || 51820
           }
@@ -157,7 +234,7 @@
       case 'VpnTunnel':
         return {
           VpnTunnel: {
-            base: baseConfig,
+            ...baseConfig,
             expected_subnet: testConfig.expected_subnet || '10.100.0.0/24'
           }
         };
@@ -178,10 +255,12 @@
         test_config: getTestConfigForType(selectedTestType),
         criticality: selectedCriticality,
         monitor_interval_minutes: monitorInterval ? parseInt(monitorInterval) : null,
-        enabled: true
+        enabled: enabled
       };
       
-      const response = await fetch('/api/tests/assign-test', {
+      const endpoint = isEditMode ? '/api/tests/update-assignment' : '/api/tests/assign-test';
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -191,18 +270,55 @@
       
       if (response.ok) {
         const result = await response.json();
-        onAssigned(result.data.node, result.data.warning);
+        onAssigned(result.data.node || result.data, result.data.warning);
         resetForm();
         onClose();
       } else {
         const error = await response.json();
-        alert(`Failed to assign test: ${error.error || 'Unknown error'}`);
+        alert(`Failed to ${isEditMode ? 'update' : 'assign'} test: ${error.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error assigning test:', error);
-      alert('Failed to assign test. Please try again.');
+      console.error(`Error ${isEditMode ? 'updating' : 'assigning'} test:`, error);
+      alert(`Failed to ${isEditMode ? 'update' : 'assign'} test. Please try again.`);
     } finally {
       loading = false;
+    }
+  }
+  
+  async function handleDelete() {
+    if (!node || !test) return;
+    
+    if (!confirm(`Are you sure you want to remove the ${getTestTypeDisplayName(test.test_type)} test from ${node.name}?`)) {
+      return;
+    }
+    
+    deleting = true;
+    
+    try {
+      const response = await fetch('/api/tests/unassign-test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          node_id: node.id,
+          test_type: test.test_type
+        }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        onAssigned(result.data); // Pass the updated node
+        onClose();
+      } else {
+        const error = await response.json();
+        alert(`Failed to remove test: ${error.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error removing test:', error);
+      alert('Failed to remove test. Please try again.');
+    } finally {
+      deleting = false;
     }
   }
   
@@ -217,7 +333,7 @@
     <div class="bg-gray-800 rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-semibold text-white">
-          Assign Test to {node?.name || 'Node'}
+          {isEditMode ? `Edit ${node?.name || 'Node'} ${test?.test_type ? getTestTypeDisplayName(test.test_type) : ''} Test` : `Assign Test to '${node?.name || 'Node'}'`}
         </h2>
         <button
           on:click={handleClose}
@@ -233,7 +349,7 @@
         </div>
       {:else}
         <form on:submit|preventDefault={handleSubmit} class="space-y-4">
-          <!-- Test Type Selection -->
+          <!-- Test Type Selection (disabled in edit mode) -->
           <div>
             <label for="test_type" class="block text-sm font-medium text-gray-300 mb-1">
               Test Type
@@ -241,7 +357,8 @@
             <select
               id="test_type"
               bind:value={selectedTestType}
-              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={isEditMode}
+              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-800 disabled:cursor-not-allowed"
             >
               {#each testTypes as testType}
                 <option value={testType}>
@@ -284,6 +401,21 @@
                 </div>
               {/if}
             {/if}
+          </div>
+          
+          <!-- Enabled Toggle -->
+          <div>
+            <label class="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                bind:checked={enabled}
+                class="rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
+              />
+              <span class="text-sm font-medium text-gray-300">Enabled</span>
+            </label>
+            <p class="text-xs text-gray-400 mt-1">
+              Disabled tests will not run during monitoring or diagnostics
+            </p>
           </div>
           
           <!-- Criticality -->
@@ -462,21 +594,39 @@
           </div>
           
           <!-- Action Buttons -->
-          <div class="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              on:click={handleClose}
-              class="px-4 py-2 text-gray-300 hover:text-white border border-gray-600 rounded-md hover:border-gray-500 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || isTestAlreadyAssigned}
-              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-            >
-              {loading ? 'Assigning...' : 'Assign Test'}
-            </button>
+          <div class="flex justify-between pt-4">
+            <!-- Delete button (only in edit mode) -->
+            <div>
+              {#if isEditMode}
+                <button
+                  type="button"
+                  on:click={handleDelete}
+                  disabled={deleting}
+                  class="flex items-center gap-2 px-4 py-2 text-red-300 hover:text-red-200 border border-red-600 rounded-md hover:border-red-500 transition-colors disabled:opacity-50"
+                >
+                  <Trash2 size={16} />
+                  {deleting ? 'Removing...' : 'Remove Test'}
+                </button>
+              {/if}
+            </div>
+            
+            <!-- Save/Cancel buttons -->
+            <div class="flex space-x-3">
+              <button
+                type="button"
+                on:click={handleClose}
+                class="px-4 py-2 text-gray-300 hover:text-white border border-gray-600 rounded-md hover:border-gray-500 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading || (!isEditMode && isTestAlreadyAssigned)}
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading ? (isEditMode ? 'Updating...' : 'Assigning...') : (isEditMode ? 'Update Test' : 'Assign Test')}
+              </button>
+            </div>
           </div>
         </form>
       {/if}
