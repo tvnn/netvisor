@@ -6,6 +6,7 @@
   import CapabilitiesForm from './CapabilitiesForm.svelte';
   import TestsForm from './TestsForm.svelte';
   import TestConfigPanel from './TestConfigPanel.svelte';
+	import { TEST_TYPE_CONFIG, createDefaultTestConfig } from "$lib/config/tests/types";
   
   export let node: Node | null = null;
   export let isOpen = false;
@@ -17,7 +18,6 @@
   let loading = false;
   let deleting = false;
   let errors: Record<string, string> = {};
-  let showTestConfig = false;
   let editingTest: AssignedTest | null = null;
   let editingTestIndex: number = -1;
   
@@ -72,7 +72,6 @@
   function resetForm() {
     formData = node ? nodeToFormData(node) : createEmptyFormData();
     errors = {};
-    showTestConfig = false;
     editingTest = null;
     editingTestIndex = -1;
     activeTab = 'details'; // Reset to first tab
@@ -99,12 +98,12 @@
     
     const nodeData: NodeApi = {
       name: formData.name.trim(),
+      node_type: formData.node_type || 'UnknownDevice',
       ...(formData.domain.trim() && { domain: formData.domain.trim() }),
       ...(formData.ip.trim() && { ip: formData.ip.trim() }),
       ...(formData.port && { port: Number(formData.port) }),
       ...(formData.path.trim() && { path: formData.path.trim() }),
       ...(formData.description.trim() && { description: formData.description.trim() }),
-      ...(formData.node_type !== 'UnknownDevice' && { node_type: formData.node_type }),
       capabilities: formData.capabilities,
       monitoring_enabled: formData.monitoring_enabled,
       assigned_tests: formData.assigned_tests,
@@ -139,27 +138,29 @@
   function handleTestEdit(test: AssignedTest, index: number) {
     editingTest = { ...test };
     editingTestIndex = index;
-    showTestConfig = true;
   }
   
   function handleTestCancel() {
-    showTestConfig = false;
     editingTest = null;
     editingTestIndex = -1;
   }
 
   function handleTestChange(updatedTest: AssignedTest) {
     if (editingTestIndex >= 0) {
-      formData.assigned_tests[editingTestIndex] = updatedTest;
-      formData.assigned_tests = [...formData.assigned_tests]; // Trigger reactivity
+      // Create a new array to trigger reactivity
+      const newTests = [...formData.assigned_tests];
+      newTests[editingTestIndex] = updatedTest;
+      formData.assigned_tests = newTests;
+      
+      // Also update the editing test to keep the panel in sync
+      editingTest = { ...updatedTest };
     }
   }
   
   function handleTestCreate(newTest: AssignedTest) {
     formData.assigned_tests = [...formData.assigned_tests, newTest];
-    showTestConfig = false;
-    editingTest = null;
-    editingTestIndex = -1;
+    editingTest = { ...newTest };
+    editingTestIndex = formData.assigned_tests.length - 1;
   }
   
   // Capability recommendations cache
@@ -285,31 +286,47 @@
         </div>
         
         <!-- Tests Configuration -->
-        <div class="grid grid-cols-1 gap-6" class:lg:grid-cols-2={showTestConfig}>
+        <div class="grid grid-cols-2 gap-6">
           <!-- Tests List -->
           <div class="space-y-6">
             <TestsForm 
               bind:tests={formData.assigned_tests}
               onEditTest={handleTestEdit}
+              editingIndex={editingTestIndex}
               onCreateTest={() => {
-                editingTest = null;
+                editingTest = {
+                  test_type: 'Connectivity',
+                  test_config: createDefaultTestConfig('Connectivity'),
+                  criticality: 'Important',
+                  monitor_interval_minutes: 5,
+                  enabled: true
+                }
                 editingTestIndex = -1;
-                showTestConfig = true;
               }}
             />
           </div>
           
-          <!-- Test Configuration Panel (slides in when needed) -->
-          {#if showTestConfig}
-            <div class="border-l border-gray-700 pl-6">
+          <!-- Test Configuration Panel -->
+          <div class="border-l border-gray-700 pl-6">
+            {#if editingTest !== null}
               <TestConfigPanel
                 test={editingTest}
                 node={formData}
                 onChange={editingTestIndex >= 0 ? handleTestChange : handleTestCreate}
                 onCancel={handleTestCancel}
               />
-            </div>
-          {/if}
+            {:else}
+              <div class="flex items-center justify-center h-full min-h-[400px]">
+                <div class="text-center">
+                  <h3 class="text-lg font-medium text-gray-300 mb-2">No Test Selected</h3>
+                  <p class="text-gray-400 text-sm">
+                    Select a test from the list to edit its configuration,<br>
+                    or click "Add Test" to create a new one.
+                  </p>
+                </div>
+              </div>
+            {/if}
+          </div>
         </div>
       </div>
       

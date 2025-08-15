@@ -167,7 +167,8 @@ export const getTestDescription = (type: TestType) => TEST_TYPE_CONFIG[type].des
 export const getTestCategory = (type: TestType) => TEST_TYPE_CONFIG[type].category;
 export const getTestIcon = (type: TestType) => TEST_TYPE_CONFIG[type].icon;
 export const getTestColor = (type: TestType) => TEST_TYPE_CONFIG[type].color;
-// Get tests by category
+
+export const getTestTypes = () => Object.keys(TEST_TYPE_CONFIG) as TestType[];
 
 export const getTestsByCategory = (category: string) => Object.entries(TEST_TYPE_CONFIG)
   .filter(([_, config]) => config.category === category)
@@ -226,6 +227,7 @@ export const createDefaultTestConfig = (testType: TestType): TestConfiguration =
       throw new Error(`Unknown test type: ${testType}`);
   }
 };
+
 // Validation helpers
 
 export const validateTestConfig = (testConfig: TestConfiguration): string[] => {

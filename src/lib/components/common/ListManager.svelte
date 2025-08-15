@@ -14,6 +14,7 @@
   export let getDisplayDetails: (item: any) => string = () => '';
   export let getDisplayBadges: (item: any) => Badge[] = () => [];
   export let onEdit: (item: any, index: number) => void = () => {};
+  export let highlightedIndex: number = -1;
   export let onAdd: () => void = () => {};
   export let emptyMessage: string = '';
   export let error: string = '';
@@ -69,12 +70,12 @@
 </script>
 
 <div>
-  <div class="flex justify-between items-start mb-2">
-    <div>
-      <label class="block text-sm font-medium text-gray-300">
+  <div class="flex justify-between items-start mb-2 gap-4">
+    <div class="flex-1 min-w-0">
+      <div class="block text-sm font-medium text-gray-300">
         {label}
         {#if required}<span class="text-red-400">*</span>{/if}
-      </label>
+      </div>
       {#if helpText}
         <p class="text-sm text-gray-400 mt-1">
           {helpText}
@@ -86,7 +87,7 @@
       <button
         type="button"
         on:click={onAdd}
-        class="flex items-center gap-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+        class="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
       >
         <Plus size={16} />
         {placeholder}
@@ -128,8 +129,21 @@
         {@const displayName = getDisplayName(item)}
         {@const displayDetails = getDisplayDetails(item)}
         {@const badges = getDisplayBadges(item)}
+        {@const isHighlighted = highlightedIndex === index}
         
-        <div class="flex items-center gap-3 p-3 bg-gray-700/50 rounded-lg border border-gray-600">
+        <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
+        <div 
+          class="flex items-center gap-3 p-3 rounded-lg border transition-all {allowEdit ? 'cursor-pointer hover:border-gray-500' : ''} {isHighlighted ? 'bg-blue-900/30 border-blue-500' : 'bg-gray-700/50 border-gray-600'}"
+          on:click={allowEdit ? () => onEdit(item, index) : undefined}
+          role={allowEdit ? "button" : undefined}
+          tabindex={allowEdit ? 0 : undefined}
+          on:keydown={allowEdit ? (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onEdit(item, index);
+            }
+          } : undefined}
+          >
           {#if allowReorder}
             <span class="text-gray-400 font-mono text-sm min-w-[2rem]">{index + 1}.</span>
           {/if}
@@ -174,17 +188,6 @@
                 title="Move down"
               >
                 <ArrowDown size={16} />
-              </button>
-            {/if}
-            
-            {#if allowEdit}
-              <button
-                type="button"
-                on:click={() => onEdit(item, index)}
-                class="p-1 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded"
-                title="Edit"
-              >
-                <Edit size={16} />
               </button>
             {/if}
             

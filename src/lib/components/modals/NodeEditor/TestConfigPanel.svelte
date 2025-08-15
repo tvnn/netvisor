@@ -1,18 +1,24 @@
 <script lang="ts">
   import { X } from 'lucide-svelte';
-  import type { AssignedTest } from "$lib/types/nodes";
-      import type { TestCriticality } from "$lib/types/nodes";
+  import { onMount } from 'svelte';
+  import type { AssignedTest, TestCriticality } from "$lib/types/nodes";
   import { 
     type TestConfiguration, 
     extractConfigFromTest
   } from "$lib/types/tests";
   import type { TestType } from "$lib/config/tests/types";
-  import { getTestDisplay, getTestDescription } from "$lib/config/tests/types";
+  import { getTestDisplay, getTestDescription, getTestTypes, createDefaultTestConfig } from "$lib/config/tests/types";
   
   export let test: AssignedTest | null = null;
   export let node: any;
   export let onCancel: () => void;
   export let onChange: (test: AssignedTest) => void;
+
+  let mounted = false;
+
+  onMount(() => {
+    mounted = true;
+  });
   
   let selectedTestType: TestType = 'Connectivity';
   let selectedCriticality: TestCriticality = 'Important';
@@ -29,34 +35,29 @@
     expected_result: 'Success'
   };
   
-  const testTypes: TestType[] = [
-    'Connectivity', 'DirectIp', 'Ping', 'WellknownIp',
-    'DnsResolution', 'DnsOverHttps',
-    'VpnConnectivity', 'VpnTunnel',
-    'ServiceHealth'
-  ];
+  const testTypes: TestType[] = getTestTypes();
   
   const criticalityLevels: TestCriticality[] = ['Critical', 'Important', 'Informational'];
-  
-  $: nodeTarget = node?.ip || node?.domain || node?.name || '';
-  $: isEditMode = test !== null;
 
-  $: if (selectedTestType && onChange) {
-    const updatedTest: AssignedTest = {
-      test_type: selectedTestType,
-      test_config: getTestConfigForType(selectedTestType),
-      criticality: selectedCriticality,
-      monitor_interval_minutes: monitorInterval ? parseInt(monitorInterval) : undefined,
-      enabled: enabled
-    };
-    onChange(updatedTest);
-  }
-  
   // Initialize form when test changes
   $: if (test) {
     initializeFromTest(test);
   } else {
     resetToDefaults();
+  }
+  
+  $: nodeTarget = node?.ip || node?.domain || node?.name || '';
+  $: isEditMode = test !== null;
+
+  $: if (mounted && selectedTestType && onChange) {
+    const updatedTest: AssignedTest = {
+      test_type: selectedTestType,
+      test_config: createDefaultTestConfig(selectedTestType),
+      criticality: selectedCriticality,
+      monitor_interval_minutes: monitorInterval ? parseInt(monitorInterval) : undefined,
+      enabled: enabled
+    };
+    onChange(updatedTest);
   }
   
   function initializeFromTest(assignedTest: AssignedTest) {
@@ -90,108 +91,6 @@
     };
   }
   
-  // FIXED: Use new discriminated union structure
-  function getTestConfigForType(testType: TestType): TestConfiguration {
-    const baseConfig = {
-      timeout: parseInt(testConfig.timeout) || 30000,
-      expected_result: (testConfig.expected_result || 'Success') as 'Success' | 'Failure'
-    };
-    
-    switch (testType) {
-      case 'Connectivity':
-        return {
-          type: 'Connectivity',
-          config: {
-            target: testConfig.target || nodeTarget,
-            port: testConfig.port ? parseInt(testConfig.port) : undefined,
-            protocol: 'tcp' as 'tcp' | 'udp',
-            ...baseConfig
-          }
-        };
-        
-      case 'DirectIp':
-        return {
-          type: 'DirectIp',
-          config: {
-            target: node?.ip || '',
-            port: parseInt(testConfig.port) || 80,
-            ...baseConfig
-          }
-        };
-        
-      case 'Ping':
-        return {
-          type: 'Ping',
-          config: {
-            target: testConfig.target || nodeTarget,
-            attempts: parseInt(testConfig.attempts) || 4,
-            ...baseConfig
-          }
-        };
-        
-      case 'WellknownIp':
-        return {
-          type: 'WellknownIp',
-          config: {
-            ...baseConfig
-          }
-        };
-        
-      case 'DnsResolution':
-        return {
-          type: 'DnsResolution',
-          config: {
-            domain: testConfig.domain || 'example.com',
-            ...baseConfig
-          }
-        };
-        
-      case 'DnsOverHttps':
-        return {
-          type: 'DnsOverHttps',
-          config: {
-            target: 'https://1.1.1.1/dns-query',
-            domain: testConfig.domain || 'example.com',
-            service_type: 'cloudflare',
-            ...baseConfig
-          }
-        };
-        
-      case 'ServiceHealth':
-        return {
-          type: 'ServiceHealth',
-          config: {
-            target: testConfig.target || nodeTarget,
-            port: parseInt(testConfig.port) || 80,
-            path: testConfig.path || '/',
-            expected_status: 200,
-            ...baseConfig
-          }
-        };
-        
-      case 'VpnConnectivity':
-        return {
-          type: 'VpnConnectivity',
-          config: {
-            target: testConfig.target || nodeTarget,
-            port: parseInt(testConfig.port) || 51820,
-            ...baseConfig
-          }
-        };
-        
-      case 'VpnTunnel':
-        return {
-          type: 'VpnTunnel',
-          config: {
-            expected_subnet: testConfig.expected_subnet || '10.100.0.0/24',
-            ...baseConfig
-          }
-        };
-        
-      default:
-        throw new Error(`Unsupported test type: ${testType}`);
-    }
-  }
 </script>
 
 <div class="space-y-4">

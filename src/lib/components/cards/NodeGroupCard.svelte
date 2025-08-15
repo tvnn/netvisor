@@ -39,8 +39,6 @@
     subtitle: `${group.node_sequence.length} nodes in sequence`,
     status: statusInfo.status,
     statusColor: statusInfo.color,
-    icon: Users,
-    iconColor: 'text-purple-400',
     
     sections: group.description ? [{
       label: 'Description',

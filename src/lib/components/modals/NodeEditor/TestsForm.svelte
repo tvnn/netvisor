@@ -3,14 +3,12 @@
   import { getTestDisplay } from "$lib/config/tests/types";
   import { getCriticalityDisplay, getCriticalityColor } from "$lib/config/nodes/criticality";
   import { getTestTarget } from "$lib/types/tests";
-  import ListManager from '$lib/components/common/ListManager.svelte';
+  import ListManager from '$lib/components/common/ListManager.svelte'
   
   export let tests: AssignedTest[];
+  export let editingIndex: number = -1;
   export let onEditTest: (test: AssignedTest, index: number) => void;
   export let onCreateTest: () => void;
-  
-  // Transform tests into the format expected by ListManager
-  $: testItems = tests;
   
   function getTestDisplayName(test: AssignedTest): string {
     return getTestDisplay(test.test_type);
@@ -52,7 +50,9 @@
   }
   
   function handleEdit(test: AssignedTest, index: number) {
-    onEditTest(test, index);
+    // Create a deep copy to avoid reference issues
+    const testCopy = JSON.parse(JSON.stringify(test));
+    onEditTest(testCopy, index);
   }
   
   function handleAdd() {
@@ -63,9 +63,10 @@
 <ListManager
   label="Tests"
   helpText="Tests will be executed in the order shown. Use the arrow buttons to reorder."
-  bind:items={testItems}
+  bind:items={tests}
   availableOptions={[]}
   placeholder="Add Test"
+  highlightedIndex={editingIndex}
   allowReorder={true}
   allowEdit={true}
   allowDirectAdd={false}
