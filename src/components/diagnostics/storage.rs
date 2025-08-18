@@ -1,14 +1,21 @@
 use async_trait::async_trait;
-use sqlx::SqlitePool;
-use crate::shared::storage::{StorageResult,StorageError};
-use super::types::{DiagnosticResults, LayerResult};
+use sqlx::{Row, SqlitePool};
+use anyhow::Result;
+use crate::components::nodes::types::tests::NodeTestResults;
+
+use super::types::*;
 
 #[async_trait]
 pub trait DiagnosticStorage: Send + Sync {
-    async fn save_diagnostic_result(&self, result: &DiagnosticResults) -> StorageResult<()>;
-    async fn get_diagnostic_results(&self, test_id: Option<&str>, limit: Option<u32>) -> StorageResult<Vec<DiagnosticResults>>;
-    async fn get_latest_diagnostic_result(&self, test_id: &str) -> StorageResult<Option<DiagnosticResults>>;
-    async fn delete_diagnostic_result(&self, id: &str) -> StorageResult<()>;
+    async fn create(&self, execution: DiagnosticExecution) -> Result<DiagnosticExecution>;
+    async fn get(&self, id: &str) -> Result<Option<DiagnosticExecution>>;
+    async fn update(&self, execution: DiagnosticExecution) -> Result<()>;
+    async fn delete(&self, id: &str) -> Result<()>;
+    async fn get_all(&self) -> Result<Vec<DiagnosticExecution>>;
+    async fn get_by_group(&self, group_id: &str) -> Result<Vec<DiagnosticExecution>>;
+    async fn get_by_status(&self, status: DiagnosticStatus) -> Result<Vec<DiagnosticExecution>>;
+    async fn get_recent(&self, limit: usize) -> Result<Vec<DiagnosticExecution>>;
+    async fn get_with_filters(&self, query: DiagnosticListQuery) -> Result<Vec<DiagnosticExecution>>;
 }
 
 pub struct SqliteDiagnosticStorage {
@@ -23,105 +30,209 @@ impl SqliteDiagnosticStorage {
 
 #[async_trait]
 impl DiagnosticStorage for SqliteDiagnosticStorage {
-    async fn get_diagnostic_results(&self, test_id: Option<&str>, limit: Option<u32>) -> StorageResult<Vec<DiagnosticResults>> {
-        let limit = limit.unwrap_or(100) as i64;
-        
-        // Use the same query structure for both cases
-        let test_id_param = test_id.unwrap_or("");
-        let use_test_filter = test_id.is_some();
-        let bit = if use_test_filter { 1 } else { 0 };
-        
-        let rows = sqlx::query!(
-            "SELECT id, test_id, test_name, results, success, duration_ms, created_at 
-            FROM diagnostic_results 
-            WHERE (? = 0 OR test_id = ?) 
-            ORDER BY created_at DESC LIMIT ?",
-            bit,
-            test_id_param,
-            limit
+    async fn create(&self, execution: DiagnosticExecution) -> Result<DiagnosticExecution> {
+        let node_results_json = serde_json::to_string(&execution.node_results)?;
+        let status_str = serde_json::to_string(&execution.status)?;
+        let started_at_str = execution.started_at.to_rfc3339();
+        let completed_at_str = execution.completed_at.map(|dt| dt.to_rfc3339());
+        let created_at_str = execution.created_at.to_rfc3339();
+
+        sqlx::query(
+            r#"
+            INSERT INTO diagnostic_executions (
+                id, group_id, trigger_reason, node_results, 
+                status, generated_remediation_id, started_at, 
+                completed_at, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
         )
-        .fetch_all(&self.pool)
+        .bind(&execution.id)
+        .bind(&execution.base.group_id)
+        .bind(&execution.base.trigger_reason)
+        .bind(&node_results_json)
+        .bind(&status_str)
+        .bind(&execution.generated_remediation_id)
+        .bind(&started_at_str)
+        .bind(&completed_at_str)
+        .bind(&created_at_str)
+        .execute(&self.pool)
         .await?;
 
-        let results = rows
-            .into_iter()
-            .map(|row| -> StorageResult<DiagnosticResults> {
-                let layers: Vec<LayerResult> = serde_json::from_str(&row.results)?;
-                Ok(DiagnosticResults {
-                    id: row.id,
-                    test_id: row.test_id,
-                    test_name: row.test_name,
-                    timestamp: chrono::DateTime::parse_from_rfc3339(&row.created_at)
-                        .unwrap()
-                        .with_timezone(&chrono::Utc),
-                    layers,
-                    success: row.success,
-                    total_duration: row.duration_ms as u64,
-                })
-            })
-            .collect::<StorageResult<Vec<_>>>()?;
-
-        Ok(results)
+        Ok(execution)
     }
 
-    async fn get_latest_diagnostic_result(&self, test_id: &str) -> StorageResult<Option<DiagnosticResults>> {
-        let row = sqlx::query!(
-            "SELECT id, test_id, test_name, results, success, duration_ms, created_at 
-             FROM diagnostic_results WHERE test_id = ? ORDER BY created_at DESC LIMIT 1",
-            test_id
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-
-        if let Some(row) = row {
-            let layers: Vec<LayerResult> = serde_json::from_str(&row.results)?;
-            Ok(Some(DiagnosticResults {
-                id: row.id,
-                test_id: row.test_id,
-                test_name: row.test_name,
-                timestamp: chrono::DateTime::parse_from_rfc3339(&row.created_at)
-                    .unwrap()
-                    .with_timezone(&chrono::Utc),
-                layers,
-                success: row.success,
-                total_duration: row.duration_ms as u64,
-            }))
-        } else {
-            Ok(None)
-        }
-    }
-
-    async fn delete_diagnostic_result(&self, id: &str) -> StorageResult<()> {
-        let result = sqlx::query!("DELETE FROM diagnostic_results WHERE id = ?", id)
-            .execute(&self.pool)
+    async fn get(&self, id: &str) -> Result<Option<DiagnosticExecution>> {
+        let row = sqlx::query("SELECT * FROM diagnostic_executions WHERE id = ?")
+            .bind(id)
+            .fetch_optional(&self.pool)
             .await?;
 
-        if result.rows_affected() == 0 {
-            return Err(StorageError::NotFound);
+        match row {
+            Some(row) => Ok(Some(row_to_diagnostic_execution(row)?)),
+            None => Ok(None),
         }
-
-        Ok(())
     }
 
-    async fn save_diagnostic_result(&self, result: &DiagnosticResults) -> StorageResult<()> {
-        let results_json = serde_json::to_string(&result.layers)?;
-        let total_duration_i64 = result.total_duration as i64;
-        let timestamp_str = result.timestamp.to_rfc3339();
-        
-        sqlx::query!(
-            "INSERT INTO diagnostic_results (id, test_id, test_name, results, success, duration_ms, created_at) 
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
-            result.id,
-            result.test_id,
-            result.test_name,
-            results_json,
-            result.success,
-            total_duration_i64,
-            timestamp_str
+    async fn update(&self, execution: DiagnosticExecution) -> Result<()> {
+        let node_results_json = serde_json::to_string(&execution.node_results)?;
+        let status_str = serde_json::to_string(&execution.status)?;
+        let completed_at_str = execution.completed_at.map(|dt| dt.to_rfc3339());
+
+        sqlx::query(
+            r#"
+            UPDATE diagnostic_executions SET
+                trigger_reason = ?, node_results = ?,
+                status = ?, generated_remediation_id = ?,
+                completed_at = ?, updated_at = ?
+            WHERE id = ?
+            "#,
         )
+        .bind(&execution.base.trigger_reason)
+        .bind(&node_results_json)
+        .bind(&status_str)
+        .bind(&execution.generated_remediation_id)
+        .bind(&completed_at_str)
+        .bind(&execution.id)
         .execute(&self.pool)
         .await?;
 
         Ok(())
     }
+
+    async fn delete(&self, id: &str) -> Result<()> {
+        sqlx::query("DELETE FROM diagnostic_executions WHERE id = ?")
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn get_all(&self) -> Result<Vec<DiagnosticExecution>> {
+        let rows = sqlx::query("SELECT * FROM diagnostic_executions ORDER BY created_at DESC")
+            .fetch_all(&self.pool)
+            .await?;
+
+        let mut executions = Vec::new();
+        for row in rows {
+            executions.push(row_to_diagnostic_execution(row)?);
+        }
+
+        Ok(executions)
+    }
+
+    async fn get_by_group(&self, group_id: &str) -> Result<Vec<DiagnosticExecution>> {
+        let rows = sqlx::query("SELECT * FROM diagnostic_executions WHERE group_id = ? ORDER BY created_at DESC")
+            .bind(group_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let mut executions = Vec::new();
+        for row in rows {
+            executions.push(row_to_diagnostic_execution(row)?);
+        }
+
+        Ok(executions)
+    }
+
+    async fn get_by_status(&self, status: DiagnosticStatus) -> Result<Vec<DiagnosticExecution>> {
+        let status_str = serde_json::to_string(&status)?;
+        let rows = sqlx::query("SELECT * FROM diagnostic_executions WHERE status = ? ORDER BY created_at DESC")
+            .bind(&status_str)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let mut executions = Vec::new();
+        for row in rows {
+            executions.push(row_to_diagnostic_execution(row)?);
+        }
+
+        Ok(executions)
+    }
+
+    async fn get_recent(&self, limit: usize) -> Result<Vec<DiagnosticExecution>> {
+        let rows = sqlx::query("SELECT * FROM diagnostic_executions ORDER BY created_at DESC LIMIT ?")
+            .bind(limit as i64)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let mut executions = Vec::new();
+        for row in rows {
+            executions.push(row_to_diagnostic_execution(row)?);
+        }
+
+        Ok(executions)
+    }
+
+    async fn get_with_filters(&self, query: DiagnosticListQuery) -> Result<Vec<DiagnosticExecution>> {
+        let mut sql = "SELECT * FROM diagnostic_executions WHERE 1=1".to_string();
+        let mut params: Vec<String> = Vec::new();
+
+        if let Some(group_id) = &query.group_id {
+            sql.push_str(" AND group_id = ?");
+            params.push(group_id.clone());
+        }
+
+        if let Some(status) = &query.status {
+            sql.push_str(" AND status = ?");
+            params.push(serde_json::to_string(status)?);
+        }
+
+        sql.push_str(" ORDER BY created_at DESC");
+
+        if let Some(limit) = query.limit {
+            sql.push_str(" LIMIT ?");
+            params.push(limit.to_string());
+        }
+
+        if let Some(offset) = query.offset {
+            sql.push_str(" OFFSET ?");
+            params.push(offset.to_string());
+        }
+
+        let mut query_builder = sqlx::query(&sql);
+        for param in params {
+            query_builder = query_builder.bind(param);
+        }
+
+        let rows = query_builder.fetch_all(&self.pool).await?;
+
+        let mut executions = Vec::new();
+        for row in rows {
+            executions.push(row_to_diagnostic_execution(row)?);
+        }
+
+        Ok(executions)
+    }
+}
+
+fn row_to_diagnostic_execution(row: sqlx::sqlite::SqliteRow) -> Result<DiagnosticExecution> {
+    let node_results_json: String = row.get("node_results");
+    let status_json: String = row.get("status");
+    let started_at_str: String = row.get("started_at");
+    let completed_at_str: Option<String> = row.get("completed_at");
+    let created_at_str: String = row.get("created_at");
+
+    let node_results: Vec<NodeTestResults> = serde_json::from_str(&node_results_json)?;
+    let status: DiagnosticStatus = serde_json::from_str(&status_json)?;
+    let started_at = chrono::DateTime::parse_from_rfc3339(&started_at_str)?.with_timezone(&chrono::Utc);
+    let completed_at = completed_at_str
+        .map(|s| chrono::DateTime::parse_from_rfc3339(&s))
+        .transpose()?
+        .map(|dt| dt.with_timezone(&chrono::Utc));
+    let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_str)?.with_timezone(&chrono::Utc);
+
+    Ok(DiagnosticExecution {
+        id: row.get("id"),
+        base: DiagnosticExecutionBase { 
+            group_id: row.get("group_id"), 
+            trigger_reason: row.get("trigger_reason")
+        },
+        node_results,
+        status,
+        generated_remediation_id: row.get("generated_remediation_id"),
+        started_at,
+        completed_at,
+        created_at,
+    })
 }

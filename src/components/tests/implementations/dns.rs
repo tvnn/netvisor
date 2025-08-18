@@ -1,12 +1,10 @@
 use anyhow::Result;
-use std::time::{Duration, Instant};
-use crate::components::tests::types::{TestResult, TestType};
+use std::time::{Duration};
+use crate::components::tests::types::{TestResult, TestType, Timer};
 use crate::components::tests::configs::{DnsResolutionConfig, DnsOverHttpsConfig};
 
 /// Execute DNS resolution test
-pub async fn execute_dns_resolution_test(config: &DnsResolutionConfig) -> Result<TestResult> {
-    let start = Instant::now();
-    
+pub async fn execute_dns_resolution_test(config: &DnsResolutionConfig, timer: &Timer) -> Result<TestResult> {    
     let domain = &config.domain;
     let timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
     
@@ -15,8 +13,6 @@ pub async fn execute_dns_resolution_test(config: &DnsResolutionConfig) -> Result
         timeout,
         tokio::net::lookup_host(format!("{}:80", domain))
     ).await;
-    
-    let duration = start.elapsed();
     
     let (success, message, details) = match result {
         Ok(Ok(addresses)) => {
@@ -58,21 +54,19 @@ pub async fn execute_dns_resolution_test(config: &DnsResolutionConfig) -> Result
         test_type: TestType::DnsResolution,
         success,
         message,
-        duration_ms: duration.as_millis() as u64,
-        executed_at: chrono::Utc::now(),
+        duration_ms: timer.elapsed_ms(),
+        executed_at: timer.datetime(),
         details: Some(details),
     })
 }
 
-/// Execute DNS over HTTPS test (simplified implementation)
-pub async fn execute_dns_over_https_test(config: &DnsOverHttpsConfig) -> Result<TestResult> {
-    let start = Instant::now();
-    
+/// Execute DNS over HTTPS test
+pub async fn execute_dns_over_https_test(config: &DnsOverHttpsConfig, timer: &Timer) -> Result<TestResult> {    
     let target = &config.target;
     let domain = &config.domain;
     let timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
     
-    // Create a simple DoH query (this is a basic implementation)
+    // Create a simple DoH query
     let client = reqwest::Client::builder()
         .timeout(timeout)
         .build()?;
@@ -92,8 +86,6 @@ pub async fn execute_dns_over_https_test(config: &DnsOverHttpsConfig) -> Result<
         .header("Accept", "application/dns-json")
         .send()
         .await;
-    
-    let duration = start.elapsed();
     
     let (success, message, details) = match result {
         Ok(response) if response.status().is_success() => {
@@ -173,8 +165,8 @@ pub async fn execute_dns_over_https_test(config: &DnsOverHttpsConfig) -> Result<
         test_type: TestType::DnsOverHttps,
         success,
         message,
-        duration_ms: duration.as_millis() as u64,
-        executed_at: chrono::Utc::now(),
+        duration_ms: timer.elapsed_ms(),
+        executed_at: timer.datetime(),
         details: Some(details),
     })
 }

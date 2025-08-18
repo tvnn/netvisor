@@ -4,7 +4,8 @@ use crate::{
     components::{
         nodes::handlers as node_handlers,
         node_groups::handlers as group_handlers,
-        // diagnostics::handlers as diagnostic_handlers, // TODO: Implement
+        diagnostics::handlers as diagnostic_handlers,
+        tests::handlers as test_handlers
     },
     api::{ApiResponse, SystemStatusResponse},
     AppState,
@@ -16,8 +17,8 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/api/status", get(system_status))
         .nest("/api/nodes", node_handlers::create_router())
         .nest("/api/groups", group_handlers::create_router())
-        .nest("/api/tests", crate::components::tests::handlers::create_router())
-        // .nest("/api/diagnostics", diagnostic_handlers::create_router()) // TODO: Implement
+        .nest("/api/tests", test_handlers::create_router())
+        .nest("/api/diagnostics", diagnostic_handlers::create_router()) // TODO: Implement
         // .nest("/api/monitoring", monitoring_handlers::create_router()) // TODO: Implement
         // .nest("/api/discovery", discovery_handlers::create_router()) // TODO: Implement
 }

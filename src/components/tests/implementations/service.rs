@@ -1,12 +1,10 @@
 use anyhow::Result;
-use std::time::{Duration, Instant};
-use crate::components::tests::types::{TestResult, TestType};
+use std::time::{Duration};
+use crate::components::tests::types::{TestResult, TestType, Timer};
 use crate::components::tests::configs::ServiceHealthConfig;
 
 /// Execute service health test
-pub async fn execute_service_health_test(config: &ServiceHealthConfig) -> Result<TestResult> {
-    let start = Instant::now();
-    
+pub async fn execute_service_health_test(config: &ServiceHealthConfig, timer: &Timer) -> Result<TestResult> {    
     let target = &config.target;
     let port = config.port.unwrap_or(80);
     let path = config.path.as_deref().unwrap_or("/");
@@ -24,7 +22,6 @@ pub async fn execute_service_health_test(config: &ServiceHealthConfig) -> Result
         .build()?;
     
     let result = client.get(&url).send().await;
-    let duration = start.elapsed();
     
     let (success, message, details) = match result {
         Ok(response) => {
@@ -62,7 +59,7 @@ pub async fn execute_service_health_test(config: &ServiceHealthConfig) -> Result
                 "status_code": status_code,
                 "expected_status": expected_status,
                 "status_matches": status_matches,
-                "response_time_ms": duration.as_millis(),
+                "response_time_ms": timer.elapsed_ms(),
                 "headers": headers,
                 "body_preview": body,
                 "content_length": headers.get("content-length")
@@ -97,8 +94,8 @@ pub async fn execute_service_health_test(config: &ServiceHealthConfig) -> Result
         test_type: TestType::ServiceHealth,
         success,
         message,
-        duration_ms: duration.as_millis() as u64,
-        executed_at: chrono::Utc::now(),
+        duration_ms: timer.elapsed_ms(),
+        executed_at: timer.datetime(),
         details: Some(details),
     })
 }

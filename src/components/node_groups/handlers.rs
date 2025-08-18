@@ -11,7 +11,7 @@ use crate::{
         types::{NodeGroup, CreateNodeGroupRequest, NodeGroupResponse, NodeGroupListResponse, UpdateNodeGroupRequest},
         service::NodeGroupService
     },
-    components::nodes::types::NodeListResponse,
+    components::nodes::types::api::NodeListResponse,
     AppState,
 };
 

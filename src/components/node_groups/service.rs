@@ -6,7 +6,7 @@ use crate::components::node_groups::{
 };
 use crate::components::nodes::{
     storage::NodeStorage,
-    types::Node
+    types::base::Node
 };
 
 pub struct NodeGroupService {
@@ -141,6 +141,8 @@ impl NodeGroupService {
                 group.base.node_sequence.push(node_id.to_string());
             }
         }
+
+        
 
         self.update_group(group).await?;
         Ok(())

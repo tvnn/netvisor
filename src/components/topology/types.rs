@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::components::nodes::types::{SubnetGroup};
+use crate::components::nodes::types::topology::{SubnetGroup};
 use crate::components::node_groups::types::NodeGroup;
 
 // Network topology generated from node groups and subnet membership

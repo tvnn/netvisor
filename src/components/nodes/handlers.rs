@@ -12,9 +12,13 @@ use crate::{
     components::{
         nodes::{
             service::NodeService,
-            types::{CapabilityRecommendations, CreateNodeRequest, Node, NodeCapability, NodeCompatibilityResponse, NodeListResponse, NodeResponse, NodeType, UpdateNodeRequest}
-        },
-        tests::types::TestType,
+            types::{
+                base::{Node},
+                tests::{TestTypeCompatibilityInfo},
+                types_capabilities::{NodeType, NodeCapability},
+                api::{CreateNodeRequest, NodeListResponse, NodeResponse, UpdateNodeRequest, CompatibilityResponse}
+            }
+        },  
     },
     AppState,
 };
@@ -26,15 +30,15 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/:id", get(get_node))
         .route("/:id", put(update_node))
         .route("/:id", delete(delete_node))
-        .route("/:id/compatibility", get(get_node_compatibility))
-        .route("/capability-recommendations", get(get_capability_recommendations_handler))
+        .route("/:id/test-recommendations", get(get_test_recommendations))
+        .route("/capability-recommendations", get(get_capability_recommendations))
 }
 
 async fn create_node(
     State(state): State<Arc<AppState>>,
     Json(request): Json<CreateNodeRequest>,
 ) -> ApiResult<Json<ApiResponse<NodeResponse>>> {
-    let service = NodeService::new(state.node_storage.clone());
+    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
     let mut node = Node::from_name(request.node.name);
     node.base.domain = request.node.domain;
@@ -57,7 +61,7 @@ async fn get_node(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<NodeResponse>>> {
-    let service = NodeService::new(state.node_storage.clone());
+    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
     match service.get_node(&id).await? {
         Some(node) => Ok(Json(ApiResponse::success(NodeResponse { node }))),
@@ -68,7 +72,7 @@ async fn get_node(
 async fn get_all_nodes(
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<ApiResponse<NodeListResponse>>> {
-    let service = NodeService::new(state.node_storage.clone());
+    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
     let nodes = service.get_all_nodes().await?;
     let total = nodes.len();
@@ -81,7 +85,7 @@ async fn update_node(
     Path(id): Path<String>,
     Json(request): Json<UpdateNodeRequest>,
 ) -> ApiResult<Json<ApiResponse<NodeResponse>>> {
-    let service = NodeService::new(state.node_storage.clone());
+    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
     let mut node = service.get_node(&id).await?
         .ok_or_else(|| ApiError::node_not_found(&id))?;
@@ -129,7 +133,7 @@ async fn delete_node(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = NodeService::new(state.node_storage.clone());
+    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
     // Check if node exists
     if service.get_node(&id).await?.is_none() {
@@ -141,60 +145,37 @@ async fn delete_node(
     Ok(Json(ApiResponse::success(())))
 }
 
-async fn get_node_compatibility(
-    State(state): State<Arc<AppState>>,
-    Path(node_id): Path<String>,
-) -> ApiResult<Json<ApiResponse<NodeCompatibilityResponse>>> {
-    let service = NodeService::new(state.node_storage.clone());
-    
-    let node = service.get_node(&node_id).await?
-        .ok_or_else(|| ApiError::node_not_found(&node_id))?;
-    
-    let compatible_test_types = service.get_compatible_test_types(&node);
-    
-    let all_test_types = vec![
-        TestType::Connectivity,
-        TestType::DirectIp,
-        TestType::Ping,
-        TestType::WellknownIp,
-        TestType::DnsResolution,
-        TestType::DnsOverHttps,
-        TestType::VpnConnectivity,
-        TestType::VpnTunnel,
-        TestType::ServiceHealth,
-        TestType::DaemonCommand,
-        TestType::SshScript,
-    ];
-    
-    let incompatible_test_types: Vec<TestType> = all_test_types
-        .into_iter()
-        .filter(|t| !compatible_test_types.contains(t))
-        .collect();
-    
-    // TODO: Implement missing_capabilities analysis
-    let missing_capabilities = Vec::new();
-    
-    Ok(Json(ApiResponse::success(NodeCompatibilityResponse {
-        node_id: node_id.clone(),
-        compatible_test_types,
-        incompatible_test_types,
-        missing_capabilities,
-    })))
-}
-
-async fn get_capability_recommendations_handler(
+async fn get_capability_recommendations(
     Query(params): Query<HashMap<String, String>>,
-) -> ApiResult<Json<ApiResponse<CapabilityRecommendations>>> {
+) -> ApiResult<Json<ApiResponse<CompatibilityResponse<NodeCapability>>>> {
     let node_type_str = params.get("node_type")
         .ok_or_else(|| ApiError::validation_error("node_type parameter required"))?;
     
     let node_type: NodeType = serde_json::from_str(&format!("\"{}\"", node_type_str))
         .map_err(|_| ApiError::validation_error("Invalid node type"))?;
     
-    let recommendations = CapabilityRecommendations {
-        all_capabilities: NodeCapability::all(),
-        current_capabilities: vec![], // Not relevant for suggestions
-        suggested_capabilities: node_type.typical_capabilities(),
+    let recommendations: CompatibilityResponse<NodeCapability> = CompatibilityResponse {
+        recommendations: Some(node_type.typical_capabilities()),
+        warnings: None
+    };
+    
+    Ok(Json(ApiResponse::success(recommendations)))
+}
+
+async fn get_test_recommendations(
+    State(state): State<Arc<AppState>>,
+    Path(node_id): Path<String>,
+) -> ApiResult<Json<ApiResponse<CompatibilityResponse<TestTypeCompatibilityInfo>>>> {
+    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
+    
+    let node = service.get_node(&node_id).await?
+        .ok_or_else(|| ApiError::node_not_found(&node_id))?;
+    
+    let (recommended_tests, warned_tests) = node.get_compatible_test_types();
+        
+    let recommendations = CompatibilityResponse {
+        recommendations: Some(recommended_tests),
+        warnings: Some(warned_tests)
     };
     
     Ok(Json(ApiResponse::success(recommendations)))

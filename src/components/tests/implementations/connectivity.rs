@@ -1,12 +1,10 @@
 use anyhow::Result;
 use std::time::{Duration, Instant};
-use crate::components::tests::types::{TestResult, TestType};
+use crate::components::tests::types::{TestResult, TestType, Timer};
 use crate::components::tests::configs::{ConnectivityConfig, DirectIpConfig, PingConfig, WellknownIpConfig};
 
-/// Execute connectivity test with type-safe configuration
-pub async fn execute_connectivity_test(config: &ConnectivityConfig) -> Result<TestResult> {
-    let start = Instant::now();
-    
+/// Execute connectivity test
+pub async fn execute_connectivity_test(config: &ConnectivityConfig, timer: &Timer) -> Result<TestResult> {    
     let target = &config.target;
     let port = config.port.unwrap_or(80);
     let timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
@@ -17,7 +15,6 @@ pub async fn execute_connectivity_test(config: &ConnectivityConfig) -> Result<Te
         tokio::net::TcpStream::connect(format!("{}:{}", target, port))
     ).await;
     
-    let duration = start.elapsed();
     let success = result.is_ok() && result.unwrap().is_ok();
     
     let message = if success {
@@ -30,8 +27,8 @@ pub async fn execute_connectivity_test(config: &ConnectivityConfig) -> Result<Te
         test_type: TestType::Connectivity,
         success,
         message,
-        duration_ms: duration.as_millis() as u64,
-        executed_at: chrono::Utc::now(),
+        duration_ms: timer.elapsed_ms(),
+        executed_at: timer.datetime(),
         details: Some(serde_json::json!({
             "target": target,
             "port": port,
@@ -40,23 +37,20 @@ pub async fn execute_connectivity_test(config: &ConnectivityConfig) -> Result<Te
     })
 }
 
-/// Execute direct IP test with type-safe configuration
-pub async fn execute_direct_ip_test(config: &DirectIpConfig) -> Result<TestResult> {
-    let start = Instant::now();
-    
+/// Execute direct IP test
+pub async fn execute_direct_ip_test(config: &DirectIpConfig, timer: &Timer) -> Result<TestResult> {    
     let target = &config.target;
     let port = config.port;
     let timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
     
     // Validate IP address format
     if target.parse::<std::net::IpAddr>().is_err() {
-        let duration = start.elapsed();
         return Ok(TestResult {
             test_type: TestType::DirectIp,
             success: false,
             message: format!("Invalid IP address format: {}", target),
-            duration_ms: duration.as_millis() as u64,
-            executed_at: chrono::Utc::now(),
+            duration_ms: timer.elapsed_ms(),
+            executed_at: timer.datetime(),
             details: Some(serde_json::json!({
                 "target": target,
                 "port": port,
@@ -71,7 +65,6 @@ pub async fn execute_direct_ip_test(config: &DirectIpConfig) -> Result<TestResul
         tokio::net::TcpStream::connect(format!("{}:{}", target, port))
     ).await;
     
-    let duration = start.elapsed();
     let success = result.is_ok() && result.unwrap().is_ok();
     
     let message = if success {
@@ -84,8 +77,8 @@ pub async fn execute_direct_ip_test(config: &DirectIpConfig) -> Result<TestResul
         test_type: TestType::DirectIp,
         success,
         message,
-        duration_ms: duration.as_millis() as u64,
-        executed_at: chrono::Utc::now(),
+        duration_ms: timer.elapsed_ms(),
+        executed_at: timer.datetime(),
         details: Some(serde_json::json!({
             "target": target,
             "port": port,
@@ -94,13 +87,12 @@ pub async fn execute_direct_ip_test(config: &DirectIpConfig) -> Result<TestResul
     })
 }
 
-/// Execute ping test with type-safe configuration
-pub async fn execute_ping_test(config: &PingConfig) -> Result<TestResult> {
-    let start = Instant::now();
+/// Execute ping test
+pub async fn execute_ping_test(config: &PingConfig, timer: &Timer) -> Result<TestResult> {
     
     let target = &config.target;
     let attempts = config.attempts.unwrap_or(4);
-    let timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
+    let timeout = config.base.timeout.unwrap_or(30000);
     
     // Use system ping command for now (could be replaced with raw ICMP later)
     let mut successful_pings = 0;
@@ -131,12 +123,11 @@ pub async fn execute_ping_test(config: &PingConfig) -> Result<TestResult> {
         }
         
         // Break early if we exceed timeout
-        if start.elapsed() > timeout {
+        if timer.elapsed_ms() > timeout {
             break;
         }
     }
     
-    let duration = start.elapsed();
     let success = successful_pings > 0;
     let avg_time = if !ping_times.is_empty() {
         ping_times.iter().sum::<u64>() / ping_times.len() as u64
@@ -154,8 +145,8 @@ pub async fn execute_ping_test(config: &PingConfig) -> Result<TestResult> {
         test_type: TestType::Ping,
         success,
         message,
-        duration_ms: duration.as_millis() as u64,
-        executed_at: chrono::Utc::now(),
+        duration_ms: timer.elapsed_ms(),
+        executed_at: timer.datetime(),
         details: Some(serde_json::json!({
             "target": target,
             "attempts": attempts,
@@ -166,8 +157,8 @@ pub async fn execute_ping_test(config: &PingConfig) -> Result<TestResult> {
     })
 }
 
-/// Execute well-known IP test with type-safe configuration
-pub async fn execute_wellknown_ip_test(config: &WellknownIpConfig) -> Result<TestResult> {
+/// Execute well-known IP test
+pub async fn execute_wellknown_ip_test(config: &WellknownIpConfig, timer: &Timer) -> Result<TestResult> {
     let start = Instant::now();
     
     let well_known_ips = vec![
@@ -208,7 +199,6 @@ pub async fn execute_wellknown_ip_test(config: &WellknownIpConfig) -> Result<Tes
         }
     }
     
-    let duration = start.elapsed();
     let success = successful_connections > 0;
     
     let message = if success {
@@ -221,8 +211,8 @@ pub async fn execute_wellknown_ip_test(config: &WellknownIpConfig) -> Result<Tes
         test_type: TestType::WellknownIp,
         success,
         message,
-        duration_ms: duration.as_millis() as u64,
-        executed_at: chrono::Utc::now(),
+        duration_ms: timer.elapsed_ms(),
+        executed_at: timer.datetime(),
         details: Some(serde_json::json!({
             "results": results,
             "successful_connections": successful_connections,

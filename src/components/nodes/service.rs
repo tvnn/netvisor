@@ -1,20 +1,29 @@
 use anyhow::Result;
-use std::sync::Arc;
+use std::{sync::Arc};
 use crate::components::{
-    nodes::{
+    node_groups::storage::NodeGroupStorage, nodes::{
         storage::NodeStorage,
-        types::{Node, NodeType}
-    },
-    tests::types::{TestType}
+        types::{
+            base::Node, 
+            tests::NodeTestResults,
+            types_capabilities::NodeType
+        }
+    }, tests::{service::TestService, types::{TestResult, Timer}}
 };
 
 pub struct NodeService {
     storage: Arc<dyn NodeStorage>,
+    group_storage: Arc<dyn NodeGroupStorage>,
+    test_service: TestService,
 }
 
 impl NodeService {
-    pub fn new(storage: Arc<dyn NodeStorage>) -> Self {
-        Self { storage }
+    pub fn new(storage: Arc<dyn NodeStorage>, group_storage: Arc<dyn NodeGroupStorage>) -> Self {
+        Self { 
+            storage,
+            group_storage,
+            test_service: TestService::new(),
+        }
     }
 
     /// Create a new node
@@ -45,7 +54,58 @@ impl NodeService {
         Ok(node)
     }
 
-    /// Auto-detect and assign node type + capabilities from discovery results
+    pub async fn get_node(&self, id: &str) -> Result<Option<Node>> {
+        self.storage.get_by_id(id).await
+    }
+
+    pub async fn get_all_nodes(&self) -> Result<Vec<Node>> {
+        self.storage.get_all().await
+    }
+
+    pub async fn update_node(&self, mut node: Node) -> Result<Node> {
+        node.updated_at = chrono::Utc::now();
+        self.storage.update(&node).await?;
+        Ok(node)
+    }
+
+    pub async fn delete_node(&self, id: &str) -> Result<()> {
+
+        let all_groups = self.group_storage.get_all().await?;
+    
+        // Remove node from all groups that contain it
+        for mut group in all_groups {
+            if group.base.node_sequence.contains(&id.to_string()) {
+                group.base.node_sequence.retain(|seq_id| seq_id != &id.to_string());
+                group.updated_at = chrono::Utc::now();
+                self.group_storage.update(&group).await?;
+            }
+        }
+
+        self.storage.delete(id).await
+    }
+
+    pub async fn execute_tests(&self, node: &mut Node) -> NodeTestResults {
+        let tests = &node.base.assigned_tests;
+        let mut test_results: Vec<TestResult> = Vec::new();
+
+        let timer = Timer::now();
+
+        for test in tests{
+            let result = self.test_service.execute_test(&test.test_type, &test.test_config).await;
+            test_results.push(result)
+        };
+
+        node.update_status_from_tests(&test_results);
+
+        NodeTestResults {
+            test_results,
+            node_status: node.base.current_status.clone(),
+            duration_ms: timer.elapsed_ms(),
+            executed_at: timer.datetime(),
+        }
+    }
+
+    // Auto-detect and assign node type + capabilities from discovery results
     // pub async fn auto_detect_from_discovery(
     //     &self, 
     //     node_id: &str, 
@@ -84,48 +144,4 @@ impl NodeService {
 
     //     self.update_node(node).await
     // }
-
-    /// Get node by ID
-    pub async fn get_node(&self, id: &str) -> Result<Option<Node>> {
-        self.storage.get_by_id(id).await
-    }
-
-    /// Get all nodes
-    pub async fn get_all_nodes(&self) -> Result<Vec<Node>> {
-        self.storage.get_all().await
-    }
-
-    /// Update node
-    pub async fn update_node(&self, mut node: Node) -> Result<Node> {
-        node.updated_at = chrono::Utc::now();
-        self.storage.update(&node).await?;
-        Ok(node)
-    }
-
-    /// Delete node
-    pub async fn delete_node(&self, id: &str) -> Result<()> {
-        self.storage.delete(id).await
-    }
-
-    /// Get compatible test types for a node
-    pub fn get_compatible_test_types(&self, node: &Node) -> Vec<TestType> {
-        let all_test_types = vec![
-            TestType::Connectivity,
-            TestType::DirectIp,
-            TestType::Ping,
-            TestType::WellknownIp,
-            TestType::DnsResolution,
-            TestType::DnsOverHttps,
-            TestType::VpnConnectivity,
-            TestType::VpnTunnel,
-            TestType::ServiceHealth,
-            TestType::DaemonCommand,
-            TestType::SshScript,
-        ];
-
-        all_test_types
-            .into_iter()
-            .filter(|test_type| test_type.is_compatible_with_node(node))
-            .collect()
-    }
 }

@@ -1,12 +1,10 @@
 use anyhow::Result;
-use std::time::{Duration, Instant};
-use crate::components::tests::types::{TestResult, TestType};
+use std::time::{Duration};
+use crate::components::tests::types::{TestResult, TestType, Timer};
 use crate::components::tests::configs::{VpnConnectivityConfig, VpnTunnelConfig};
 
 /// Execute VPN connectivity test
-pub async fn execute_vpn_connectivity_test(config: &VpnConnectivityConfig) -> Result<TestResult> {
-    let start = Instant::now();
-    
+pub async fn execute_vpn_connectivity_test(config: &VpnConnectivityConfig, timer: &Timer) -> Result<TestResult> {    
     let target = &config.target;
     let port = config.port.unwrap_or(51820); // WireGuard default
     let timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
@@ -16,8 +14,6 @@ pub async fn execute_vpn_connectivity_test(config: &VpnConnectivityConfig) -> Re
         timeout,
         tokio::net::TcpStream::connect(format!("{}:{}", target, port))
     ).await;
-    
-    let duration = start.elapsed();
     
     let (success, message, details) = match result {
         Ok(Ok(_stream)) => {
@@ -60,16 +56,14 @@ pub async fn execute_vpn_connectivity_test(config: &VpnConnectivityConfig) -> Re
         test_type: TestType::VpnConnectivity,
         success,
         message,
-        duration_ms: duration.as_millis() as u64,
-        executed_at: chrono::Utc::now(),
+        duration_ms: timer.elapsed_ms(),
+        executed_at: timer.datetime(),
         details: Some(details),
     })
 }
 
 /// Execute VPN tunnel test
-pub async fn execute_vpn_tunnel_test(config: &VpnTunnelConfig) -> Result<TestResult> {
-    let start = Instant::now();
-    
+pub async fn execute_vpn_tunnel_test(config: &VpnTunnelConfig, timer: &Timer) -> Result<TestResult> {    
     let expected_subnet = &config.expected_subnet;
     let _timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
     
@@ -125,14 +119,12 @@ pub async fn execute_vpn_tunnel_test(config: &VpnTunnelConfig) -> Result<TestRes
         }
     };
     
-    let duration = start.elapsed();
-    
     Ok(TestResult {
         test_type: TestType::VpnTunnel,
         success,
         message,
-        duration_ms: duration.as_millis() as u64,
-        executed_at: chrono::Utc::now(),
+        duration_ms: timer.elapsed_ms(),
+        executed_at: timer.datetime(),
         details: Some(details),
     })
 }

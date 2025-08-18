@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::components::{
     tests::types::{TestType, TestResult},
-    nodes::types::RecentFailure
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -43,5 +42,4 @@ pub struct MonitoringOverviewResponse {
     pub degraded_nodes: usize,
     pub failed_nodes: usize,
     pub unknown_nodes: usize,
-    pub recent_failures: Vec<RecentFailure>,
 }
