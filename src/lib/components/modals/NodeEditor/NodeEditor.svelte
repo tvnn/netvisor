@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { NodeFormData, Node, NodeApi, AssignedTest, CapabilityRecommendations } from "$lib/types/nodes";
+  import type { NodeFormData, Node, NodeApi, AssignedTest, NodeCapability } from "$lib/types/nodes";
   import { nodeActions } from '$lib/stores/nodes';
   import EditModal from '../../common/EditModal.svelte'
   import BasicNodeForm from './BasicNodeForm.svelte';
   import CapabilitiesForm from './CapabilitiesForm.svelte';
   import TestsForm from './TestsForm.svelte';
   import TestConfigPanel from './TestConfigPanel.svelte';
-	import { TEST_TYPE_CONFIG, createDefaultTestConfig } from "$lib/config/tests/types";
+	import { createDefaultTestConfig } from "$lib/config/tests/types";
   
   export let node: Node | null = null;
   export let isOpen = false;
@@ -28,6 +28,16 @@
     { id: 'capabilities', label: 'Capabilities', icon: 'Settings' },
     { id: 'tests', label: 'Tests', icon: 'CheckCircle' }
   ];
+
+  $: currentTabIndex = tabs.findIndex(t => t.id == activeTab) || 0
+
+  function nextTab() {
+    if (currentTabIndex < tabs.length-1) activeTab = tabs[currentTabIndex+1].id;
+  }
+
+  function previousTab() {
+    if (currentTabIndex > 0) activeTab = tabs[currentTabIndex-1].id;
+  }
   
   $: isEditing = node !== null;
   $: title = isEditing ? `Edit ${node?.name}` : 'Create Node';
@@ -164,7 +174,7 @@
   }
   
   // Capability recommendations cache
-  let capabilityRecommendations: CapabilityRecommendations;
+  let capabilityRecommendations: NodeCapability[];
   
   // Auto-load capability recommendations when node type changes
   let lastNodeType = formData.node_type;
@@ -179,13 +189,13 @@
   // Preload capability recommendations for better UX
   async function preloadCapabilityRecommendations() {
     try {
-      const response = await nodeActions.getCapabilityRecommendations(formData.node_type);
+      const response = await nodeActions.getCapabilityCompatibility(formData.node_type);
       if (response) {
-        capabilityRecommendations = response;
+        capabilityRecommendations = response.recommendations;
         
         // Auto-apply suggestions if no capabilities are currently selected
-        if (formData.capabilities.length === 0 && response.suggested_capabilities.length > 0) {
-          formData.capabilities = [...response.suggested_capabilities];
+        if (formData.capabilities.length === 0 && response.recommendations.length > 0) {
+          formData.capabilities = [...response.recommendations];
         }
       }
     } catch (error) {
@@ -199,21 +209,27 @@
   {title}
   {loading}
   {deleting}
-  onSubmit={handleSubmit}
+  onSubmit={ isEditing || currentTabIndex == tabs.length-1 ? handleSubmit : nextTab }
   {onClose}
+  onCancel={isEditing ? onClose : previousTab}
+  cancelLabel={isEditing ? 'Cancel' : 'Previous'}
   onDelete={isEditing ? handleDelete : null}
-  submitLabel={isEditing ? 'Update Node' : 'Create Node'}
+  submitLabel={isEditing ? 'Update Node' : (
+    currentTabIndex == tabs.length-1 ? 'Create Node' : 'Next'
+  )}
 >
   <!-- Tab Navigation -->
+  {#if isEditing}
   <div class="border-b border-gray-600 mb-6">
     <nav class="flex space-x-8">
-      {#each tabs as tab}
+      {#each tabs as tab, index}
         <button
           type="button"
+          disabled={!isEditing}
           class="py-2 px-1 border-b-2 font-medium text-sm transition-colors duration-200 {
-            activeTab === tab.id
-              ? 'border-blue-500 text-blue-400'
-              : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+              activeTab === tab.id
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
           }"
           on:click={() => activeTab = tab.id}
         >
@@ -232,13 +248,14 @@
           {/if}
           
           <!-- Show monitoring status indicator on tests tab -->
-          {#if tab.id === 'tests' && formData.monitoring_enabled}
+          {#if tab.id === 'tests' && formData.monitoring_enabled  && isEditing}
             <span class="ml-1 w-2 h-2 bg-green-400 rounded-full inline-block"></span>
           {/if}
         </button>
       {/each}
     </nav>
   </div>
+  {/if}
 
   <!-- Tab Content -->
   <div class="tab-content">
@@ -247,6 +264,7 @@
       <div class="space-y-6">
         <BasicNodeForm 
           bind:formData={formData}
+          isEditing={isEditing}
           {errors}
         />
       </div>

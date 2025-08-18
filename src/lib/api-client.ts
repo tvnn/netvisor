@@ -1,7 +1,8 @@
 import type { NodeGroupApi, NodeGroup } from "./types/node-groups";
-import type { NodeApi, Node, CapabilityRecommendations, NodeType } from "./types/nodes";
+import type { NodeApi, Node, NodeType } from "./types/nodes";
 import type { TestConfiguration } from "./types/tests";
 import type { TestType } from "./config/tests/types";
+import type { NodeCapability } from "./types/nodes";
 
 // API client for NetFrog backend
 const API_BASE = 'http://localhost:3000/api';
@@ -12,7 +13,6 @@ interface ApiResponse<T> {
   error?: string;
 }
 
-// Define the response wrapper types that match your backend
 interface NodeListResponse {
   nodes: Node[];
   total: number;
@@ -30,6 +30,12 @@ interface NodeGroupListResponse {
 interface NodeGroupResponse {
   group: NodeGroup;
 }
+
+interface CapabilityRecommendationsResponse {
+  recommendations: NodeCapability[];
+  warnings: NodeCapability[];
+}
+
 
 class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
@@ -96,7 +102,7 @@ class ApiClient {
   }
 
   async getCapabilityRecommendations(nodeType: NodeType) {
-    return this.request<CapabilityRecommendations>(`/nodes/capability-recommendations?node_type=${nodeType}`);
+    return this.request<CapabilityRecommendationsResponse>(`/nodes/capability-recommendations?node_type=${nodeType}`);
   }
 
   // Node group operations

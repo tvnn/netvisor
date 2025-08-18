@@ -4,7 +4,7 @@
   export let label: string;
   export let helpText: string = '';
   export let items: any[] = [];
-  export let availableOptions: ListOption[] = [];
+  export let availableOptions: any[] = [];
   export let placeholder: string = 'Select an item to add';
   export let required: boolean = false;
   export let allowReorder: boolean = true;
@@ -18,12 +18,6 @@
   export let onAdd: () => void = () => {};
   export let emptyMessage: string = '';
   export let error: string = '';
-  
-  interface ListOption {
-    id: string;
-    label: string;
-    subtitle?: string;
-  }
   
   interface Badge {
     text: string;

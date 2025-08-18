@@ -1,60 +1,42 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { CapabilityRecommendations } from "$lib/types/nodes";
-  import type { NodeType, NodeCapability } from "$lib/types/nodes";
+  import type { NodeCapability, NodeType } from "$lib/types/nodes";
   import {
     getAllCapabilities,
     getCapabilityDisplay,
     getCapabilityDescription,
   } from "$lib/config/nodes/capabilities";
   import { nodeActions } from '$lib/stores/nodes';
+	import { getNodeTypeDisplay } from '$lib/config/nodes/types';
   
   export let capabilities: NodeCapability[];
   export let nodeType: NodeType;
   export let nodeId: string | undefined = undefined;
-  export let preloadedRecommendations: CapabilityRecommendations | null = null;
+  export let preloadedRecommendations: NodeCapability[];
   
-  let recommendations: CapabilityRecommendations | null = null;
+  let recommendations: NodeCapability[];
   let loading = false;
-  
+
   // Fetch recommendations from backend
-  async function fetchRecommendations() {
+  async function fetchCapabilityCompatibility() {
     if (!nodeId) {
       // For new nodes, no recommendations - just show all capabilities
-      recommendations = {
-        all_capabilities: getAllCapabilities(),
-        current_capabilities: capabilities,
-        suggested_capabilities: []
-      };
       return;
     }
     
     loading = true;
     try {
-      const response = await nodeActions.getCapabilityRecommendations(nodeType);
+      const response = await nodeActions.getCapabilityCompatibility(nodeType);
       if (response) {
-        recommendations = response;
+        recommendations = response.recommendations;
         
         // Auto-apply suggested capabilities if none are currently selected
-        if (capabilities.length === 0 && response.suggested_capabilities.length > 0) {
-          capabilities = [...response.suggested_capabilities];
+        if (capabilities.length === 0 && response.recommendations.length > 0) {
+          capabilities = [...response.recommendations];
         }
-      } else {
-        // Fallback if API fails - no suggestions
-        recommendations = {
-          all_capabilities: getAllCapabilities(),
-          current_capabilities: capabilities,
-          suggested_capabilities: []
-        };
       }
     } catch (error) {
-      console.error('Failed to fetch capability recommendations:', error);
-      // Fallback if API fails - no suggestions
-      recommendations = {
-        all_capabilities: getAllCapabilities(),
-        current_capabilities: capabilities,
-        suggested_capabilities: []
-      };
+      console.error('Failed to fetch capabilities:', error);
     } finally {
       loading = false;
     }
@@ -69,19 +51,19 @@
   }
   
   function applySuggested() {
-    if (recommendations && recommendations.suggested_capabilities.length > 0) {
-      capabilities = [...recommendations.suggested_capabilities];
+    if (recommendations && recommendations.length > 0) {
+      capabilities = [...recommendations];
     }
   }
   
   // Auto-apply suggestions when they change (for node type changes)
   let lastSuggestions: NodeCapability[] = [];
-  $: if (recommendations && JSON.stringify(recommendations.suggested_capabilities) !== JSON.stringify(lastSuggestions)) {
+  $: if (recommendations && JSON.stringify(recommendations) !== JSON.stringify(lastSuggestions)) {
     // Only auto-apply if user hasn't made manual selections or if capabilities are empty
     if (capabilities.length === 0 || capabilities.every(cap => lastSuggestions.includes(cap))) {
-      capabilities = [...recommendations.suggested_capabilities];
+      capabilities = [...recommendations];
     }
-    lastSuggestions = [...recommendations.suggested_capabilities];
+    lastSuggestions = [...recommendations];
   }
   
   onMount(() => {
@@ -89,7 +71,7 @@
     if (preloadedRecommendations) {
       recommendations = preloadedRecommendations;
     } else {
-      fetchRecommendations();
+      fetchCapabilityCompatibility();
     }
   });
   
@@ -100,13 +82,13 @@
   
   // Only fetch if we don't have preloaded data and node type changes
   $: if (!preloadedRecommendations && nodeType && nodeType !== 'UnknownDevice') {
-    fetchRecommendations();
+    fetchCapabilityCompatibility();
   }
   
   // Computed values
-  $: suggestedCapabilities = recommendations?.suggested_capabilities || [];
+  $: suggestedCapabilities = recommendations || [];
   $: otherCapabilities = recommendations 
-    ? recommendations.all_capabilities.filter(cap => !suggestedCapabilities.includes(cap))
+    ? getAllCapabilities().filter(cap => !suggestedCapabilities.includes(cap))
     : [];
 </script>
 
@@ -144,7 +126,7 @@
         <div>
           <h4 class="text-sm font-medium text-blue-300 mb-3 flex items-center gap-2">
             <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
-            Suggested for {nodeType}
+            Suggested for {getNodeTypeDisplay(nodeType)}
           </h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             {#each suggestedCapabilities as capability}

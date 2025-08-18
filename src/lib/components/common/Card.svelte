@@ -46,7 +46,7 @@
       <div class="text-sm">
         <span class="text-gray-400">{list.label}:</span>
         {#if list.items.length > 0}
-          <div class="mt-1 space-y-1">
+          <div class="mt-1 flex flex-wrap gap-2">
             {#each list.items as item}
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">

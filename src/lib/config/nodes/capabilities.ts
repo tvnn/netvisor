@@ -1,4 +1,4 @@
-import type { NodeCapability } from "./types";
+import type { NodeCapability } from "$lib/types/nodes";
 
 export const CAPABILITY_CONFIG = {
   SshAccess: {

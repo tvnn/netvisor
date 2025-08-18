@@ -1,5 +1,4 @@
 import type { NodeType } from "$lib/types/nodes";
-import type { CAPABILITY_CONFIG } from "./capabilities";
 import { Router, Network, Wifi, Shield, Lock, Search, Globe, Play, Database, HardDrive, Monitor, Cpu, Printer, Camera, HelpCircle } from 'lucide-svelte';
 
 export const NODE_TYPE_CONFIG = {
@@ -104,4 +103,4 @@ export const getNodeTypes = () => Object.keys(NODE_TYPE_CONFIG) as NodeType[];
 
 export const getNodeTypesByCategory = (category: string) => Object.entries(NODE_TYPE_CONFIG)
   .filter(([_, config]) => config.category === category)
-  .map(([type, _]) => type as NodeType);export type NodeCapability = keyof typeof CAPABILITY_CONFIG;
+  .map(([type, _]) => type as NodeType);

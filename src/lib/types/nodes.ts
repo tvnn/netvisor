@@ -3,6 +3,7 @@ import type { TestConfiguration } from "./tests";
 import type { TestType } from "$lib/config/tests/types";
 import type { CRITICALITY_CONFIG } from "$lib/config/nodes/criticality";
 import type { NODE_STATUS_CONFIG } from "$lib/config/nodes/status";
+import type { CAPABILITY_CONFIG } from "$lib/config/nodes/capabilities";
 
 // Base form data - what the form actually handles
 export interface NodeFormData {
@@ -43,15 +44,6 @@ export interface Node extends NodeApi {
   last_seen?: string;
 }
 
-export type NodeCapability = 'SshAccess' | 'HttpService' | 'HttpsService' | 
-  'VpnService' | 'DnsService' | 'DhcpService';
-
-export interface CapabilityRecommendations {
-  all_capabilities: NodeCapability[];
-  current_capabilities: NodeCapability[];
-  suggested_capabilities: NodeCapability[];
-}
-
 export interface AssignedTest {
   test_type: TestType;
   test_config: TestConfiguration;
@@ -75,6 +67,8 @@ export interface GraphPosition {
   y: number;
   z?: number;
 }
-export type NodeType = keyof typeof NODE_TYPE_CONFIG;export type TestCriticality = keyof typeof CRITICALITY_CONFIG;
+export type NodeType = keyof typeof NODE_TYPE_CONFIG;
+export type TestCriticality = keyof typeof CRITICALITY_CONFIG;
 export type NodeStatus = keyof typeof NODE_STATUS_CONFIG;
+export type NodeCapability = keyof typeof CAPABILITY_CONFIG;
 

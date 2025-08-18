@@ -5,6 +5,8 @@
   import { getNodeTypeDisplay, getNodeTypeIcon } from "$lib/config/nodes/types";
   import { getTestDisplay } from "$lib/config/tests/types";
   import GenericCard from '../common/Card.svelte';
+	import { getCriticalityBgColor, getCriticalityColor } from '$lib/config/nodes/criticality';
+	import { getCapabilityDisplay } from '$lib/config/nodes/capabilities';
   
   export let node: Node;
   export let groupNames: string[] = [];
@@ -25,20 +27,6 @@
       return 'text-gray-400';
     }
     return getNodeStatusColor(node.current_status);
-  }
-  
-  // Get criticality icon and color
-  function getCriticalityIconConfig(criticality: string) {
-    switch (criticality) {
-      case 'Critical':
-        return { icon: OctagonAlert, color: 'text-red-400' };
-      case 'Important':
-        return { icon: TriangleAlert, color: 'text-yellow-300' };
-      case 'Informational':
-        return { icon: CircleAlert, color: 'text-blue-300' };
-      default:
-        return { icon: CircleAlert, color: 'text-gray-400' };
-    }
   }
   
   // Build connection info
@@ -70,13 +58,29 @@
         label: 'Capabilities',
         items: node.capabilities.map(cap => ({
           id: cap,
-          label: cap,
+          label: getCapabilityDisplay(cap),
           bgColor: 'bg-blue-900/30',
           color: 'text-blue-300'
         })),
         emptyText: 'No capabilities assigned'
       },
       {
+        label: 'Tests',
+        items: node.assigned_tests.map(test => {
+          return {
+            id: test.test_type,
+            label: getTestDisplay(test.test_type),
+            bgColor: test.enabled ? getCriticalityBgColor(test.criticality) : 'bg-gray-700/30',
+            color: test.enabled ? getCriticalityColor(test.criticality) : 'text-gray-500',
+            disabled: !test.enabled,
+            badge: test.monitor_interval_minutes ? `${test.monitor_interval_minutes}m` : undefined,
+            badgeColor: 'text-gray-500',
+            metadata: test
+          };
+        }),
+        emptyText: 'No tests assigned'
+      },
+            {
         label: 'Diagnostic Groups',
         items: groupNames.map((name, i) => ({
           id: node.node_groups[i] || name,
@@ -85,25 +89,6 @@
           color: 'text-green-300'
         })),
         emptyText: 'No groups assigned'
-      },
-      {
-        label: 'Tests',
-        items: node.assigned_tests.map(test => {
-          const criticalityConfig = getCriticalityIconConfig(test.criticality);
-          return {
-            id: test.test_type,
-            label: getTestDisplay(test.test_type),
-            icon: criticalityConfig.icon,
-            iconColor: criticalityConfig.color,
-            bgColor: test.enabled ? 'bg-gray-700/50' : 'bg-gray-700/30',
-            color: test.enabled ? 'text-gray-300' : 'text-gray-500',
-            disabled: !test.enabled,
-            badge: test.monitor_interval_minutes ? `${test.monitor_interval_minutes}m` : undefined,
-            badgeColor: 'text-gray-500',
-            metadata: test
-          };
-        }),
-        emptyText: 'No tests assigned'
       }
     ],
     

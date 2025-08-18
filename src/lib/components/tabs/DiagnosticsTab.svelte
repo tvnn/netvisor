@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { Plus, Users, Play, Trash2, Edit } from 'lucide-svelte';
   import { nodeGroups, nodeGroupActions, loading, error } from '../../stores/node-groups';
-  import { nodes } from '../../stores/nodes';
+  import { nodes, nodeActions } from '../../stores/nodes';
   import type { Node } from '../../types/nodes';
   import type { NodeGroup } from '$lib/types/node-groups';
   import NodeGroupEditor from '../modals/NodeGroupEditor.svelte';
@@ -13,6 +13,7 @@
   
   onMount(() => {
     nodeGroupActions.loadGroups();
+    nodeActions.loadNodes()
   });
   
   function handleCreateGroup() {
