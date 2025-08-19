@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::components::nodes::types::base::NodeTarget;
+use crate::components::nodes::types::targets::NodeTarget;
 use crate::components::nodes::types::base::DetectedService;
 use crate::components::nodes::types::topology::GraphPosition;
 use crate::components::nodes::types::tests::NodeStatus;

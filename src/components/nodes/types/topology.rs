@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct GraphPosition {
-    pub x: f32,
-    pub y: f32,
-    pub z: Option<f32>, // For 3D layouts if needed
+    pub x: i32,
+    pub y: i32,
+    pub z: Option<i32>, // For 3D layouts if needed
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

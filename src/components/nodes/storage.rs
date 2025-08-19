@@ -2,7 +2,8 @@ use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
 use crate::components::nodes::types::{
-    base::{DetectedService, Node, NodeBase, NodeTarget}, 
+    base::{DetectedService, Node, NodeBase},
+    targets::NodeTarget, 
     tests::{AssignedTest, NodeStatus},
     topology::GraphPosition, types_capabilities::{NodeCapability, NodeType},
 };

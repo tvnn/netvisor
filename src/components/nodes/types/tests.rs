@@ -13,7 +13,7 @@ pub struct TestTypeCompatibilityInfo {
     pub is_recommended: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct AssignedTest {
     pub test: Test,
     pub criticality: TestCriticality,
@@ -45,7 +45,7 @@ pub struct NodeTestResults {
 }
 
 // Current health state of a node
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum NodeStatus {
     Healthy,    // All checks passing
     Degraded,   // Some checks failing but node functional

@@ -3,7 +3,7 @@ use std::{net::{IpAddr, Ipv4Addr}, time::Instant};
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use crate::{components::{nodes::types::{
-    base::{Node, NodeTarget}, tests::TestCriticality, types_capabilities::{NodeCapability, NodeType}
+    base::{Node}, targets::NodeTarget, tests::TestCriticality, types_capabilities::{NodeCapability, NodeType}
 }, tests::implementations::*}, shared::types::TransportProtocol};
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
@@ -132,8 +132,7 @@ impl Test {
                 node_types: None,
                 node_capabilities: None,
                 node_target_types: Some(vec![
-                    NodeTarget::ipv4_template(),
-                    NodeTarget::ipv6_template()
+                    NodeTarget::ip_template(),
                 ]),
                 warning_message: Some("DirectIp test requires a node with an IP address target".to_string()),
             },
@@ -142,9 +141,7 @@ impl Test {
                 node_types: None,
                 node_capabilities: None,
                 node_target_types: Some(vec![
-                    NodeTarget::ipv4_template(),
-                    NodeTarget::ipv6_template(),
-                    NodeTarget::hostname_template()
+                    NodeTarget::ip_template()
                 ]),
                 warning_message: Some("Ping test requires a node with IP address or hostname target".to_string()),
             },
@@ -191,8 +188,7 @@ impl Test {
                 node_types: None,
                 node_capabilities: None,
                 node_target_types: Some(vec![
-                    NodeTarget::ipv4_template(),
-                    NodeTarget::ipv6_template()
+                    NodeTarget::ip_template(),
                 ]),
                 warning_message: Some("DnsLookup test requires a node with an IP to validate reverse DNS resolution".to_string()),
             },
@@ -366,6 +362,7 @@ impl Default for DnsOverHttpsConfig {
 pub struct DnsLookupConfig {
     pub expected_ip: IpAddr,
     pub timeout_ms: Option<u32>,
+    pub resolver: Option<Node>
 }
 
 impl Default for DnsLookupConfig {
@@ -381,6 +378,7 @@ impl Default for DnsLookupConfig {
 pub struct ReverseDnsConfig {
     pub expected_domain: String,
     pub timeout_ms: Option<u32>,
+    pub resolver: Option<Node>
 }
 
 impl Default for ReverseDnsConfig {
@@ -423,20 +421,20 @@ impl Default for VpnTunnelConfig {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
-pub struct NtpSyncConfig {
-    pub max_offset_ms: u32,               // Maximum acceptable time offset
-    pub timeout_ms: Option<u32>,
-}
+// #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
+// pub struct NtpSyncConfig {
+//     pub max_offset_ms: u32,               // Maximum acceptable time offset
+//     pub timeout_ms: Option<u32>,
+// }
 
-impl Default for NtpSyncConfig {
-    fn default() -> Self {
-        Self {
-            timeout_ms: Some(30000),
-            max_offset_ms: 1000
-        }
-    }
-}
+// impl Default for NtpSyncConfig {
+//     fn default() -> Self {
+//         Self {
+//             timeout_ms: Some(30000),
+//             max_offset_ms: 1000
+//         }
+//     }
+// }
 
 // #[derive(Debug, Serialize, Deserialize, Default, Clone, Eq, PartialEq, Hash)]
 // pub struct DaemonCommandConfig {

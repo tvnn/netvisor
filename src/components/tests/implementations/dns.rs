@@ -1,11 +1,12 @@
-use std::time::Duration;
+use std::{time::Duration};
 use anyhow::{Error, Result};
 use tokio::time::timeout;
 use trust_dns_resolver::{TokioAsyncResolver, config::*};
 use std::net::IpAddr;
 use reqwest::Client;
 use crate::components::{
-    nodes::types::base::{Node, NodeTarget},
+    nodes::types::base::Node,
+    nodes::types::targets::NodeTarget,
     tests::types::{DnsResolutionConfig, DnsLookupConfig, DnsOverHttpsConfig, ReverseDnsConfig, TestResult, Timer}
 };
 
@@ -18,7 +19,7 @@ pub async fn execute_dns_resolution_test(
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
     
     // Extract DNS server address from node
-    let dns_server = &node.base.target.get_target();
+    let dns_server = &node.base.target.;
 
     // TODO: Configure resolver to use specific DNS server
     // For now, use system resolver as placeholder
@@ -107,8 +108,7 @@ pub async fn execute_dns_lookup_test(
     
     // Get this node's IP address
     let node_ip = match &node.base.target {
-        NodeTarget::Ipv4Address { ip, .. }  => IpAddr::V4(*ip),
-        NodeTarget::Ipv6Address { ip, .. } => IpAddr::V6(*ip),
+        NodeTarget::IpAddress { .. }  => node.base.target.as_ip_config().expect("Matched on IP, will get an IP config").ip,
         _ => {
             return Ok(TestResult {
                 success: false,
@@ -258,8 +258,7 @@ pub async fn execute_reverse_dns_lookup_test(
     
     // Get the IP to reverse resolve
     let ip_to_resolve: IpAddr = match &node.base.target {
-        NodeTarget::Ipv4Address { ip, .. }  => IpAddr::V4(*ip),
-        NodeTarget::Ipv6Address { ip, .. } => IpAddr::V6(*ip),
+        NodeTarget::IpAddress { .. }  => node.base.target.as_ip_config().expect("Matched on IP, will get an IP config").ip,
         _ => {
             return Ok(TestResult {
                 success: false,

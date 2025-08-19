@@ -13,12 +13,23 @@ pub enum ApplicationProtocol {
     Ftp
 }
 
+impl std::fmt::Display for ApplicationProtocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let protocol_str = match self {
+            ApplicationProtocol::Http => "http",
+            ApplicationProtocol::Https => "https", 
+            ApplicationProtocol::Ftp => "ftp",
+        };
+        write!(f, "{}", protocol_str)
+    }
+}
+
 impl ApplicationProtocol {
-    pub fn display(&self) -> String {
-        match &self {
-            ApplicationProtocol::Ftp => "ftp://".to_string(),
-            ApplicationProtocol::Http => "http://".to_string(),
-            ApplicationProtocol::Https => "https://".to_string()
+    pub fn default_port(&self) -> u16 {
+        match self {
+            ApplicationProtocol::Http => 80,
+            ApplicationProtocol::Https => 443,
+            ApplicationProtocol::Ftp => 21,
         }
     }
 }

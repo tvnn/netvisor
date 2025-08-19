@@ -4,7 +4,7 @@ use anyhow::Error;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use crate::components::{
-    nodes::types::base::{Node, NodeTarget},
+    nodes::types::{base::Node, targets::{HostnameTargetConfig, NodeTarget, ServiceTargetConfig}},
     tests::types::{ConnectivityConfig, DirectIpConfig, PingConfig, TestResult, Timer}
 };
 
@@ -82,9 +82,8 @@ pub async fn execute_ping_test(
     
     // Extract IP address from node target
     let target_ip = match &node.base.target {
-        NodeTarget::Ipv4Address { ip, .. } => ip.to_string(),
-        NodeTarget::Ipv6Address { ip, .. } => ip.to_string(),
-        NodeTarget::Hostname { hostname, .. } => {
+        NodeTarget::IpAddress { .. }  => node.base.target.as_ip_config().expect("Matched on IP, will get an IP config").ip,
+        NodeTarget::Hostname(HostnameTargetConfig{ hostname, ..}) => {
             // For hostname targets, we need to resolve to IP first
             // This is a simplified implementation - in practice you'd use proper DNS resolution
             return Ok(TestResult {
@@ -99,7 +98,7 @@ pub async fn execute_ping_test(
                 criticality: None,
             });
         },
-        NodeTarget::Service { hostname, .. } => {
+        NodeTarget::Service(ServiceTargetConfig{ hostname, .. }) => {
             return Ok(TestResult {
                 success: false,
                 message: format!("Ping test not applicable for service target: {}", hostname),
@@ -152,8 +151,7 @@ pub async fn execute_direct_ip_test(
     
     // Validate that node target is actually an IP address
     let target_address = match &node.base.target {
-        NodeTarget::Ipv4Address { .. } => &node.base.target.get_target(),
-        NodeTarget::Ipv6Address { .. } => &node.base.target.get_target(),
+        NodeTarget::IpAddress { .. }  => node.base.target.as_ip_config().expect("Matched on IP, will get an IP config"),
         _ => {
             return Ok(TestResult {
                 success: false,
@@ -170,8 +168,10 @@ pub async fn execute_direct_ip_test(
         }
     };
 
+
+
     // Attempt TCP connection directly to IP
-    let connection_result = timeout(timeout_duration, TcpStream::connect(&target_address)).await;
+    let connection_result = timeout(timeout_duration, TcpStream::connect((&target_address))).await;
 
     let (success, message, details) = match connection_result {
         Ok(Ok(_stream)) => {

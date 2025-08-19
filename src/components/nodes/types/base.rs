@@ -1,18 +1,16 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use std::net::{Ipv4Addr, Ipv6Addr};
 use strum::IntoEnumIterator;
 use std::mem::discriminant;
-use crate::components::{nodes::types::tests::TestTypeCompatibilityInfo, tests::types::{Test, TestResult}};
+use crate::components::{nodes::types::{targets::NodeTarget, tests::TestTypeCompatibilityInfo}, tests::types::{Test, TestResult}};
 use crate::shared::types::ApplicationProtocol;
-use strum_macros::{EnumIter, EnumDiscriminants, Display};
 use super::{
     types_capabilities::{NodeType, NodeCapability},
     tests::{AssignedTest, NodeStatus, TestCriticality},
     topology::{GraphPosition}
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct NodeBase {
     pub name: String,
     pub node_type: NodeType,
@@ -36,7 +34,7 @@ pub struct NodeBase {
     pub subnet_membership: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct Node {
     pub id: String,
     pub created_at: DateTime<Utc>,
@@ -63,7 +61,7 @@ impl Node {
         let base = NodeBase {
             name,
             description: None,
-            target: NodeTarget::ipv4_template(),
+            target: NodeTarget::ip_template(),
             node_type: NodeType::UnknownDevice,
             
             open_ports: Vec::new(),
@@ -126,11 +124,6 @@ impl Node {
         self.base.current_status = new_status;
     }
 
-    /// Get the target for tests (IP, domain, or name in preference order)
-    pub fn get_target(&self) -> String {
-        self.base.target.get_target()
-    }
-
     /// Get compatible test types for a node
     pub fn get_compatible_test_types(&self) -> (Vec<TestTypeCompatibilityInfo>, Vec<TestTypeCompatibilityInfo>) {
 
@@ -163,84 +156,11 @@ impl Node {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants)]
-#[strum_discriminants(derive(Display, EnumIter))]
-#[serde(tag="type", content="config")]
-pub enum NodeTarget {
-    Ipv4Address { 
-        ip: Ipv4Addr,
-        port: Option<u16> 
-    },
-    Ipv6Address { 
-        ip: Ipv6Addr,
-        port: Option<u16> 
-    },
-    Hostname { 
-        hostname: String, 
-        port: Option<u16> 
-    },
-    Service {
-        protocol: ApplicationProtocol,
-        hostname: String,
-        port: Option<u16>,
-        path: Option<String>,
-    }
-}
-
-impl NodeTarget {
-    pub fn variant_name(&self) -> String {
-        NodeTargetDiscriminants::from(self).to_string()
-    }
-
-    // Template instances for type checking
-    pub fn ipv4_template() -> Self {
-        NodeTarget::Ipv4Address { ip: Ipv4Addr::LOCALHOST, port: Some(80) }
-    }
-
-    pub fn ipv6_template() -> Self {
-        NodeTarget::Ipv6Address { ip: Ipv6Addr::LOCALHOST, port: Some(80) }
-    }
-    
-    pub fn service_template() -> Self {
-        NodeTarget::Service {
-            protocol: ApplicationProtocol::Http,
-            hostname: String::new(),
-            port: Some(80),
-            path: None,
-        }
-    }
-
-    pub fn hostname_template() -> Self {
-        NodeTarget::Hostname {
-            hostname: String::new(),
-            port: Some(80)
-        }
-    }
-
-    pub fn get_target(&self) -> String {
-        match &self {
-            NodeTarget::Ipv4Address { ip, port } => {
-                format!("{}:{}", ip, port.unwrap_or(80))
-            },
-            NodeTarget::Ipv6Address { ip, port } => {
-                format!("[{}]:{}", ip, port.unwrap_or(80))
-            },
-            NodeTarget::Hostname { hostname, port } => {
-                format!("{}:{}", hostname, port.unwrap_or(80))
-            },
-            NodeTarget::Service { protocol: _, hostname, port, path: _ } => {
-                format!("{}:{}", hostname, port.unwrap_or(80))
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct DetectedService {
     pub port: u16,
     pub protocol: ApplicationProtocol,
     pub service_name: Option<String>, // "nginx", "OpenSSH", "MySQL"
     pub version: Option<String>, // "1.20.1", "8.9p1", "8.0.32"
     pub banner: Option<String>,  // Raw service banner
-    pub confidence: f32,         // 0.0-1.0 detection confidence
 }
