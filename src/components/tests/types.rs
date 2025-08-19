@@ -12,6 +12,7 @@ use std::mem::discriminant;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, EnumIter))]
+#[serde(tag="type", content="config")]
 pub enum Test {
     // Basic Connectivity Tests
     Connectivity(ConnectivityConfig),
@@ -482,7 +483,6 @@ impl Timer {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestResult {
-    pub test: Test,
     pub success: bool,
     pub message: String,
     pub duration_ms: u64,
@@ -492,9 +492,8 @@ pub struct TestResult {
 }
 
 impl TestResult {
-    pub fn error_result(test: &Test, error: anyhow::Error, criticality: Option<TestCriticality>, timer: Timer) -> Self {
+    pub fn error_result(error: anyhow::Error, criticality: Option<TestCriticality>, timer: Timer) -> Self {
         Self {
-            test: test.clone(),
             criticality: criticality,
             success: false,
             message: "Error executing test".to_string(),

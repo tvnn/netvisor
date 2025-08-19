@@ -15,7 +15,7 @@ impl TestService {
 
         match test_result {
             Ok(result) => result,
-            Err(e) => TestResult::error_result(test, e, None, timer)
+            Err(e) => TestResult::error_result(e, None, timer)
         }
     }
 
@@ -31,7 +31,7 @@ impl TestService {
                 result.criticality = Some(criticality.clone());
                 result
             },
-            Err(e) => TestResult::error_result(test, e, Some(criticality.clone()), timer)
+            Err(e) => TestResult::error_result(e, Some(criticality.clone()), timer)
         }
     }
 

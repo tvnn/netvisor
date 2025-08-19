@@ -30,8 +30,8 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
         sqlx::query(
             r#"
             INSERT INTO node_groups (
-                id, name, description, node_sequence, auto_diagnostic_on_node_failure,
-                diagnostic_diagnostic_schedule_minutes, created_at, updated_at
+                id, name, description, node_sequence, auto_diagnostic_enabled,
+                created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             "#
         )
@@ -39,8 +39,7 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
         .bind(&group.base.name)
         .bind(&group.base.description)
         .bind(node_sequence_json)
-        .bind(&group.base.auto_diagnostic_on_node_failure)
-        .bind(&group.base.diagnostic_schedule_minutes)
+        .bind(&group.base.auto_diagnostic_enabled)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
@@ -81,15 +80,14 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
             r#"
             UPDATE node_groups SET 
                 name = ?, description = ?, node_sequence = ?, 
-                auto_diagnostic_on_node_failure = ?, diagnostic_diagnostic_schedule_minutes = ?, updated_at = ?
+                auto_diagnostic_enabled = ?, updated_at = ?
             WHERE id = ?
             "#
         )
         .bind(&group.base.name)
         .bind(&group.base.description)
         .bind(node_sequence_json)
-        .bind(&group.base.auto_diagnostic_on_node_failure)
-        .bind(&group.base.diagnostic_schedule_minutes)
+        .bind(&group.base.auto_diagnostic_enabled)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(&group.id)
         .execute(&self.pool)
@@ -119,9 +117,8 @@ fn row_to_node_group(row: sqlx::sqlite::SqliteRow) -> Result<NodeGroup> {
         base: NodeGroupBase {
             name: row.get("name"),
             description: row.get("description"),
-            diagnostic_schedule_minutes: row.get("diagnostic_sequence_minutes"),
             node_sequence,
-            auto_diagnostic_on_node_failure: row.get("auto_diagnostic_on_node_failure"),
+            auto_diagnostic_enabled: row.get("auto_diagnostic_enabled"),
         }  
     })
 }

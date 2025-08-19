@@ -11,9 +11,9 @@ pub struct CreateNodeGroupRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateNodeGroupRequest {
     pub name: Option<String>,
-    pub description: Option<String>,
+    pub description: Option<Option<String>>,
     pub node_sequence: Option<Vec<String>>,  // Ordered diagnostic sequence
-    pub auto_diagnostic_on_node_failure: Option<bool>,
+    pub auto_diagnostic_enabled: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -32,8 +32,7 @@ pub struct NodeGroupBase {
     pub name: String,
     pub description: Option<String>,
     pub node_sequence: Vec<String>,  // Ordered diagnostic sequence
-    pub diagnostic_schedule_minutes: Option<u32>, // Regular diagnostic runs
-    pub auto_diagnostic_on_node_failure: bool, // Default: true
+    pub auto_diagnostic_enabled: bool, // Default: true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,8 +60,7 @@ impl NodeGroup {
             name,
             description: None,
             node_sequence: Vec::new(),
-            auto_diagnostic_on_node_failure: true,
-            diagnostic_schedule_minutes: Some(10)
+            auto_diagnostic_enabled: true,
         };
 
         Self::new(base)
@@ -70,7 +68,7 @@ impl NodeGroup {
 
     // Setters with timestamp updates
     pub fn set_auto_diagnostic_enabled(&mut self, enabled: bool) {
-        self.base.auto_diagnostic_on_node_failure = enabled;
+        self.base.auto_diagnostic_enabled = enabled;
         self.updated_at = chrono::Utc::now();
     }
     

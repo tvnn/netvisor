@@ -39,7 +39,7 @@ async fn create_node_group(
     let mut group = NodeGroup::from_name(request.group.name);
     group.base.description = request.group.description;
     group.base.node_sequence = request.group.node_sequence;
-    group.base.auto_diagnostic_on_node_failure = request.group.auto_diagnostic_on_node_failure;
+    group.base.auto_diagnostic_enabled = request.group.auto_diagnostic_enabled;
     
     let created_group = service.create_group(group).await?;
     
@@ -94,13 +94,13 @@ async fn update_node_group(
         group.base.name = name;
     }
     if let Some(description) = request.description {
-        group.base.description = Some(description);
+        group.base.description = description;
     }
     if let Some(node_sequence) = request.node_sequence {
         group.base.node_sequence = node_sequence;
     }
-    if let Some(auto_diagnostic_on_node_failure) = request.auto_diagnostic_on_node_failure {
-        group.base.auto_diagnostic_on_node_failure = auto_diagnostic_on_node_failure;
+    if let Some(auto_diagnostic_enabled) = request.auto_diagnostic_enabled {
+        group.base.auto_diagnostic_enabled = auto_diagnostic_enabled;
     }
     
     let updated_group = service.update_group(group).await?;

@@ -31,7 +31,7 @@ pub struct UpdateNodeRequest {
     
     // Monitoring
     pub assigned_tests: Option<Vec<AssignedTest>>,
-    pub monitoring_enabled: Option<bool>,
+    pub monitoring_interval: Option<u16>,
     pub node_groups: Option<Vec<String>>,
     
     // Topology visualization

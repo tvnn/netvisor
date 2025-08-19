@@ -29,6 +29,11 @@ impl NodeGroupService {
     pub async fn create_group(&self, mut group: NodeGroup) -> Result<NodeGroup> {
         // Generate ID
         group.id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now();
+        group.created_at = now.clone();
+        group.updated_at = now;
+
+        println!("1");
 
         // Validate that all nodes in sequence exist
         for node_id in &group.base.node_sequence {
@@ -37,7 +42,11 @@ impl NodeGroupService {
             }
         }
 
+        println!("2");
+
         self.group_storage.create(&group).await?;
+
+        println!("3");
         
         // Add group reference to all nodes in the sequence
         for node_id in &group.base.node_sequence {
@@ -46,6 +55,8 @@ impl NodeGroupService {
                 self.node_storage.update(&node).await?;
             }
         }
+
+        println!("4");
 
         Ok(group)
     }
@@ -61,7 +72,10 @@ impl NodeGroupService {
     }
 
     /// Update group
-    pub async fn update_group(&self, group: NodeGroup) -> Result<NodeGroup> {
+    pub async fn update_group(&self, mut group: NodeGroup) -> Result<NodeGroup> {
+        let now = chrono::Utc::now();
+        group.updated_at = now;
+        
         // Validate that all nodes in sequence exist
         for node_id in &group.base.node_sequence {
             if self.node_storage.get_by_id(node_id).await?.is_none() {

@@ -14,7 +14,7 @@ pub enum ApplicationProtocol {
 }
 
 impl ApplicationProtocol {
-    pub fn display_name(&self) -> String {
+    pub fn display(&self) -> String {
         match &self {
             ApplicationProtocol::Ftp => "ftp://".to_string(),
             ApplicationProtocol::Http => "http://".to_string(),

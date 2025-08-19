@@ -27,7 +27,7 @@ pub struct NodeBase {
     
     // Monitoring
     pub assigned_tests: Vec<AssignedTest>,
-    pub monitoring_enabled: bool,
+    pub monitoring_interval: u16,
     pub node_groups: Vec<String>,
     
     // Topology visualization
@@ -72,7 +72,7 @@ impl Node {
             capabilities: Vec::new(),
 
             assigned_tests: Vec::new(),
-            monitoring_enabled: false,
+            monitoring_interval: 5,
             node_groups: Vec::new(),
             position: None,
             current_status: NodeStatus::Unknown,
@@ -165,6 +165,7 @@ impl Node {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants)]
 #[strum_discriminants(derive(Display, EnumIter))]
+#[serde(tag="type", content="config")]
 pub enum NodeTarget {
     Ipv4Address { 
         ip: Ipv4Addr,

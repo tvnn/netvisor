@@ -30,8 +30,8 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/:id", get(get_node))
         .route("/:id", put(update_node))
         .route("/:id", delete(delete_node))
-        .route("/:id/test-recommendations", get(get_test_recommendations))
-        .route("/capability-recommendations", get(get_capability_recommendations))
+        .route("/:id/test-compatibility", get(get_test_compatibility))
+        .route("/capability-compatibility", get(get_capability_compatibility))
 }
 
 async fn create_node(
@@ -103,8 +103,8 @@ async fn update_node(
     if let Some(capabilities) = request.capabilities {
         node.base.capabilities = capabilities;
     }
-    if let Some(monitoring_enabled) = request.monitoring_enabled {
-        node.base.monitoring_enabled = monitoring_enabled;
+    if let Some(monitoring_interval) = request.monitoring_interval {
+        node.base.monitoring_interval = monitoring_interval;
     }
     if let Some(assigned_tests) = request.assigned_tests {
         node.base.assigned_tests = assigned_tests;
@@ -133,7 +133,7 @@ async fn delete_node(
     Ok(Json(ApiResponse::success(())))
 }
 
-async fn get_capability_recommendations(
+async fn get_capability_compatibility(
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<ApiResponse<CompatibilityResponse<NodeCapability>>>> {
     let node_type_str = params.get("node_type")
@@ -150,7 +150,7 @@ async fn get_capability_recommendations(
     Ok(Json(ApiResponse::success(recommendations)))
 }
 
-async fn get_test_recommendations(
+async fn get_test_compatibility(
     State(state): State<Arc<AppState>>,
     Path(node_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<CompatibilityResponse<TestTypeCompatibilityInfo>>>> {
