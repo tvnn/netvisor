@@ -3,6 +3,7 @@
   import GenericEditModal from '../common/EditModal.svelte';
   import ListManager from '../common/ListManager.svelte';
   import type { NodeGroupApi, NodeGroup, NodeGroupFormData } from '$lib/types/node-groups'
+	import { getNodeTargetString } from '$lib/config/nodes/targets';
   
   export let group: NodeGroup | null = null;
   export let isOpen = false;
@@ -172,7 +173,7 @@
     availableOptions={$nodes.map(node => ({
       id: node.id,
       label: node.name,
-      subtitle: node.ip || node.domain || 'No address'
+      subtitle: getNodeTargetString(node.target)
     }))}
     placeholder="Select a node to add"
     required={true}

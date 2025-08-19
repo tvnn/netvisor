@@ -6,16 +6,20 @@
   import type { Node } from '../../types/nodes';
   import NodeCard from '../cards/NodeCard.svelte';
   import NodeEditor from '../modals/NodeEditor/NodeEditor.svelte';
+	import { getNodeTargetString } from '$lib/config/nodes/targets';
   
   let searchTerm = '';
   let showNodeEditor = false;
   let editingNode: Node | null = null;
   
-  $: filteredNodes = $nodes.filter((node: Node) => 
-    node.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (node.ip && node.ip.includes(searchTerm)) ||
-    (node.domain && node.domain.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  $: filteredNodes = $nodes.filter((node: Node) => {
+    const searchLower = searchTerm.toLowerCase();
+    const targetString = getNodeTargetString(node.target).toLowerCase();
+    
+    return node.name.toLowerCase().includes(searchLower) ||
+          targetString.includes(searchLower) ||
+          (node.description && node.description.toLowerCase().includes(searchLower));
+  });
 
   $: groupInfoMap = new Map(
   $nodeGroups.map(group => [
@@ -113,7 +117,7 @@
           <div class="text-sm text-gray-400">Failed</div>
         </div>
         <div>
-          <div class="text-2xl font-bold text-blue-400">{$nodes.filter((n: Node) => n.monitoring_enabled).length}</div>
+          <div class="text-2xl font-bold text-blue-400">{$nodes.filter((n: Node) => n.monitoring_interval > 0).length}</div>
           <div class="text-sm text-gray-400">Monitored</div>
         </div>
       </div>

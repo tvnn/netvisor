@@ -1,12 +1,13 @@
 <script lang="ts">
-  import type { NodeFormData, Node, NodeApi, AssignedTest, NodeCapability } from "$lib/types/nodes";
+  import type { NodeFormData, Node, AssignedTest, NodeCapability } from "$lib/types/nodes";
+  import { createEmptyNodeFormData, nodeToFormData, formDataToNodeApi } from "$lib/types/nodes";
   import { nodeActions } from '$lib/stores/nodes';
   import EditModal from '../../common/EditModal.svelte'
   import BasicNodeForm from './BasicNodeForm.svelte';
   import CapabilitiesForm from './CapabilitiesForm.svelte';
   import TestsForm from './TestsForm.svelte';
   import TestConfigPanel from './TestConfigPanel.svelte';
-	import { createDefaultTestConfig } from "$lib/config/tests/types";
+	import { validateTarget } from "$lib/config/nodes/targets";
   
   export let node: Node | null = null;
   export let isOpen = false;
@@ -42,45 +43,15 @@
   $: isEditing = node !== null;
   $: title = isEditing ? `Edit ${node?.name}` : 'Create Node';
   
-  let formData = createEmptyFormData();
+  let formData = createEmptyNodeFormData();
   
   // Initialize form data when node changes or modal opens
   $: if (isOpen) {
     resetForm();
   }
-
-  function createEmptyFormData(): NodeFormData {
-    return {
-      name: '',
-      domain: '',
-      ip: '',
-      port: 80,
-      path: '',
-      description: '',
-      node_type: 'UnknownDevice',
-      capabilities: [],
-      monitoring_enabled: true,
-      assigned_tests: []
-    };
-  }
-
-  function nodeToFormData(node: Node): NodeFormData {
-    return {
-      name: node.name,
-      domain: node.domain || '',
-      ip: node.ip || '',
-      port: node.port || 80,
-      path: node.path || '',
-      description: node.description || '',
-      node_type: node.node_type || 'UnknownDevice',
-      capabilities: [...node.capabilities],
-      monitoring_enabled: node.monitoring_enabled,
-      assigned_tests: [...node.assigned_tests]
-    };
-  }
   
   function resetForm() {
-    formData = node ? nodeToFormData(node) : createEmptyFormData();
+    formData = node ? nodeToFormData(node) : createEmptyNodeFormData();
     errors = {};
     editingTest = null;
     editingTestIndex = -1;
@@ -94,10 +65,6 @@
       errors.name = 'Name is required';
     }
     
-    if (formData.port && (isNaN(Number(formData.port)) || Number(formData.port) < 1 || Number(formData.port) > 65535)) {
-      errors.port = 'Port must be between 1 and 65535';
-    }
-    
     return Object.keys(errors).length === 0;
   }
   
@@ -106,21 +73,7 @@
       return;
     }
     
-    const nodeData: NodeApi = {
-      name: formData.name.trim(),
-      node_type: formData.node_type || 'UnknownDevice',
-      ...(formData.domain.trim() && { domain: formData.domain.trim() }),
-      ...(formData.ip.trim() && { ip: formData.ip.trim() }),
-      ...(formData.port && { port: Number(formData.port) }),
-      ...(formData.path.trim() && { path: formData.path.trim() }),
-      ...(formData.description.trim() && { description: formData.description.trim() }),
-      capabilities: formData.capabilities,
-      monitoring_enabled: formData.monitoring_enabled,
-      assigned_tests: formData.assigned_tests,
-      node_groups: [],
-      current_status: 'Unknown',
-      subnet_membership: [],
-    };
+    const nodeData = formDataToNodeApi(formData);
     
     loading = true;
     try {
@@ -174,7 +127,7 @@
   }
   
   // Capability recommendations cache
-  let capabilityRecommendations: NodeCapability[];
+  let capabilityRecommendations: NodeCapability[] = [];
   
   // Auto-load capability recommendations when node type changes
   let lastNodeType = formData.node_type;
@@ -182,19 +135,19 @@
     lastNodeType = formData.node_type;
     // Trigger capability recommendation fetch when node type changes
     if (formData.node_type !== 'UnknownDevice') {
-      preloadCapabilityRecommendations();
+      preloadCapabilityCompatibility();
     }
   }
   
   // Preload capability recommendations for better UX
-  async function preloadCapabilityRecommendations() {
+  async function preloadCapabilityCompatibility() {
     try {
       const response = await nodeActions.getCapabilityCompatibility(formData.node_type);
       if (response) {
-        capabilityRecommendations = response.recommendations;
+        capabilityRecommendations = response.recommendations || [];
         
         // Auto-apply suggestions if no capabilities are currently selected
-        if (formData.capabilities.length === 0 && response.recommendations.length > 0) {
+        if (formData.capabilities.length === 0 && response.recommendations && response.recommendations.length > 0) {
           formData.capabilities = [...response.recommendations];
         }
       }
@@ -248,7 +201,7 @@
           {/if}
           
           <!-- Show monitoring status indicator on tests tab -->
-          {#if tab.id === 'tests' && formData.monitoring_enabled  && isEditing}
+          {#if tab.id === 'tests' && formData.monitoring_interval > 0 && isEditing}
             <span class="ml-1 w-2 h-2 bg-green-400 rounded-full inline-block"></span>
           {/if}
         </button>
@@ -264,7 +217,7 @@
       <div class="space-y-6">
         <BasicNodeForm 
           bind:formData={formData}
-          isEditing={isEditing}
+          {isEditing}
           {errors}
         />
       </div>
@@ -283,90 +236,53 @@
     {:else if activeTab === 'tests'}
       <!-- Tests Tab -->
       <div class="space-y-6">
-        <!-- Monitoring Toggle -->
+        <!-- Monitoring Status Display -->
         <div class="p-4 bg-gray-700/20 border border-gray-600 rounded-lg">
           <div class="flex items-start space-x-3">
-            <input
-              type="checkbox"
-              id="monitoring_enabled"
-              bind:checked={formData.monitoring_enabled}
-              class="mt-1 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
-            />
             <div class="flex-1">
-              <label for="monitoring_enabled" class="text-sm font-medium text-white cursor-pointer">
-                Enable Monitoring
-              </label>
+              <h4 class="text-sm font-medium text-white">
+                Monitoring Status
+              </h4>
               <p class="text-sm text-gray-400 mt-1">
-                When enabled, assigned tests will run automatically at their configured intervals.
+                {#if formData.monitoring_interval > 0}
+                  ✅ Monitoring enabled: tests run every {formData.monitoring_interval} minutes
+                {:else}
+                  ⚠️ Monitoring disabled: tests run only during diagnostics
+                {/if}
+              </p>
+              <p class="text-xs text-gray-500 mt-1">
+                Configure monitoring interval in the Details tab.
               </p>
             </div>
           </div>
         </div>
-        
-        <!-- Tests Configuration -->
-        <div class="grid grid-cols-2 gap-6">
-          <!-- Tests List -->
-          <div class="space-y-6">
+
+        <!-- Tests List and Editor -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="space-y-4">
             <TestsForm 
               bind:tests={formData.assigned_tests}
-              onEditTest={handleTestEdit}
               editingIndex={editingTestIndex}
+              onEditTest={handleTestEdit}
               onCreateTest={() => {
-                editingTest = {
-                  test_type: 'Connectivity',
-                  test_config: createDefaultTestConfig('Connectivity'),
-                  criticality: 'Important',
-                  monitor_interval_minutes: 5,
-                  enabled: true
-                }
+                editingTest = null;
                 editingTestIndex = -1;
               }}
             />
           </div>
           
-          <!-- Test Configuration Panel -->
-          <div class="border-l border-gray-700 pl-6">
-            {#if editingTest !== null}
-              <TestConfigPanel
+          <div class="space-y-4">
+            {#if editingTest !== null || editingTestIndex === -1}
+              <TestConfigPanel 
                 test={editingTest}
                 node={formData}
-                onChange={editingTestIndex >= 0 ? handleTestChange : handleTestCreate}
                 onCancel={handleTestCancel}
+                onChange={editingTest ? handleTestChange : handleTestCreate}
               />
-            {:else}
-              <div class="flex items-center justify-center h-full min-h-[400px]">
-                <div class="text-center">
-                  <h3 class="text-lg font-medium text-gray-300 mb-2">No Test Selected</h3>
-                  <p class="text-gray-400 text-sm">
-                    Select a test from the list to edit its configuration,<br>
-                    or click "Add Test" to create a new one.
-                  </p>
-                </div>
-              </div>
             {/if}
           </div>
-        </div>
-      </div>
-      
-      <!-- Test Summary -->
-      <div class="flex justify-start items-center pt-4 border-t border-gray-600 mt-6">
-        <div class="text-sm text-gray-400">
-          {#if formData.assigned_tests.length > 0}
-            {formData.assigned_tests.length} test{formData.assigned_tests.length === 1 ? '' : 's'} configured
-            {#if formData.monitoring_enabled}
-              • <span class="text-green-400">{formData.assigned_tests.filter(t => t.enabled && t.monitor_interval_minutes).length} with monitoring intervals</span>
-            {/if}
-          {:else}
-            No tests configured yet
-          {/if}
         </div>
       </div>
     {/if}
   </div>
 </EditModal>
-
-<style>
-  .tab-content {
-    min-height: 400px; /* Prevent jumping when switching tabs */
-  }
-</style>

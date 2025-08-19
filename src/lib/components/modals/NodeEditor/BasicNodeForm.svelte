@@ -1,8 +1,10 @@
 <script lang="ts">
-        import type { NodeType } from "$lib/types/nodes";
-    import { getNodeTypeDisplay, getNodeTypes } from "$lib/config/nodes/types";
+  import type { NodeType, NodeFormData, NodeTargetType, NodeTarget } from "$lib/types/nodes";
+  import { getNodeTypeDisplay, getNodeTypes } from "$lib/config/nodes/types";
+  import { getNodeTargetTypes, getNodeTargetTypeDisplayName, getNodeTargetTypeDescription, getNodeTargetTypeDefaultConfig } from "$lib/config/nodes/targets";
+  import TargetConfigForm from './TargetConfigForm.svelte';
   
-  export let formData: any;
+  export let formData: NodeFormData;
   export let errors: Record<string, string>;
   export let isEditing: boolean;
 
@@ -12,11 +14,20 @@
     formData.node_type = selectedNodeTypeValue as NodeType;
   }
   
-  const nodeTypes = getNodeTypes().map(t => {return {value:t, label: getNodeTypeDisplay(t)}});
+  const nodeTypeSelectOptions = getNodeTypes().map(t => {return {value:t, label: getNodeTypeDisplay(t)}});
+  const targetTypes = getNodeTargetTypes();
 
-    $: selectOptions = isEditing 
-      ? nodeTypes  
-      : [{ value: '', label: 'Please select...' }, ...nodeTypes];
+  $: selectOptions = isEditing 
+    ? nodeTypeSelectOptions  
+    : [{ value: '', label: 'Please select...' }, ...nodeTypeSelectOptions];
+
+  // Handle target type changes
+  function handleTargetTypeChange(newTargetType: NodeTargetType) {
+    formData.target = {
+      type: newTargetType,
+      config: getNodeTargetTypeDefaultConfig(newTargetType)
+    } as NodeTarget;
+  }
 
 </script>
 
@@ -64,72 +75,48 @@
     </div>
   </div>
   
-  <!-- Connection Information -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+  <!-- Target Configuration Section -->
+  <div class="space-y-4">
     <div>
-      <label for="ip" class="block text-sm font-medium text-gray-300 mb-1">
-        IP Address
-      </label>
-      <input
-        id="ip"
-        name="ip"
-        bind:value={formData.ip}
-        type="text"
-        placeholder="192.168.1.100"
-        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
+      <h4 class="text-base font-medium text-white mb-2">How to Reach This Node</h4>
+      <p class="text-sm text-gray-400 mb-4">
+        Specify how NetFrog should connect to this node for testing. Choose one method:
+      </p>
     </div>
-    
+
+    <!-- Target Type Selection -->
     <div>
-      <label for="domain" class="block text-sm font-medium text-gray-300 mb-1">
-        Domain/Hostname
+      <label for="target_type" class="block text-sm font-medium text-gray-300 mb-2">
+        Connection Method
       </label>
-      <input
-        id="domain"
-        name="domain"
-        bind:value={formData.domain}
-        type="text"
-        placeholder="server.local"
-        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
+      <div class="space-y-2">
+        {#each targetTypes as targetType}
+          <label class="flex items-start space-x-3 p-3 bg-gray-700/30 border border-gray-600 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors">
+            <input
+              type="radio"
+              name="target_type"
+              value={targetType}
+              checked={formData.target.type === targetType}
+              on:change={() => handleTargetTypeChange(targetType)}
+              class="mt-1 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500"
+            />
+            <div class="flex-1">
+              <div class="text-sm font-medium text-white">
+                {getNodeTargetTypeDisplayName(targetType)}
+              </div>
+              <div class="text-xs text-gray-400 mt-1">
+                {getNodeTargetTypeDescription(targetType)}
+              </div>
+            </div>
+          </label>
+        {/each}
+      </div>
     </div>
-    
-    <div>
-      <label for="port" class="block text-sm font-medium text-gray-300 mb-1">
-        Port
-      </label>
-      <input
-        id="port"
-        name="port"
-        bind:value={formData.port}
-        type="number"
-        min="1"
-        max="65535"
-        placeholder="80"
-        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        class:border-red-500={errors.port}
-      />
-      {#if errors.port}
-        <p class="text-red-400 text-xs mt-1">{errors.port}</p>
-      {/if}
-    </div>
-  </div>
-  
-  <!-- Path -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div>
-      <label for="path" class="block text-sm font-medium text-gray-300 mb-1">
-        Path
-      </label>
-      <input
-        id="path"
-        name="path"
-        bind:value={formData.path}
-        type="text"
-        placeholder="/api"
-        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
-    </div>
+
+    <!-- Target-specific Configuration -->
+    <TargetConfigForm 
+      bind:target={formData.target}
+    />
   </div>
   
   <!-- Description -->
@@ -145,5 +132,28 @@
       placeholder="Optional description..."
       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
     ></textarea>
+  </div>
+
+  <!-- Monitoring Configuration -->
+  <div class="space-y-4">
+    <h4 class="text-base font-medium text-white">Monitoring Configuration</h4>
+    
+    <div>
+      <label for="monitoring_interval" class="block text-sm font-medium text-gray-300 mb-1">
+        Monitoring Interval (minutes)
+      </label>
+      <input
+        id="monitoring_interval"
+        name="monitoring_interval"
+        bind:value={formData.monitoring_interval}
+        type="number"
+        min="0"
+        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        placeholder="10"
+      />
+      <p class="text-xs text-gray-400 mt-1">
+        Set to 0 to disable monitoring, or specify interval in minutes. Critical infrastructure should be monitored every 5 minutes.
+      </p>
+    </div>
   </div>
 </div>

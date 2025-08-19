@@ -7,6 +7,7 @@
   import GenericCard from '../common/Card.svelte';
 	import { getCriticalityBgColor, getCriticalityColor } from '$lib/config/nodes/criticality';
 	import { getCapabilityDisplay } from '$lib/config/nodes/capabilities';
+	import { getNodeTargetString } from '$lib/config/nodes/targets';
   
   export let node: Node;
   export let groupInfo: any[] = [];
@@ -15,7 +16,7 @@
   
   // Get the display status - monitoring status takes precedence if disabled
   function getDisplayStatus() {
-    if (!node.monitoring_enabled) {
+    if (node.monitoring_interval == 0) {
       return 'Monitoring Disabled';
     }
     return getNodeStatusDisplayName(node.current_status);
@@ -23,21 +24,14 @@
   
   // Get the status color - gray for monitoring disabled, otherwise node status color
   function getDisplayStatusColor() {
-    if (!node.monitoring_enabled) {
+    if (node.monitoring_interval == 0) {
       return 'text-gray-400';
     }
     return getNodeStatusColor(node.current_status);
   }
   
   // Build connection info
-  $: connectionInfo = (() => {
-    if (node.ip) {
-      return `IP: ${node.ip}${node.port ? `:${node.port}` : ''}`;
-    } else if (node.domain) {
-      return `Domain: ${node.domain}${node.port ? `:${node.port}` : ''}`;
-    }
-    return '';
-  })();
+  $: connectionInfo = getNodeTargetString(node.target)
   
   // Build card data
   $: cardData = {
@@ -66,16 +60,15 @@
       },
       {
         label: 'Tests',
-        items: node.assigned_tests.map((test,i) => {
+        items: node.assigned_tests.map((assigned,i) => {
           return {
-            id: test.test_type,
-            label: `${i + 1}. ${getTestDisplay(test.test_type)}`,
-            disabled: !(node.monitoring_enabled && test.enabled),
-            bgColor:  getCriticalityBgColor(test.criticality),
-            color: getCriticalityColor(test.criticality),
-            badge: test.monitor_interval_minutes+'m',
+            id: assigned.test.type,
+            label: `${i + 1}. ${getTestDisplay(assigned.test.type)}`,
+            disabled: (node.monitoring_interval == 0),
+            bgColor:  getCriticalityBgColor(assigned.criticality),
+            color: getCriticalityColor(assigned.criticality),
             badgeColor: 'text-gray-500',
-            metadata: test
+            metadata: assigned
           };
         }),
         emptyText: 'No tests assigned'

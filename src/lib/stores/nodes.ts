@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { Node, NodeType } from "$lib/types/nodes";
+import type { Node, NodeApi, NodeFormData, NodeType } from "$lib/types/nodes";
 import { api } from '../api-client';
 
 export const nodes = writable<Node[]>([]);
@@ -26,7 +26,7 @@ export const nodeActions = {
     }
   },
 
-  async createNode(data: any): Promise<Node | null> {
+  async createNode(data: NodeApi): Promise<Node | null> {
     loading.set(true);
     error.set(null);
     
@@ -49,7 +49,7 @@ export const nodeActions = {
     }
   },
 
-  async updateNode(id: string, data: any): Promise<Node | null> {
+  async updateNode(id: string, data: NodeApi): Promise<Node | null> {
     loading.set(true);
     error.set(null);
     

@@ -23,7 +23,7 @@ export interface NodeFormData {
   vlan_id?: number;
   
   // Monitoring configuration
-  monitoring_interval_minutes: number; // 0 = disabled, >0 = interval
+  monitoring_interval: number; // 0 = disabled, >0 = interval
   assigned_tests: AssignedTest[];
   
   // Group membership
@@ -51,13 +51,13 @@ export interface NodeApi {
   vlan_id?: number;
   
   // Monitoring Configuration
-  monitoring_interval_minutes: number; // 0 = disabled, >0 = enabled with interval
+  monitoring_interval: number; // minutes, 0 = disabled, >0 = enabled with interval
   assigned_tests: AssignedTest[];
   
   // Standard Fields
   node_groups: string[]; // Group IDs this node belongs to
   position?: GraphPosition;
-  current_status: string;
+  current_status: NodeStatus;
 }
 
 export interface Node extends NodeApi {
@@ -154,7 +154,7 @@ export function createEmptyNodeFormData(): NodeFormData {
     capabilities: [],
     open_ports: [],
     detected_services: [],
-    monitoring_interval_minutes: 10,
+    monitoring_interval: 10,
     assigned_tests: [],
     node_groups: []
   };
@@ -171,7 +171,7 @@ export function nodeToFormData(node: Node): NodeFormData {
     detected_services: [...node.detected_services],
     mac_address: node.mac_address,
     vlan_id: node.vlan_id,
-    monitoring_interval_minutes: node.monitoring_interval_minutes,
+    monitoring_interval: node.monitoring_interval,
     assigned_tests: [...node.assigned_tests],
     node_groups: [...node.node_groups]
   };
@@ -189,7 +189,7 @@ export function formDataToNodeApi(formData: NodeFormData): NodeApi {
     capabilities: formData.capabilities,
     subnet_membership: [],
     vlan_id: formData.vlan_id,
-    monitoring_interval_minutes: formData.monitoring_interval_minutes,
+    monitoring_interval: formData.monitoring_interval,
     assigned_tests: formData.assigned_tests,
     node_groups: formData.node_groups,
     current_status: 'Unknown'

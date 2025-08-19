@@ -2,7 +2,6 @@
   import type { AssignedTest } from "$lib/types/nodes";
   import { getTestDisplay } from "$lib/config/tests/types";
   import { getCriticalityDisplay, getCriticalityColor } from "$lib/config/nodes/criticality";
-  import { getTestTarget } from "$lib/types/tests";
   import ListManager from '$lib/components/common/ListManager.svelte'
   
   export let tests: AssignedTest[];
@@ -11,20 +10,45 @@
   export let onCreateTest: () => void;
   
   function getTestDisplayName(test: AssignedTest): string {
-    return getTestDisplay(test.test_type);
+    return getTestDisplay(test.test.type);
   }
   
   function getTestDisplayDetails(test: AssignedTest): string {
-    const target = getTestTarget(test.test_config);
-    const interval = test.monitor_interval_minutes ? `${test.monitor_interval_minutes}m` : 'Manual';
-    
     const details = [];
-    if (target) {
-      details.push(`Target: ${target}`);
-    }
-    details.push(`Interval: ${interval}`);
     
-    return details.join(' • ');
+    // Add test-specific details based on test type
+    switch (test.test.type) {
+      case 'DnsResolution':
+        if (test.test.config.domain) {
+          details.push(`Domain: ${test.test.config.domain}`);
+        }
+        break;
+      case 'DnsLookup':
+        if (test.test.config.expected_ip) {
+          details.push(`Expected IP: ${test.test.config.expected_ip}`);
+        }
+        break;
+      case 'ServiceHealth':
+        details.push(`Status: ${test.test.config.expected_status_code}`);
+        break;
+      case 'Ping':
+        if (test.test.config.packet_count) {
+          details.push(`Packets: ${test.test.config.packet_count}`);
+        }
+        break;
+      case 'VpnTunnel':
+        if (test.test.config.expected_subnet) {
+          details.push(`Subnet: ${test.test.config.expected_subnet}`);
+        }
+        break;
+    }
+    
+    // Add timeout if not default
+    if (test.test.config.timeout_ms && test.test.config.timeout_ms !== 30000) {
+      details.push(`Timeout: ${test.test.config.timeout_ms}ms`);
+    }
+    
+    return details.join(' • ') || 'Default configuration';
   }
   
   function getTestDisplayBadges(test: AssignedTest) {
@@ -36,15 +60,6 @@
       color: getCriticalityColor(test.criticality),
       bgColor: 'bg-gray-800'
     });
-    
-    // Disabled badge
-    if (!test.enabled) {
-      badges.push({
-        text: 'Disabled',
-        color: 'text-gray-400',
-        bgColor: 'bg-gray-800'
-      });
-    }
     
     return badges;
   }
@@ -62,7 +77,7 @@
 
 <ListManager
   label="Tests"
-  helpText="Tests will be executed in the order shown. Use the arrow buttons to reorder."
+  helpText="Tests target this node using its configured connection method. Configure what/how to test, not where to test."
   bind:items={tests}
   availableOptions={[]}
   placeholder="Add Test"
@@ -75,5 +90,5 @@
   getDisplayBadges={getTestDisplayBadges}
   onEdit={handleEdit}
   onAdd={handleAdd}
-  emptyMessage="No tests assigned"
+  emptyMessage="No tests assigned. Tests will target this node using its configured connection method."
 />

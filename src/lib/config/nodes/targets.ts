@@ -46,7 +46,7 @@ export const NODE_TARGET_TYPE_CONFIG: Record<string, NodeTargetTypeConfig> = {
 export const getNodeTargetTypeDisplayName = (targetType: NodeTargetType) => NODE_TARGET_TYPE_CONFIG[targetType].display;
 export const getNodeTargetTypeDescription = (targetType: NodeTargetType) => NODE_TARGET_TYPE_CONFIG[targetType].description;
 
-export const getNodeTargetTypes = () => Object.keys(NODE_TARGET_TYPE_CONFIG) as NodeTargetType[];
+export const getNodeTargetTypes = (): NodeTargetType[] => Object.keys(NODE_TARGET_TYPE_CONFIG) as NodeTargetType[];
 
 export function getNodeTargetTypeDefaultConfig(targetType: NodeTargetType): any {
 
