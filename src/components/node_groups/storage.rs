@@ -10,7 +10,6 @@ pub trait NodeGroupStorage: Send + Sync {
     async fn get_all(&self) -> Result<Vec<NodeGroup>>;
     async fn update(&self, group: &NodeGroup) -> Result<()>;
     async fn delete(&self, id: &str) -> Result<()>;
-    async fn get_auto_diagnostic_enabled(&self) -> Result<Vec<NodeGroup>>;
 }
 
 pub struct SqliteNodeGroupStorage {
@@ -31,8 +30,8 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
         sqlx::query(
             r#"
             INSERT INTO node_groups (
-                id, name, description, node_sequence, auto_diagnostic_enabled,
-                created_at, updated_at
+                id, name, description, node_sequence, auto_diagnostic_on_node_failure,
+                diagnostic_diagnostic_schedule_minutes, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             "#
         )
@@ -40,7 +39,8 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
         .bind(&group.base.name)
         .bind(&group.base.description)
         .bind(node_sequence_json)
-        .bind(group.base.auto_diagnostic_enabled)
+        .bind(&group.base.auto_diagnostic_on_node_failure)
+        .bind(&group.base.diagnostic_schedule_minutes)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
@@ -81,14 +81,15 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
             r#"
             UPDATE node_groups SET 
                 name = ?, description = ?, node_sequence = ?, 
-                auto_diagnostic_enabled = ?, updated_at = ?
+                auto_diagnostic_on_node_failure = ?, diagnostic_diagnostic_schedule_minutes = ?, updated_at = ?
             WHERE id = ?
             "#
         )
         .bind(&group.base.name)
         .bind(&group.base.description)
         .bind(node_sequence_json)
-        .bind(group.base.auto_diagnostic_enabled)
+        .bind(&group.base.auto_diagnostic_on_node_failure)
+        .bind(&group.base.diagnostic_schedule_minutes)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(&group.id)
         .execute(&self.pool)
@@ -105,19 +106,6 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
 
         Ok(())
     }
-
-    async fn get_auto_diagnostic_enabled(&self) -> Result<Vec<NodeGroup>> {
-        let rows = sqlx::query("SELECT * FROM node_groups WHERE auto_diagnostic_enabled = true")
-            .fetch_all(&self.pool)
-            .await?;
-
-        let mut groups = Vec::new();
-        for row in rows {
-            groups.push(row_to_node_group(row)?);
-        }
-
-        Ok(groups)
-    }
 }
 
 fn row_to_node_group(row: sqlx::sqlite::SqliteRow) -> Result<NodeGroup> {
@@ -131,8 +119,9 @@ fn row_to_node_group(row: sqlx::sqlite::SqliteRow) -> Result<NodeGroup> {
         base: NodeGroupBase {
             name: row.get("name"),
             description: row.get("description"),
+            diagnostic_schedule_minutes: row.get("diagnostic_sequence_minutes"),
             node_sequence,
-            auto_diagnostic_enabled: row.get("auto_diagnostic_enabled"),
+            auto_diagnostic_on_node_failure: row.get("auto_diagnostic_on_node_failure"),
         }  
     })
 }

@@ -48,7 +48,7 @@ impl DiagnosticStorage for SqliteDiagnosticStorage {
         )
         .bind(&execution.id)
         .bind(&execution.base.group_id)
-        .bind(&execution.base.trigger_reason)
+        .bind(serde_json::to_string(&execution.base.trigger_reason)?)
         .bind(&node_results_json)
         .bind(&status_str)
         .bind(&execution.generated_remediation_id)
@@ -87,7 +87,7 @@ impl DiagnosticStorage for SqliteDiagnosticStorage {
             WHERE id = ?
             "#,
         )
-        .bind(&execution.base.trigger_reason)
+        .bind(serde_json::to_string(&execution.base.trigger_reason)?)
         .bind(&node_results_json)
         .bind(&status_str)
         .bind(&execution.generated_remediation_id)
@@ -209,10 +209,13 @@ impl DiagnosticStorage for SqliteDiagnosticStorage {
 fn row_to_diagnostic_execution(row: sqlx::sqlite::SqliteRow) -> Result<DiagnosticExecution> {
     let node_results_json: String = row.get("node_results");
     let status_json: String = row.get("status");
+    let trigger_reason_json: String = row.get("trigger_reason");
+
     let started_at_str: String = row.get("started_at");
     let completed_at_str: Option<String> = row.get("completed_at");
     let created_at_str: String = row.get("created_at");
 
+    let trigger_reason: DiagnosticTrigger = serde_json::from_str(&trigger_reason_json)?;
     let node_results: Vec<NodeTestResults> = serde_json::from_str(&node_results_json)?;
     let status: DiagnosticStatus = serde_json::from_str(&status_json)?;
     let started_at = chrono::DateTime::parse_from_rfc3339(&started_at_str)?.with_timezone(&chrono::Utc);
@@ -226,7 +229,7 @@ fn row_to_diagnostic_execution(row: sqlx::sqlite::SqliteRow) -> Result<Diagnosti
         id: row.get("id"),
         base: DiagnosticExecutionBase { 
             group_id: row.get("group_id"), 
-            trigger_reason: row.get("trigger_reason")
+            trigger_reason
         },
         node_results,
         status,

@@ -41,10 +41,7 @@ async fn create_node(
     let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
     let mut node = Node::from_name(request.node.name);
-    node.base.domain = request.node.domain;
-    node.base.ip = request.node.ip;
-    node.base.port = request.node.port;
-    node.base.path = request.node.path;
+    node.base.target = request.node.target;
     node.base.description = request.node.description;
     node.base.capabilities = request.node.capabilities;
     node.base.node_type = request.node.node_type;
@@ -94,17 +91,8 @@ async fn update_node(
     if let Some(name) = request.name {
         node.base.name = name;
     }
-    if let Some(domain) = request.domain {
-        node.base.domain = domain;
-    }
-    if let Some(ip) = request.ip {
-        node.base.ip = ip;
-    }
-    if let Some(port) = request.port {
-        node.base.port = port;
-    }
-    if let Some(path) = request.path {
-        node.base.path = path;
+    if let Some(target) = request.target {
+        node.base.target = target;
     }
     if let Some(description) = request.description {
         node.base.description = description;

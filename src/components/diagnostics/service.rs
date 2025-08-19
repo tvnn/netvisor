@@ -36,7 +36,7 @@ impl DiagnosticService {
     pub async fn execute_group_diagnostic(
         &self,
         group_id: &str,
-        trigger_reason: String,
+        trigger_reason: DiagnosticTrigger,
     ) -> Result<DiagnosticExecution> {
         // Get the node group using the service
         let group = self.node_group_service.get_group(group_id).await?

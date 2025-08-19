@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
 use crate::components::nodes::types::{
-    base::{Node, NodeBase}, 
-    tests::{NodeStatus, AssignedTest},
-    topology::GraphPosition,
+    base::{DetectedService, Node, NodeBase, NodeTarget}, 
+    tests::{AssignedTest, NodeStatus},
+    topology::GraphPosition, types_capabilities::NodeType,
 };
 
 #[async_trait]
@@ -36,25 +36,26 @@ impl NodeStorage for SqliteNodeStorage {
         let node_groups_json = serde_json::to_string(&node.base.node_groups)?;
         let position_json = node.base.position.as_ref().map(|p| serde_json::to_string(p)).transpose()?;
         let subnet_membership_json = serde_json::to_string(&node.base.subnet_membership)?;
-        let node_type_str = node.base.node_type.as_ref().map(|t| serde_json::to_string(t)).transpose()?;
+        let node_type_str = serde_json::to_string(&node.base.node_type)?;
         let last_seen_str = node.last_seen.as_ref().map(|dt| dt.to_rfc3339());
+        let target_json = serde_json::to_string(&node.base.target)?;
+        let open_ports_json = serde_json::to_string(&node.base.open_ports)?;
+        let detected_services_json = serde_json::to_string(&node.base.detected_services)?;
 
         sqlx::query(
             r#"
             INSERT INTO nodes (
-                id, name, domain, ip, port, path, description,
+                id, name, target, description,
                 node_type, capabilities, assigned_tests, monitoring_enabled,
                 node_groups, position, current_status, subnet_membership,
+                open_ports, detected_services, mac_address,
                 last_seen, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&node.id)
         .bind(&node.base.name)
-        .bind(&node.base.domain)
-        .bind(&node.base.ip)
-        .bind(node.base.port.map(|p| p as i64))
-        .bind(&node.base.path)
+        .bind(target_json)
         .bind(&node.base.description)
         .bind(node_type_str)
         .bind(capabilities_json)
@@ -62,8 +63,11 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(node.base.monitoring_enabled)
         .bind(node_groups_json)
         .bind(position_json)
-        .bind(serde_json::to_string(&node.base.current_status)?)
+        .bind(&node.base.current_status.display_name())
         .bind(subnet_membership_json)
+        .bind(open_ports_json)
+        .bind(detected_services_json)
+        .bind(&node.base.mac_address)
         .bind(last_seen_str)
         .bind(&node.created_at)
         .bind(&node.updated_at)
@@ -104,24 +108,25 @@ impl NodeStorage for SqliteNodeStorage {
         let node_groups_json = serde_json::to_string(&node.base.node_groups)?;
         let position_json = node.base.position.as_ref().map(|p| serde_json::to_string(p)).transpose()?;
         let subnet_membership_json = serde_json::to_string(&node.base.subnet_membership)?;
-        let node_type_str = node.base.node_type.as_ref().map(|t| serde_json::to_string(t)).transpose()?;
+        let node_type_str = serde_json::to_string(&node.base.node_type)?;
         let last_seen_str = node.last_seen.as_ref().map(|dt| dt.to_rfc3339());
+        let target_json = serde_json::to_string(&node.base.target)?;
+        let open_ports_json = serde_json::to_string(&node.base.open_ports)?;
+        let detected_services_json = serde_json::to_string(&node.base.detected_services)?;
 
         sqlx::query(
             r#"
             UPDATE nodes SET 
-                name = ?, domain = ?, ip = ?, port = ?, path = ?, description = ?,
+                name = ?, target = ?, description = ?,
                 node_type = ?, capabilities = ?, assigned_tests = ?, monitoring_enabled = ?,
                 node_groups = ?, position = ?, current_status = ?, subnet_membership = ?,
+                open_ports = ?, detected_services = ?, mac_address = ?,
                 last_seen = ?, updated_at = ?
             WHERE id = ?
             "#
         )
         .bind(&node.base.name)
-        .bind(&node.base.domain)
-        .bind(&node.base.ip)
-        .bind(node.base.port.map(|p| p as i64))
-        .bind(&node.base.path)
+        .bind(target_json)
         .bind(&node.base.description)
         .bind(node_type_str)
         .bind(capabilities_json)
@@ -129,8 +134,10 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(node.base.monitoring_enabled)
         .bind(node_groups_json)
         .bind(position_json)
-        .bind(serde_json::to_string(&node.base.current_status)?)
+        .bind(&node.base.current_status.display_name())
         .bind(subnet_membership_json)
+        .bind(open_ports_json)
+        .bind(detected_services_json)
         .bind(last_seen_str)
         .bind(&node.updated_at)
         .bind(&node.id)
@@ -183,20 +190,22 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
     let node_groups_json: String = row.get("node_groups");
     let subnet_membership_json: String = row.get("subnet_membership");
     let current_status_json: String = row.get("current_status");
+    let target_json: String = row.get("target");
+    let open_ports_json: String = row.get("open_ports");
+    let detected_services_json: String = row.get("detected_services");
     
     let capabilities = serde_json::from_str(&capabilities_json)?;
     let assigned_tests: Vec<AssignedTest> = serde_json::from_str(&assigned_tests_json)?;
     let node_groups = serde_json::from_str(&node_groups_json)?;
     let subnet_membership = serde_json::from_str(&subnet_membership_json)?;
     let current_status: NodeStatus = serde_json::from_str(&current_status_json)?;
+    let target: NodeTarget = serde_json::from_str(&target_json)?;
+    let node_type: NodeType = serde_json::from_str(row.get("node_type"))?;
+    let open_ports: Vec<u16> = serde_json::from_str(&open_ports_json)?;
+    let detected_services: Vec<DetectedService> = serde_json::from_str(&detected_services_json)?;
     
     let position: Option<GraphPosition> = match row.get::<Option<String>, _>("position") {
         Some(pos_str) => Some(serde_json::from_str(&pos_str)?),
-        None => None,
-    };
-    
-    let node_type = match row.get::<Option<String>, _>("node_type") {
-        Some(type_str) => Some(serde_json::from_str(&type_str)?),
         None => None,
     };
     
@@ -212,14 +221,14 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
         last_seen,
         base: NodeBase {
             name: row.get("name"),
-            domain: row.get("domain"),
-            ip: row.get("ip"),
-            port: row.get::<Option<i64>, _>("port").map(|p| p as u16),
-            path: row.get("path"),
+            target,
             description: row.get("description"),
             node_type,
             capabilities,
+            detected_services,
+            open_ports,
             assigned_tests,
+            mac_address: row.get("mac_address"),
             monitoring_enabled: row.get("monitoring_enabled"),
             node_groups,
             position,

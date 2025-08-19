@@ -6,7 +6,6 @@ use crate::components::{
         types::{
             base::Node, 
             tests::NodeTestResults,
-            types_capabilities::NodeType
         }
     }, tests::{service::TestService, types::{TestResult, Timer}}
 };
@@ -34,21 +33,8 @@ impl NodeService {
         node.created_at = now.clone();
         node.updated_at = now;
 
-        // Auto-detect node type and capabilities if not set
-        if node.base.node_type.is_none() {
-            if let Some(_ip) = &node.base.ip {
-                // TODO: Integrate with discovery service to detect open ports
-                // For now, set as unknown
-                node.base.node_type = Some(NodeType::UnknownDevice);
-            }
-        }
-
         // Set default capabilities based on node type
-        if node.base.capabilities.is_empty() {
-            if let Some(node_type) = &node.base.node_type {
-                node.base.capabilities = node_type.typical_capabilities();
-            }
-        }
+        node.base.capabilities = node.base.node_type.typical_capabilities();
 
         self.storage.create(&node).await?;
         Ok(node)
@@ -90,8 +76,8 @@ impl NodeService {
 
         let timer = Timer::now();
 
-        for test in tests{
-            let result = self.test_service.execute_test(&test.test_type, &test.test_config).await;
+        for assigned in tests{
+            let result = self.test_service.execute_assigned_test(&assigned, &node).await;
             test_results.push(result)
         };
 

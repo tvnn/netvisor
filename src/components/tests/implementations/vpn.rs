@@ -1,132 +1,137 @@
-use anyhow::Result;
+use anyhow::{Error, Result};
 use std::time::{Duration};
-use crate::components::tests::types::{TestResult, TestType, Timer};
-use crate::components::tests::configs::{VpnConnectivityConfig, VpnTunnelConfig};
+use crate::components::nodes::types::base::Node;
+use crate::components::tests::types::{TestResult, Timer};
+use crate::components::tests::types::{VpnConnectivityConfig, VpnTunnelConfig};
 
 /// Execute VPN connectivity test
-pub async fn execute_vpn_connectivity_test(config: &VpnConnectivityConfig, timer: &Timer) -> Result<TestResult> {    
-    let target = &config.target;
-    let port = config.port.unwrap_or(51820); // WireGuard default
-    let timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
+pub async fn execute_vpn_connectivity_test(config: &VpnConnectivityConfig, timer: &Timer, node: &Node) -> Result<TestResult> {    
+    // let target = &config.target;
+    // let port = config.port.unwrap_or(51820); // WireGuard default
+    // let timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
     
-    // Test VPN connectivity by attempting to connect to the VPN port
-    let result = tokio::time::timeout(
-        timeout,
-        tokio::net::TcpStream::connect(format!("{}:{}", target, port))
-    ).await;
+    // // Test VPN connectivity by attempting to connect to the VPN port
+    // let result = tokio::time::timeout(
+    //     timeout,
+    //     tokio::net::TcpStream::connect(format!("{}:{}", target, port))
+    // ).await;
     
-    let (success, message, details) = match result {
-        Ok(Ok(_stream)) => {
-            // TCP connection successful - VPN service is listening
-            (true, format!("VPN service is reachable at {}:{}", target, port), serde_json::json!({
-                "target": target,
-                "port": port,
-                "connection_type": "tcp",
-                "status": "reachable"
-            }))
-        },
-        Ok(Err(e)) => {
-            // TCP connection failed
-            let error_type = match e.kind() {
-                std::io::ErrorKind::ConnectionRefused => "connection_refused",
-                std::io::ErrorKind::TimedOut => "connection_timeout",
-                std::io::ErrorKind::PermissionDenied => "permission_denied",
-                _ => "connection_failed",
-            };
+    // let (success, message, details) = match result {
+    //     Ok(Ok(_stream)) => {
+    //         // TCP connection successful - VPN service is listening
+    //         (true, format!("VPN service is reachable at {}:{}", target, port), serde_json::json!({
+    //             "target": target,
+    //             "port": port,
+    //             "connection_type": "tcp",
+    //             "status": "reachable"
+    //         }))
+    //     },
+    //     Ok(Err(e)) => {
+    //         // TCP connection failed
+    //         let error_type = match e.kind() {
+    //             std::io::ErrorKind::ConnectionRefused => "connection_refused",
+    //             std::io::ErrorKind::TimedOut => "connection_timeout",
+    //             std::io::ErrorKind::PermissionDenied => "permission_denied",
+    //             _ => "connection_failed",
+    //         };
             
-            (false, format!("Cannot reach VPN service at {}:{}: {}", target, port, e), serde_json::json!({
-                "target": target,
-                "port": port,
-                "error": error_type,
-                "error_details": e.to_string()
-            }))
-        },
-        Err(_) => {
-            // Timeout
-            (false, format!("VPN connectivity test timed out for {}:{}", target, port), serde_json::json!({
-                "target": target,
-                "port": port,
-                "error": "timeout",
-                "timeout_ms": timeout.as_millis()
-            }))
-        }
-    };
+    //         (false, format!("Cannot reach VPN service at {}:{}: {}", target, port, e), serde_json::json!({
+    //             "target": target,
+    //             "port": port,
+    //             "error": error_type,
+    //             "error_details": e.to_string()
+    //         }))
+    //     },
+    //     Err(_) => {
+    //         // Timeout
+    //         (false, format!("VPN connectivity test timed out for {}:{}", target, port), serde_json::json!({
+    //             "target": target,
+    //             "port": port,
+    //             "error": "timeout",
+    //             "timeout_ms": timeout.as_millis()
+    //         }))
+    //     }
+    // };
     
-    Ok(TestResult {
-        test_type: TestType::VpnConnectivity,
-        success,
-        message,
-        duration_ms: timer.elapsed_ms(),
-        executed_at: timer.datetime(),
-        details: Some(details),
-    })
+    // Ok(TestResult {
+    //     config,
+    //     criticality: None,
+    //     success,
+    //     message,
+    //     duration_ms: timer.elapsed_ms(),
+    //     executed_at: timer.datetime(),
+    //     details: Some(details),
+    // })
+    Result::Err(Error::msg("Not implemented"))
 }
 
 /// Execute VPN tunnel test
-pub async fn execute_vpn_tunnel_test(config: &VpnTunnelConfig, timer: &Timer) -> Result<TestResult> {    
-    let expected_subnet = &config.expected_subnet;
-    let _timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
+pub async fn execute_vpn_tunnel_test(config: &VpnTunnelConfig, timer: &Timer, node: &Node) -> Result<TestResult> {    
+    // let expected_subnet = &config.expected_subnet;
+    // let _timeout = Duration::from_millis(config.base.timeout.unwrap_or(30000));
     
-    // This is a simplified VPN tunnel test
-    // In a real implementation, you'd check if the local machine has routes to the VPN subnet
-    // For now, we'll simulate by checking if we can parse the subnet and do basic validation
+    // // This is a simplified VPN tunnel test
+    // // In a real implementation, you'd check if the local machine has routes to the VPN subnet
+    // // For now, we'll simulate by checking if we can parse the subnet and do basic validation
     
-    let (success, message, details) = match parse_cidr_subnet(expected_subnet) {
-        Ok((network, prefix)) => {
-            // Try to get local network interfaces to see if VPN tunnel is active
-            match get_local_interfaces().await {
-                Ok(interfaces) => {
-                    // Check if any interface has an IP in the expected VPN subnet
-                    let vpn_interface_found = interfaces.iter().any(|iface| {
-                        is_ip_in_subnet(&iface.ip, &network, prefix)
-                    });
+    // let (success, message, details) = match parse_cidr_subnet(expected_subnet) {
+    //     Ok((network, prefix)) => {
+    //         // Try to get local network interfaces to see if VPN tunnel is active
+    //         match get_local_interfaces().await {
+    //             Ok(interfaces) => {
+    //                 // Check if any interface has an IP in the expected VPN subnet
+    //                 let vpn_interface_found = interfaces.iter().any(|iface| {
+    //                     is_ip_in_subnet(&iface.ip, &network, prefix)
+    //                 });
                     
-                    if vpn_interface_found {
-                        (true, format!("VPN tunnel active - found interface in subnet {}", expected_subnet), serde_json::json!({
-                            "expected_subnet": expected_subnet,
-                            "network": network,
-                            "prefix": prefix,
-                            "vpn_interfaces": interfaces.iter()
-                                .filter(|iface| is_ip_in_subnet(&iface.ip, &network, prefix))
-                                .collect::<Vec<_>>(),
-                            "status": "tunnel_active"
-                        }))
-                    } else {
-                        (false, format!("VPN tunnel not detected - no interface found in subnet {}", expected_subnet), serde_json::json!({
-                            "expected_subnet": expected_subnet,
-                            "network": network,
-                            "prefix": prefix,
-                            "available_interfaces": interfaces,
-                            "status": "tunnel_inactive"
-                        }))
-                    }
-                },
-                Err(e) => {
-                    (false, format!("Cannot check VPN tunnel status: {}", e), serde_json::json!({
-                        "expected_subnet": expected_subnet,
-                        "error": "interface_check_failed",
-                        "error_details": e.to_string()
-                    }))
-                }
-            }
-        },
-        Err(e) => {
-            (false, format!("Invalid VPN subnet format '{}': {}", expected_subnet, e), serde_json::json!({
-                "expected_subnet": expected_subnet,
-                "error": "invalid_subnet_format",
-                "error_details": e
-            }))
-        }
-    };
+    //                 if vpn_interface_found {
+    //                     (true, format!("VPN tunnel active - found interface in subnet {}", expected_subnet), serde_json::json!({
+    //                         "expected_subnet": expected_subnet,
+    //                         "network": network,
+    //                         "prefix": prefix,
+    //                         "vpn_interfaces": interfaces.iter()
+    //                             .filter(|iface| is_ip_in_subnet(&iface.ip, &network, prefix))
+    //                             .collect::<Vec<_>>(),
+    //                         "status": "tunnel_active"
+    //                     }))
+    //                 } else {
+    //                     (false, format!("VPN tunnel not detected - no interface found in subnet {}", expected_subnet), serde_json::json!({
+    //                         "expected_subnet": expected_subnet,
+    //                         "network": network,
+    //                         "prefix": prefix,
+    //                         "available_interfaces": interfaces,
+    //                         "status": "tunnel_inactive"
+    //                     }))
+    //                 }
+    //             },
+    //             Err(e) => {
+    //                 (false, format!("Cannot check VPN tunnel status: {}", e), serde_json::json!({
+    //                     "expected_subnet": expected_subnet,
+    //                     "error": "interface_check_failed",
+    //                     "error_details": e.to_string()
+    //                 }))
+    //             }
+    //         }
+    //     },
+    //     Err(e) => {
+    //         (false, format!("Invalid VPN subnet format '{}': {}", expected_subnet, e), serde_json::json!({
+    //             "expected_subnet": expected_subnet,
+    //             "error": "invalid_subnet_format",
+    //             "error_details": e
+    //         }))
+    //     }
+    // };
     
-    Ok(TestResult {
-        test_type: TestType::VpnTunnel,
-        success,
-        message,
-        duration_ms: timer.elapsed_ms(),
-        executed_at: timer.datetime(),
-        details: Some(details),
-    })
+    // Ok(TestResult {
+    //     config,
+    //     criticality: None,
+    //     success,
+    //     message,
+    //     duration_ms: timer.elapsed_ms(),
+    //     executed_at: timer.datetime(),
+    //     details: Some(details),
+    // })
+    Result::Err(Error::msg("Not implemented"))
 }
 
 // Helper function to parse CIDR notation (e.g., "10.100.0.0/24")

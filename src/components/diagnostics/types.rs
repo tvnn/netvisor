@@ -3,9 +3,16 @@ use chrono::{DateTime, Utc};
 use crate::components::{nodes::types::tests::{NodeStatus, NodeTestResults}, tests::types::Timer};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum DiagnosticTrigger {
+    Scheduled,
+    NodeFailure(String), // Node ID that failed
+    Manual,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiagnosticExecutionBase {
     pub group_id: String,
-    pub trigger_reason: String,
+    pub trigger_reason: DiagnosticTrigger,
 }
 
 /// Represents the execution of diagnostics on a node group

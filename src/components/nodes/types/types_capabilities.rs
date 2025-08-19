@@ -1,23 +1,26 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
+use crate::components::nodes::types::base::DetectedService;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
 pub enum NodeType {
     // Infrastructure (network-focused)
     Router, Switch, AccessPoint, Firewall,
     
-    // Servers (service-focused, primary service wins)
-    WebServer,      // Primary: HTTP/HTTPS
-    DatabaseServer, // Primary: Database service
-    MediaServer,    // Primary: Media streaming
-    DnsServer,      // Primary: DNS service
-    VpnServer,      // Primary: VPN service
-    NasDevice,      // Primary: File storage
+    // Servers
+    WebServer,
+    DatabaseServer,
+    MediaServer,
+    DnsServer,
+    VpnServer,
+    NasDevice,
     
     // Endpoints
-    Workstation,    // General computer
-    IotDevice,      // Smart home device
-    Printer, Camera,
+    Workstation,
+    IotDevice,
+    Printer, 
+    Camera,
     
     // Generic
     UnknownDevice,  // Cannot determine primary function
@@ -109,20 +112,39 @@ impl NodeType {
 // Capabilities
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
 pub enum NodeCapability {
-    // Remote Access (core for VPN troubleshooting)
+    // Remote Access
     SshAccess,
+    
+    // Web Services  
     HttpService,
     HttpsService,
     
-    // VPN-specific
-    VpnService,
-    
-    // Network Infrastructure  
+    // Network Infrastructure
     DnsService,
     DhcpService,
+    
+    // VPN Services
+    VpnService,
+    
+    // Other Common Services
+    FtpService,
+    SmtpService,
+    SnmpService,
+    NtpService,
+
+    // Custom/Unknown Services
+    CustomService { name: String, port: u16 },
 }
 
 impl NodeCapability {
+    
+    pub fn from_detected_service(service: &DetectedService) -> Option<Self> {
+        Some(NodeCapability::CustomService { 
+            name: service.service_name.clone().unwrap_or("placeholder".to_string()), 
+            port: service.port 
+        })
+    }
+    
     pub fn display_name(&self) -> String {
         match self {
             NodeCapability::SshAccess => "SSH Access".to_string(),
@@ -131,6 +153,11 @@ impl NodeCapability {
             NodeCapability::VpnService => "VPN Service".to_string(),
             NodeCapability::DnsService => "DNS Service".to_string(),
             NodeCapability::DhcpService => "DHCP Service".to_string(),
+            NodeCapability::FtpService => "FTP Service".to_string(),
+            NodeCapability::SmtpService => "SMTP Service".to_string(),
+            NodeCapability::SnmpService => "SNMP Service".to_string(),
+            NodeCapability::NtpService => "NTP Service".to_string(),
+            NodeCapability::CustomService { name, port: _ } => name.to_string()
         }
     }
 
@@ -143,6 +170,7 @@ impl NodeCapability {
             NodeCapability::VpnService => Some(51820), // Wireguard default
             NodeCapability::DnsService => Some(53),
             NodeCapability::DhcpService => Some(67),
+            _ => None
         }
     }
 

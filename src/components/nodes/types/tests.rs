@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::components::tests::types::{TestType, TestConfiguration, TestResult};
+use crate::components::tests::types::{TestResult, Test};
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TestTypeCompatibilityInfo {
-    pub test_type: TestType,
+    pub test_type: String,
     pub display_name: String,
     pub description: String,
     pub contextual_description: String,
@@ -15,10 +15,7 @@ pub struct TestTypeCompatibilityInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AssignedTest {
-    pub test_type: TestType,
-    pub test_config: TestConfiguration,
-    pub monitor_interval_minutes: Option<u32>,  // None = diagnostic-only
-    pub enabled: bool,
+    pub test: Test,
     pub criticality: TestCriticality,
 }
 

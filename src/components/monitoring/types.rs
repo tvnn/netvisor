@@ -3,6 +3,12 @@ use crate::components::{
     tests::types::{TestType, TestResult},
 };
 
+pub struct MonitoringFailure {
+    pub node_id: String,
+    pub failed_tests: Vec<TestResult>,
+    pub affected_groups: Vec<String>, // All groups containing this node
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SetMonitoringRequest {
     pub node_id: String,

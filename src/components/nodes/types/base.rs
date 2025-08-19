@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use std::net::{Ipv4Addr, Ipv6Addr};
 use strum::IntoEnumIterator;
-use crate::components::{nodes::types::tests::{TestTypeCompatibilityInfo}, tests::types::{TestResult, TestType}};
+use std::mem::discriminant;
+use crate::components::{nodes::types::tests::TestTypeCompatibilityInfo, tests::types::{Test, TestResult}};
+use crate::shared::types::ApplicationProtocol;
+use strum_macros::{EnumIter, EnumDiscriminants, Display};
 use super::{
     types_capabilities::{NodeType, NodeCapability},
     tests::{AssignedTest, NodeStatus, TestCriticality},
@@ -11,14 +15,14 @@ use super::{
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeBase {
     pub name: String,
-    pub domain: Option<String>,
-    pub ip: Option<String>,
-    pub port: Option<u16>,
-    pub path: Option<String>,
+    pub node_type: NodeType,
     pub description: Option<String>,
+    pub target: NodeTarget,
     
-    // Node type system
-    pub node_type: Option<NodeType>,
+    // Discovery & Capability Data
+    pub open_ports: Vec<u16>,
+    pub detected_services: Vec<DetectedService>,
+    pub mac_address: Option<String>,
     pub capabilities: Vec<NodeCapability>,
     
     // Monitoring
@@ -58,13 +62,15 @@ impl Node {
     pub fn from_name(name: String) -> Self {
         let base = NodeBase {
             name,
-            domain: None,
-            ip: None,
-            port: None,
-            path: None,
             description: None,
-            node_type: None,
+            target: NodeTarget::ipv4_template(),
+            node_type: NodeType::UnknownDevice,
+            
+            open_ports: Vec::new(),
+            detected_services: Vec::new(),
+            mac_address: None,
             capabilities: Vec::new(),
+
             assigned_tests: Vec::new(),
             monitoring_enabled: false,
             node_groups: Vec::new(),
@@ -100,13 +106,12 @@ impl Node {
         
         for result in test_results {
             if !result.success {
-                if let Some(assigned_test) = self.base.assigned_tests.iter().find(|t| t.test_type == result.test_type) {
-                    match assigned_test.criticality {
-                        TestCriticality::Critical => has_critical_failure = true,
-                        TestCriticality::Important => has_important_failure = true,
-                        TestCriticality::Informational => {}, // Doesn't affect status
-                    }
-                }
+                match result.criticality {
+                    Some(TestCriticality::Critical) => has_critical_failure = true,
+                    Some(TestCriticality::Important) => has_important_failure = true,
+                    Some(TestCriticality::Informational) => {}, // Doesn't affect status
+                    None => {}
+                }   
             }
         }
         
@@ -123,9 +128,7 @@ impl Node {
 
     /// Get the target for tests (IP, domain, or name in preference order)
     pub fn get_target(&self) -> String {
-        self.base.ip.clone()
-            .or_else(|| self.base.domain.clone())
-            .unwrap_or_else(|| self.base.name.to_string())
+        self.base.target.get_target()
     }
 
     /// Get compatible test types for a node
@@ -134,15 +137,15 @@ impl Node {
         let mut recommended_tests = Vec::new();
         let mut warned_tests = Vec::new();
 
-        for test_type in TestType::iter() {
-            let is_assigned = self.base.assigned_tests.iter().any(|t| t.test_type == test_type);
-            let warning = test_type.get_assignment_warning(&self);
+        for test_default in Test::iter() {
+            let is_assigned = self.base.assigned_tests.iter().any(|a| discriminant(&a.test) == discriminant(&test_default));
+            let warning = test_default.check_node_compatibility(&self);
 
             let test_info = TestTypeCompatibilityInfo {
-                test_type: test_type.clone(),
-                display_name: test_type.display_name().to_string(),
-                description: test_type.description().to_string(),
-                contextual_description: test_type.generate_context_description(&self).to_string(),
+                test_type: test_default.variant_name(),
+                display_name: test_default.display_name().to_string(),
+                description: test_default.description().to_string(),
+                contextual_description: test_default.generate_context_description(&self).to_string(),
                 is_assigned,
                 warning: warning.clone(),
                 is_recommended: warning.is_none(),
@@ -160,3 +163,83 @@ impl Node {
     }
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants)]
+#[strum_discriminants(derive(Display, EnumIter))]
+pub enum NodeTarget {
+    Ipv4Address { 
+        ip: Ipv4Addr,
+        port: Option<u16> 
+    },
+    Ipv6Address { 
+        ip: Ipv6Addr,
+        port: Option<u16> 
+    },
+    Hostname { 
+        hostname: String, 
+        port: Option<u16> 
+    },
+    Service {
+        protocol: ApplicationProtocol,
+        hostname: String,
+        port: Option<u16>,
+        path: Option<String>,
+    }
+}
+
+impl NodeTarget {
+    pub fn variant_name(&self) -> String {
+        NodeTargetDiscriminants::from(self).to_string()
+    }
+
+    // Template instances for type checking
+    pub fn ipv4_template() -> Self {
+        NodeTarget::Ipv4Address { ip: Ipv4Addr::LOCALHOST, port: Some(80) }
+    }
+
+    pub fn ipv6_template() -> Self {
+        NodeTarget::Ipv6Address { ip: Ipv6Addr::LOCALHOST, port: Some(80) }
+    }
+    
+    pub fn service_template() -> Self {
+        NodeTarget::Service {
+            protocol: ApplicationProtocol::Http,
+            hostname: String::new(),
+            port: Some(80),
+            path: None,
+        }
+    }
+
+    pub fn hostname_template() -> Self {
+        NodeTarget::Hostname {
+            hostname: String::new(),
+            port: Some(80)
+        }
+    }
+
+    pub fn get_target(&self) -> String {
+        match &self {
+            NodeTarget::Ipv4Address { ip, port } => {
+                format!("{}:{}", ip, port.unwrap_or(80))
+            },
+            NodeTarget::Ipv6Address { ip, port } => {
+                format!("[{}]:{}", ip, port.unwrap_or(80))
+            },
+            NodeTarget::Hostname { hostname, port } => {
+                format!("{}:{}", hostname, port.unwrap_or(80))
+            },
+            NodeTarget::Service { protocol: _, hostname, port, path: _ } => {
+                format!("{}:{}", hostname, port.unwrap_or(80))
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DetectedService {
+    pub port: u16,
+    pub protocol: ApplicationProtocol,
+    pub service_name: Option<String>, // "nginx", "OpenSSH", "MySQL"
+    pub version: Option<String>, // "1.20.1", "8.9p1", "8.0.32"
+    pub banner: Option<String>,  // Raw service banner
+    pub confidence: f32,         // 0.0-1.0 detection confidence
+}

@@ -1,4 +1,9 @@
 use serde::{Deserialize, Serialize};
+use crate::components::nodes::types::base::NodeTarget;
+use crate::components::nodes::types::base::DetectedService;
+use crate::components::nodes::types::topology::GraphPosition;
+use crate::components::nodes::types::tests::NodeStatus;
+
 use super::{
     base::{NodeBase, Node},
     types_capabilities::{NodeType, NodeCapability},
@@ -14,15 +19,25 @@ pub struct CreateNodeRequest {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateNodeRequest {
     pub name: Option<String>,
-    pub domain: Option<Option<String>>,
-    pub ip: Option<Option<String>>,
-    pub port: Option<Option<u16>>,
-    pub path: Option<Option<String>>,
+    pub node_type: Option<NodeType>,
+    pub target: Option<NodeTarget>,
     pub description: Option<Option<String>>,
-    pub node_type: Option<Option<NodeType>>,
+        
+    // Discovery & Capability Data
+    pub open_ports: Option<Vec<u16>>,
+    pub detected_services: Option<Vec<DetectedService>>,
+    pub mac_address: Option<Option<String>>,
     pub capabilities: Option<Vec<NodeCapability>>,
-    pub monitoring_enabled: Option<bool>,
+    
+    // Monitoring
     pub assigned_tests: Option<Vec<AssignedTest>>,
+    pub monitoring_enabled: Option<bool>,
+    pub node_groups: Option<Vec<String>>,
+    
+    // Topology visualization
+    pub position: Option<Option<GraphPosition>>,
+    pub current_status: Option<NodeStatus>,
+    pub subnet_membership: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
