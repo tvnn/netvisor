@@ -24,6 +24,9 @@ export const CRITICALITY_CONFIG = {
   }
 } as const;
 
+export const getTestCriticalities = () => Object.keys(CRITICALITY_CONFIG) as TestCriticality[];
+
 export const getCriticalityDisplay = (c: TestCriticality) => CRITICALITY_CONFIG[c].display;
 export const getCriticalityColor = (c: TestCriticality) => CRITICALITY_CONFIG[c].color;
 export const getCriticalityBgColor = (c: TestCriticality) => CRITICALITY_CONFIG[c].bgColor;
+export const getCriticalityDescription = (c: TestCriticality) => CRITICALITY_CONFIG[c].description;

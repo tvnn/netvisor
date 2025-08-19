@@ -39,7 +39,7 @@
       name: nodeGroup.name,
       description: nodeGroup.description || '',
       node_sequence: nodeGroup.node_sequence || [],
-      auto_diagnostic_enabled: nodeGroup.auto_diagnostic_enabled || true
+      auto_diagnostic_enabled: nodeGroup.auto_diagnostic_enabled
     };
   }
   
@@ -109,6 +109,7 @@
   {loading}
   {deleting}
   onSubmit={handleSubmit}
+  onCancel={onClose}
   {onClose}
   onDelete={isEditing ? handleDelete : null}
   submitLabel={isEditing ? 'Update Group' : 'Create Group'}

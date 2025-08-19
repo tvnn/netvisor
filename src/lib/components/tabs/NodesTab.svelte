@@ -16,13 +16,25 @@
     (node.ip && node.ip.includes(searchTerm)) ||
     (node.domain && node.domain.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  $: groupInfoMap = new Map(
+  $nodeGroups.map(group => [
+    group.id, 
+    {
+      name: group.name,
+      auto_diagnostic_enabled: group.auto_diagnostic_enabled
+    }
+  ])
+);
   
-  // Helper function to get group names from IDs
-  function getGroupNames(groupIds: string[]): string[] {
-    return groupIds.map(id => {
-      const group = $nodeGroups.find(g => g.id === id);
-      return group ? group.name : id.slice(0, 8) + '...';
-    });
+  // Helper function to get group info from IDs
+  function getGroupInfo(groupIds: string[]) {
+  return groupIds.map(id => 
+    groupInfoMap.get(id) || {
+      name: id.slice(0, 8) + '...',
+      auto_diagnostic_enabled: false
+    }
+  );
   }
   
   onMount(() => {
@@ -160,7 +172,7 @@
       {#each filteredNodes as node (node.id)}
         <NodeCard
           {node}
-          groupNames={getGroupNames(node.node_groups)}
+          groupInfo={getGroupInfo(node.node_groups)}
           onEdit={handleEditNode}
           onDelete={handleDeleteNode}
         />

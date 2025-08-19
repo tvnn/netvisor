@@ -112,7 +112,7 @@ export const nodeActions = {
 
   async getCapabilityCompatibility(nodeType: NodeType) {
     try {
-      const response = await api.getCapabilityRecommendations(nodeType);
+      const response = await api.getCapabilityCompatibility(nodeType);
       if (response.success && response.data) {
         return response.data;
       } else {

@@ -58,17 +58,13 @@
                     {/if}
                     
                     <!-- Main content -->
-                    <span class="inline-block {item.bgColor || 'bg-blue-900/30'} {item.color || 'text-blue-300'} px-2 py-1 rounded text-xs">
+                    <span class="inline-block {!item.disabled ? item.bgColor : 'bg-gray-700/30'} {!item.disabled ? item.color : 'text-gray-500'} px-2 py-1 rounded text-xs">
                       {item.label}
-                      {#if item.disabled}
-                        <span class="text-xs text-gray-500">(disabled)</span>
+                      {#if item.badge && !item.disabled}
+                        <span class="text-xs {!item.disabled ? item.color : 'text-gray-500'}">({item.disabled ? 'disabled' : item.badge})</span>
                       {/if}
                     </span>
                     
-                    <!-- Badge (if provided) -->
-                    {#if item.badge}
-                      <span class="text-xs {item.badgeColor || 'text-gray-500'}">{item.badge}</span>
-                    {/if}
                   </div>
                 </div>
                 

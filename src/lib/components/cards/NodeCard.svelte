@@ -9,7 +9,7 @@
 	import { getCapabilityDisplay } from '$lib/config/nodes/capabilities';
   
   export let node: Node;
-  export let groupNames: string[] = [];
+  export let groupInfo: any[] = [];
   export let onEdit: (node: Node) => void = () => {};
   export let onDelete: (node: Node) => void = () => {};
   
@@ -59,21 +59,21 @@
         items: node.capabilities.map(cap => ({
           id: cap,
           label: getCapabilityDisplay(cap),
-          bgColor: 'bg-blue-900/30',
-          color: 'text-blue-300'
+          bgColor: 'bg-purple-900/30',
+          color: 'text-purple-300'
         })),
         emptyText: 'No capabilities assigned'
       },
       {
         label: 'Tests',
-        items: node.assigned_tests.map(test => {
+        items: node.assigned_tests.map((test,i) => {
           return {
             id: test.test_type,
-            label: getTestDisplay(test.test_type),
-            bgColor: test.enabled ? getCriticalityBgColor(test.criticality) : 'bg-gray-700/30',
-            color: test.enabled ? getCriticalityColor(test.criticality) : 'text-gray-500',
-            disabled: !test.enabled,
-            badge: test.monitor_interval_minutes ? `${test.monitor_interval_minutes}m` : undefined,
+            label: `${i + 1}. ${getTestDisplay(test.test_type)}`,
+            disabled: !(node.monitoring_enabled && test.enabled),
+            bgColor:  getCriticalityBgColor(test.criticality),
+            color: getCriticalityColor(test.criticality),
+            badge: test.monitor_interval_minutes+'m',
             badgeColor: 'text-gray-500',
             metadata: test
           };
@@ -82,11 +82,12 @@
       },
             {
         label: 'Diagnostic Groups',
-        items: groupNames.map((name, i) => ({
-          id: node.node_groups[i] || name,
-          label: name,
+        items: groupInfo.map((group, i) => ({
+          id: node.node_groups[i] || group.name,
+          label: group.name,
+          disabled: !group.auto_diagnostic_enabled,
           bgColor: 'bg-green-900/30',
-          color: 'text-green-300'
+          color: 'text-green-400'
         })),
         emptyText: 'No groups assigned'
       }

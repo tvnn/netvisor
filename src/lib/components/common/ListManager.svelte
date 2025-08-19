@@ -16,6 +16,9 @@
   export let onEdit: (item: any, index: number) => void = () => {};
   export let highlightedIndex: number = -1;
   export let onAdd: () => void = () => {};
+  export let onMoveUp: (fromIndex: number, toIndex: number) => void = () => {};
+  export let onMoveDown: (fromIndex: number, toIndex: number) => void = () => {};
+  export let onRemove: (index: number) => void = () => {};
   export let emptyMessage: string = '';
   export let error: string = '';
   
@@ -44,6 +47,7 @@
   
   function removeItem(index: number) {
     items = items.filter((_, i) => i !== index);
+    onRemove(index);
   }
   
   function moveItemUp(index: number) {
@@ -51,6 +55,7 @@
       const newItems = [...items];
       [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
       items = newItems;
+      onMoveUp(index, index - 1);
     }
   }
   
@@ -59,6 +64,7 @@
       const newItems = [...items];
       [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
       items = newItems;
+      onMoveDown(index, index + 1); 
     }
   }
 </script>
@@ -166,7 +172,7 @@
             {#if allowReorder}
               <button
                 type="button"
-                on:click={() => moveItemUp(index)}
+                on:click|stopPropagation={() => moveItemUp(index)}
                 disabled={index === 0}
                 class="p-1 text-gray-400 hover:text-white hover:bg-gray-600 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Move up"
@@ -176,7 +182,7 @@
               
               <button
                 type="button"
-                on:click={() => moveItemDown(index)}
+                on:click|stopPropagation={() => moveItemDown(index)}
                 disabled={index === items.length - 1}
                 class="p-1 text-gray-400 hover:text-white hover:bg-gray-600 rounded disabled:opacity-30 disabled:cursor-not-allowed"
                 title="Move down"
@@ -187,7 +193,7 @@
             
             <button
               type="button"
-              on:click={() => removeItem(index)}
+              on:click|stopPropagation={() => removeItem(index)}
               class="p-1 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded"
               title="Remove"
             >
