@@ -6,6 +6,7 @@
   export let loading = false;
   export let deleting = false;
   export let submitLabel = 'Save';
+  export let showCancel = true;
   export let cancelLabel = 'Cancel';
   export let onSubmit: (data: any) => Promise<void> | void;
   export let onClose: () => void;
@@ -80,14 +81,16 @@
           
           <!-- Save/Cancel buttons (right side) -->
           <div class="flex gap-3">
-            <button
-              type="button"
-              on:click={onCancel}
-              disabled={loading || deleting}
-              class="px-4 py-2 text-gray-300 hover:text-white border border-gray-600 rounded-md hover:border-gray-500 transition-colors disabled:opacity-50"
-            >
-              {cancelLabel}
-            </button>
+            {#if showCancel}
+              <button
+                type="button"
+                on:click={onCancel}
+                disabled={loading || deleting}
+                class="px-4 py-2 text-gray-300 hover:text-white border border-gray-600 rounded-md hover:border-gray-500 transition-colors disabled:opacity-50"
+              >
+                {cancelLabel}
+              </button>
+            {/if}
             <button
               type="submit"
               disabled={loading || deleting}

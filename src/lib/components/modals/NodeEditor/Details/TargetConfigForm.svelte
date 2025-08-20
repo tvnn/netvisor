@@ -23,14 +23,14 @@
 
 <div class="space-y-4">
   {#if target.type === 'IpAddress'}
-    <!-- IPv4 Address Configuration -->
+    <!-- IP Address Configuration -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="md:col-span-2">
-        <label for="ipv4_address" class="block text-sm font-medium text-gray-300 mb-1">
-          IPv4 Address *
+        <label for="ip_address" class="block text-sm font-medium text-gray-300 mb-1">
+          IP Address
         </label>
         <input
-          id="ipv4_address"
+          id="ip_address"
           bind:value={target.config.ip}
           type="text"
           required
@@ -41,11 +41,11 @@
       </div>
       
       <div>
-        <label for="ipv4_port" class="block text-sm font-medium text-gray-300 mb-1">
+        <label for="ip_port" class="block text-sm font-medium text-gray-300 mb-1">
           Port
         </label>
         <input
-          id="ipv4_port"
+          id="ip_port"
           bind:value={target.config.port}
           type="number"
           min="1"

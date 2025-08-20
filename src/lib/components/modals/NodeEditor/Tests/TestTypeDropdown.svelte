@@ -8,8 +8,10 @@
   
   let isOpen = false;
   let dropdownElement: HTMLDivElement;
+
+  let types = $testTypes.sort((a,b) => schemaCache.get(a.id).compatibility == 'Compatible' ? -1 : 1)
   
-  $: selectedTestInfo = $testTypes.find(t => t.id === selectedTestType);
+  $: selectedTestInfo = types.find(t => t.id === selectedTestType);
   
   function handleSelect(testType: string) {
     onTestTypeChange(testType);
@@ -98,7 +100,7 @@
     </div>
   {/if}
   
-  <!-- Dropdown Menu - positioned to overlay the description -->
+  <!-- Dropdown Menu -->
   {#if isOpen}
     <div class="absolute z-50 w-full bg-gray-700 border border-gray-600 rounded-md shadow-lg max-h-96 overflow-y-auto" style="top: calc(100% + 0.5rem);">
       {#each $testTypes as testType}

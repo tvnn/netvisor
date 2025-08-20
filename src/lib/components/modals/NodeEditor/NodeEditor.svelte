@@ -24,9 +24,9 @@
   let editingTestIndex: number = -1;
   
   // Tab management
-  let activeTab = 'Details';
+  let activeTab = 'details';
   const tabs = [
-    { id: 'Details', label: 'Details', icon: 'Info' },
+    { id: 'details', label: 'Details', icon: 'Info' },
     { id: 'capabilities', label: 'Capabilities', icon: 'Settings' },
     { id: 'tests', label: 'Tests', icon: 'CheckCircle' }
   ];
@@ -56,7 +56,7 @@
     errors = {};
     editingTest = null;
     editingTestIndex = -1;
-    activeTab = 'Details'; // Reset to first tab
+    activeTab = 'details'; // Reset to first tab
   }
   
   function validateForm(): boolean {
@@ -99,34 +99,6 @@
     }
   }
   
-  function handleTestEdit(assigned: AssignedTest, index: number) {
-    editingTest = { ...assigned };
-    editingTestIndex = index;
-  }
-
-  function handleTestCancel() {
-    editingTest = null;
-    editingTestIndex = -1;
-  }
-
-  function handleTestChange(updatedTest: AssignedTest) {
-    if (editingTestIndex >= 0) {
-      // Create a new array to trigger reactivity
-      const newTests = [...formData.assigned_tests];
-      newTests[editingTestIndex] = updatedTest;
-      formData.assigned_tests = newTests;
-      
-      // Also update the editing test to keep the panel in sync
-      editingTest = { ...updatedTest };
-    }
-  }
-  
-  function handleTestCreate(newTest: AssignedTest) {
-    formData.assigned_tests = [...formData.assigned_tests, newTest];
-    editingTest = { ...newTest };
-    editingTestIndex = formData.assigned_tests.length - 1;
-  }
-  
   // Capability recommendations cache
   let capabilityRecommendations: string[] = [];
   
@@ -165,6 +137,7 @@
   {deleting}
   onSubmit={ isEditing || currentTabIndex == tabs.length-1 ? handleSubmit : nextTab }
   {onClose}
+  showCancel={isEditing ? true : activeTab != 'details'}
   onCancel={isEditing ? onClose : previousTab}
   cancelLabel={isEditing ? 'Cancel' : 'Previous'}
   onDelete={isEditing ? handleDelete : null}
@@ -190,7 +163,7 @@
           {tab.label}
           
           <!-- Show indicator for validation errors -->
-          {#if tab.id === 'Details' && Object.keys(errors).length > 0}
+          {#if tab.id === 'details' && Object.keys(errors).length > 0}
             <span class="ml-1 w-2 h-2 bg-red-400 rounded-full inline-block"></span>
           {/if}
           
@@ -213,7 +186,7 @@
 
   <!-- Tab Content -->
   <div class="tab-content space-y-6">
-    {#if activeTab === 'Details'}
+    {#if activeTab === 'details'}
       {#if !isEditing}
         <h3 class="text-lg font-medium text-white mb-4">Details</h3>
       {/if}
