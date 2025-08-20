@@ -1,12 +1,10 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use strum::IntoEnumIterator;
-use std::mem::discriminant;
-use crate::components::{nodes::types::{targets::NodeTarget, tests::TestTypeCompatibilityInfo}, tests::types::{Test, TestResult}};
+use crate::components::{nodes::types::{capabilities::NodeCapability, criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}, tests::types::execution::TestResult};
 use crate::shared::types::ApplicationProtocol;
 use super::{
-    types_capabilities::{NodeType, NodeCapability},
-    tests::{AssignedTest, NodeStatus, TestCriticality},
+    types::{NodeType},
+    tests::{AssignedTest},
     topology::{GraphPosition}
 };
 
@@ -61,7 +59,7 @@ impl Node {
         let base = NodeBase {
             name,
             description: None,
-            target: NodeTarget::ip_template(),
+            target: NodeTarget::IpAddress(IpAddressTargetConfig::default()),
             node_type: NodeType::UnknownDevice,
             
             open_ports: Vec::new(),
@@ -122,37 +120,6 @@ impl Node {
         };
         
         self.base.current_status = new_status;
-    }
-
-    /// Get compatible test types for a node
-    pub fn get_compatible_test_types(&self) -> (Vec<TestTypeCompatibilityInfo>, Vec<TestTypeCompatibilityInfo>) {
-
-        let mut recommended_tests = Vec::new();
-        let mut warned_tests = Vec::new();
-
-        for test_default in Test::iter() {
-            let is_assigned = self.base.assigned_tests.iter().any(|a| discriminant(&a.test) == discriminant(&test_default));
-            let warning = test_default.check_node_compatibility(&self);
-
-            let test_info = TestTypeCompatibilityInfo {
-                test_type: test_default.variant_name(),
-                display_name: test_default.display_name().to_string(),
-                description: test_default.description().to_string(),
-                contextual_description: test_default.generate_context_description(&self).to_string(),
-                is_assigned,
-                warning: warning.clone(),
-                is_recommended: warning.is_none(),
-            };
-            
-            if warning.is_none() {
-                recommended_tests.push(test_info);
-            } else {
-                warned_tests.push(test_info);
-            }
-        }
-
-        (recommended_tests, warned_tests)
-
     }
 }
 

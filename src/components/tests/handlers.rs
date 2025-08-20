@@ -1,63 +1,53 @@
-use axum::{
-    extract::{State},
-    response::Json,
-    routing::{get},
-    Router,
-};
-use strum::IntoEnumIterator;
+use axum::{extract::State, routing::post, Json, Router};
+use serde::Deserialize;
 use std::sync::Arc;
 use crate::{
-    api::{ApiResult, ApiResponse},
+    api::{ApiError, ApiResponse, ApiResult}, 
     components::{
-        tests::types::{Test},
-    },
-    AppState,
+        nodes::{service::NodeService}, 
+        tests::types::{base::Test, configs::*},
+    }, shared::{schema::{NodeContext, TestConfigSchema}}, AppState
 };
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/types", get(get_test_types))
+        .route("/schema", post(get_test_config_schema))
 }
 
-#[derive(serde::Serialize)]
-pub struct TestTypeInfo {
+#[derive(Deserialize)]
+pub struct SchemaRequest {
     pub test_type: String,
-    pub display_name: String,
-    pub description: String,
-    pub capabilities: Vec<String>,
-    pub node_types: Vec<String>,
-    pub node_target_types: Vec<String>
+    pub node_context: NodeContext,
 }
 
-/// Get all available test types with their metadata
-async fn get_test_types(
-    State(_state): State<Arc<AppState>>,
-) -> ApiResult<Json<ApiResponse<Vec<TestTypeInfo>>>> {
+pub async fn get_test_config_schema(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<SchemaRequest>,
+) -> ApiResult<Json<ApiResponse<TestConfigSchema>>> {
     
-    let test_info: Vec<TestTypeInfo> = Test::iter().map(|test| {
-        let requirements = test.get_requirements();
-        
-        TestTypeInfo {
-            display_name: test.display_name().to_string(),
-            description: test.description().to_string(),
-            capabilities: requirements.node_capabilities
-                .unwrap_or_default()
-                .iter()
-                .map(|c| format!("{:?}", c))
-                .collect(),
-            node_types: requirements.node_types
-                .unwrap_or_default()
-                .iter()
-                .map(|t| t.display_name().to_string())
-                .collect(),
-            node_target_types: requirements.node_target_types
-                .unwrap_or_default()
-                .iter()
-                .map(|t| t.variant_name())
-                .collect(),
-            test_type: test.variant_name(),
-        }
-    }).collect();
+    // Get available nodes for node selectors
+    let node_service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
-    Ok(Json(ApiResponse::success(test_info)))
+    let available_nodes = node_service.get_all_nodes().await
+        .map_err(|e| ApiError::internal_error(&format!("Failed to load nodes: {}", e)))?;
+    
+    // Parse test type and create default instance
+    let test_instance = match request.test_type.as_str() {
+        "Connectivity" => Test::Connectivity(ConnectivityConfig::default()),
+        "ServiceHealth" => Test::ServiceHealth(ServiceHealthConfig::default()),
+        "DnsResolution" => Test::DnsResolution(DnsResolutionConfig::default()),
+        "DnsLookup" => Test::DnsLookup(DnsLookupConfig::default()),
+        "VpnTunnel" => Test::VpnTunnel(VpnTunnelConfig::default()),
+        "VpnConnectivity" => Test::VpnConnectivity(VpnConnectivityConfig::default()),
+        "DirectIp" => Test::DirectIp(DirectIpConfig::default()),
+        "Ping" => Test::Ping(PingConfig::default()),
+        "DnsOverHttps" => Test::DnsOverHttps(DnsOverHttpsConfig::default()),
+        "ReverseDns" => Test::ReverseDns(ReverseDnsConfig::default()),
+        _ => return Err(ApiError::bad_request(&format!("Invalid test type: {}", request.test_type))),
+    };
+    
+    // Generate schema
+    let schema = test_instance.generate_schema(&request.node_context, &available_nodes);
+    
+    Ok(Json(ApiResponse::success(schema)))
 }

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::components::{nodes::types::tests::{NodeStatus, NodeTestResults}, tests::types::Timer};
+use crate::components::{nodes::types::{status::NodeStatus, tests::NodeTestResults}, tests::types::execution::Timer};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiagnosticTrigger {

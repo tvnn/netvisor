@@ -1,43 +1,35 @@
-use axum::{routing::get, Router, Json};
+use axum::{routing::get, Json, Router};
+use strum::IntoEnumIterator;
 use std::sync::Arc;
 use crate::{
+    api::{ApiResponse}, 
     components::{
-        nodes::handlers as node_handlers,
-        node_groups::handlers as group_handlers,
-        diagnostics::handlers as diagnostic_handlers,
-        tests::handlers as test_handlers
-    },
-    api::{ApiResponse, SystemStatusResponse},
-    AppState,
+        diagnostics::handlers as diagnostic_handlers, 
+        node_groups::handlers as group_handlers, 
+        tests::handlers as test_handlers,
+        nodes::{handlers as node_handlers, types::{capabilities::NodeCapability, criticality::TestCriticality, status::NodeStatus, targets::NodeTarget, types::NodeType}}, 
+        tests::types::{base::Test},
+    }, shared::{metadata::{TypeMetadataProvider, TypeRegistry}}, AppState
 };
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/api/health", get(health_check))
-        .route("/api/status", get(system_status))
         .nest("/api/nodes", node_handlers::create_router())
-        .nest("/api/groups", group_handlers::create_router())
+        .route("/api/registry", get(get_type_registry))
         .nest("/api/tests", test_handlers::create_router())
-        .nest("/api/diagnostics", diagnostic_handlers::create_router()) // TODO: Implement
-        // .nest("/api/monitoring", monitoring_handlers::create_router()) // TODO: Implement
-        // .nest("/api/discovery", discovery_handlers::create_router()) // TODO: Implement
+        .nest("/api/groups", group_handlers::create_router())
+        .nest("/api/diagnostics", diagnostic_handlers::create_router())
 }
 
-async fn health_check() -> Json<ApiResponse<String>> {
-    Json(ApiResponse::success("NetFrog server is running".to_string()))
-}
-
-async fn system_status(
-    // State(_state): State<Arc<AppState>>, // TODO: Use state for real metrics
-) -> Json<ApiResponse<SystemStatusResponse>> {
-    let response = SystemStatusResponse {
-        server_status: "running".to_string(),
-        database_status: "connected".to_string(),
-        monitoring_active: false, // TODO: Implement monitoring status
-        total_nodes: 0, // TODO: Get from storage
-        total_groups: 0, // TODO: Get from storage
-        uptime_seconds: 0, // TODO: Track uptime
+async fn get_type_registry() -> Json<ApiResponse<TypeRegistry>> {
+    let registry = TypeRegistry {
+        test_types: Test::iter().map(|t| t.to_metadata()).collect(),
+        node_types: NodeType::iter().map(|t| t.to_metadata()).collect(),
+        capabilities: NodeCapability::iter().map(|t| t.to_metadata()).collect(),
+        criticality_levels: TestCriticality::iter().map(|t| t.to_metadata()).collect(),
+        node_statuses: NodeStatus::iter().map(|t| t.to_metadata()).collect(),
+        node_targets: NodeTarget::iter().map(|t| t.to_metadata()).collect(),
     };
     
-    Json(ApiResponse::success(response))
+    Json(ApiResponse::success(registry))
 }

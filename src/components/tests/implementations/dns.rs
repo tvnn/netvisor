@@ -7,7 +7,8 @@ use reqwest::Client;
 use crate::components::{
     nodes::types::base::Node,
     nodes::types::targets::NodeTarget,
-    tests::types::{DnsResolutionConfig, DnsLookupConfig, DnsOverHttpsConfig, ReverseDnsConfig, TestResult, Timer}
+    tests::types::configs::*,
+    tests::types::execution::*
 };
 
 /// Execute DNS resolution test - test DNS server's ability to resolve domains
@@ -19,7 +20,7 @@ pub async fn execute_dns_resolution_test(
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
     
     // Extract DNS server address from node
-    let dns_server = &node.base.target.;
+    let dns_server = &node.base.target.to_string();
 
     // TODO: Configure resolver to use specific DNS server
     // For now, use system resolver as placeholder
@@ -212,7 +213,7 @@ pub async fn execute_dns_over_https_test(
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
     
     // Extract DoH endpoint from node configuration
-    let doh_url = &node.base.target.get_target();
+    let doh_url = &node.base.target.to_string();
 
     // Create HTTP client for DoH query
     let _client = Client::builder()

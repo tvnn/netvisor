@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr};
-use crate::shared::types::ApplicationProtocol;
+use crate::shared::{metadata::TypeMetadataProvider, types::ApplicationProtocol};
 use strum_macros::{EnumIter, EnumDiscriminants, Display};
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, EnumIter))]
 #[serde(tag="type", content="config")]
 pub enum NodeTarget {
@@ -11,10 +11,29 @@ pub enum NodeTarget {
     Hostname(HostnameTargetConfig),
     Service(ServiceTargetConfig)
 }
+
+impl std::fmt::Display for NodeTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NodeTarget::IpAddress(config) => write!(f, "{}", config),
+            NodeTarget::Hostname(config) => write!(f, "{}", config),
+            NodeTarget::Service(config) => write!(f, "{}", config),
+        }
+    }
+}
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IpAddressTargetConfig {
     pub ip: IpAddr,
     pub port: Option<u16> 
+}
+
+impl Default for IpAddressTargetConfig {
+    fn default() -> Self {
+        Self {
+            ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+            port: Some(80)
+        }
+    }
 }
 
 impl std::fmt::Display for IpAddressTargetConfig {
@@ -27,6 +46,15 @@ impl std::fmt::Display for IpAddressTargetConfig {
 pub struct HostnameTargetConfig {
     pub hostname: String, 
     pub port: Option<u16> 
+}
+
+impl Default for HostnameTargetConfig {
+    fn default() -> Self {
+        Self {
+            hostname: "example.com".to_string(),
+            port: Some(80)
+        }
+    }
 }
 
 impl std::fmt::Display for HostnameTargetConfig {
@@ -42,6 +70,18 @@ pub struct ServiceTargetConfig {
     pub port: Option<u16>,
     pub path: Option<String>,
 }
+
+impl Default for ServiceTargetConfig {
+    fn default() -> Self {
+        Self {
+            protocol: ApplicationProtocol::Http,
+            hostname: "example.com".to_string(),
+            port: Some(80),
+            path: Some("/".to_string())
+        }
+    }
+}
+
 
 impl std::fmt::Display for ServiceTargetConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -60,28 +100,6 @@ impl std::fmt::Display for ServiceTargetConfig {
 impl NodeTarget {
     pub fn variant_name(&self) -> String {
         NodeTargetDiscriminants::from(self).to_string()
-    }
-
-    pub fn ip_template() -> Self {
-        NodeTarget::IpAddress(IpAddressTargetConfig{
-            ip: IpAddr::V4(Ipv4Addr::LOCALHOST), port: Some(80)
-        })
-    }
-    
-    pub fn service_template() -> Self {
-        NodeTarget::Service(ServiceTargetConfig {
-            protocol: ApplicationProtocol::Http,
-            hostname: String::new(),
-            port: Some(80),
-            path: None,
-        })
-    }
-
-    pub fn hostname_template() -> Self {
-        NodeTarget::Hostname(HostnameTargetConfig{
-            hostname: String::new(),
-            port: Some(80)
-        })
     }
 
     pub fn as_ip_config(&self) -> Option<&IpAddressTargetConfig> {
@@ -104,18 +122,59 @@ impl NodeTarget {
             _ => None,
         }
     }
+}
 
-    // pub fn get_target(&self) -> String {
-    //     match &self {
-    //         NodeTarget::IpAddress(IpAddressTargetConfig { ip, port }) => {
-    //             format!("{}:{}", ip, port.unwrap_or(80))
-    //         },
-    //         NodeTarget::Hostname(HostnameTargetConfig { hostname, port }) => {
-    //             format!("{}:{}", hostname, port.unwrap_or(80))
-    //         },
-    //         NodeTarget::Service(ServiceTargetConfig { protocol: _, hostname, port, path: _ }) => {
-    //             format!("{}:{}", hostname, port.unwrap_or(80))
-    //         },
-    //     }
-    // }
+impl TypeMetadataProvider for NodeTarget {
+    fn id(&self) -> String { 
+        self.variant_name().to_string()
+    }
+    
+    fn display_name(&self) -> &str {
+        match self {
+            NodeTarget::IpAddress(..) => "IP Address",
+            NodeTarget::Hostname(..) => "Hostname",
+            NodeTarget::Service(..) => "Service",
+        }
+    }
+    
+    fn description(&self) -> &str {
+        match self {
+            NodeTarget::IpAddress(..) => "Direct connection using IP address",
+            NodeTarget::Hostname(..) => "Connect using domain name or hostname",
+            NodeTarget::Service(..) => "Full service endpoint with protocol and path",
+        }
+    }
+    
+    fn category(&self) -> &str {
+        ""
+    }
+    
+    fn icon(&self) -> &str {
+        ""
+    }
+    
+    fn color(&self) -> &str {
+        ""
+    }
+    
+    fn metadata(&self) -> serde_json::Value {
+        match self {
+            NodeTarget::IpAddress(..) => serde_json::json!({
+                "defaultConfig": {
+                    "ip": "127.0.0.1",
+                    "port": 80
+                }
+            }),
+            NodeTarget::Hostname(..) => serde_json::json!({"defaultConfig": {
+                "hostname": "example.com",
+                "port": 80
+            }}),
+            NodeTarget::Service(..) => serde_json::json!({"defaultConfig": {
+                "protocol": ApplicationProtocol::Http,
+                "hostname": "127.0.0.1",
+                "port": 80,
+                "path": '/'
+            }}),
+        }
+    }
 }

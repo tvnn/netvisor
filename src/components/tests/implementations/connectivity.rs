@@ -4,8 +4,12 @@ use anyhow::Error;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use crate::components::{
-    nodes::types::{base::Node, targets::{HostnameTargetConfig, NodeTarget, ServiceTargetConfig}},
-    tests::types::{ConnectivityConfig, DirectIpConfig, PingConfig, TestResult, Timer}
+    nodes::types::{
+        base::Node, 
+        targets::{HostnameTargetConfig, NodeTarget, ServiceTargetConfig}
+    }, 
+    tests::types::configs::*,
+    tests::types::execution::*
 };
 
 /// Execute connectivity test - tests TCP connection to node's target
@@ -17,7 +21,7 @@ pub async fn execute_connectivity_test(
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
     
     // Extract target from node configuration
-    let target_address = &node.base.target.get_target();
+    let target_address = &node.base.target.to_string();
 
     // Attempt TCP connection
     let connection_result = timeout(timeout_duration, TcpStream::connect(&target_address)).await;
@@ -171,7 +175,7 @@ pub async fn execute_direct_ip_test(
 
 
     // Attempt TCP connection directly to IP
-    let connection_result = timeout(timeout_duration, TcpStream::connect((&target_address))).await;
+    let connection_result = timeout(timeout_duration, TcpStream::connect(&target_address.to_string())).await;
 
     let (success, message, details) = match connection_result {
         Ok(Ok(_stream)) => {

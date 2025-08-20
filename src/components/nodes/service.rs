@@ -7,7 +7,7 @@ use crate::components::{
             base::Node, 
             tests::NodeTestResults,
         }
-    }, tests::{service::TestService, types::{TestResult, Timer}}
+    }, tests::{service::TestService, types::execution::{TestResult, Timer}}
 };
 
 pub struct NodeService {

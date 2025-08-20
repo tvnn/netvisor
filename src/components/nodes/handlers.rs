@@ -9,17 +9,12 @@ use crate::{
     api::{
         ApiError, ApiResponse, ApiResult
     },
-    components::{
-        nodes::{
+    components::nodes::{
             service::NodeService,
             types::{
-                base::{Node},
-                tests::{TestTypeCompatibilityInfo},
-                types_capabilities::{NodeType, NodeCapability},
-                api::{CreateNodeRequest, NodeListResponse, NodeResponse, UpdateNodeRequest, CompatibilityResponse}
+                api::{CompatibilityResponse, CreateNodeRequest, NodeListResponse, NodeResponse, UpdateNodeRequest}, base::Node, capabilities::NodeCapability, types::NodeType
             }
-        },  
-    },
+        },
     AppState,
 };
 
@@ -30,7 +25,6 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/:id", get(get_node))
         .route("/:id", put(update_node))
         .route("/:id", delete(delete_node))
-        .route("/:id/test-compatibility", get(get_test_compatibility))
         .route("/capability-compatibility", get(get_capability_compatibility))
 }
 
@@ -137,33 +131,14 @@ async fn get_capability_compatibility(
     Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<ApiResponse<CompatibilityResponse<NodeCapability>>>> {
     let node_type_str = params.get("node_type")
-        .ok_or_else(|| ApiError::validation_error("node_type parameter required"))?;
+        .ok_or_else(|| ApiError::bad_request("node_type parameter required"))?;
     
     let node_type: NodeType = serde_json::from_str(&format!("\"{}\"", node_type_str))
-        .map_err(|_| ApiError::validation_error("Invalid node type"))?;
+        .map_err(|_| ApiError::bad_request("Invalid node type"))?;
     
     let recommendations: CompatibilityResponse<NodeCapability> = CompatibilityResponse {
         recommendations: Some(node_type.typical_capabilities()),
         warnings: None
-    };
-    
-    Ok(Json(ApiResponse::success(recommendations)))
-}
-
-async fn get_test_compatibility(
-    State(state): State<Arc<AppState>>,
-    Path(node_id): Path<String>,
-) -> ApiResult<Json<ApiResponse<CompatibilityResponse<TestTypeCompatibilityInfo>>>> {
-    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
-    
-    let node = service.get_node(&node_id).await?
-        .ok_or_else(|| ApiError::node_not_found(&node_id))?;
-    
-    let (recommended_tests, warned_tests) = node.get_compatible_test_types();
-        
-    let recommendations = CompatibilityResponse {
-        recommendations: Some(recommended_tests),
-        warnings: Some(warned_tests)
     };
     
     Ok(Json(ApiResponse::success(recommendations)))

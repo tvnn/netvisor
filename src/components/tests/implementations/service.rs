@@ -4,7 +4,8 @@ use reqwest::Client;
 use tokio::time::timeout;
 use crate::components::{
     nodes::types::base::{Node},
-    tests::types::{ServiceHealthConfig, TestResult, Timer}
+    tests::types::configs::*,
+    tests::types::execution::*
 };
 
 /// Execute service health test - HTTP request to node's service endpoint
@@ -16,7 +17,7 @@ pub async fn execute_service_health_test(
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
     
     // Extract service URL from node configuration
-    let service_url = &node.base.target.get_target();
+    let service_url = &node.base.target.to_string();
     
     // Create HTTP client with timeout
     let client = Client::builder()

@@ -1,5 +1,5 @@
 use crate::components::{
-        nodes::types::{base::Node, tests::AssignedTest}, tests::types::{Test, TestResult, Timer}
+        nodes::types::{base::Node, tests::AssignedTest}, tests::types::{base::Test, execution::{TestResult, Timer}}
     };
 
 pub struct TestService {}

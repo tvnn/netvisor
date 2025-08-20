@@ -6,7 +6,8 @@ use cidr::IpCidr;
 use std::process::Command;
 use crate::components::{
     nodes::types::base::{Node},
-    tests::types::{VpnConnectivityConfig, VpnTunnelConfig, TestResult, Timer}
+    tests::types::configs::*,
+    tests::types::execution::*
 };
 
 /// Execute VPN connectivity test - test basic connection to VPN server
@@ -18,7 +19,7 @@ pub async fn execute_vpn_connectivity_test(
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
     
     // Extract VPN server target from node configuration
-    let vpn_target = &node.base.target.get_target();
+    let vpn_target = &node.base.target.to_string();
 
     // Test basic connectivity to VPN server port
     let connection_result = timeout(timeout_duration, TcpStream::connect(&vpn_target)).await;
@@ -79,7 +80,7 @@ pub async fn execute_vpn_tunnel_test(
     let expected_subnet = &config.expected_subnet;
     
     // Get VPN server information
-    let vpn_server = &node.base.target.get_target();
+    let vpn_server = &node.base.target.to_string();
 
     // Check if we can detect VPN tunnel interface
     let tunnel_check_result = check_vpn_tunnel_interface().await;

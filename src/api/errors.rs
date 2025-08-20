@@ -24,7 +24,7 @@ impl ApiError {
         Self::new(StatusCode::INTERNAL_SERVER_ERROR, message.to_string())
     }
 
-    pub fn validation_error(message: &str) -> Self {
+    pub fn bad_request(message: &str) -> Self {
         Self::new(StatusCode::BAD_REQUEST, message.to_string())
     }
 
@@ -68,6 +68,6 @@ impl From<sqlx::Error> for ApiError {
 impl From<serde_json::Error> for ApiError {
     fn from(err: serde_json::Error) -> Self {
         tracing::error!("JSON serialization error: {}", err);
-        Self::validation_error("Invalid JSON data")
+        Self::bad_request("Invalid JSON data")
     }
 }
