@@ -13,5 +13,5 @@ export const COLOR_CONFIG: Record<string, Record<string, string>> = {
     }
 } as const;
 
-export const getBgColor = (color: string) => COLOR_CONFIG[color].bgColor;
-export const getTextColor = (color: string) => COLOR_CONFIG[color].textColor;
+export const getBgColor = (color: string) => COLOR_CONFIG[color]?.bgColor || 'text-gray-400';
+export const getTextColor = (color: string) => COLOR_CONFIG[color]?.textColor || 'bg-gray-900';

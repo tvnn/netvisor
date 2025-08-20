@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { 
     AlertCircle, 
     AlertTriangle, 
@@ -13,6 +13,7 @@
   import { fetchTestSchema } from '$lib/stores/schema';
   import type { TestConfigSchema } from '$lib/stores/schema';
   import type { AssignedTest, NodeFormData } from '$lib/types/nodes';
+  import { criticalityLevels, testTypes } from '$lib/api/registry';
   import DynamicField from './DynamicField.svelte';
   import CompatibilityIndicator from './CompatibilityIndicator.svelte';
   import TestTypeDropdown from './TestTypeDropdown.svelte';
@@ -26,12 +27,27 @@
   let loading = false;
   let error: string | null = null;
   let formData: Record<string, any> = {};
+  let criticality = $criticalityLevels;
   let validationErrors: Record<string, string> = {};
   let showAdvanced = false;
   let mounted = false;
   
+  // Schema cache - preload schemas for all test types
+  let schemaCache: Map<string, TestConfigSchema> = new Map();
+  let schemasLoading = false;
+  
+  // Prevent updates during initialization
+  let isInitializing = false;
+  let updateTimeout: number;
+  
   onMount(() => {
     mounted = true;
+  });
+  
+  onDestroy(() => {
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
+    }
   });
   
   // Convert NodeFormData to the simple context needed by schema API
@@ -43,16 +59,91 @@
     assigned_tests: node.assigned_tests.map(t => t.test.type),
   };
   
-  // Load schema when test type changes
-  $: if (mounted && test?.test.type) {
+  // Preload schemas when node context changes
+  let lastNodeContextKey = '';
+  $: if (mounted) {
+    const nodeContextKey = `${node.node_type}-${node.capabilities.join(',')}-${JSON.stringify(node.target)}`;
+    if (nodeContextKey !== lastNodeContextKey) {
+      lastNodeContextKey = nodeContextKey;
+      preloadSchemas();
+    }
+  }
+  
+  // Get schema from cache when test type changes
+  $: if (mounted && test?.test.type && schemaCache.has(test.test.type)) {
+    schema = schemaCache.get(test.test.type) || null;
+    error = null;
+    loading = false;
+    
+    // Initialize form data with defaults
+    if (schema) {
+      const defaults = Object.fromEntries(
+        schema.fields
+          .filter(field => field.default_value !== null && field.default_value !== undefined)
+          .map(field => [field.id, field.default_value])
+      );
+      
+      isInitializing = true;
+      formData = { ...defaults, ...(test?.test.config || {}) };
+      isInitializing = false;
+    }
+  } else if (mounted && test?.test.type && !schemaCache.has(test.test.type) && !schemasLoading) {
+    // Schema not in cache and not currently loading - this shouldn't happen if preload works
+    // but fallback to individual load
     loadSchemaForTest(test.test.type);
   }
   
-  // Initialize form data from test config
-  $: if (test?.test.config) {
-    formData = { ...formData, ...test.test.config };
+  // Initialize form data only when test changes (not on every config update)
+  let lastTestId = '';
+  $: if (test) {
+    const testId = `${test.test.type}-${Object.keys(test.test.config || {}).join(',')}`;
+    if (testId !== lastTestId) {
+      lastTestId = testId;
+      isInitializing = true;
+      formData = { ...test.test.config };
+      isInitializing = false;
+    }
   }
   
+  // Preload all schemas for the current node context
+  async function preloadSchemas() {
+    if (!$testTypes || $testTypes.length === 0) return;
+    
+    schemasLoading = true;
+    schemaCache.clear();
+    
+    try {
+      // Load schemas for all test types in parallel
+      const schemaPromises = $testTypes.map(async (testType) => {
+        try {
+          const schema = await fetchTestSchema(testType.id, nodeContext);
+          return { testType: testType.id, schema };
+        } catch (err) {
+          console.warn(`Failed to preload schema for ${testType.id}:`, err);
+          return null;
+        }
+      });
+      
+      const results = await Promise.all(schemaPromises);
+      
+      // Store successful results in cache
+      results.forEach(result => {
+        if (result) {
+          schemaCache.set(result.testType, result.schema);
+        }
+      });
+      
+      // Trigger reactivity by reassigning the cache
+      schemaCache = new Map(schemaCache);
+      
+    } catch (err) {
+      console.error('Failed to preload schemas:', err);
+    } finally {
+      schemasLoading = false;
+    }
+  }
+  
+  // Fallback function for individual schema loading (shouldn't be needed usually)
   async function loadSchemaForTest(testType: string) {
     if (!testType) return;
     
@@ -63,6 +154,10 @@
     try {
       schema = await fetchTestSchema(testType, nodeContext);
       
+      // Store in cache for future use
+      schemaCache.set(testType, schema);
+      schemaCache = new Map(schemaCache);
+      
       // Initialize form data with defaults merged with existing values
       const defaults = Object.fromEntries(
         schema.fields
@@ -70,7 +165,9 @@
           .map(field => [field.id, field.default_value])
       );
       
+      isInitializing = true;
       formData = { ...defaults, ...(test?.test.config || {}) };
+      isInitializing = false;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load test configuration';
     } finally {
@@ -107,6 +204,10 @@
   }
   
   function updateField(fieldId: string, value: any) {
+    // Skip updates during initialization
+    if (isInitializing) return;
+    
+    // Update local form data immediately for responsive UI
     formData = { ...formData, [fieldId]: value };
     
     // Clear validation error for this field
@@ -124,17 +225,23 @@
       }
     }
     
-    // Real-time update - save immediately
-    if (test) {
-      const updatedTest: AssignedTest = {
-        ...test,
-        test: {
-          ...test.test,
-          config: formData
-        }
-      };
-      onChange(updatedTest);
+    // Debounce the onChange call to prevent excessive updates
+    if (updateTimeout) {
+      clearTimeout(updateTimeout);
     }
+    
+    updateTimeout = setTimeout(() => {
+      if (test) {
+        const updatedTest: AssignedTest = {
+          ...test,
+          test: {
+            ...test.test,
+            config: formData
+          }
+        };
+        onChange(updatedTest);
+      }
+    }, 300); // Increased debounce to 300ms
   }
   
   function validateField(field: any, value: any): string | null {
@@ -195,68 +302,40 @@
   }
 </script>
 
-<div class="h-full">
+<!-- Fixed height container to prevent modal flickering -->
+<div class="h-[600px] flex flex-col">
   {#if !test}
-    <!-- Empty state - prompt to create or select a test -->
-    <div class="h-full flex items-center justify-center">
-      <div class="text-center max-w-sm">
-        <div class="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Settings class="w-8 h-8 text-gray-400" />
-        </div>
-        <h3 class="text-lg font-medium text-white mb-2">Configure Test</h3>
-        <p class="text-sm text-gray-400 mb-4">
-          Select a test from the list to configure it, or click "Add Test" to create a new one.
-        </p>
-        <div class="flex items-center justify-center gap-2 text-xs text-gray-500">
-          <Plus class="w-3 h-3" />
-          <span>Click "Add Test" to get started</span>
-        </div>
+    <!-- Empty State -->
+    <div class="flex-1 flex items-center justify-center">
+      <div class="text-center">
+        <Settings class="w-12 h-12 text-gray-600 mx-auto mb-4" />
+        <p class="text-gray-400 text-lg mb-2">No test selected</p>
+        <p class="text-gray-500">Select or create a test to configure it here</p>
       </div>
     </div>
   {:else}
-    <!-- Test configuration form -->
-    <div class="space-y-6">
-      <!-- Header with close button -->
-      <div class="flex items-center justify-between">
-        <h3 class="text-lg font-medium text-white">Configure Test</h3>
+    <!-- Header -->
+    <div class="flex-shrink-0 mb-6">
+      <div class="flex items-start justify-between mb-4">
+        <h3 class="text-lg font-medium text-white">Test Configuration</h3>
         <button
+          type="button"
           on:click={onClose}
-          class="text-gray-400 hover:text-white transition-colors"
+          class="p-2 text-gray-400 hover:text-white transition-colors"
         >
           <X class="w-5 h-5" />
         </button>
       </div>
       
-      <!-- Test Type Selection -->
+      <!-- Test Type Selector -->
       <TestTypeDropdown
         selectedTestType={test.test.type}
         onTestTypeChange={handleTestTypeChange}
       />
-
-      {#if schema}
-        <CompatibilityIndicator {schema} />
-      {/if}
-      
-      <!-- Criticality Selection -->
-      <div>
-        <div class="block text-sm font-medium text-gray-300 mb-2">
-          Test Criticality
-        </div>
-        <select
-          value={test.criticality}
-          on:change={handleCriticalityChange}
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
-                 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="Critical">Critical</option>
-          <option value="Important">Important</option>
-          <option value="Informational">Informational</option>
-        </select>
-        <p class="text-xs text-gray-400 mt-1">
-          Critical tests affect node status when they fail. Important tests show as degraded.
-        </p>
-      </div>
-      
+    </div>
+    
+    <!-- Scrollable Content Area -->
+    <div class="flex-1 overflow-y-auto space-y-4">      
       {#if loading}
         <!-- Loading State -->
         <div class="flex items-center justify-center py-8">
@@ -277,14 +356,37 @@
         </div>
 
       {:else if schema}        
+        <!-- Incompatible Test -->
+          <CompatibilityIndicator 
+            schema={schema}
+          />
         {#if schema.compatibility === 'Compatible'}
+          <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+            <label for="test-criticality" class="block text-sm font-medium text-gray-200 mb-2">
+              Criticality
+            </label>
+            <select
+              id="test-criticality"
+              value={test.criticality}
+              on:change={handleCriticalityChange}
+              class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+            {#each criticality as crit}
+              <option value={crit.id}>{crit.display_name} - {crit.description}</option>
+            {/each}
+            </select>
+            <p class="text-xs text-gray-400 mt-2">
+              Critical tests cause complete node failure.
+              Important tests show as degraded.
+            </p>
+          </div>
           <!-- Basic Configuration -->
           {#if basicFields.length > 0}
             <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
               <h4 class="text-sm font-medium text-gray-200 mb-4">Configuration</h4>
               
               <div class="space-y-4">
-                {#each basicFields as field}
+                {#each basicFields as field (field.id)}
                   <DynamicField
                     {field}
                     value={formData[field.id]}
@@ -314,7 +416,7 @@
               
               {#if showAdvanced}
                 <div class="space-y-4 mt-4">
-                  {#each advancedFields as field}
+                  {#each advancedFields as field (field.id)}
                     <DynamicField
                       {field}
                       value={formData[field.id]}
