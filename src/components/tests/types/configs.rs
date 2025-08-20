@@ -1,6 +1,6 @@
 use std::{net::{IpAddr, Ipv4Addr}};
 use serde::{Deserialize, Serialize};
-use crate::shared::types::TransportProtocol;
+use crate::{components::nodes::types::base::Node, shared::types::TransportProtocol};
 use cidr::{IpCidr, Ipv4Cidr};
 
 
@@ -22,12 +22,14 @@ impl Default for ConnectivityConfig {
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 pub struct DirectIpConfig {
     pub timeout_ms: Option<u32>,
+    pub protocol: Option<TransportProtocol>
 }
 
 impl Default for DirectIpConfig {
     fn default() -> Self {
         Self {
             timeout_ms: Some(30000),
+            protocol: Some(TransportProtocol::Tcp)
         }
     }
 }
@@ -36,6 +38,7 @@ impl Default for DirectIpConfig {
 pub struct PingConfig {
     pub packet_count: Option<u8>,          
     pub timeout_ms: Option<u32>,
+    pub dns_resolver_node: Node
 }
 
 impl Default for PingConfig {
@@ -43,6 +46,7 @@ impl Default for PingConfig {
         Self {
             packet_count: Some(4),
             timeout_ms: Some(30000),
+            dns_resolver_node: Node::from_name("DNS Resolver".to_string())
         }
     }
 }

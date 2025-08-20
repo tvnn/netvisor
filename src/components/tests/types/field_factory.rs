@@ -92,19 +92,19 @@ pub fn generate_dns_resolver_selection_field(available_nodes: &[Node]) -> (Optio
         if dns_capable_nodes.is_empty() {
             validation_message = Some(ValidationMessage {
                 message: "No DNS servers available. Create a node with DNS Service capability first.".to_string(),
-                field_id: Some("dns_resolver".to_string()),
+                field_id: Some("dns_resolver_node".to_string()),
                 severity: MessageSeverity::Warning,
             });
         }
     (
         validation_message,
         ConfigField {
-            id: "dns_resolver".to_string(),
+            id: "dns_resolver_node".to_string(),
             label: "DNS Server".to_string(),
             field_type: FieldType {
                 base_type: "node_selector".to_string(),
                 constraints: serde_json::json!({
-                    "filter_capabilities": ["DnsService"]
+                    "filter_capabilities": [NodeCapability::DnsService(DnsServiceCapability {  })]
                 }),
                 options: Some(dns_capable_nodes),
             },
