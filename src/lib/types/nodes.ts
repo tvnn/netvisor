@@ -65,30 +65,25 @@ export interface Node extends NodeApi {
 
 export interface IpNodeTargetConfig {
   ip: string;
-  port: number;
+  port?: number;
 }
 
 export interface HostnameTargetConfig {
   hostname: string;
-  port: number;
+  port?: number;
 }
 
 export interface ServiceTargetConfig {
   hostname: string;
-  port: number;
+  port?: number;
   path: string;
   protocol: ApplicationProtocol
 }
 
 export enum ApplicationProtocol {
-  Http,
-  Https,
-  Ftp
-}
-
-export enum TransportProtocol {
-  Udp,
-  Tcp
+  Http = "Http",
+  Https = "Https",
+  Ftp = "Ftp"
 }
 
 export type NodeTarget =
@@ -136,7 +131,9 @@ export function createEmptyNodeFormData(): NodeFormData {
     description: '',
     target: {
       type: 'IpAddress',
-      config: get(getNodeTargetMetadata)('IpAddress')['defaultConfig'],
+      config: {
+        ip: '',
+      },
     },
     node_type: 'UnknownDevice',
     capabilities: [],
@@ -191,7 +188,7 @@ export function getNodeTargetString(target: NodeTarget): string {
     case 'Hostname':
       return target.config.hostname + (target.config.port ? `:${target.config.port}` : '');
     case 'Service':
-      const base = `${target.config.protocol}://${target.config.hostname}`;
+      const base = `${target.config.protocol.toLowerCase()}://${target.config.hostname}`;
       const port = target.config.port ? `:${target.config.port}` : '';
       const path = target.config.path || '';
       return base + port + path;

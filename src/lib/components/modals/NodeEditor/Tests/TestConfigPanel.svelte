@@ -329,6 +329,7 @@
       
       <!-- Test Type Selector -->
       <TestTypeDropdown
+        schemaCache={schemaCache}
         selectedTestType={test.test.type}
         onTestTypeChange={handleTestTypeChange}
       />

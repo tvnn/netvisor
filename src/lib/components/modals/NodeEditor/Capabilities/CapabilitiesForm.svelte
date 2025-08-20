@@ -89,24 +89,14 @@
 <div class="space-y-4">
   <!-- Header with description -->
   <div>
-    <div class="flex items-center justify-between mb-2">
+    <!-- <div class="flex items-center justify-between mb-2">
       <div class="flex items-center gap-2">
-        <h3 class="text-lg font-medium text-white">Capabilities</h3>
         {#if loading}
           <div class="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
         {/if}
       </div>
-      {#if suggestedCapabilities.length > 0}
-        <button
-          type="button"
-          on:click={applySuggested}
-          class="text-sm text-blue-400 hover:text-blue-300 underline"
-        >
-          Reset to Suggested
-        </button>
-      {/if}
-    </div>
-    <p class="text-sm text-gray-400 mb-4">
+    </div> -->
+    <p class="text-sm text-gray-400">
       Capabilities help determine which tests are compatible with this node and enable 
       automatic test recommendations. Select the services and access methods available on this device.
     </p>
@@ -118,10 +108,21 @@
       <!-- Suggested capabilities first (if any) -->
       {#if suggestedCapabilities.length > 0}
         <div>
-          <h4 class="text-sm font-medium text-blue-300 mb-3 flex items-center gap-2">
-            <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
-            Suggested for {$getNodeTypeDisplay(nodeType)}
-          </h4>
+          <div class="flex justify-between">
+            <h4 class="text-sm font-medium text-blue-300 mb-3 flex items-center gap-2">
+              <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
+              Suggested for {$getNodeTypeDisplay(nodeType)}
+            </h4>
+            {#if suggestedCapabilities.length > 0}
+              <button
+                type="button"
+                on:click={applySuggested}
+                class="text-sm text-blue-400 hover:text-blue-300 underline"
+              >
+                Reset to Suggested
+              </button>
+            {/if}
+          </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             {#each suggestedCapabilities as capability}
               <label class="flex items-start space-x-3 cursor-pointer p-3 bg-blue-900/10 border border-blue-800/30 rounded-lg hover:bg-blue-900/20 transition-colors">

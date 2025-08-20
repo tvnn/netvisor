@@ -1,12 +1,14 @@
 <script lang="ts">
+  import Monitoring from './Tests/Monitoring.svelte';
+
   import type { Node, AssignedTest } from "$lib/types/nodes";
   import { createEmptyNodeFormData, nodeToFormData, formDataToNodeApi } from "$lib/types/nodes";
   import { nodeActions } from '$lib/stores/nodes';
   import EditModal from '../../common/EditModal.svelte'
-  import BasicNodeForm from './BasicNodeForm.svelte';
-  import CapabilitiesForm from './CapabilitiesForm.svelte';
-  import TestsForm from './TestsForm.svelte';
-  import TestConfigPanel from './TestConfigPanel.svelte';
+  import BasicNodeForm from './Details/DetailsForm.svelte';
+  import CapabilitiesForm from './Capabilities/CapabilitiesForm.svelte';
+  import TestsForm from './Tests/TestsForm.svelte';
+  import TestConfigPanel from './Tests/TestConfigPanel.svelte';
   
   export let node: Node | null = null;
   export let isOpen = false;
@@ -22,9 +24,9 @@
   let editingTestIndex: number = -1;
   
   // Tab management
-  let activeTab = 'details';
+  let activeTab = 'Details';
   const tabs = [
-    { id: 'details', label: 'Details', icon: 'Info' },
+    { id: 'Details', label: 'Details', icon: 'Info' },
     { id: 'capabilities', label: 'Capabilities', icon: 'Settings' },
     { id: 'tests', label: 'Tests', icon: 'CheckCircle' }
   ];
@@ -54,7 +56,7 @@
     errors = {};
     editingTest = null;
     editingTestIndex = -1;
-    activeTab = 'details'; // Reset to first tab
+    activeTab = 'Details'; // Reset to first tab
   }
   
   function validateForm(): boolean {
@@ -188,7 +190,7 @@
           {tab.label}
           
           <!-- Show indicator for validation errors -->
-          {#if tab.id === 'details' && Object.keys(errors).length > 0}
+          {#if tab.id === 'Details' && Object.keys(errors).length > 0}
             <span class="ml-1 w-2 h-2 bg-red-400 rounded-full inline-block"></span>
           {/if}
           
@@ -210,8 +212,11 @@
   {/if}
 
   <!-- Tab Content -->
-  <div class="tab-content">
-    {#if activeTab === 'details'}
+  <div class="tab-content space-y-6">
+    {#if activeTab === 'Details'}
+      {#if !isEditing}
+        <h3 class="text-lg font-medium text-white mb-4">Details</h3>
+      {/if}
       <!-- Basic Information Tab -->
       <div class="space-y-6">
         <BasicNodeForm 
@@ -223,42 +228,28 @@
       
     {:else if activeTab === 'capabilities'}
       <!-- Capabilities Tab -->
-      <div class="space-y-6">
-        <CapabilitiesForm 
-          bind:selectedCapabilities={formData.capabilities}
-          nodeType={formData.node_type || 'UnknownDevice'}
-          nodeId={node?.id}
-          preloadedRecommendations={capabilityRecommendations}
-        />
-      </div>
+      {#if !isEditing}
+        <h3 class="text-lg font-medium text-white mb-4">Capabilities</h3>
+      {/if}
+      <CapabilitiesForm 
+        bind:selectedCapabilities={formData.capabilities}
+        nodeType={formData.node_type || 'UnknownDevice'}
+        nodeId={node?.id}
+        preloadedRecommendations={capabilityRecommendations}
+      />
       
     {:else if activeTab === 'tests'}
       <!-- Tests Tab -->
-      <div class="space-y-6">
-        <div>
-          <label for="monitoring_interval" class="block text-sm font-medium text-gray-300 mb-1">
-            Monitoring Interval (minutes)
-          </label>
-          <input
-            id="monitoring_interval"
-            name="monitoring_interval"
-            bind:value={formData.monitoring_interval}
-            type="number"
-            min="0"
-            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="10"
-          />
-          <p class="text-xs text-gray-400 mt-1">
-            Set to 0 to disable monitoring, or specify interval in minutes.
-          </p>
-        </div>
-        <!-- Tests List and Editor -->
-          <div class="space-y-4">
-            <TestsForm 
-              bind:tests={formData.assigned_tests}
-              node={formData}
-            />
-          </div>
+      {#if !isEditing}
+        <h3 class="text-lg font-medium text-white mb-4">Tests</h3>
+      {/if}
+      <Monitoring formData={formData} />
+      <!-- Tests List and Editor -->
+      <div class="space-y-4">
+        <TestsForm 
+          bind:tests={formData.assigned_tests}
+          node={formData}
+        />
       </div>
     {/if}
   </div>

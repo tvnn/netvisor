@@ -22,17 +22,20 @@
 
   // Handle target type changes
   function handleTargetTypeChange(newTargetType: string) {
+    const targetMetadata = $getNodeTarget(newTargetType);
+    
     formData.target = {
-      type: newTargetType,
-      config: $getNodeTarget(newTargetType)?.metadata['default_config'],
-    } as NodeTarget;
+        type: newTargetType,
+        config: {}
+      } as NodeTarget;
+    
+    // Trigger reactivity
+    formData = { ...formData };
   }
 
 </script>
 
-<div class="space-y-4">
-  <h3 class="text-lg font-medium text-white">Basic Information</h3>
-  
+<div class="space-y-4">  
   <!-- Name and Node Type -->
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
@@ -91,13 +94,6 @@
   
   <!-- Target Configuration Section -->
   <div class="space-y-4">
-    <div>
-      <h4 class="text-base font-medium text-white mb-2">How to Reach This Node</h4>
-      <p class="text-sm text-gray-400 mb-4">
-        Specify how NetFrog should connect to this node for testing. Choose one method:
-      </p>
-    </div>
-
     <!-- Target Type Selection -->
     <div>
       <label for="target_type" class="block text-sm font-medium text-gray-300 mb-2">
@@ -109,7 +105,7 @@
             <input
               type="radio"
               name="target_type"
-              value={targetType}
+              value={targetType.id}
               checked={formData.target.type === targetType.id}
               on:change={() => handleTargetTypeChange(targetType.id)}
               class="mt-1 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500"
@@ -119,7 +115,7 @@
                 {targetType.display_name}
               </div>
               <div class="text-xs text-gray-400 mt-1">
-                {targetType.display_name}
+                {targetType.description}
               </div>
             </div>
           </label>

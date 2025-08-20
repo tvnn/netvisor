@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { ChevronDown, Server } from 'lucide-svelte';
+  import { ChevronDown, Server, CheckCircle, AlertTriangle, XCircle } from 'lucide-svelte';
   import { testTypes } from '$lib/api/registry';
   
   export let selectedTestType: string;
   export let onTestTypeChange: (testType: string) => void;
+  export let schemaCache: Map<string, any> = new Map(); // Schema cache from parent
   
   let isOpen = false;
   let dropdownElement: HTMLDivElement;
@@ -18,6 +19,42 @@
   function handleClickOutside(event: MouseEvent) {
     if (dropdownElement && !dropdownElement.contains(event.target as Node)) {
       isOpen = false;
+    }
+  }
+  
+  function getCompatibilityInfo(testTypeId: string) {
+    const schema = schemaCache.get(testTypeId);
+    if (!schema) return null;
+    
+    return {
+      status: schema.compatibility,
+      reason: schema.compatibility_reason
+    };
+  }
+  
+  function getCompatibilityIcon(status: string) {
+    switch (status) {
+      case 'Compatible':
+        return CheckCircle;
+      case 'Conditional':
+        return AlertTriangle;
+      case 'Incompatible':
+        return XCircle;
+      default:
+        return null;
+    }
+  }
+  
+  function getCompatibilityColor(status: string) {
+    switch (status) {
+      case 'Compatible':
+        return 'text-green-400';
+      case 'Conditional':
+        return 'text-yellow-400';
+      case 'Incompatible':
+        return 'text-red-400';
+      default:
+        return 'text-gray-400';
     }
   }
 </script>
@@ -65,21 +102,43 @@
   {#if isOpen}
     <div class="absolute z-50 w-full bg-gray-700 border border-gray-600 rounded-md shadow-lg max-h-96 overflow-y-auto" style="top: calc(100% + 0.5rem);">
       {#each $testTypes as testType}
+        {@const compatibilityInfo = getCompatibilityInfo(testType.id)}
+        
         <button
           type="button"
           on:click={() => handleSelect(testType.id)}
-          class="w-full px-3 py-3 text-left hover:bg-gray-600 transition-colors border-b border-gray-600 last:border-b-0"
+          class="w-full px-3 py-3 text-left hover:bg-gray-600 transition-colors border-b border-gray-600 last:border-b-0
+                 {compatibilityInfo?.status === 'Incompatible' ? 'opacity-60' : ''}"
         >
           <div class="flex items-start gap-3">
             <div class="w-8 h-8 rounded-lg bg-gray-600 flex items-center justify-center mt-0.5">
               <Server class="w-4 h-4 {testType.color}" />
             </div>
             <div class="flex-1 min-w-0">
-              <h4 class="font-medium text-white">{testType.display_name}</h4>
+              <div class="flex items-center gap-2 flex-wrap">
+                <h4 class="font-medium text-white">{testType.display_name}</h4>
+                
+                <span class="inline-block px-2 py-1 text-xs bg-gray-600 text-gray-300 rounded">
+                  {testType.category}
+                </span>
+                
+                {#if compatibilityInfo}
+                  <span class="inline-block px-2 py-1 text-xs rounded
+                              {compatibilityInfo.status === 'Compatible' ? 'bg-green-900/30 text-green-300' :
+                               compatibilityInfo.status === 'Conditional' ? 'bg-yellow-900/30 text-yellow-300' :
+                               'bg-red-900/30 text-red-300'}">
+                    {compatibilityInfo.status}
+                  </span>
+                {/if}
+              </div>
+              
               <p class="text-sm text-gray-400 mt-1 line-clamp-2">{testType.description}</p>
-              <span class="inline-block px-2 py-1 text-xs bg-gray-600 text-gray-300 rounded mt-1">
-                {testType.category}
-              </span>
+              
+              {#if compatibilityInfo?.reason}
+                <p class="text-xs mt-1 {getCompatibilityColor(compatibilityInfo.status)}">
+                  {compatibilityInfo.reason}
+                </p>
+              {/if}
             </div>
           </div>
         </button>

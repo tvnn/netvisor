@@ -5,6 +5,12 @@
 
   // Reactive validation
   let targetErrors: string[] = []
+
+  const protocolOptions = [
+    { value: ApplicationProtocol.Http, label: 'HTTP' },
+    { value: ApplicationProtocol.Https, label: 'HTTPS' },
+    { value: ApplicationProtocol.Ftp, label: 'FTP' }
+  ];
   
   function updateConfig(field: string, value: any) {
     target.config = {
@@ -101,8 +107,8 @@
             class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             class:border-red-500={targetErrors.includes('Protocol is required')}
           >
-            {#each Object.keys(ApplicationProtocol) as option}
-              <option value={option}>{option}</option>
+            {#each protocolOptions as option}
+              <option value={option.value}>{option.label}</option>
             {/each}
           </select>
         </div>
@@ -134,7 +140,7 @@
             type="number"
             min="1"
             max="65535"
-            placeholder="443"
+            placeholder="80"
             class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             class:border-red-500={targetErrors.includes('Port must be between 1 and 65535')}
           />
