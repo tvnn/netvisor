@@ -1,9 +1,9 @@
 use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
-use crate::components::nodes::types::{
-    base::{DetectedService, Node, NodeBase}, capabilities::NodeCapability, status::NodeStatus, targets::NodeTarget, tests::AssignedTest, topology::GraphPosition, types::NodeType
-};
+use crate::components::nodes::{capabilities::base::NodeCapability, types::{
+    base::{DetectedService, Node, NodeBase}, status::NodeStatus, targets::NodeTarget, tests::AssignedTest, topology::GraphPosition, types::NodeType
+}};
 
 #[async_trait]
 pub trait NodeStorage: Send + Sync {

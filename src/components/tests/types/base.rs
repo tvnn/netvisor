@@ -1,6 +1,18 @@
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
-use crate::components::{nodes::types::{base::Node, capabilities::NodeCapability, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}, tests::{implementations::*, types::{configs::*, execution::*}}};
+use crate::components::nodes::capabilities::base::NodeCapability;
+use crate::components::nodes::capabilities::{
+    http::*,
+    dns::*,
+    vpn::*,
+};
+use crate::components::{
+    nodes::types::{
+        base::Node, 
+        targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}, 
+    tests::{
+        implementations::*, 
+        types::{configs::*, execution::*, field_factory::{generate_dns_resolver_selection_field, generate_domain_to_resolve_field, generate_expected_ip_field, generate_transport_protocol_field}}}};
 use strum_macros::{EnumIter, EnumDiscriminants, Display};
 use crate::shared::metadata::{TypeMetadataProvider};
 use crate::shared::{schema::*};
@@ -73,7 +85,7 @@ impl Test {
         match self {
             Test::ServiceHealth(_) => {
                 let has_http_capability = context.capabilities.iter()
-                    .any(|cap| matches!(cap, NodeCapability::HttpService | NodeCapability::HttpsService));
+                    .any(|cap| matches!(cap, NodeCapability::HttpService(HttpServiceCapability {  }) | NodeCapability::HttpsService(HttpsServiceCapability {  })));
                 
                 let has_service_target = matches!(context.target, NodeTarget::Service { .. });
                 
@@ -97,7 +109,7 @@ impl Test {
             },
             
             Test::DnsResolution(_) => {
-                let has_dns_capability = context.capabilities.contains(&NodeCapability::DnsService);
+                let has_dns_capability = context.capabilities.contains(&NodeCapability::DnsService(DnsServiceCapability {  }));
                 
                 if !has_dns_capability {
                     schema.compatibility = CompatibilityStatus::Incompatible;
@@ -143,7 +155,7 @@ impl Test {
             },
             
             Test::DnsOverHttps(_) => {
-                let has_dns_capability = context.capabilities.contains(&NodeCapability::DnsService);
+                let has_dns_capability = context.capabilities.contains(&NodeCapability::DnsService(DnsServiceCapability {  }));
                 let has_service_target = matches!(context.target, NodeTarget::Service { .. });
                 
                 if !has_dns_capability {
@@ -166,7 +178,7 @@ impl Test {
             },
             
             Test::VpnTunnel(_) | Test::VpnConnectivity(_) => {
-                let has_vpn_capability = context.capabilities.contains(&NodeCapability::VpnService);
+                let has_vpn_capability = context.capabilities.contains(&NodeCapability::VpnService(VpnServiceCapability {  }));
                 
                 if !has_vpn_capability {
                     schema.compatibility = CompatibilityStatus::Incompatible;
@@ -244,134 +256,39 @@ impl Test {
             },
             
             Test::DnsResolution(_) => {
-                schema.fields.push(ConfigField {
-                    id: "domain".to_string(),
-                    label: "Domain to Resolve".to_string(),
-                    field_type: FieldType {
-                        base_type: "string".to_string(),
-                        constraints: serde_json::json!({}),
-                        options: None,
-                    },
-                    required: true,
-                    default_value: Some(serde_json::json!("google.com")),
-                    help_text: Some("Domain name to resolve using this DNS server".to_string()),
-                    placeholder: Some("example.com".to_string()),
-                    advanced: false,
-                });
-                
-                schema.fields.push(ConfigField {
-                    id: "expected_ip".to_string(),
-                    label: "Expected IP Address".to_string(),
-                    field_type: FieldType {
-                        base_type: "string".to_string(),
-                        constraints: serde_json::json!({}),
-                        options: None,
-                    },
-                    required: true,
-                    default_value: Some(serde_json::json!("8.8.8.8")),
-                    help_text: Some("IP address the domain should resolve to".to_string()),
-                    placeholder: Some("8.8.8.8".to_string()),
-                    advanced: false,
-                });
+                schema.fields.push(generate_domain_to_resolve_field("Domain name to resolve using this DNS server".to_string()));
+                schema.fields.push(generate_expected_ip_field("IP address the domain should resolve to".to_string()));
             },
             
             Test::DnsLookup(_) => {
                 // DNS Resolver Selection
-                let dns_capable_nodes: Vec<SelectOption> = available_nodes.iter()
-                    .filter(|node| node.base.capabilities.contains(&NodeCapability::DnsService))
-                    .map(|node| {
-                        let target_summary = match &node.base.target {
-                            NodeTarget::IpAddress(IpAddressTargetConfig{ ip, .. }) => ip.to_string(),
-                            NodeTarget::Service(ServiceTargetConfig{ hostname, .. })=> hostname.clone(),
-                            NodeTarget::Hostname(HostnameTargetConfig{ hostname, .. }) => hostname.clone(),
-                        };
-                        
-                        SelectOption {
-                            value: node.id.clone(),
-                            label: node.base.name.clone(),
-                            description: Some(format!("{} - {}", 
-                                node.base.node_type.display_name(),
-                                target_summary
-                            )),
-                            disabled: false,
-                        }
-                    })
-                    .collect();
-                
-                if dns_capable_nodes.is_empty() {
-                    schema.warnings.push(ValidationMessage {
-                        message: "No DNS servers available. Create a node with DNS Service capability first.".to_string(),
-                        field_id: Some("dns_resolver".to_string()),
-                        severity: MessageSeverity::Warning,
-                    });
+                let (validation_message, dns_resolver_field) = generate_dns_resolver_selection_field(available_nodes);
+
+                match validation_message {
+                    Some(message) => schema.warnings.push(message),
+                    _ => ()
                 }
-                
-                schema.fields.push(ConfigField {
-                    id: "dns_resolver".to_string(),
-                    label: "DNS Server".to_string(),
-                    field_type: FieldType {
-                        base_type: "node_selector".to_string(),
-                        constraints: serde_json::json!({
-                            "filter_capabilities": ["DnsService"]
-                        }),
-                        options: Some(dns_capable_nodes),
-                    },
-                    required: true,
-                    default_value: None,
-                    help_text: Some("DNS server to use for resolving this node's domain".to_string()),
-                    placeholder: None,
-                    advanced: false,
-                });
-                
-                schema.fields.push(ConfigField {
-                    id: "expected_ip".to_string(),
-                    label: "Expected IP Address".to_string(),
-                    field_type: FieldType {
-                        base_type: "string".to_string(),
-                        constraints: serde_json::json!({}),
-                        options: None,
-                    },
-                    required: true,
-                    default_value: None,
-                    help_text: Some("IP address this node's domain should resolve to".to_string()),
-                    placeholder: Some("192.168.1.100".to_string()),
-                    advanced: false,
-                });
+
+                schema.fields.push(dns_resolver_field);
+                schema.fields.push(generate_expected_ip_field("IP address this node's domain should resolve to".to_string()));
             },
             
             Test::DnsOverHttps(_) => {
-                schema.fields.push(ConfigField {
-                    id: "domain".to_string(),
-                    label: "Domain to Resolve".to_string(),
-                    field_type: FieldType {
-                        base_type: "string".to_string(),
-                        constraints: serde_json::json!({}),
-                        options: None,
-                    },
-                    required: true,
-                    default_value: Some(serde_json::json!("google.com")),
-                    help_text: Some("Domain name to resolve using DNS over HTTPS".to_string()),
-                    placeholder: Some("example.com".to_string()),
-                    advanced: false,
-                });
-                
-                schema.fields.push(ConfigField {
-                    id: "expected_ip".to_string(),
-                    label: "Expected IP Address".to_string(),
-                    field_type: FieldType {
-                        base_type: "string".to_string(),
-                        constraints: serde_json::json!({}),
-                        options: None,
-                    },
-                    required: true,
-                    default_value: Some(serde_json::json!("8.8.8.8")),
-                    help_text: Some("IP address the domain should resolve to".to_string()),
-                    placeholder: Some("8.8.8.8".to_string()),
-                    advanced: false,
-                });
+                schema.fields.push(generate_domain_to_resolve_field("Domain name to resolve using DNS over HTTPS".to_string()));
+                schema.fields.push(generate_expected_ip_field("IP address the domain should resolve to".to_string()));
             },
             
             Test::ReverseDns(_) => {
+
+                let (validation_message, dns_resolver_field) = generate_dns_resolver_selection_field(available_nodes);
+
+                match validation_message {
+                    Some(message) => schema.warnings.push(message),
+                    _ => ()
+                }
+
+                schema.fields.push(dns_resolver_field);
+
                 schema.fields.push(ConfigField {
                     id: "expected_domain".to_string(),
                     label: "Expected Domain".to_string(),
@@ -418,64 +335,12 @@ impl Test {
                 }
                 
                 // Protocol selection
-                schema.fields.push(ConfigField {
-                    id: "protocol".to_string(),
-                    label: "Protocol".to_string(),
-                    field_type: FieldType {
-                        base_type: "select".to_string(),
-                        constraints: serde_json::json!({}),
-                        options: Some(vec![
-                            SelectOption {
-                                value: "tcp".to_string(),
-                                label: "TCP".to_string(),
-                                description: Some("Transmission Control Protocol".to_string()),
-                                disabled: false,
-                            },
-                            SelectOption {
-                                value: "udp".to_string(),
-                                label: "UDP".to_string(),
-                                description: Some("User Datagram Protocol".to_string()),
-                                disabled: false,
-                            },
-                        ]),
-                    },
-                    required: false,
-                    default_value: Some(serde_json::json!("tcp")),
-                    help_text: Some("Network protocol to use for connectivity test".to_string()),
-                    placeholder: None,
-                    advanced: false,
-                });
+                schema.fields.push(generate_transport_protocol_field("Network protocol to use for connectivity test".to_string()));
             },
             
             Test::DirectIp(_) => {
                 // Protocol selection (same as connectivity)
-                schema.fields.push(ConfigField {
-                    id: "protocol".to_string(),
-                    label: "Protocol".to_string(),
-                    field_type: FieldType {
-                        base_type: "select".to_string(),
-                        constraints: serde_json::json!({}),
-                        options: Some(vec![
-                            SelectOption {
-                                value: "tcp".to_string(),
-                                label: "TCP".to_string(),
-                                description: Some("Transmission Control Protocol".to_string()),
-                                disabled: false,
-                            },
-                            SelectOption {
-                                value: "udp".to_string(),
-                                label: "UDP".to_string(),
-                                description: Some("User Datagram Protocol".to_string()),
-                                disabled: false,
-                            },
-                        ]),
-                    },
-                    required: false,
-                    default_value: Some(serde_json::json!("tcp")),
-                    help_text: Some("Network protocol to use for direct IP test".to_string()),
-                    placeholder: None,
-                    advanced: false,
-                });
+                schema.fields.push(generate_transport_protocol_field("Network protocol to use for direct IP test".to_string()));
             },
             
             Test::Ping(_) => {

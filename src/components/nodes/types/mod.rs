@@ -4,6 +4,5 @@ pub mod tests;
 pub mod types;
 pub mod topology;
 pub mod targets;
-pub mod capabilities;
 pub mod criticality;
 pub mod status;

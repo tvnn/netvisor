@@ -10,9 +10,8 @@ use crate::{
         ApiError, ApiResponse, ApiResult
     },
     components::nodes::{
-            service::NodeService,
-            types::{
-                api::{CompatibilityResponse, CreateNodeRequest, NodeListResponse, NodeResponse, UpdateNodeRequest}, base::Node, capabilities::NodeCapability, types::NodeType
+            capabilities::base::NodeCapability, service::NodeService, types::{
+                api::{CompatibilityResponse, CreateNodeRequest, NodeListResponse, NodeResponse, UpdateNodeRequest}, base::Node, types::NodeType
             }
         },
     AppState,

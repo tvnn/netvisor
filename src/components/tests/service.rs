@@ -1,5 +1,5 @@
 use crate::components::{
-        nodes::types::{base::Node, tests::AssignedTest}, tests::types::{base::Test, execution::{TestResult, Timer}}
+        nodes::types::{base::Node, tests::AssignedTest}, tests::types::{execution::{TestResult, Timer}}
     };
 
 pub struct TestService {}
@@ -9,15 +9,15 @@ impl TestService {
         Self {}
     }
 
-    pub async fn execute_test(&self, test: &Test, node: &Node) -> TestResult {
-        let timer = Timer::now();
-        let test_result = test.execute(&timer, &node).await;
+    // pub async fn execute_test(&self, test: &Test, node: &Node) -> TestResult {
+    //     let timer = Timer::now();
+    //     let test_result = test.execute(&timer, &node).await;
 
-        match test_result {
-            Ok(result) => result,
-            Err(e) => TestResult::error_result(e, None, timer)
-        }
-    }
+    //     match test_result {
+    //         Ok(result) => result,
+    //         Err(e) => TestResult::error_result(e, None, timer)
+    //     }
+    // }
 
     pub async fn execute_assigned_test(&self, assigned_test: &AssignedTest, node: &Node) -> TestResult {
 

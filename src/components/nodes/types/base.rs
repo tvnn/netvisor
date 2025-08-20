@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::components::{nodes::types::{capabilities::NodeCapability, criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}, tests::types::execution::TestResult};
+use crate::components::{nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}}, tests::types::execution::TestResult};
 use crate::shared::types::ApplicationProtocol;
 use super::{
     types::{NodeType},
@@ -120,6 +120,25 @@ impl Node {
         };
         
         self.base.current_status = new_status;
+    }
+
+    pub fn as_dns_capability(&self) -> Option<CapabilityWithNode<DnsServiceCapability>> {
+        self.base.capabilities.iter()
+            .find_map(|cap| match cap {
+                NodeCapability::DnsService(capability) => Some(CapabilityWithNode::new(capability, self)),
+                _ => None,
+            })
+    }
+}
+
+pub struct CapabilityWithNode<'a, T> {
+    pub capability: &'a T,
+    pub node: &'a Node,
+}
+
+impl<'a, T> CapabilityWithNode<'a, T> {
+    pub fn new(capability: &'a T, node: &'a Node) -> Self {
+        Self { capability, node }
     }
 }
 

@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
-use crate::{components::nodes::types::capabilities::NodeCapability, shared::metadata::TypeMetadataProvider};
+use crate::{components::nodes::capabilities::{
+    base::NodeCapability, dhcp::*, dns::*, http::*, ssh::SshAccessCapability, vpn::*
+}, shared::metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
 pub enum NodeType {
@@ -30,58 +32,58 @@ impl NodeType {
     pub fn typical_capabilities(&self) -> Vec<NodeCapability> {
         match self {
             NodeType::VpnServer => vec![
-                NodeCapability::VpnService,
-                NodeCapability::SshAccess,
-                NodeCapability::HttpService,
+                NodeCapability::VpnService(VpnServiceCapability {  }),
+                NodeCapability::SshAccess(SshAccessCapability {  }),
+                NodeCapability::HttpService(HttpServiceCapability {  }),
             ],
             NodeType::Router => vec![
-                NodeCapability::HttpService,
-                NodeCapability::SshAccess,
-                NodeCapability::DhcpService,
+                NodeCapability::HttpService(HttpServiceCapability {  }),
+                NodeCapability::SshAccess(SshAccessCapability {  }),
+                NodeCapability::DhcpService(DhcpServiceCapability {  }),
             ],
             NodeType::Switch => vec![
-                NodeCapability::HttpService,
-                NodeCapability::SshAccess,
+                NodeCapability::HttpService(HttpServiceCapability {  }),
+                NodeCapability::SshAccess(SshAccessCapability {  }),
             ],
             NodeType::AccessPoint => vec![
-                NodeCapability::HttpService,
-                NodeCapability::SshAccess,
+                NodeCapability::HttpService(HttpServiceCapability {  }),
+                NodeCapability::SshAccess(SshAccessCapability {  }),
             ],
             NodeType::Firewall => vec![
-                NodeCapability::HttpService,
-                NodeCapability::SshAccess,
+                NodeCapability::HttpService(HttpServiceCapability {  }),
+                NodeCapability::SshAccess(SshAccessCapability {  }),
             ],
             NodeType::DnsServer => vec![
-                NodeCapability::DnsService,
-                NodeCapability::SshAccess,
+                NodeCapability::DnsService(DnsServiceCapability {  }),
+                NodeCapability::SshAccess(SshAccessCapability {  }),
             ],
             NodeType::WebServer => vec![
-                NodeCapability::HttpService,
-                NodeCapability::HttpsService,
-                NodeCapability::SshAccess,
+                NodeCapability::HttpService(HttpServiceCapability {  }),
+                NodeCapability::HttpsService(HttpsServiceCapability {  }),
+                NodeCapability::SshAccess(SshAccessCapability {  }),
             ],
             NodeType::DatabaseServer => vec![
-                NodeCapability::SshAccess,
+                NodeCapability::SshAccess(SshAccessCapability {  }),
             ],
             NodeType::MediaServer => vec![
-                NodeCapability::HttpService,
-                NodeCapability::SshAccess,
+                NodeCapability::HttpService(HttpServiceCapability {  }),
+                NodeCapability::SshAccess(SshAccessCapability {  }),
             ],
             NodeType::NasDevice => vec![
-                NodeCapability::SshAccess,
-                NodeCapability::HttpService,
+                NodeCapability::SshAccess(SshAccessCapability {  }),
+                NodeCapability::HttpService(HttpServiceCapability {  }),
             ],
             NodeType::Workstation => vec![
-                NodeCapability::SshAccess,
+                NodeCapability::SshAccess(SshAccessCapability {  }),
             ],
             NodeType::IotDevice => vec![
-                NodeCapability::HttpService,
+                NodeCapability::HttpService(HttpServiceCapability {  }),
             ],
             NodeType::Printer => vec![
-                NodeCapability::HttpService,
+                NodeCapability::HttpService(HttpServiceCapability {  }),
             ],
             NodeType::Camera => vec![
-                NodeCapability::HttpService,
+                NodeCapability::HttpService(HttpServiceCapability {  }),
             ],
             NodeType::UnknownDevice => vec![],
         }

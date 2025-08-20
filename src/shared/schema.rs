@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::components::nodes::types::capabilities::NodeCapability;
+use crate::components::nodes::capabilities::base::NodeCapability;
 use crate::components::nodes::types::types::NodeType;
 use crate::shared::metadata::TypeMetadata;
 use crate::components::{
