@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { type NodeTarget, ApplicationProtocol } from "$lib/types/nodes";
-  import { validateTarget } from "$lib/config/nodes/targets";
+  import { type NodeTarget, ApplicationProtocol, validateTarget } from "$lib/types/nodes";
   
   export let target: NodeTarget;
 
   // Reactive validation
-  $: targetErrors = validateTarget(target);
+  let targetErrors: string[] = []
   
   function updateConfig(field: string, value: any) {
     target.config = {
@@ -17,7 +16,7 @@
 </script>
 
 <div class="space-y-4">
-  {#if target.type === 'Ipv4Address'}
+  {#if target.type === 'IpAddress'}
     <!-- IPv4 Address Configuration -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="md:col-span-2">
@@ -41,41 +40,6 @@
         </label>
         <input
           id="ipv4_port"
-          bind:value={target.config.port}
-          type="number"
-          min="1"
-          max="65535"
-          placeholder="80"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          class:border-red-500={targetErrors.includes('Port must be between 1 and 65535')}
-        />
-      </div>
-    </div>
-
-  {:else if target.type === 'Ipv6Address'}
-    <!-- IPv6 Address Configuration -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="md:col-span-2">
-        <label for="ipv6_address" class="block text-sm font-medium text-gray-300 mb-1">
-          IPv6 Address *
-        </label>
-        <input
-          id="ipv6_address"
-          bind:value={target.config.ip}
-          type="text"
-          required
-          placeholder="2001:db8::1"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          class:border-red-500={targetErrors.includes('IP address is required')}
-        />
-      </div>
-      
-      <div>
-        <label for="ipv6_port" class="block text-sm font-medium text-gray-300 mb-1">
-          Port
-        </label>
-        <input
-          id="ipv6_port"
           bind:value={target.config.port}
           type="number"
           min="1"

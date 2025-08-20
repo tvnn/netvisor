@@ -3,7 +3,6 @@
   import GenericEditModal from '../common/EditModal.svelte';
   import ListManager from '../common/ListManager.svelte';
   import type { NodeGroupApi, NodeGroup, NodeGroupFormData } from '$lib/types/node-groups'
-	import { getNodeTargetString } from '$lib/config/nodes/targets';
   
   export let group: NodeGroup | null = null;
   export let isOpen = false;

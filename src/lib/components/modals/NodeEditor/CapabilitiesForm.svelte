@@ -1,20 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import type { NodeCapability, NodeType } from "$lib/types/nodes";
-  import {
-    getAllCapabilities,
-    getCapabilityDisplay,
-    getCapabilityDescription,
-  } from "$lib/config/nodes/capabilities";
   import { nodeActions } from '$lib/stores/nodes';
-	import { getNodeTypeDisplay } from '$lib/config/nodes/types';
+  import { capabilities as allCapabilities, getCapabilityDescription, getCapabilityDisplay, getNodeTypeDisplay } from '$lib/api/registry';
   
-  export let capabilities: NodeCapability[];
-  export let nodeType: NodeType;
+  export let selectedCapabilities: string[];
+  export let nodeType: string;
   export let nodeId: string | undefined = undefined;
-  export let preloadedRecommendations: NodeCapability[];
+  export let preloadedRecommendations: string[];
   
-  let recommendations: NodeCapability[];
+  let recommendations: string[];
   let loading = false;
 
   // Fetch recommendations from backend
@@ -31,8 +25,8 @@
         recommendations = response.recommendations;
         
         // Auto-apply suggested capabilities if none are currently selected
-        if (capabilities.length === 0 && response.recommendations.length > 0) {
-          capabilities = [...response.recommendations];
+        if (selectedCapabilities.length === 0 && response.recommendations.length > 0) {
+          selectedCapabilities = [...response.recommendations];
         }
       }
     } catch (error) {
@@ -42,26 +36,26 @@
     }
   }
   
-  function handleCapabilityToggle(capability: NodeCapability) {
-    if (capabilities.includes(capability)) {
-      capabilities = capabilities.filter(c => c !== capability);
+  function handleCapabilityToggle(capability: string) {
+    if (selectedCapabilities.includes(capability)) {
+      selectedCapabilities = selectedCapabilities.filter(c => c !== capability);
     } else {
-      capabilities = [...capabilities, capability];
+      selectedCapabilities = [...selectedCapabilities, capability];
     }
   }
   
   function applySuggested() {
     if (recommendations && recommendations.length > 0) {
-      capabilities = [...recommendations];
+      selectedCapabilities = [...recommendations];
     }
   }
   
   // Auto-apply suggestions when they change (for node type changes)
-  let lastSuggestions: NodeCapability[] = [];
+  let lastSuggestions: string[] = [];
   $: if (recommendations && JSON.stringify(recommendations) !== JSON.stringify(lastSuggestions)) {
     // Only auto-apply if user hasn't made manual selections or if capabilities are empty
-    if (capabilities.length === 0 || capabilities.every(cap => lastSuggestions.includes(cap))) {
-      capabilities = [...recommendations];
+    if (selectedCapabilities.length === 0 || selectedCapabilities.every(cap => lastSuggestions.includes(cap))) {
+      selectedCapabilities = [...recommendations];
     }
     lastSuggestions = [...recommendations];
   }
@@ -88,7 +82,7 @@
   // Computed values
   $: suggestedCapabilities = recommendations || [];
   $: otherCapabilities = recommendations 
-    ? getAllCapabilities().filter(cap => !suggestedCapabilities.includes(cap))
+    ? $allCapabilities.filter(cap => !suggestedCapabilities.includes(cap.id))
     : [];
 </script>
 
@@ -126,23 +120,23 @@
         <div>
           <h4 class="text-sm font-medium text-blue-300 mb-3 flex items-center gap-2">
             <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
-            Suggested for {getNodeTypeDisplay(nodeType)}
+            Suggested for {$getNodeTypeDisplay(nodeType)}
           </h4>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             {#each suggestedCapabilities as capability}
               <label class="flex items-start space-x-3 cursor-pointer p-3 bg-blue-900/10 border border-blue-800/30 rounded-lg hover:bg-blue-900/20 transition-colors">
                 <input
                   type="checkbox"
-                  checked={capabilities.includes(capability)}
+                  checked={selectedCapabilities.includes(capability)}
                   on:change={() => handleCapabilityToggle(capability)}
                   class="mt-0.5 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
                 />
                 <div class="flex-1 min-w-0">
                   <div class="text-sm font-medium text-blue-300">
-                    {getCapabilityDisplay(capability)}
+                    {$getCapabilityDisplay(capability)}
                   </div>
                   <div class="text-xs text-gray-400 mt-1">
-                    {getCapabilityDescription(capability)}
+                    {$getCapabilityDescription(capability)}
                   </div>
                 </div>
               </label>
@@ -163,16 +157,16 @@
               <label class="flex items-start space-x-3 cursor-pointer p-3 bg-gray-700/20 border border-gray-600 rounded-lg hover:bg-gray-700/30 transition-colors">
                 <input
                   type="checkbox"
-                  checked={capabilities.includes(capability)}
-                  on:change={() => handleCapabilityToggle(capability)}
+                  checked={selectedCapabilities.includes(capability.id)}
+                  on:change={() => handleCapabilityToggle(capability.id)}
                   class="mt-0.5 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
                 />
                 <div class="flex-1 min-w-0">
                   <div class="text-sm font-medium text-gray-300">
-                    {getCapabilityDisplay(capability)}
+                    {$getCapabilityDisplay(capability.id)}
                   </div>
                   <div class="text-xs text-gray-400 mt-1">
-                    {getCapabilityDescription(capability)}
+                    {$getCapabilityDescription(capability.id)}
                   </div>
                 </div>
               </label>
@@ -193,16 +187,16 @@
   
   <!-- Summary -->
   <div class="pt-4 border-t border-gray-600">
-    {#if capabilities.length === 0}
+    {#if selectedCapabilities.length === 0}
       <p class="text-sm text-yellow-400">
         ⚠️ No capabilities selected. Consider selecting at least SSH Access for remote management.
       </p>
     {:else}
       <p class="text-sm text-gray-400">
-        <span class="font-medium text-white">{capabilities.length}</span> 
-        capabilit{capabilities.length === 1 ? 'y' : 'ies'} selected
+        <span class="font-medium text-white">{selectedCapabilities.length}</span> 
+        capabilit{selectedCapabilities.length === 1 ? 'y' : 'ies'} selected
         {#if suggestedCapabilities.length > 0}
-          • <span class="text-blue-400">{suggestedCapabilities.filter(cap => capabilities.includes(cap)).length} of {suggestedCapabilities.length} suggested</span>
+          • <span class="text-blue-400">{suggestedCapabilities.filter(cap => selectedCapabilities.includes(cap)).length} of {suggestedCapabilities.length} suggested</span>
         {/if}
       </p>
     {/if}

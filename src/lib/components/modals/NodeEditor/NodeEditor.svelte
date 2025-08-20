@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { NodeFormData, Node, AssignedTest, NodeCapability } from "$lib/types/nodes";
+  import type { Node, AssignedTest } from "$lib/types/nodes";
   import { createEmptyNodeFormData, nodeToFormData, formDataToNodeApi } from "$lib/types/nodes";
   import { nodeActions } from '$lib/stores/nodes';
   import EditModal from '../../common/EditModal.svelte'
@@ -7,7 +7,6 @@
   import CapabilitiesForm from './CapabilitiesForm.svelte';
   import TestsForm from './TestsForm.svelte';
   import TestConfigPanel from './TestConfigPanel.svelte';
-	import { validateTarget } from "$lib/config/nodes/targets";
   
   export let node: Node | null = null;
   export let isOpen = false;
@@ -98,11 +97,11 @@
     }
   }
   
-  function handleTestEdit(test: AssignedTest, index: number) {
-    editingTest = { ...test };
+  function handleTestEdit(assigned: AssignedTest, index: number) {
+    editingTest = { ...assigned };
     editingTestIndex = index;
   }
-  
+
   function handleTestCancel() {
     editingTest = null;
     editingTestIndex = -1;
@@ -127,7 +126,7 @@
   }
   
   // Capability recommendations cache
-  let capabilityRecommendations: NodeCapability[] = [];
+  let capabilityRecommendations: string[] = [];
   
   // Auto-load capability recommendations when node type changes
   let lastNodeType = formData.node_type;
@@ -226,7 +225,7 @@
       <!-- Capabilities Tab -->
       <div class="space-y-6">
         <CapabilitiesForm 
-          bind:capabilities={formData.capabilities}
+          bind:selectedCapabilities={formData.capabilities}
           nodeType={formData.node_type || 'UnknownDevice'}
           nodeId={node?.id}
           preloadedRecommendations={capabilityRecommendations}
@@ -236,52 +235,30 @@
     {:else if activeTab === 'tests'}
       <!-- Tests Tab -->
       <div class="space-y-6">
-        <!-- Monitoring Status Display -->
-        <div class="p-4 bg-gray-700/20 border border-gray-600 rounded-lg">
-          <div class="flex items-start space-x-3">
-            <div class="flex-1">
-              <h4 class="text-sm font-medium text-white">
-                Monitoring Status
-              </h4>
-              <p class="text-sm text-gray-400 mt-1">
-                {#if formData.monitoring_interval > 0}
-                  ✅ Monitoring enabled: tests run every {formData.monitoring_interval} minutes
-                {:else}
-                  ⚠️ Monitoring disabled: tests run only during diagnostics
-                {/if}
-              </p>
-              <p class="text-xs text-gray-500 mt-1">
-                Configure monitoring interval in the Details tab.
-              </p>
-            </div>
-          </div>
+        <div>
+          <label for="monitoring_interval" class="block text-sm font-medium text-gray-300 mb-1">
+            Monitoring Interval (minutes)
+          </label>
+          <input
+            id="monitoring_interval"
+            name="monitoring_interval"
+            bind:value={formData.monitoring_interval}
+            type="number"
+            min="0"
+            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="10"
+          />
+          <p class="text-xs text-gray-400 mt-1">
+            Set to 0 to disable monitoring, or specify interval in minutes.
+          </p>
         </div>
-
         <!-- Tests List and Editor -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div class="space-y-4">
             <TestsForm 
               bind:tests={formData.assigned_tests}
-              editingIndex={editingTestIndex}
-              onEditTest={handleTestEdit}
-              onCreateTest={() => {
-                editingTest = null;
-                editingTestIndex = -1;
-              }}
+              node={formData}
             />
           </div>
-          
-          <div class="space-y-4">
-            {#if editingTest !== null || editingTestIndex === -1}
-              <TestConfigPanel 
-                test={editingTest}
-                node={formData}
-                onCancel={handleTestCancel}
-                onChange={editingTest ? handleTestChange : handleTestCreate}
-              />
-            {/if}
-          </div>
-        </div>
       </div>
     {/if}
   </div>

@@ -1,7 +1,6 @@
 <script lang="ts">
-  import type { NodeType, NodeFormData, NodeTargetType, NodeTarget } from "$lib/types/nodes";
-  import { getNodeTypeDisplay, getNodeTypes } from "$lib/config/nodes/types";
-  import { getNodeTargetTypes, getNodeTargetTypeDisplayName, getNodeTargetTypeDescription, getNodeTargetTypeDefaultConfig } from "$lib/config/nodes/targets";
+	import { getNodeTarget, getNodeTypeDisplay, nodeTargets, nodeTypes } from "$lib/api/registry";
+  import type { NodeFormData, NodeTarget } from "$lib/types/nodes";
   import TargetConfigForm from './TargetConfigForm.svelte';
   
   export let formData: NodeFormData;
@@ -11,21 +10,21 @@
   let selectedNodeTypeValue = !isEditing && formData.node_type == 'UnknownDevice' ? "" : formData.node_type;
 
   $: if (selectedNodeTypeValue !== '') {
-    formData.node_type = selectedNodeTypeValue as NodeType;
+    formData.node_type = selectedNodeTypeValue
   }
   
-  const nodeTypeSelectOptions = getNodeTypes().map(t => {return {value:t, label: getNodeTypeDisplay(t)}});
-  const targetTypes = getNodeTargetTypes();
+  const nodeTypeSelectOptions = $nodeTypes.map(t => {return {value:t.id, label: t.display_name}});
+  const nodeTargetTypeRadioOptions = $nodeTargets
 
   $: selectOptions = isEditing 
     ? nodeTypeSelectOptions  
     : [{ value: '', label: 'Please select...' }, ...nodeTypeSelectOptions];
 
   // Handle target type changes
-  function handleTargetTypeChange(newTargetType: NodeTargetType) {
+  function handleTargetTypeChange(newTargetType: string) {
     formData.target = {
       type: newTargetType,
-      config: getNodeTargetTypeDefaultConfig(newTargetType)
+      config: $getNodeTarget(newTargetType)?.metadata['default_config'],
     } as NodeTarget;
   }
 
@@ -74,6 +73,21 @@
       {/if}
     </div>
   </div>
+
+    <!-- Description -->
+  <div>
+    <label for="description" class="block text-sm font-medium text-gray-300 mb-1">
+      Description
+    </label>
+    <textarea
+      id="description"
+      name="description"
+      bind:value={formData.description}
+      rows="3"
+      placeholder="Optional description..."
+      class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+    ></textarea>
+  </div>
   
   <!-- Target Configuration Section -->
   <div class="space-y-4">
@@ -90,22 +104,22 @@
         Connection Method
       </label>
       <div class="space-y-2">
-        {#each targetTypes as targetType}
+        {#each nodeTargetTypeRadioOptions as targetType}
           <label class="flex items-start space-x-3 p-3 bg-gray-700/30 border border-gray-600 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors">
             <input
               type="radio"
               name="target_type"
               value={targetType}
-              checked={formData.target.type === targetType}
-              on:change={() => handleTargetTypeChange(targetType)}
+              checked={formData.target.type === targetType.id}
+              on:change={() => handleTargetTypeChange(targetType.id)}
               class="mt-1 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500"
             />
             <div class="flex-1">
               <div class="text-sm font-medium text-white">
-                {getNodeTargetTypeDisplayName(targetType)}
+                {targetType.display_name}
               </div>
               <div class="text-xs text-gray-400 mt-1">
-                {getNodeTargetTypeDescription(targetType)}
+                {targetType.display_name}
               </div>
             </div>
           </label>
@@ -117,43 +131,5 @@
     <TargetConfigForm 
       bind:target={formData.target}
     />
-  </div>
-  
-  <!-- Description -->
-  <div>
-    <label for="description" class="block text-sm font-medium text-gray-300 mb-1">
-      Description
-    </label>
-    <textarea
-      id="description"
-      name="description"
-      bind:value={formData.description}
-      rows="3"
-      placeholder="Optional description..."
-      class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-    ></textarea>
-  </div>
-
-  <!-- Monitoring Configuration -->
-  <div class="space-y-4">
-    <h4 class="text-base font-medium text-white">Monitoring Configuration</h4>
-    
-    <div>
-      <label for="monitoring_interval" class="block text-sm font-medium text-gray-300 mb-1">
-        Monitoring Interval (minutes)
-      </label>
-      <input
-        id="monitoring_interval"
-        name="monitoring_interval"
-        bind:value={formData.monitoring_interval}
-        type="number"
-        min="0"
-        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="10"
-      />
-      <p class="text-xs text-gray-400 mt-1">
-        Set to 0 to disable monitoring, or specify interval in minutes. Critical infrastructure should be monitored every 5 minutes.
-      </p>
-    </div>
   </div>
 </div>

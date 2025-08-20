@@ -1,6 +1,4 @@
-import type { NodeStatus } from "./nodes";
-import type { TestConfiguration, TestResult } from "./tests";
-import type { TestType } from "$lib/config/tests/types";
+import type { TestResult } from "./tests";
 
 
 export interface DiagnosticExecution {
@@ -17,10 +15,12 @@ export interface DiagnosticExecution {
 export interface NodeTestResults {
   node_id: string;
   test_results: TestResult[];
-  node_status: NodeStatus;
+  node_status: string;
 }
 
-export type DiagnosticStatus = 'Success' | 'PartialFail' | 'Failed' | 'InProgress';export interface Remediation {
+export type DiagnosticStatus = 'Success' | 'PartialFail' | 'Failed' | 'InProgress';
+
+export interface Remediation {
   id: string;
   title: string;
   description: string;
@@ -40,8 +40,8 @@ export type RemediationStep = {
   ServerAction: {
     description: string;
     target_node_id: string;
-    test_type: TestType;
-    test_config: TestConfiguration;
+    test_type: string;
+    test_config: string;
   };
 };
 

@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
-import type { Node, NodeApi, NodeFormData, NodeType } from "$lib/types/nodes";
-import { api } from '../api-client';
+import type { Node, NodeApi } from "$lib/types/nodes";
+import { api } from '../api/client';
 
 export const nodes = writable<Node[]>([]);
 export const loading = writable(false);
@@ -110,7 +110,7 @@ export const nodeActions = {
     }
   },
 
-  async getCapabilityCompatibility(nodeType: NodeType) {
+  async getCapabilityCompatibility(nodeType: string) {
     try {
       const response = await api.getCapabilityCompatibility(nodeType);
       if (response.success && response.data) {

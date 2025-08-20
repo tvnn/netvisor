@@ -17,7 +17,7 @@
   <div class="flex justify-between items-start mb-4">
     <div class="flex items-center space-x-3">
       {#if icon}
-        <svelte:component this={icon} size={24} class={iconColor} />
+        <!-- <svelte:component this={icon} size={24} class={iconColor} /> -->
       {/if}
       <div>
         <h3 class="text-lg font-semibold text-white">{title}</h3>

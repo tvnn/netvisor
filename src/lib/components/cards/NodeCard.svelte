@@ -1,13 +1,9 @@
 <script lang="ts">
-  import { Edit, Trash2, Server, CircleAlert, TriangleAlert, OctagonAlert } from 'lucide-svelte';
-  import type { Node } from "$lib/types/nodes";
-  import { getNodeStatusDisplayName, getNodeStatusColor } from "$lib/config/nodes/status";
-  import { getNodeTypeDisplay, getNodeTypeIcon } from "$lib/config/nodes/types";
-  import { getTestDisplay } from "$lib/config/tests/types";
+  import { Edit, Trash2 } from 'lucide-svelte';
+  import { getNodeTargetString, type Node } from "$lib/types/nodes";
   import GenericCard from '../common/Card.svelte';
-	import { getCriticalityBgColor, getCriticalityColor } from '$lib/config/nodes/criticality';
-	import { getCapabilityDisplay } from '$lib/config/nodes/capabilities';
-	import { getNodeTargetString } from '$lib/config/nodes/targets';
+	import { getCapabilityDisplay, getCriticalityColor, getNodeStatusColor, getNodeStatusDisplay, getNodeTypeDisplay, getNodeTypeIcon, getTestDisplay } from '$lib/api/registry';
+	import { getBgColor } from '../common/colors';
   
   export let node: Node;
   export let groupInfo: any[] = [];
@@ -19,7 +15,7 @@
     if (node.monitoring_interval == 0) {
       return 'Monitoring Disabled';
     }
-    return getNodeStatusDisplayName(node.current_status);
+    return $getNodeStatusDisplay(node.current_status);
   }
   
   // Get the status color - gray for monitoring disabled, otherwise node status color
@@ -27,7 +23,7 @@
     if (node.monitoring_interval == 0) {
       return 'text-gray-400';
     }
-    return getNodeStatusColor(node.current_status);
+    return $getNodeStatusColor(node.current_status);
   }
   
   // Build connection info
@@ -36,10 +32,10 @@
   // Build card data
   $: cardData = {
     title: node.name,
-    subtitle: getNodeTypeDisplay(node.node_type),
+    subtitle: $getNodeTypeDisplay(node.node_type),
     status: getDisplayStatus(),
     statusColor: getDisplayStatusColor(),
-    icon: getNodeTypeIcon(node.node_type),
+    icon: $getNodeTypeIcon(node.node_type),
     iconColor: 'text-blue-400',
     
     sections: connectionInfo ? [{
@@ -52,7 +48,7 @@
         label: 'Capabilities',
         items: node.capabilities.map(cap => ({
           id: cap,
-          label: getCapabilityDisplay(cap),
+          label: $getCapabilityDisplay(cap),
           bgColor: 'bg-purple-900/30',
           color: 'text-purple-300'
         })),
@@ -63,10 +59,10 @@
         items: node.assigned_tests.map((assigned,i) => {
           return {
             id: assigned.test.type,
-            label: `${i + 1}. ${getTestDisplay(assigned.test.type)}`,
+            label: `${i + 1}. ${$getTestDisplay(assigned.test.type)}`,
             disabled: (node.monitoring_interval == 0),
-            bgColor:  getCriticalityBgColor(assigned.criticality),
-            color: getCriticalityColor(assigned.criticality),
+            bgColor:  getBgColor( $getCriticalityColor(assigned.criticality) ),
+            color: getBgColor( $getCriticalityColor(assigned.criticality) ),
             badgeColor: 'text-gray-500',
             metadata: assigned
           };

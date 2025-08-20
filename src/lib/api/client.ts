@@ -1,7 +1,5 @@
-import type { NodeGroupApi, NodeGroup } from "./types/node-groups";
-import type { NodeApi, Node, NodeType } from "./types/nodes";
-import type { NodeCapability } from "./types/nodes";
-import type { Test } from "./types/tests";
+import type { NodeGroupApi, NodeGroup } from "../types/node-groups";
+import type { NodeApi, Node } from "../types/nodes";
 
 // API client for NetFrog backend
 const API_BASE = 'http://localhost:3000/api';
@@ -31,15 +29,9 @@ interface NodeGroupResponse {
 }
 
 interface CapabilityCompatibilityResponse {
-  recommendations: NodeCapability[];
-  warnings: NodeCapability[];
+  recommendations: string[];
+  warnings: string[];
 }
-
-interface TestCompatibilityResponse {
-  recommendations: Test[];
-  warnings: Test[];
-}
-
 
 class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
@@ -105,12 +97,8 @@ class ApiClient {
     });
   }
 
-  async getCapabilityCompatibility(nodeType: NodeType) {
-    return this.request<CapabilityCompatibilityResponse>(`/nodes/capability-compatibility?node_type=${nodeType}`);
-  }
-
-  async getTestCompatibility(id: string) {
-    return this.request<TestCompatibilityResponse>(`/nodes/${id}/test-compatibility`);
+  async getCapabilityCompatibility(nodeType: string) {
+    return this.request<CapabilityCompatibilityResponse>(`/nodes/capability-compatibility?node_type=${nodeType.toString()}`);
   }
 
   // Node group operations

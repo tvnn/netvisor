@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import { api } from '../api-client';
+import { api } from '../api/client';
 import type { NodeGroup } from '$lib/types/node-groups'
 
 export const nodeGroups = writable<NodeGroup[]>([]);

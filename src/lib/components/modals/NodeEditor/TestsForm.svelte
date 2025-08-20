@@ -1,94 +1,125 @@
 <script lang="ts">
-  import type { AssignedTest } from "$lib/types/nodes";
-  import { getTestDisplay } from "$lib/config/tests/types";
-  import { getCriticalityDisplay, getCriticalityColor } from "$lib/config/nodes/criticality";
-  import ListManager from '$lib/components/common/ListManager.svelte'
+  import type { AssignedTest, NodeFormData } from "$lib/types/nodes";
+  import ListManager from '$lib/components/common/ListManager.svelte';
+  import TestConfigPanel from './TestConfigPanel.svelte';
+  import { getCriticalityColor, getCriticalityDisplay, getTestDisplay } from "$lib/api/registry";
+  import { getTextColor } from "$lib/components/common/colors";
   
   export let tests: AssignedTest[];
-  export let editingIndex: number = -1;
-  export let onEditTest: (test: AssignedTest, index: number) => void;
-  export let onCreateTest: () => void;
+  export let node: NodeFormData;
   
-  function getTestDisplayName(test: AssignedTest): string {
-    return getTestDisplay(test.test.type);
+  // State for which test is being edited
+  let editingIndex = -1;
+  
+  $: editingTest = editingIndex >= 0 ? tests[editingIndex] : null;
+  
+  function getTestDisplayName(assigned: AssignedTest): string {
+    return $getTestDisplay(assigned.test.type);
   }
   
   function getTestDisplayDetails(test: AssignedTest): string {
     const details = [];
+    const config = test.test.config;
     
-    // Add test-specific details based on test type
-    switch (test.test.type) {
-      case 'DnsResolution':
-        if (test.test.config.domain) {
-          details.push(`Domain: ${test.test.config.domain}`);
-        }
-        break;
-      case 'DnsLookup':
-        if (test.test.config.expected_ip) {
-          details.push(`Expected IP: ${test.test.config.expected_ip}`);
-        }
-        break;
-      case 'ServiceHealth':
-        details.push(`Status: ${test.test.config.expected_status_code}`);
-        break;
-      case 'Ping':
-        if (test.test.config.packet_count) {
-          details.push(`Packets: ${test.test.config.packet_count}`);
-        }
-        break;
-      case 'VpnTunnel':
-        if (test.test.config.expected_subnet) {
-          details.push(`Subnet: ${test.test.config.expected_subnet}`);
-        }
-        break;
-    }
+    const importantFields = {
+      domain: 'Domain',
+      expected_ip: 'Expected IP', 
+      expected_status_code: 'Status',
+      packet_count: 'Packets',
+      expected_subnet: 'Subnet',
+      port: 'Port',
+      protocol: 'Protocol',
+      dns_resolver: 'DNS Server',
+      expected_domain: 'Expected Domain',
+    };
     
-    // Add timeout if not default
-    if (test.test.config.timeout_ms && test.test.config.timeout_ms !== 30000) {
-      details.push(`Timeout: ${test.test.config.timeout_ms}ms`);
+    Object.entries(importantFields).forEach(([fieldKey, label]) => {
+      const value = config[fieldKey];
+      if (value !== undefined && value !== null && value !== '') {
+        let displayValue = String(value);
+        if (fieldKey === 'protocol') {
+          displayValue = displayValue.toUpperCase();
+        }
+        details.push(`${label}: ${displayValue}`);
+      }
+    });
+    
+    if (config.timeout_ms && config.timeout_ms !== 30000) {
+      details.push(`Timeout: ${config.timeout_ms}ms`);
     }
     
     return details.join(' • ') || 'Default configuration';
   }
-  
+    
   function getTestDisplayBadges(test: AssignedTest) {
-    const badges = [];
-    
-    // Criticality badge
-    badges.push({
-      text: getCriticalityDisplay(test.criticality),
-      color: getCriticalityColor(test.criticality),
+    return [{
+      text: $getCriticalityDisplay(test.criticality),
+      color: getTextColor($getCriticalityColor(test.criticality)),
       bgColor: 'bg-gray-800'
-    });
+    }];
+  }
+  
+  function handleCreateTest() {
+    // Create a new test with default values and add it to the list
+    const newTest: AssignedTest = {
+      test: {
+        type: 'Connectivity', // Default test type
+        config: {}
+      },
+      criticality: 'Important'
+    };
     
-    return badges;
+    tests = [...tests, newTest];
+    editingIndex = tests.length - 1; // Select the new test for editing
   }
   
-  function handleEdit(test: AssignedTest, index: number) {
-    // Create a deep copy to avoid reference issues
-    const testCopy = JSON.parse(JSON.stringify(test));
-    onEditTest(testCopy, index);
+  function handleEditTest(test: AssignedTest, index: number) {
+    editingIndex = index;
   }
   
-  function handleAdd() {
-    onCreateTest();
+  function handleCloseConfig() {
+    editingIndex = -1;
+  }
+  
+  // Real-time update handler
+  function handleTestUpdate(updatedTest: AssignedTest) {
+    if (editingIndex >= 0) {
+      tests[editingIndex] = updatedTest;
+      tests = [...tests]; // Trigger reactivity
+    }
   }
 </script>
 
-<ListManager
-  label="Tests"
-  helpText="Tests target this node using its configured connection method. Configure what/how to test, not where to test."
-  bind:items={tests}
-  availableOptions={[]}
-  placeholder="Add Test"
-  highlightedIndex={editingIndex}
-  allowReorder={true}
-  allowEdit={true}
-  allowDirectAdd={false}
-  getDisplayName={getTestDisplayName}
-  getDisplayDetails={getTestDisplayDetails}
-  getDisplayBadges={getTestDisplayBadges}
-  onEdit={handleEdit}
-  onAdd={handleAdd}
-  emptyMessage="No tests assigned. Tests will target this node using its configured connection method."
-/>
+<!-- Side-by-side layout -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  <!-- Left side: Test list -->
+  <div class="space-y-4">
+    <ListManager
+      label="Tests"
+      helpText="Tests target this node using its configured connection method."
+      bind:items={tests}
+      availableOptions={[]}
+      placeholder="Add Test"
+      highlightedIndex={editingIndex}
+      allowReorder={true}
+      allowEdit={true}
+      allowDirectAdd={false}
+      getDisplayName={getTestDisplayName}
+      getDisplayDetails={getTestDisplayDetails}
+      getDisplayBadges={getTestDisplayBadges}
+      onEdit={handleEditTest}
+      onAdd={handleCreateTest}
+      emptyMessage="No tests assigned. Click 'Add Test' to create your first test."
+    />
+  </div>
+  
+  <!-- Right side: Test configuration -->
+  <div class="space-y-4">
+    <TestConfigPanel
+      test={editingTest}
+      {node}
+      onClose={handleCloseConfig}
+      onChange={handleTestUpdate}
+    />
+  </div>
+</div>

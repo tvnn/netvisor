@@ -1,9 +1,5 @@
-import type { NODE_TYPE_CONFIG } from "$lib/config/nodes/types";
-import { getNodeTargetTypeDefaultConfig, type NODE_TARGET_TYPE_CONFIG } from "$lib/config/nodes/targets";
-import type { Test } from "./tests";
-import type { CRITICALITY_CONFIG } from "$lib/config/nodes/criticality";
-import type { NODE_STATUS_CONFIG } from "$lib/config/nodes/status";
-import type { CAPABILITY_CONFIG } from "$lib/config/nodes/capabilities";
+import { getNodeTargetMetadata } from "$lib/api/registry";
+import { get } from 'svelte/store';
 
 // Base form data - what the form actually handles
 export interface NodeFormData {
@@ -13,8 +9,8 @@ export interface NodeFormData {
   // Target configuration
   target: NodeTarget;
   
-  node_type: NodeType;
-  capabilities: NodeCapability[];
+  node_type: string;
+  capabilities: string[];
   
   // Discovery data (auto-populated)
   open_ports?: number[];
@@ -38,13 +34,13 @@ export interface NodeApi {
   // Target configuration matching Rust NodeTarget enum
   target: NodeTarget;
   
-  node_type: NodeType;
+  node_type: string;
   
   // Discovery & Capability Data
   open_ports: number[];
   detected_services: DetectedService[];
   mac_address?: string;
-  capabilities: NodeCapability[];
+  capabilities: string[];
   
   // Network Context
   subnet_membership: string[]; // CIDR blocks
@@ -57,7 +53,7 @@ export interface NodeApi {
   // Standard Fields
   node_groups: string[]; // Group IDs this node belongs to
   position?: GraphPosition;
-  current_status: NodeStatus;
+  current_status: string;
 }
 
 export interface Node extends NodeApi {
@@ -67,12 +63,7 @@ export interface Node extends NodeApi {
   last_seen?: string;
 }
 
-export interface Ipv4NodeTargetConfig {
-  ip: string;
-  port: number;
-}
-
-export interface Ipv6NodeTargetConfig {
+export interface IpNodeTargetConfig {
   ip: string;
   port: number;
 }
@@ -101,14 +92,16 @@ export enum TransportProtocol {
 }
 
 export type NodeTarget =
-  | { type: 'Ipv4Address', config: Ipv4NodeTargetConfig}
-  | { type: 'Ipv6Address', config: Ipv6NodeTargetConfig}
+  | { type: 'IpAddress', config: IpNodeTargetConfig}
   | { type: 'Hostname', config: HostnameTargetConfig}
   | { type: 'Service', config: ServiceTargetConfig}
 
 export interface AssignedTest {
-  test: Test;
-  criticality: TestCriticality;
+  test: {
+    type: string,
+    config: Record<string, any>
+  };
+  criticality: string;
 }
 
 export interface DetectedService {
@@ -135,11 +128,6 @@ export interface GraphPosition {
   y: number;
   z?: number;
 }
-export type NodeTargetType = keyof typeof NODE_TARGET_TYPE_CONFIG;
-export type NodeType = keyof typeof NODE_TYPE_CONFIG;
-export type TestCriticality = keyof typeof CRITICALITY_CONFIG;
-export type NodeStatus = keyof typeof NODE_STATUS_CONFIG;
-export type NodeCapability = keyof typeof CAPABILITY_CONFIG;
 
 // Utility functions
 export function createEmptyNodeFormData(): NodeFormData {
@@ -147,8 +135,8 @@ export function createEmptyNodeFormData(): NodeFormData {
     name: '',
     description: '',
     target: {
-      type: 'Ipv4Address',
-      config: getNodeTargetTypeDefaultConfig('Ipv4Address'),
+      type: 'IpAddress',
+      config: get(getNodeTargetMetadata)('IpAddress')['defaultConfig'],
     },
     node_type: 'UnknownDevice',
     capabilities: [],
@@ -194,4 +182,51 @@ export function formDataToNodeApi(formData: NodeFormData): NodeApi {
     node_groups: formData.node_groups,
     current_status: 'Unknown'
   };
+}
+
+export function getNodeTargetString(target: NodeTarget): string {
+  switch (target.type) {
+    case 'IpAddress':
+      return target.config.ip + (target.config.port ? `:${target.config.port}` : '');
+    case 'Hostname':
+      return target.config.hostname + (target.config.port ? `:${target.config.port}` : '');
+    case 'Service':
+      const base = `${target.config.protocol}://${target.config.hostname}`;
+      const port = target.config.port ? `:${target.config.port}` : '';
+      const path = target.config.path || '';
+      return base + port + path;
+    default:
+      return 'Unknown target';
+  }
+}
+
+export function validateTarget(target: NodeTarget): string[] {
+  const errors: string[] = [];
+  
+  switch (target.type) {
+    case 'IpAddress':
+      if (!target.config.ip) {
+        errors.push('IP address is required');
+      }
+      break;
+    case 'Hostname':
+      if (!target.config.hostname) {
+        errors.push('Hostname is required');
+      }
+      break;
+    case 'Service':
+      if (!target.config.protocol) {
+        errors.push('Protocol is required');
+      }
+      if (!target.config.hostname) {
+        errors.push('Hostname is required');
+      }
+      break;
+  }
+  
+  if (target.config.port && (target.config.port < 1 || target.config.port > 65535)) {
+    errors.push('Port must be between 1 and 65535');
+  }
+  
+  return errors;
 }

@@ -3,10 +3,9 @@
   import { Plus, Search } from 'lucide-svelte';
   import { nodes, nodeActions, loading, error } from '../../stores/nodes';
   import { nodeGroups, nodeGroupActions } from '../../stores/node-groups';
-  import type { Node } from '../../types/nodes';
+  import { getNodeTargetString, type Node } from '../../types/nodes';
   import NodeCard from '../cards/NodeCard.svelte';
   import NodeEditor from '../modals/NodeEditor/NodeEditor.svelte';
-	import { getNodeTargetString } from '$lib/config/nodes/targets';
   
   let searchTerm = '';
   let showNodeEditor = false;

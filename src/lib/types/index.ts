@@ -1,6 +1,5 @@
 import type { Node } from "./nodes";
-import type { TestType } from "$lib/config/tests/types";
-import type { TestResult } from './tests';
+import type { TestResult, TestType } from './tests';
 
 // Components
 export interface CardAction {

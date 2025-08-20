@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Edit, Trash2, Users, Play } from 'lucide-svelte';
+  import { Edit, Trash2, Play } from 'lucide-svelte';
   import type { Node } from "$lib/types/nodes";
   import type { NodeGroup } from "$lib/types/node-groups";
   import GenericCard from '../common/Card.svelte';
