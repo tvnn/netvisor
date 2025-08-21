@@ -34,19 +34,6 @@
     };
   }
   
-  function getCompatibilityIcon(status: string) {
-    switch (status) {
-      case 'Compatible':
-        return CheckCircle;
-      case 'Conditional':
-        return AlertTriangle;
-      case 'Incompatible':
-        return XCircle;
-      default:
-        return null;
-    }
-  }
-  
   function getCompatibilityColor(status: string) {
     switch (status) {
       case 'Compatible':
@@ -108,9 +95,9 @@
         
         <button
           type="button"
-          on:click={() => handleSelect(testType.id)}
-          class="w-full px-3 py-3 text-left hover:bg-gray-600 transition-colors border-b border-gray-600 last:border-b-0
-                 {compatibilityInfo?.status === 'Incompatible' ? 'opacity-60' : ''}"
+          on:click={(compatibilityInfo?.status != 'Incompatible' ? () => handleSelect(testType.id) : () => {})}
+          class="w-full px-3 py-3 text-left transition-colors border-b border-gray-600 last:border-b-0
+                 {compatibilityInfo?.status === 'Incompatible' ? 'cursor-default' : 'hover:bg-gray-600'}"
         >
           <div class="flex items-start gap-3">
             <div class="w-8 h-8 rounded-lg bg-gray-600 flex items-center justify-center mt-0.5">

@@ -25,6 +25,14 @@
     editingGroup = group;
     showGroupEditor = true;
   }
+
+  function handleExecuteDiagnostics(group: NodeGroup) {
+    let data = {
+      group_id: group.id,
+      trigger_reason: "Manual"
+    }
+    nodeGroupActions.executeNodeGroupDiagnostics(group.id, data);
+  }
   
   function handleDeleteGroup(group: NodeGroup) {
     if (confirm(`Are you sure you want to delete "${group.name}"?`)) {
@@ -140,10 +148,7 @@
         nodes={getNodes(group.node_sequence)}
         onEdit={() => handleEditGroup(group)}
         onDelete={() => handleDeleteGroup(group)}
-        onExecute={() => {
-          // TODO: Implement diagnostic execution
-          console.log('Execute diagnostic for group:', group.name);
-        }}
+        onExecute={() => handleExecuteDiagnostics(group)}
       />
     {/each}
     </div>

@@ -1,5 +1,9 @@
 import type { TestResult } from "./tests";
 
+export interface DiagnosticExecutionApi {
+  group_id: string;
+  trigger_reason: string;
+}
 
 export interface DiagnosticExecution {
   id: string;

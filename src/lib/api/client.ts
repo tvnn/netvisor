@@ -1,3 +1,4 @@
+import type { DiagnosticExecutionApi } from "$lib/types/diagnostics";
 import type { NodeGroupApi, NodeGroup } from "../types/node-groups";
 import type { NodeApi, Node } from "../types/nodes";
 
@@ -123,6 +124,13 @@ class ApiClient {
   async deleteNodeGroup(id: string) {
     return this.request<void>(`/groups/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async executeNodeGroupDiagnostics(id: string, data: DiagnosticExecutionApi) {
+    return this.request<void>(`/diagnostics/execute/${id}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 }

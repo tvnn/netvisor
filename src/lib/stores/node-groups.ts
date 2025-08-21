@@ -96,6 +96,27 @@ export const nodeGroupActions = {
     }
   },
 
+  async executeNodeGroupDiagnostics(id: string, data: any): Promise<boolean> {
+    loading.set(true);
+    error.set(null);
+    
+    try {
+      const response = await api.executeNodeGroupDiagnostics(id, data);
+      if (response.success) {
+        return true;
+      } else {
+        error.set(response.error || 'Failed to run group diagnostics');
+        return false;
+      }
+    } catch (err) {
+      error.set('Network error');
+      console.error('Failed to run group diagnostics:', err);
+      return false;
+    } finally {
+      loading.set(false);
+    }
+  },
+
   clearError() {
     error.set(null);
   }

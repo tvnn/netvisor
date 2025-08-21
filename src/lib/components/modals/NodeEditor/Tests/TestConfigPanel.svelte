@@ -303,7 +303,7 @@
 </script>
 
 <!-- Fixed height container to prevent modal flickering -->
-<div class="h-[600px] flex flex-col">
+<div class="h-full flex flex-col">
   {#if !test}
     <!-- Empty State -->
     <div class="flex-1 flex items-center justify-center">

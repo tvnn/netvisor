@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { CardAction, CardSection, CardList } from '$lib/types/index';
-  
+	import { getIcon } from './icons';
+
   export let title: string;
   export let subtitle: string = '';
   export let status: string = '';
@@ -10,6 +11,7 @@
   export let actions: CardAction[] = [];
   export let sections: CardSection[] = [];
   export let lists: CardList[] = [];
+
 </script>
 
 <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-600 transition-colors flex flex-col h-full">
@@ -17,7 +19,7 @@
   <div class="flex justify-between items-start mb-4">
     <div class="flex items-center space-x-3">
       {#if icon}
-        <!-- <svelte:component this={icon} size={24} class={iconColor} /> -->
+        <svelte:component this={getIcon(icon)} size={24} class={iconColor} />
       {/if}
       <div>
         <h3 class="text-lg font-semibold text-white">{title}</h3>
