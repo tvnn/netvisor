@@ -42,12 +42,14 @@ CREATE TABLE IF NOT EXISTS subnet_groups (
 CREATE TABLE IF NOT EXISTS diagnostic_executions (
     id TEXT PRIMARY KEY,
     group_id TEXT NOT NULL,
-    group_name TEXT NOT NULL,
     trigger_reason TEXT NOT NULL,
     node_results TEXT NOT NULL,
-    overall_status TEXT NOT NULL,
+    status TEXT NOT NULL,
     generated_remediation_id TEXT,
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    updated_at TEXT,
+    completed_at TEXT
 );
 
 CREATE TABLE IF NOT EXISTS remediations (
@@ -60,7 +62,6 @@ CREATE TABLE IF NOT EXISTS remediations (
 );
 
 CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(node_type);
-CREATE INDEX IF NOT EXISTS idx_nodes_status ON nodes(current_status);
 CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_group ON diagnostic_executions(group_id);
-CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_status ON diagnostic_executions(overall_status);
+CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_status ON diagnostic_executions(status);
 CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_created ON diagnostic_executions(created_at);

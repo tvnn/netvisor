@@ -90,11 +90,6 @@ impl DiagnosticService {
     pub async fn get_group_executions(&self, group_id: &str) -> Result<Vec<DiagnosticExecution>> {
         self.diagnostic_storage.get_by_group(group_id).await
     }
-    
-    /// Get diagnostic executions with filters
-    pub async fn get_executions_with_filters(&self, query: DiagnosticListQuery) -> Result<Vec<DiagnosticExecution>> {
-        self.diagnostic_storage.get_with_filters(query).await
-    }
 
     /// Delete a diagnostic execution
     pub async fn delete_execution(&self, execution_id: &str) -> Result<()> {

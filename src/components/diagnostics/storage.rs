@@ -15,7 +15,6 @@ pub trait DiagnosticStorage: Send + Sync {
     async fn get_by_group(&self, group_id: &str) -> Result<Vec<DiagnosticExecution>>;
     async fn get_by_status(&self, status: DiagnosticStatus) -> Result<Vec<DiagnosticExecution>>;
     async fn get_recent(&self, limit: usize) -> Result<Vec<DiagnosticExecution>>;
-    async fn get_with_filters(&self, query: DiagnosticListQuery) -> Result<Vec<DiagnosticExecution>>;
 }
 
 pub struct SqliteDiagnosticStorage {
@@ -43,7 +42,7 @@ impl DiagnosticStorage for SqliteDiagnosticStorage {
                 id, group_id, trigger_reason, node_results, 
                 status, generated_remediation_id, started_at, 
                 completed_at, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(&execution.id)
@@ -155,47 +154,6 @@ impl DiagnosticStorage for SqliteDiagnosticStorage {
             .bind(limit as i64)
             .fetch_all(&self.pool)
             .await?;
-
-        let mut executions = Vec::new();
-        for row in rows {
-            executions.push(row_to_diagnostic_execution(row)?);
-        }
-
-        Ok(executions)
-    }
-
-    async fn get_with_filters(&self, query: DiagnosticListQuery) -> Result<Vec<DiagnosticExecution>> {
-        let mut sql = "SELECT * FROM diagnostic_executions WHERE 1=1".to_string();
-        let mut params: Vec<String> = Vec::new();
-
-        if let Some(group_id) = &query.group_id {
-            sql.push_str(" AND group_id = ?");
-            params.push(group_id.clone());
-        }
-
-        if let Some(status) = &query.status {
-            sql.push_str(" AND status = ?");
-            params.push(serde_json::to_string(status)?);
-        }
-
-        sql.push_str(" ORDER BY created_at DESC");
-
-        if let Some(limit) = query.limit {
-            sql.push_str(" LIMIT ?");
-            params.push(limit.to_string());
-        }
-
-        if let Some(offset) = query.offset {
-            sql.push_str(" OFFSET ?");
-            params.push(offset.to_string());
-        }
-
-        let mut query_builder = sqlx::query(&sql);
-        for param in params {
-            query_builder = query_builder.bind(param);
-        }
-
-        let rows = query_builder.fetch_all(&self.pool).await?;
 
         let mut executions = Vec::new();
         for row in rows {

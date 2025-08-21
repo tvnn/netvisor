@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     response::Json,
     routing::{delete, get, post},
     Router,
@@ -17,7 +17,7 @@ use crate::{
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/execute-group/:group_id", post(execute_group_diagnostic))
+        .route("/execute/:group_id", post(execute_group_diagnostic))
         .route("/:execution_id", get(get_diagnostic_execution))
         .route("/:execution_id", delete(delete_diagnostic_execution))
         .route("/", get(get_diagnostic_executions))
@@ -93,7 +93,6 @@ async fn delete_diagnostic_execution(
 /// Get diagnostic executions with optional filters
 async fn get_diagnostic_executions(
     State(state): State<Arc<AppState>>,
-    Query(query): Query<DiagnosticListQuery>,
 ) -> ApiResult<Json<ApiResponse<DiagnosticListResponse>>> {
     let service = DiagnosticService::new(
         state.diagnostic_storage.clone(),
@@ -101,11 +100,7 @@ async fn get_diagnostic_executions(
         state.node_group_storage.clone(),
     );
 
-    let executions = if query.group_id.is_some() || query.status.is_some() || query.limit.is_some() || query.offset.is_some() {
-        service.get_executions_with_filters(query).await?
-    } else {
-        service.get_all_executions().await?
-    };
+    let executions= service.get_all_executions().await?;
 
     let total = executions.len();
 
