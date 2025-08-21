@@ -1,52 +1,20 @@
 use std::{net::{IpAddr, Ipv4Addr}};
 use serde::{Deserialize, Serialize};
-use crate::{components::nodes::types::base::Node, shared::types::TransportProtocol};
+use uuid::Uuid;
 use cidr::{IpCidr, Ipv4Cidr};
 
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 pub struct ConnectivityConfig {
     pub timeout_ms: Option<u32>,
-    pub protocol: Option<TransportProtocol>,
+    pub dns_resolver_node: Option<Uuid>
 }
 
 impl Default for ConnectivityConfig {
     fn default() -> Self {
         Self {
             timeout_ms: Some(30000),
-            protocol: Some(TransportProtocol::Tcp)
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
-pub struct DirectIpConfig {
-    pub timeout_ms: Option<u32>,
-    pub protocol: Option<TransportProtocol>
-}
-
-impl Default for DirectIpConfig {
-    fn default() -> Self {
-        Self {
-            timeout_ms: Some(30000),
-            protocol: Some(TransportProtocol::Tcp)
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
-pub struct PingConfig {
-    pub packet_count: Option<u8>,          
-    pub timeout_ms: Option<u32>,
-    pub dns_resolver_node: Node
-}
-
-impl Default for PingConfig {
-    fn default() -> Self {
-        Self {
-            packet_count: Some(4),
-            timeout_ms: Some(30000),
-            dns_resolver_node: Node::from_name("DNS Resolver".to_string())
+            dns_resolver_node: Some(Uuid::new_v4())
         }
     }
 }
@@ -104,6 +72,7 @@ impl Default for DnsOverHttpsConfig {
 pub struct DnsLookupConfig {
     pub expected_ip: IpAddr,
     pub timeout_ms: Option<u32>,
+    pub dns_resolver_node: Uuid
 }
 
 impl Default for DnsLookupConfig {
@@ -111,6 +80,7 @@ impl Default for DnsLookupConfig {
         Self {
             expected_ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             timeout_ms: Some(30000),
+            dns_resolver_node: Uuid::new_v4()
         }
     }
 }
@@ -119,6 +89,7 @@ impl Default for DnsLookupConfig {
 pub struct ReverseDnsConfig {
     pub expected_domain: String,
     pub timeout_ms: Option<u32>,
+    pub dns_resolver_node: Uuid
 }
 
 impl Default for ReverseDnsConfig {
@@ -126,30 +97,19 @@ impl Default for ReverseDnsConfig {
         Self {
             expected_domain: "example.com".to_string(),
             timeout_ms: Some(30000),
+            dns_resolver_node: Uuid::new_v4()
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
-pub struct VpnConnectivityConfig {
-    pub timeout_ms: Option<u32>,
-}
-
-impl Default for VpnConnectivityConfig {
-    fn default() -> Self {
-        Self {
-            timeout_ms: Some(30000),
-        }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
-pub struct VpnTunnelConfig {
+pub struct VpnSubnetAccessConfig {
     pub expected_subnet: IpCidr,
     pub timeout_ms: Option<u32>,
+    pub dns_resolver_node: Option<Uuid>
 }
 
-impl Default for VpnTunnelConfig {
+impl Default for VpnSubnetAccessConfig {
     fn default() -> Self {
         Self {
             expected_subnet: IpCidr::V4(Ipv4Cidr::new(
@@ -157,6 +117,7 @@ impl Default for VpnTunnelConfig {
                 24
             ).expect("Default value should be valid IP")),
             timeout_ms: Some(30000),
+            dns_resolver_node: Some(Uuid::new_v4())
         }
     }
 }

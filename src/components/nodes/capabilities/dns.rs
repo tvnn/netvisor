@@ -1,10 +1,10 @@
-use std::{net::IpAddr, time::Duration};
+use std::{net::{IpAddr, SocketAddr}, time::Duration};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tokio::time::timeout;
 use trust_dns_resolver::{TokioAsyncResolver, config::*};
 use crate::components::{
-    nodes::types::{base::{CapabilityWithNode, Node}, targets::NodeTarget},
+    nodes::types::{base::{CapabilityWithNode}, targets::NodeTarget},
     tests::types::execution::Timer,
 };
 
@@ -33,30 +33,42 @@ pub struct DnsServiceCapability {}
 impl Default for DnsServiceCapability { fn default() -> Self { Self {} } }
 
 impl<'a> CapabilityWithNode<'a, DnsServiceCapability> {
-    /// Perform forward DNS resolution using the specified DNS server node
+    /// Perform forward DNS resolution using this DNS server node
     pub async fn resolve_domain(
         &self,
-        dns_server_node: &Node,
         domain: &str, 
         timeout_ms: Option<u32>
     ) -> Result<DnsResolutionResult> {
         let timer = Timer::now();
         let timeout_duration = Duration::from_millis(timeout_ms.unwrap_or(5000) as u64);
         
-        // Get DNS server address from node configuration
-        let dns_server = Self::get_dns_server_address(dns_server_node);
+        // Get DNS server address and port from node target
+        let (dns_server_addr, dns_server_port) = match &self.node.base.target {
+            NodeTarget::IpAddress(config) => (config.ip, config.port.unwrap_or(53)),
+            NodeTarget::Hostname(..) => {
+                // For hostname, we need to resolve it first - for now use system resolver
+                return Err(anyhow::anyhow!("Hostname targets for DNS servers not yet supported"));
+            },
+            NodeTarget::Service(..) => {
+                // For service, we need to resolve hostname first - for now use system resolver  
+                return Err(anyhow::anyhow!("Service targets for DNS servers not yet supported"));
+            },
+        };
         
-        // Create resolver directly - TODO: configure to use specific DNS server
-        let resolver = TokioAsyncResolver::tokio(
-            ResolverConfig::default(),
-            ResolverOpts::default(),
+        let dns_server_string = dns_server_addr.to_string();
+        
+        // Create resolver configured to use this specific DNS server
+        let mut resolver_config = ResolverConfig::new();
+        let name_server_config = NameServerConfig::new(
+            SocketAddr::new(dns_server_addr, dns_server_port),
+            Protocol::Udp
         );
+        resolver_config.add_name_server(name_server_config);
+        
+        let resolver = TokioAsyncResolver::tokio(resolver_config, ResolverOpts::default());
 
         // Perform DNS resolution with timeout
-        let resolution_result = timeout(
-            timeout_duration,
-            resolver.lookup_ip(domain)
-        ).await;
+        let resolution_result = timeout(timeout_duration, resolver.lookup_ip(domain)).await;
 
         let result = match resolution_result {
             Ok(Ok(lookup)) => {
@@ -66,7 +78,7 @@ impl<'a> CapabilityWithNode<'a, DnsServiceCapability> {
                     success: true,
                     resolved_addresses,
                     duration_ms: timer.elapsed_ms(),
-                    dns_server,
+                    dns_server: format!("{}:{}", dns_server_string, dns_server_port),
                     error_message: None,
                 }
             },
@@ -75,7 +87,7 @@ impl<'a> CapabilityWithNode<'a, DnsServiceCapability> {
                     success: false,
                     resolved_addresses: vec![],
                     duration_ms: timer.elapsed_ms(),
-                    dns_server,
+                    dns_server: format!("{}:{}", dns_server_string, dns_server_port),
                     error_message: Some(format!("DNS resolution failed: {}", e)),
                 }
             },
@@ -84,7 +96,7 @@ impl<'a> CapabilityWithNode<'a, DnsServiceCapability> {
                     success: false,
                     resolved_addresses: vec![],
                     duration_ms: timer.elapsed_ms(),
-                    dns_server,
+                    dns_server: format!("{}:{}", dns_server_string, dns_server_port),
                     error_message: Some(format!("DNS resolution timed out after {}ms", timeout_duration.as_millis())),
                 }
             }
@@ -93,30 +105,42 @@ impl<'a> CapabilityWithNode<'a, DnsServiceCapability> {
         Ok(result)
     }
 
-    /// Perform reverse DNS lookup using the specified DNS server node
+    /// Perform reverse DNS lookup using this DNS server node
     pub async fn reverse_lookup_ip(
         &self,
-        dns_server_node: &Node,
         ip_address: IpAddr,
         timeout_ms: Option<u32>
     ) -> Result<ReverseDnsResult> {
         let timer = Timer::now();
         let timeout_duration = Duration::from_millis(timeout_ms.unwrap_or(5000) as u64);
         
-        // Get DNS server address from node configuration
-        let dns_server = Self::get_dns_server_address(dns_server_node);
+        // Get DNS server address and port from node target
+        let (dns_server_addr, dns_server_port) = match &self.node.base.target {
+            NodeTarget::IpAddress(config) => (config.ip, config.port.unwrap_or(53)),
+            NodeTarget::Hostname(..) => {
+                // For hostname, we need to resolve it first - for now use system resolver
+                return Err(anyhow::anyhow!("Hostname targets for DNS servers not yet supported"));
+            },
+            NodeTarget::Service(..) => {
+                // For service, we need to resolve hostname first - for now use system resolver  
+                return Err(anyhow::anyhow!("Service targets for DNS servers not yet supported"));
+            },
+        };
         
-        // Create resolver directly - TODO: configure to use specific DNS server
-        let resolver = TokioAsyncResolver::tokio(
-            ResolverConfig::default(),
-            ResolverOpts::default(),
+        let dns_server_string = dns_server_addr.to_string();
+        
+        // Create resolver configured to use this specific DNS server
+        let mut resolver_config = ResolverConfig::new();
+        let name_server_config = NameServerConfig::new(
+            SocketAddr::new(dns_server_addr, dns_server_port),
+            Protocol::Udp
         );
+        resolver_config.add_name_server(name_server_config);
+        
+        let resolver = TokioAsyncResolver::tokio(resolver_config, ResolverOpts::default());
 
         // Perform reverse DNS lookup with timeout
-        let lookup_result = timeout(
-            timeout_duration,
-            resolver.reverse_lookup(ip_address)
-        ).await;
+        let lookup_result = timeout(timeout_duration, resolver.reverse_lookup(ip_address)).await;
 
         let result = match lookup_result {
             Ok(Ok(lookup)) => {
@@ -128,7 +152,7 @@ impl<'a> CapabilityWithNode<'a, DnsServiceCapability> {
                     success: true,
                     resolved_domains,
                     duration_ms: timer.elapsed_ms(),
-                    dns_server,
+                    dns_server: format!("{}:{}", dns_server_string, dns_server_port),
                     error_message: None,
                 }
             },
@@ -137,7 +161,7 @@ impl<'a> CapabilityWithNode<'a, DnsServiceCapability> {
                     success: false,
                     resolved_domains: vec![],
                     duration_ms: timer.elapsed_ms(),
-                    dns_server,
+                    dns_server: format!("{}:{}", dns_server_string, dns_server_port),
                     error_message: Some(format!("Reverse DNS lookup failed: {}", e)),
                 }
             },
@@ -146,21 +170,12 @@ impl<'a> CapabilityWithNode<'a, DnsServiceCapability> {
                     success: false,
                     resolved_domains: vec![],
                     duration_ms: timer.elapsed_ms(),
-                    dns_server,
+                    dns_server: format!("{}:{}", dns_server_string, dns_server_port),
                     error_message: Some(format!("Reverse DNS lookup timed out after {}ms", timeout_duration.as_millis())),
                 }
             }
         };
 
         Ok(result)
-    }
-
-    /// Helper method to get DNS server address from node target
-    fn get_dns_server_address(dns_server_node: &Node) -> String {
-        match &dns_server_node.base.target {
-            NodeTarget::IpAddress(config) => config.ip.to_string(),
-            NodeTarget::Hostname(config) => config.hostname.clone(),
-            NodeTarget::Service(config) => config.hostname.clone(),
-        }
     }
 }

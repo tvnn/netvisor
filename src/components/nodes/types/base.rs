@@ -1,12 +1,14 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::components::{nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}}, tests::types::execution::TestResult};
+use crate::components::{nodes::{capabilities::{base::{NodeCapability}, dns::DnsServiceCapability}, types::{criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}}, tests::types::execution::TestResult};
 use crate::shared::types::ApplicationProtocol;
 use super::{
     types::{NodeType},
     tests::{AssignedTest},
     topology::{GraphPosition}
 };
+use uuid::{Uuid};
+use crate::components::nodes::capabilities::base::{deserialize_capabilities_from_discriminants, serialize_capabilities_as_discriminants};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct NodeBase {
@@ -19,12 +21,16 @@ pub struct NodeBase {
     pub open_ports: Vec<u16>,
     pub detected_services: Vec<DetectedService>,
     pub mac_address: Option<String>,
+    #[serde(
+        serialize_with = "serialize_capabilities_as_discriminants",
+        deserialize_with = "deserialize_capabilities_from_discriminants"
+    )]
     pub capabilities: Vec<NodeCapability>,
     
     // Monitoring
     pub assigned_tests: Vec<AssignedTest>,
     pub monitoring_interval: u16,
-    pub node_groups: Vec<String>,
+    pub node_groups: Vec<Uuid>,
     
     // Topology visualization
     pub position: Option<GraphPosition>,
@@ -34,7 +40,7 @@ pub struct NodeBase {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct Node {
-    pub id: String,
+    pub id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub last_seen: Option<DateTime<Utc>>,
@@ -46,7 +52,7 @@ impl Node {
     pub fn new(base: NodeBase) -> Self {
         let now = chrono::Utc::now();
         Self {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: uuid::Uuid::new_v4(),
             created_at: now,
             updated_at: now,
             last_seen: None,
@@ -78,14 +84,14 @@ impl Node {
     }
     
     // Node group management
-    pub fn add_to_group(&mut self, group_id: String) {
+    pub fn add_to_group(&mut self, group_id: Uuid) {
         if !self.base.node_groups.contains(&group_id) {
             self.base.node_groups.push(group_id);
             self.updated_at = chrono::Utc::now();
         }
     }
     
-    pub fn remove_from_group(&mut self, group_id: &str) {
+    pub fn remove_from_group(&mut self, group_id: &Uuid) {
         self.base.node_groups.retain(|id| id != group_id);
         self.updated_at = chrono::Utc::now();
     }

@@ -4,6 +4,7 @@ use axum::{
     routing::{get, post, put, delete},
     Router,
 };
+use uuid::Uuid;
 use std::sync::Arc;
 use crate::{
     api::{ApiResult, ApiResponse, ApiError,},
@@ -50,7 +51,7 @@ async fn create_node_group(
 
 async fn get_node_group(
     State(state): State<Arc<AppState>>,
-    Path(id): Path<String>,
+    Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<NodeGroupResponse>>> {
     let service = NodeGroupService::new(
         state.node_group_storage.clone(),
@@ -79,7 +80,7 @@ async fn get_all_node_groups(
 
 async fn update_node_group(
     State(state): State<Arc<AppState>>,
-    Path(id): Path<String>,
+    Path(id): Path<Uuid>,
     Json(request): Json<UpdateNodeGroupRequest>,
 ) -> ApiResult<Json<ApiResponse<NodeGroupResponse>>> {
     let service = NodeGroupService::new(
@@ -112,7 +113,7 @@ async fn update_node_group(
 
 async fn delete_node_group(
     State(state): State<Arc<AppState>>,
-    Path(id): Path<String>,
+    Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     let service = NodeGroupService::new(
         state.node_group_storage.clone(),
@@ -125,7 +126,7 @@ async fn delete_node_group(
 
 async fn get_group_nodes(
     State(state): State<Arc<AppState>>,
-    Path(group_id): Path<String>,
+    Path(group_id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<NodeListResponse>>> {
     let service = NodeGroupService::new(
         state.node_group_storage.clone(),
@@ -140,7 +141,7 @@ async fn get_group_nodes(
 
 async fn add_node_to_group(
     State(state): State<Arc<AppState>>,
-    Path((group_id, node_id)): Path<(String, String)>,
+    Path((group_id, node_id)): Path<(Uuid, Uuid)>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     let service = NodeGroupService::new(
         state.node_group_storage.clone(),
@@ -153,7 +154,7 @@ async fn add_node_to_group(
 
 async fn remove_node_from_group(
     State(state): State<Arc<AppState>>,
-    Path((group_id, node_id)): Path<(String, String)>,
+    Path((group_id, node_id)): Path<(Uuid, Uuid)>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     let service = NodeGroupService::new(
         state.node_group_storage.clone(),

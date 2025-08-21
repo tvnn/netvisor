@@ -52,3 +52,4 @@ strum = "0.27.2"
 strum_macros = "0.27.2"
 cidr = { version = "0.3.1", features = ["serde"] }
 serde_repr = "0.1.20"
+if-addrs = "0.14.0"

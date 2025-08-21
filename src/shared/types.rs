@@ -1,27 +1,19 @@
 use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumDiscriminants};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, EnumDiscriminants, Hash)]
+#[strum_discriminants(derive(Display))]
 pub enum TransportProtocol {
     Tcp,
     Udp
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, EnumDiscriminants, Hash)]
+#[strum_discriminants(derive(Display))]
 pub enum ApplicationProtocol {
     Http,
     Https,
     Ftp
-}
-
-impl std::fmt::Display for ApplicationProtocol {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let protocol_str = match self {
-            ApplicationProtocol::Http => "http",
-            ApplicationProtocol::Https => "https", 
-            ApplicationProtocol::Ftp => "ftp",
-        };
-        write!(f, "{}", protocol_str)
-    }
 }
 
 impl ApplicationProtocol {

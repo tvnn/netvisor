@@ -1,15 +1,13 @@
-// src/components/tests/implementations/connectivity.rs
-use std::time::Duration;
+use std::{net::{SocketAddr}, time::Duration};
 use anyhow::Error;
-use tokio::net::TcpStream;
-use tokio::time::timeout;
+use reqwest::Client;
+use tokio::{net::TcpStream, time::timeout};
 use crate::components::{
-    nodes::types::{
+    nodes::{service::NodeService, types::{
         base::Node, 
-        targets::{HostnameTargetConfig, NodeTarget, ServiceTargetConfig}
-    }, 
-    tests::types::configs::*,
-    tests::types::execution::*
+        targets::NodeTarget
+    }}, 
+    tests::types::{configs::*, execution::*}
 };
 
 /// Execute connectivity test - tests TCP connection to node's target
@@ -17,49 +15,99 @@ pub async fn execute_connectivity_test(
     config: &ConnectivityConfig,
     timer: &Timer,
     node: &Node,
+    node_service: &NodeService
 ) -> Result<TestResult, Error> {
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
     
-    // Extract target from node configuration
-    let target_address = &node.base.target.to_string();
+    let (connection_result, dns_result) = match &node.base.target {
 
-    // Attempt TCP connection
-    let connection_result = timeout(timeout_duration, TcpStream::connect(&target_address)).await;
+        NodeTarget::IpAddress(ip_config) => {
+            // Direct IP connection - no DNS needed
+            let port = ip_config.port.unwrap_or(80);
+            let addr = SocketAddr::new(ip_config.ip, port);
+            (timeout(timeout_duration, TcpStream::connect(addr)).await, None)
+        },
+        NodeTarget::Hostname(_) | NodeTarget::Service(_) => {
+            // Get DNS resolver for cases that need it
+            let dns_resolver_node = match config.dns_resolver_node {
+                Some(node_id) => {
+                    match node_service.get_node(&node_id).await? {
+                        Some(node) => node,
+                        None => return Err(Error::msg(format!("DNS resolver node {} not found", node_id))),
+                    }
+                },
+                None => return Err(Error::msg("DNS resolver node required for hostname/service targets")),
+            };
+
+            let dns_capability = match dns_resolver_node.as_dns_capability() {
+                Some(capability) => capability,
+                None => {
+                    return Ok(TestResult {
+                        success: false,
+                        message: format!("Node {} is not a valid DNS resolver. Select a node with DNS capability.", dns_resolver_node.base.name),
+                        duration_ms: timer.elapsed_ms(),
+                        executed_at: timer.datetime(),
+                        details: None,
+                        criticality: None,
+                    });
+                }
+            };
+
+            // Handle the specific DNS-requiring case
+            match &node.base.target {
+                NodeTarget::Hostname(hostname_config) => {
+                    let dns_result = dns_capability.resolve_domain(&hostname_config.hostname, config.timeout_ms).await?;
+                    let port = hostname_config.port.unwrap_or(80);
+                    let addr = SocketAddr::new(dns_result.resolved_addresses[0], port);
+                    (timeout(timeout_duration, TcpStream::connect(addr)).await, Some(dns_result))
+                },
+                NodeTarget::Service(service_config) => {
+                    let dns_result = dns_capability.resolve_domain(&service_config.hostname, config.timeout_ms).await?;
+                    let port = service_config.port.unwrap_or(service_config.protocol.default_port());
+                    let addr = SocketAddr::new(dns_result.resolved_addresses[0], port);
+                    (timeout(timeout_duration, TcpStream::connect(addr)).await, Some(dns_result))
+                },
+                _ => unreachable!(),
+            }
+        }
+    };
+
+    let target = node.base.target.to_string();
 
     let (success, message, details) = match connection_result {
         Ok(Ok(_stream)) => {
             (
                 true,
-                format!("Successfully connected to {}", target_address),
+                format!("Successfully connected to {}", target),
                 serde_json::json!({
-                    "target": target_address,
+                    "target": target,
                     "connection_time_ms": timer.elapsed_ms(),
-                    "protocol": "tcp",
-                    "bypassed_dns": true
+                    "dns_server": dns_result,
+                    "target_type": node.base.target.variant_name()
                 })
             )
         },
         Ok(Err(e)) => {
             (
                 false,
-                format!("Failed to connect directly to IP {}: {}", target_address, e),
+                format!("Connection to {} failed: {}", target, e),
                 serde_json::json!({
-                    "target": target_address,
+                    "target": target,
                     "error": e.to_string(),
-                    "protocol": "tcp",
-                    "bypassed_dns": true
+                    "dns_server": dns_result,
+                    "target_type": node.base.target.variant_name()
                 })
             )
         },
         Err(_) => {
             (
                 false,
-                format!("Direct IP connection to {} timed out after {}ms", target_address, timeout_duration.as_millis()),
+                format!("Connection to {} timed out after {}ms", target, timeout_duration.as_millis()),
                 serde_json::json!({
-                    "target": target_address,
+                    "target": target,
                     "timeout_ms": timeout_duration.as_millis(),
-                    "protocol": "tcp",
-                    "bypassed_dns": true
+                    "dns_server": dns_result,
+                    "target_type": node.base.target.variant_name()
                 })
             )
         }
@@ -75,142 +123,76 @@ pub async fn execute_connectivity_test(
     })
 }
 
-/// Execute ping test - ICMP ping to node's target IP
-pub async fn execute_ping_test(
-    config: &PingConfig,
+/// Execute service health test - HTTP request to node's service endpoint
+pub async fn execute_service_health_test(
+    config: &ServiceHealthConfig,
     timer: &Timer,
     node: &Node,
-) -> Result<TestResult, Error> {
-    let packet_count = config.packet_count.unwrap_or(4) as usize;
-    let timeout_ms = config.timeout_ms.unwrap_or(30000);
-    
-    // Extract IP address from node target
-    let target_ip = match &node.base.target {
-        NodeTarget::IpAddress { .. }  => node.base.target.as_ip_config().expect("Matched on IP, will get an IP config").ip,
-        NodeTarget::Hostname(HostnameTargetConfig{ hostname, ..}) => {
-            // For hostname targets, we need to resolve to IP first
-            // This is a simplified implementation - in practice you'd use proper DNS resolution
-            return Ok(TestResult {
-                success: false,
-                message: format!("Ping test requires IP resolution for hostname: {}", hostname),
-                duration_ms: timer.elapsed_ms(),
-                executed_at: timer.datetime(),
-                details: Some(serde_json::json!({
-                    "error": "Hostname targets not yet implemented for ping",
-                    "hostname": hostname
-                })),
-                criticality: None,
-            });
-        },
-        NodeTarget::Service(ServiceTargetConfig{ hostname, .. }) => {
-            return Ok(TestResult {
-                success: false,
-                message: format!("Ping test not applicable for service target: {}", hostname),
-                duration_ms: timer.elapsed_ms(),
-                executed_at: timer.datetime(),
-                details: Some(serde_json::json!({
-                    "error": "Service targets not applicable for ping",
-                    "hostname": hostname
-                })),
-                criticality: None,
-            });
-        }
-    };
-
-    // TODO: Implement actual ICMP ping functionality
-    // For now, return a placeholder implementation
-    let success = true; // This would be determined by actual ping results
-    let avg_time_ms = 25.0; // This would be calculated from ping responses
-    let successful_pings = packet_count; // This would be counted from responses
-
-    let message = if success {
-        format!("Ping successful: {}/{} packets, avg {}ms", successful_pings, packet_count, avg_time_ms)
-    } else {
-        format!("Ping failed: 0/{} packets responded", packet_count)
-    };
-
-    Ok(TestResult {
-        success,
-        message,
-        duration_ms: timer.elapsed_ms(),
-        executed_at: timer.datetime(),
-        details: Some(serde_json::json!({
-            "target": target_ip,
-            "attempts": packet_count,
-            "successful": successful_pings,
-            "avg_time_ms": avg_time_ms,
-            "timeout_ms": timeout_ms
-        })),
-        criticality: None,
-    })
-}
-
-/// Execute direct IP test - validates target is IP address and tests connectivity
-pub async fn execute_direct_ip_test(
-    config: &DirectIpConfig,
-    timer: &Timer,
-    node: &Node,
+    _node_service: &NodeService
 ) -> Result<TestResult, Error> {
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
     
-    // Validate that node target is actually an IP address
-    let target_address = match &node.base.target {
-        NodeTarget::IpAddress { .. }  => node.base.target.as_ip_config().expect("Matched on IP, will get an IP config"),
-        _ => {
-            return Ok(TestResult {
-                success: false,
-                message: "DirectIp test requires node with IP address target".to_string(),
-                duration_ms: timer.elapsed_ms(),
-                executed_at: timer.datetime(),
-                details: Some(serde_json::json!({
-                    "error": "Invalid target type for DirectIp test",
-                    "target_type": node.base.target.variant_name(),
-                    "expected_types": ["Ipv4Address", "Ipv6Address"]
-                })),
-                criticality: None,
-            });
-        }
-    };
+    // Extract service URL from node configuration
+    let service_url = &node.base.target.to_string();
+    
+    // Create HTTP client with timeout
+    let client = Client::builder()
+        .timeout(timeout_duration)
+        .build()
+        .map_err(|e| Error::msg(format!("Failed to create HTTP client: {}", e)))?;
 
+    // Perform HTTP request
+    let request_result = timeout(timeout_duration, client.get(service_url).send()).await;
 
-
-    // Attempt TCP connection directly to IP
-    let connection_result = timeout(timeout_duration, TcpStream::connect(&target_address.to_string())).await;
-
-    let (success, message, details) = match connection_result {
-        Ok(Ok(_stream)) => {
-            (
-                true,
-                format!("Successfully connected directly to IP {}", target_address),
-                serde_json::json!({
-                    "target": target_address,
-                    "connection_time_ms": timer.elapsed_ms(),
-                    "protocol": "tcp",
-                    "bypassed_dns": true
-                })
-            )
+    let (success, message, details) = match request_result {
+        Ok(Ok(response)) => {
+            let status_code = response.status().as_u16();
+            let expected_status = config.expected_status_code;
+            
+            if status_code == expected_status {
+                (
+                    true,
+                    format!("Service health check passed: {} returned {}", service_url, status_code),
+                    serde_json::json!({
+                        "url": service_url,
+                        "status_code": status_code,
+                        "expected_status": expected_status,
+                        "response_time_ms": timer.elapsed_ms(),
+                        "headers": response.headers().len()
+                    })
+                )
+            } else {
+                (
+                    false,
+                    format!("Unexpected status code: expected {}, got {}", expected_status, status_code),
+                    serde_json::json!({
+                        "url": service_url,
+                        "status_code": status_code,
+                        "expected_status": expected_status,
+                        "response_time_ms": timer.elapsed_ms()
+                    })
+                )
+            }
         },
         Ok(Err(e)) => {
             (
                 false,
-                format!("Failed to connect directly to IP {}: {}", target_address, e),
+                format!("Service health check failed: {}", e),
                 serde_json::json!({
-                    "target": target_address,
+                    "url": service_url,
                     "error": e.to_string(),
-                    "protocol": "tcp",
-                    "bypassed_dns": true
+                    "request_timeout_ms": timeout_duration.as_millis()
                 })
             )
         },
         Err(_) => {
             (
                 false,
-                format!("Direct IP connection to {} timed out after {}ms", target_address, timeout_duration.as_millis()),
+                format!("Service request to {} timed out after {}ms", service_url, timeout_duration.as_millis()),
                 serde_json::json!({
-                    "target": target_address,
+                    "url": service_url,
                     "timeout_ms": timeout_duration.as_millis(),
-                    "protocol": "tcp",
-                    "bypassed_dns": true
+                    "error": "Request timeout"
                 })
             )
         }

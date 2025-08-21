@@ -4,6 +4,7 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
+use uuid::Uuid;
 use std::sync::Arc;
 use crate::{
     api::{ApiError, ApiResponse, ApiResult},
@@ -29,7 +30,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
 /// Execute diagnostics on a node group
 async fn execute_group_diagnostic(
     State(state): State<Arc<AppState>>,
-    Path(group_id): Path<String>,
+    Path(group_id): Path<Uuid>,
     Json(request): Json<ExecuteDiagnosticRequest>,
 ) -> ApiResult<Json<ApiResponse<DiagnosticExecutionResponse>>> {
     let service = DiagnosticService::new(

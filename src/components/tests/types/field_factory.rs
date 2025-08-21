@@ -1,36 +1,6 @@
 use crate::{components::nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{base::Node, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}}, shared::schema::{ConfigField, FieldType, MessageSeverity, SelectOption, ValidationMessage}};
 use crate::shared::metadata::TypeMetadataProvider;
 
-pub fn generate_transport_protocol_field(help_text: String) -> ConfigField {
-    ConfigField {
-        id: "protocol".to_string(),
-        label: "Protocol".to_string(),
-        field_type: FieldType {
-            base_type: "select".to_string(),
-            constraints: serde_json::json!({}),
-            options: Some(vec![
-                SelectOption {
-                    value: "tcp".to_string(),
-                    label: "TCP".to_string(),
-                    description: Some("Transmission Control Protocol".to_string()),
-                    disabled: false,
-                },
-                SelectOption {
-                    value: "udp".to_string(),
-                    label: "UDP".to_string(),
-                    description: Some("User Datagram Protocol".to_string()),
-                    disabled: false,
-                },
-            ]),
-        },
-        required: false,
-        default_value: Some(serde_json::json!("tcp")),
-        help_text: Some(help_text),
-        placeholder: None,
-        advanced: false,
-    }
-}
-
 pub fn generate_domain_to_resolve_field(help_text: String) -> ConfigField {
     ConfigField {
         id: "domain".to_string(),
@@ -76,7 +46,7 @@ pub fn generate_dns_resolver_selection_field(available_nodes: &[Node]) -> (Optio
                 };
                 
                 SelectOption {
-                    value: node.id.clone(),
+                    value: node.id.to_string(),
                     label: node.base.name.clone(),
                     description: Some(format!("{} - {}", 
                         node.base.node_type.display_name(),

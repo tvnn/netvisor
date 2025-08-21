@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use anyhow::Result;
+use uuid::Uuid;
 use super::{
     storage::DiagnosticStorage,
     types::*,
@@ -35,7 +36,7 @@ impl DiagnosticService {
     /// Execute diagnostics on a node group and return completed results
     pub async fn execute_group_diagnostic(
         &self,
-        group_id: &str,
+        group_id: &Uuid,
         trigger_reason: DiagnosticTrigger,
     ) -> Result<DiagnosticExecution> {
         // Get the node group using the service
@@ -45,7 +46,7 @@ impl DiagnosticService {
         // Create diagnostic execution
         let mut execution = DiagnosticExecution::new(
             DiagnosticExecutionBase {
-                group_id: group.id.clone(),
+                group_id: group.id.to_string(),
                 trigger_reason,
             }
         );

@@ -1,15 +1,16 @@
 use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
+use uuid::Uuid;
 use crate::components::node_groups::types::{NodeGroupBase,NodeGroup};
 
 #[async_trait]
 pub trait NodeGroupStorage: Send + Sync {
     async fn create(&self, group: &NodeGroup) -> Result<()>;
-    async fn get_by_id(&self, id: &str) -> Result<Option<NodeGroup>>;
+    async fn get_by_id(&self, id: &Uuid) -> Result<Option<NodeGroup>>;
     async fn get_all(&self) -> Result<Vec<NodeGroup>>;
     async fn update(&self, group: &NodeGroup) -> Result<()>;
-    async fn delete(&self, id: &str) -> Result<()>;
+    async fn delete(&self, id: &Uuid) -> Result<()>;
 }
 
 pub struct SqliteNodeGroupStorage {
@@ -48,7 +49,7 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
         Ok(())
     }
 
-    async fn get_by_id(&self, id: &str) -> Result<Option<NodeGroup>> {
+    async fn get_by_id(&self, id: &Uuid) -> Result<Option<NodeGroup>> {
         let row = sqlx::query("SELECT * FROM node_groups WHERE id = ?")
             .bind(id)
             .fetch_optional(&self.pool)
@@ -96,7 +97,7 @@ impl NodeGroupStorage for SqliteNodeGroupStorage {
         Ok(())
     }
 
-    async fn delete(&self, id: &str) -> Result<()> {
+    async fn delete(&self, id: &Uuid) -> Result<()> {
         sqlx::query("DELETE FROM node_groups WHERE id = ?")
             .bind(id)
             .execute(&self.pool)

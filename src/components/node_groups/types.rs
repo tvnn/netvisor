@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 
 // API Requests and Responses
 #[derive(Debug, Serialize, Deserialize)]
@@ -12,7 +13,7 @@ pub struct CreateNodeGroupRequest {
 pub struct UpdateNodeGroupRequest {
     pub name: Option<String>,
     pub description: Option<Option<String>>,
-    pub node_sequence: Option<Vec<String>>,  // Ordered diagnostic sequence
+    pub node_sequence: Option<Vec<Uuid>>,  // Ordered diagnostic sequence
     pub auto_diagnostic_enabled: Option<bool>,
 }
 
@@ -31,13 +32,13 @@ pub struct NodeGroupListResponse {
 pub struct NodeGroupBase {
     pub name: String,
     pub description: Option<String>,
-    pub node_sequence: Vec<String>,  // Ordered diagnostic sequence
+    pub node_sequence: Vec<Uuid>,  // Ordered diagnostic sequence
     pub auto_diagnostic_enabled: bool, // Default: true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeGroup {
-    pub id: String,
+    pub id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     #[serde(flatten)]
@@ -48,7 +49,7 @@ impl NodeGroup {
     pub fn new(base: NodeGroupBase) -> Self {
         let now = chrono::Utc::now();
         Self {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: uuid::Uuid::new_v4(),
             created_at: now,
             updated_at: now,
             base,
@@ -78,14 +79,14 @@ impl NodeGroup {
     }
 
     // Node sequence management
-    pub fn add_node(&mut self, node_id: String) {
+    pub fn add_node(&mut self, node_id: Uuid) {
         if !self.base.node_sequence.contains(&node_id) {
             self.base.node_sequence.push(node_id);
             self.updated_at = chrono::Utc::now();
         }
     }
     
-    pub fn remove_node(&mut self, node_id: &str) -> bool {
+    pub fn remove_node(&mut self, node_id: &Uuid) -> bool {
         let initial_len = self.base.node_sequence.len();
         self.base.node_sequence.retain(|id| id != node_id);
         if self.base.node_sequence.len() != initial_len {
@@ -96,12 +97,12 @@ impl NodeGroup {
         }
     }
     
-    pub fn reorder_nodes(&mut self, new_sequence: Vec<String>) {
+    pub fn reorder_nodes(&mut self, new_sequence: Vec<Uuid>) {
         self.base.node_sequence = new_sequence;
         self.updated_at = chrono::Utc::now();
     }
     
-    pub fn move_node_up(&mut self, node_id: &str) -> bool {
+    pub fn move_node_up(&mut self, node_id: &Uuid) -> bool {
         if let Some(index) = self.base.node_sequence.iter().position(|id| id == node_id) {
             if index > 0 {
                 self.base.node_sequence.swap(index - 1, index);
@@ -112,7 +113,7 @@ impl NodeGroup {
         false
     }
     
-    pub fn move_node_down(&mut self, node_id: &str) -> bool {
+    pub fn move_node_down(&mut self, node_id: &Uuid) -> bool {
         if let Some(index) = self.base.node_sequence.iter().position(|id| id == node_id) {
             if index < self.base.node_sequence.len() - 1 {
                 self.base.node_sequence.swap(index, index + 1);
@@ -124,8 +125,8 @@ impl NodeGroup {
     }
 
     // Read-only methods (no setters needed)
-    pub fn contains_node(&self, node_id: &str) -> bool {
-        self.base.node_sequence.contains(&node_id.to_string())
+    pub fn contains_node(&self, node_id: &Uuid) -> bool {
+        self.base.node_sequence.contains(&node_id)
     }
 
     pub fn node_count(&self) -> usize {

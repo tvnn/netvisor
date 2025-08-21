@@ -90,9 +90,9 @@ impl std::fmt::Display for ServiceTargetConfig {
         
         // Only show port if it's not the default for this protocol
         if port == self.protocol.default_port() {
-            write!(f, "{}://{}{}", self.protocol, self.hostname, path)
+            write!(f, "{:?}://{}{}", self.protocol, self.hostname, path)
         } else {
-            write!(f, "{}://{}:{}{}", self.protocol, self.hostname, port, path)
+            write!(f, "{:?}://{}:{}{}", self.protocol, self.hostname, port, path)
         }
     }
 }

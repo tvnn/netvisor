@@ -5,6 +5,7 @@ use crate::shared::metadata::TypeMetadata;
 use crate::components::{
     nodes::types::{targets::NodeTarget}
 };
+use crate::components::nodes::capabilities::base::{deserialize_capabilities_from_discriminants};
 
 #[derive(Serialize, Debug, Clone)]
 pub struct TestConfigSchema {
@@ -70,6 +71,10 @@ pub enum MessageSeverity {
 pub struct NodeContext {
     pub node_id: Option<String>,
     pub node_type: NodeType,
+    #[serde(
+        // serialize_with = "serialize_capabilities_as_discriminants",
+        deserialize_with = "deserialize_capabilities_from_discriminants"
+    )]
     pub capabilities: Vec<NodeCapability>,
     pub target: NodeTarget,
     pub assigned_tests: Vec<String>,

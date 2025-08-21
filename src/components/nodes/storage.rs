@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
+use uuid::Uuid;
 use crate::components::nodes::{capabilities::base::NodeCapability, types::{
     base::{DetectedService, Node, NodeBase}, status::NodeStatus, targets::NodeTarget, tests::AssignedTest, topology::GraphPosition, types::NodeType
 }};
@@ -8,11 +9,11 @@ use crate::components::nodes::{capabilities::base::NodeCapability, types::{
 #[async_trait]
 pub trait NodeStorage: Send + Sync {
     async fn create(&self, node: &Node) -> Result<()>;
-    async fn get_by_id(&self, id: &str) -> Result<Option<Node>>;
+    async fn get_by_id(&self, id: &Uuid) -> Result<Option<Node>>;
     async fn get_all(&self) -> Result<Vec<Node>>;
     async fn update(&self, node: &Node) -> Result<()>;
-    async fn delete(&self, id: &str) -> Result<()>;
-    async fn get_by_group(&self, group_id: &str) -> Result<Vec<Node>>;
+    async fn delete(&self, id: &Uuid) -> Result<()>;
+    async fn get_by_group(&self, group_id: &Uuid) -> Result<Vec<Node>>;
 }
 
 pub struct SqliteNodeStorage {
@@ -75,7 +76,7 @@ impl NodeStorage for SqliteNodeStorage {
         Ok(())
     }
 
-    async fn get_by_id(&self, id: &str) -> Result<Option<Node>> {
+    async fn get_by_id(&self, id: &Uuid) -> Result<Option<Node>> {
         let row = sqlx::query("SELECT * FROM nodes WHERE id = ?")
             .bind(id)
             .fetch_optional(&self.pool)
@@ -146,7 +147,7 @@ impl NodeStorage for SqliteNodeStorage {
         Ok(())
     }
 
-    async fn delete(&self, id: &str) -> Result<()> {
+    async fn delete(&self, id: &Uuid) -> Result<()> {
         sqlx::query("DELETE FROM nodes WHERE id = ?")
             .bind(id)
             .execute(&self.pool)
@@ -155,7 +156,7 @@ impl NodeStorage for SqliteNodeStorage {
         Ok(())
     }
 
-    async fn get_by_group(&self, group_id: &str) -> Result<Vec<Node>> {
+    async fn get_by_group(&self, group_id: &Uuid) -> Result<Vec<Node>> {
         let rows = sqlx::query("SELECT * FROM nodes WHERE JSON_EXTRACT(node_groups, '$') LIKE ?")
             .bind(format!("%\"{}\"$", group_id))
             .fetch_all(&self.pool)
@@ -182,7 +183,7 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
     
     let capabilities: Vec<NodeCapability> = serde_json::from_str(&capabilities_json)?;
     let assigned_tests: Vec<AssignedTest> = serde_json::from_str(&assigned_tests_json)?;
-    let node_groups: Vec<String> = serde_json::from_str(&node_groups_json)?;
+    let node_groups: Vec<Uuid> = serde_json::from_str(&node_groups_json)?;
     let subnet_membership: Vec<String> = serde_json::from_str(&subnet_membership_json)?;
     let current_status: NodeStatus = serde_json::from_str(&current_status_json)?;
     let target: NodeTarget = serde_json::from_str(&target_json)?;

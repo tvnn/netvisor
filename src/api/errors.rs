@@ -5,6 +5,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use uuid::Uuid;
 use super::responses::ApiResponse;
 
 pub type ApiResult<T> = Result<T, ApiError>;
@@ -32,11 +33,11 @@ impl ApiError {
         Self::new(StatusCode::NOT_FOUND, format!("{} not found", resource))
     }
 
-    pub fn node_not_found(node_id: &str) -> Self {
+    pub fn node_not_found(node_id: &Uuid) -> Self {
         Self::new(StatusCode::NOT_FOUND, format!("Node '{}' not found", node_id))
     }
 
-    pub fn group_not_found(group_id: &str) -> Self {
+    pub fn group_not_found(group_id: &Uuid) -> Self {
         Self::new(StatusCode::NOT_FOUND, format!("Group '{}' not found", group_id))
     }
 }

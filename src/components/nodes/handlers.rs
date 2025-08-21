@@ -1,17 +1,18 @@
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     response::Json,
     routing::{delete, get, post, put},
     Router,
 };
-use std::{collections::HashMap, sync::Arc};
+use uuid::Uuid;
+use std::{sync::Arc};
 use crate::{
     api::{
         ApiError, ApiResponse, ApiResult
     },
     components::nodes::{
-            capabilities::base::NodeCapability, service::NodeService, types::{
-                api::{CompatibilityResponse, CreateNodeRequest, NodeListResponse, NodeResponse, UpdateNodeRequest}, base::Node, types::NodeType
+            service::NodeService, types::{
+                api::{CreateNodeRequest, NodeListResponse, NodeResponse, UpdateNodeRequest}, base::Node
             }
         },
     AppState,
@@ -24,7 +25,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/:id", get(get_node))
         .route("/:id", put(update_node))
         .route("/:id", delete(delete_node))
-        .route("/capability-compatibility", get(get_capability_compatibility))
+
 }
 
 async fn create_node(
@@ -49,7 +50,7 @@ async fn create_node(
 
 async fn get_node(
     State(state): State<Arc<AppState>>,
-    Path(id): Path<String>,
+    Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<NodeResponse>>> {
     let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
@@ -72,7 +73,7 @@ async fn get_all_nodes(
 
 async fn update_node(
     State(state): State<Arc<AppState>>,
-    Path(id): Path<String>,
+    Path(id): Path<Uuid>,
     Json(request): Json<UpdateNodeRequest>,
 ) -> ApiResult<Json<ApiResponse<NodeResponse>>> {
     let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
@@ -112,7 +113,7 @@ async fn update_node(
 
 async fn delete_node(
     State(state): State<Arc<AppState>>,
-    Path(id): Path<String>,
+    Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
@@ -124,21 +125,4 @@ async fn delete_node(
     service.delete_node(&id).await?;
     
     Ok(Json(ApiResponse::success(())))
-}
-
-async fn get_capability_compatibility(
-    Query(params): Query<HashMap<String, String>>,
-) -> ApiResult<Json<ApiResponse<CompatibilityResponse<NodeCapability>>>> {
-    let node_type_str = params.get("node_type")
-        .ok_or_else(|| ApiError::bad_request("node_type parameter required"))?;
-    
-    let node_type: NodeType = serde_json::from_str(&format!("\"{}\"", node_type_str))
-        .map_err(|_| ApiError::bad_request("Invalid node type"))?;
-    
-    let recommendations: CompatibilityResponse<NodeCapability> = CompatibilityResponse {
-        recommendations: Some(node_type.typical_capabilities()),
-        warnings: None
-    };
-    
-    Ok(Json(ApiResponse::success(recommendations)))
 }

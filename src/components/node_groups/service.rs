@@ -1,4 +1,5 @@
 use anyhow::Result;
+use uuid::Uuid;
 use std::sync::Arc;
 use crate::components::node_groups::{
     storage::NodeGroupStorage,
@@ -28,12 +29,10 @@ impl NodeGroupService {
     /// Create a new node group
     pub async fn create_group(&self, mut group: NodeGroup) -> Result<NodeGroup> {
         // Generate ID
-        group.id = uuid::Uuid::new_v4().to_string();
+        group.id = uuid::Uuid::new_v4();
         let now = chrono::Utc::now();
         group.created_at = now.clone();
         group.updated_at = now;
-
-        println!("1");
 
         // Validate that all nodes in sequence exist
         for node_id in &group.base.node_sequence {
@@ -42,11 +41,7 @@ impl NodeGroupService {
             }
         }
 
-        println!("2");
-
         self.group_storage.create(&group).await?;
-
-        println!("3");
         
         // Add group reference to all nodes in the sequence
         for node_id in &group.base.node_sequence {
@@ -56,13 +51,11 @@ impl NodeGroupService {
             }
         }
 
-        println!("4");
-
         Ok(group)
     }
 
     /// Get group by ID
-    pub async fn get_group(&self, id: &str) -> Result<Option<NodeGroup>> {
+    pub async fn get_group(&self, id: &Uuid) -> Result<Option<NodeGroup>> {
         self.group_storage.get_by_id(id).await
     }
 
@@ -114,7 +107,7 @@ impl NodeGroupService {
     }
 
     /// Delete group
-    pub async fn delete_group(&self, id: &str) -> Result<()> {
+    pub async fn delete_group(&self, id: &Uuid) -> Result<()> {
         // Get group to find nodes to update
         let group = self.get_group(id).await?
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
@@ -132,7 +125,7 @@ impl NodeGroupService {
     }
 
     /// Add node to group sequence
-    pub async fn add_node_to_group(&self, group_id: &str, node_id: &str, position: Option<usize>) -> Result<()> {
+    pub async fn add_node_to_group(&self, group_id: &Uuid, node_id: &Uuid, position: Option<usize>) -> Result<()> {
         let mut group = self.get_group(group_id).await?
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 
@@ -142,28 +135,26 @@ impl NodeGroupService {
         }
 
         // Check if node is already in sequence
-        if group.base.node_sequence.contains(&node_id.to_string()) {
+        if group.base.node_sequence.contains(&node_id) {
             return Ok(()); // Already in group
         }
 
         // Add node at specified position or end
         match position {
             Some(pos) if pos <= group.base.node_sequence.len() => {
-                group.base.node_sequence.insert(pos, node_id.to_string());
+                group.base.node_sequence.insert(pos, *node_id);
             },
             _ => {
-                group.base.node_sequence.push(node_id.to_string());
+                group.base.node_sequence.push(*node_id);
             }
         }
-
-        
 
         self.update_group(group).await?;
         Ok(())
     }
 
     /// Remove node from group sequence
-    pub async fn remove_node_from_group(&self, group_id: &str, node_id: &str) -> Result<()> {
+    pub async fn remove_node_from_group(&self, group_id: &Uuid, node_id: &Uuid) -> Result<()> {
         let mut group = self.get_group(group_id).await?
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 
@@ -175,7 +166,7 @@ impl NodeGroupService {
 
 
     /// Get nodes in group sequence
-    pub async fn get_group_nodes(&self, group_id: &str) -> Result<Vec<Node>> {
+    pub async fn get_group_nodes(&self, group_id: &Uuid) -> Result<Vec<Node>> {
         let group = self.get_group(group_id).await?
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 

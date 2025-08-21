@@ -1,4 +1,5 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 
 use crate::{components::nodes::capabilities::{
@@ -14,7 +15,7 @@ use crate::{components::nodes::capabilities::{
 shared::metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
-#[strum_discriminants(derive(Display))]
+#[strum_discriminants(derive(Display, Serialize, Deserialize))]
 pub enum NodeCapability {
     // Remote Access
     SshAccess(SshAccessCapability),
@@ -80,7 +81,7 @@ impl NodeCapability {
 
 impl TypeMetadataProvider for NodeCapability {
     fn id(&self) -> String { 
-        format!("{:?}", self) 
+        self.discriminant().to_string()
     }
     
     fn display_name(&self) -> &str {
@@ -151,4 +152,44 @@ impl TypeMetadataProvider for NodeCapability {
     fn metadata(&self) -> serde_json::Value {
         serde_json::json!({})
     }
+}
+
+// Serialization: Vec<NodeCapability> -> Vec<NodeCapabilityDiscriminants>
+pub fn serialize_capabilities_as_discriminants<S>(
+    capabilities: &Vec<NodeCapability>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let discriminants: Vec<NodeCapabilityDiscriminants> = capabilities
+        .iter()
+        .map(|cap| cap.into())
+        .collect();
+    discriminants.serialize(serializer)
+}
+
+// Deserialization: Vec<NodeCapabilityDiscriminants> -> Vec<NodeCapability>
+pub fn deserialize_capabilities_from_discriminants<'de, D>(
+    deserializer: D,
+) -> Result<Vec<NodeCapability>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let discriminants: Vec<NodeCapabilityDiscriminants> = Vec::deserialize(deserializer)?;
+    let capabilities = discriminants
+        .into_iter()
+        .map(|d| match d {
+            NodeCapabilityDiscriminants::SshAccess => NodeCapability::SshAccess(SshAccessCapability {  }),
+            NodeCapabilityDiscriminants::HttpService => NodeCapability::HttpService(HttpServiceCapability {  }),
+            NodeCapabilityDiscriminants::HttpsService => NodeCapability::HttpsService(HttpsServiceCapability {  }),
+            NodeCapabilityDiscriminants::DnsService => NodeCapability::DnsService(DnsServiceCapability {  }),
+            NodeCapabilityDiscriminants::DhcpService => NodeCapability::DhcpService(DhcpServiceCapability {  }),
+            NodeCapabilityDiscriminants::VpnService => NodeCapability::VpnService(VpnServiceCapability {  }),
+            NodeCapabilityDiscriminants::FtpService => NodeCapability::FtpService(FtpServiceCapability {  }),
+            NodeCapabilityDiscriminants::SmtpService => NodeCapability::SmtpService(SmtpServiceCapability {  }),
+            NodeCapabilityDiscriminants::SnmpService => NodeCapability::SnmpService(SnmpServiceCapability {  }),
+        })
+        .collect();
+    Ok(capabilities)
 }

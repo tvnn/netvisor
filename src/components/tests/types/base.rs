@@ -6,13 +6,14 @@ use crate::components::nodes::capabilities::{
     dns::*,
     vpn::*,
 };
+use crate::components::nodes::service::NodeService;
 use crate::components::{
     nodes::types::{
         base::Node, 
         targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}, 
     tests::{
         implementations::*, 
-        types::{configs::*, execution::*, field_factory::{generate_dns_resolver_selection_field, generate_domain_to_resolve_field, generate_expected_ip_field, generate_transport_protocol_field}}}};
+        types::{configs::*, execution::*, field_factory::{generate_dns_resolver_selection_field, generate_domain_to_resolve_field, generate_expected_ip_field}}}};
 use strum_macros::{EnumIter, EnumDiscriminants, Display};
 use crate::shared::metadata::{TypeMetadataProvider};
 use crate::shared::{schema::*};
@@ -23,8 +24,6 @@ use crate::shared::{schema::*};
 pub enum Test {
     // Basic Connectivity Tests
     Connectivity(ConnectivityConfig),
-    DirectIp(DirectIpConfig),
-    Ping(PingConfig),
     
     // Service-Specific Tests
     ServiceHealth(ServiceHealthConfig),
@@ -34,8 +33,7 @@ pub enum Test {
     ReverseDns(ReverseDnsConfig),
     
     // VPN-Specific Tests
-    VpnConnectivity(VpnConnectivityConfig),
-    VpnTunnel(VpnTunnelConfig),
+    VpnSubnetAccess(VpnSubnetAccessConfig),
         
     // Remote tests
     // DaemonCommand(DaemonCommandConfig),
@@ -47,18 +45,15 @@ impl Test {
         TestDiscriminants::from(self).to_string()
     }
 
-    pub async fn execute(&self, timer: &Timer, node: &Node) -> Result<TestResult, Error> {
+    pub async fn execute(&self, timer: &Timer, node: &Node, node_service: &NodeService) -> Result<TestResult, Error> {
         match self {
-            Test::Connectivity(config) => connectivity::execute_connectivity_test(config, &timer, &node).await,
-            Test::DirectIp(config) => connectivity::execute_direct_ip_test(config, &timer, &node).await,
-            Test::Ping(config) => connectivity::execute_ping_test(config, &timer, &node).await,
-            Test::DnsResolution(config) => dns::execute_dns_resolution_test(config, &timer, &node).await,
-            Test::DnsOverHttps(config) => dns::execute_dns_over_https_test(config, &timer, &node).await,
-            Test::DnsLookup(config) => dns::execute_dns_lookup_test(config, &timer, &node).await,
-            Test::ReverseDns(config) => dns::execute_reverse_dns_lookup_test(config, &timer, &node).await,
-            Test::VpnConnectivity(config) => vpn::execute_vpn_connectivity_test(config, &timer, &node).await,
-            Test::VpnTunnel(config) => vpn::execute_vpn_tunnel_test(config, &timer, &node).await,
-            Test::ServiceHealth(config) => service::execute_service_health_test(config, &timer, &node).await
+            Test::Connectivity(config) => connectivity::execute_connectivity_test(config, &timer, &node, &node_service).await,
+            Test::DnsResolution(config) => dns::execute_dns_resolution_test(config, &timer, &node, &node_service).await,
+            Test::DnsOverHttps(config) => dns::execute_dns_over_https_test(config, &timer, &node, &node_service).await,
+            Test::DnsLookup(config) => dns::execute_dns_lookup_test(config, &timer, &node, &node_service).await,
+            Test::ReverseDns(config) => dns::execute_reverse_dns_lookup_test(config, &timer, &node, &node_service).await,
+            Test::VpnSubnetAccess(config) => vpn::execute_vpn_subnet_access_test(config, &timer, &node, &node_service).await,
+            Test::ServiceHealth(config) => connectivity::execute_service_health_test(config, &timer, &node, &node_service).await
         }
     }
 
@@ -177,7 +172,7 @@ impl Test {
                 }
             },
             
-            Test::VpnTunnel(_) | Test::VpnConnectivity(_) => {
+            Test::VpnSubnetAccess(_) => {
                 let has_vpn_capability = context.capabilities.contains(&NodeCapability::VpnService(VpnServiceCapability {  }));
                 
                 if !has_vpn_capability {
@@ -191,23 +186,8 @@ impl Test {
                 }
             },
             
-            Test::DirectIp(_) => {
-                // Requires IP-based target
-                let has_ip_target = matches!(context.target, NodeTarget::IpAddress { .. });
-                
-                if !has_ip_target {
-                    schema.compatibility = CompatibilityStatus::Incompatible;
-                    schema.compatibility_reason = Some("Direct IP test requires IP address target".to_string());
-                    schema.errors.push(ValidationMessage {
-                        message: "Configure this node with an IP Address target to enable direct IP testing".to_string(),
-                        field_id: None,
-                        severity: MessageSeverity::Error,
-                    });
-                }
-            },
-            
-            // Basic connectivity and ping tests work on any node with any target
-            Test::Connectivity(_) | Test::Ping(_) => {
+            // Basic connectivity works on any node with any target
+            Test::Connectivity(_) => {
                 schema.compatibility = CompatibilityStatus::Compatible;
             },
         }
@@ -333,37 +313,44 @@ impl Test {
                         advanced: false,
                     });
                 }
+
+                let needs_dns_resolution = match &context.target {
+                    NodeTarget::IpAddress(IpAddressTargetConfig{ .. }) => false,
+                    NodeTarget::Service(ServiceTargetConfig{  .. }) => true,
+                    NodeTarget::Hostname(HostnameTargetConfig{ .. }) => true,
+                };
+
+                if needs_dns_resolution {                
+                    let (validation_message, dns_resolver_field) = generate_dns_resolver_selection_field(available_nodes);
+
+                    match validation_message {
+                        Some(message) => schema.warnings.push(message),
+                        _ => ()
+                    }
+
+                    schema.fields.push(dns_resolver_field);
+                }
+            },
+            
+            Test::VpnSubnetAccess(_) => {
                 
-                // Protocol selection
-                schema.fields.push(generate_transport_protocol_field("Network protocol to use for connectivity test".to_string()));
-            },
-            
-            Test::DirectIp(_) => {
-                // Protocol selection (same as connectivity)
-                schema.fields.push(generate_transport_protocol_field("Network protocol to use for direct IP test".to_string()));
-            },
-            
-            Test::Ping(_) => {
-                schema.fields.push(ConfigField {
-                    id: "packet_count".to_string(),
-                    label: "Packet Count".to_string(),
-                    field_type: FieldType {
-                        base_type: "integer".to_string(),
-                        constraints: serde_json::json!({
-                            "min": 1,
-                            "max": 20
-                        }),
-                        options: None,
-                    },
-                    required: false,
-                    default_value: Some(serde_json::json!(4)),
-                    help_text: Some("Number of ping packets to send".to_string()),
-                    placeholder: Some("4".to_string()),
-                    advanced: false,
-                });
-            },
-            
-            Test::VpnTunnel(_) => {
+                let needs_dns_resolution = match &context.target {
+                    NodeTarget::IpAddress(IpAddressTargetConfig{ .. }) => false,
+                    NodeTarget::Service(ServiceTargetConfig{  .. }) => true,
+                    NodeTarget::Hostname(HostnameTargetConfig{ .. }) => true,
+                };
+
+                if needs_dns_resolution {                
+                    let (validation_message, dns_resolver_field) = generate_dns_resolver_selection_field(available_nodes);
+
+                    match validation_message {
+                        Some(message) => schema.warnings.push(message),
+                        _ => ()
+                    }
+
+                    schema.fields.push(dns_resolver_field);
+                }
+
                 schema.fields.push(ConfigField {
                     id: "expected_subnet".to_string(),
                     label: "Expected VPN Subnet".to_string(),
@@ -378,10 +365,6 @@ impl Test {
                     placeholder: Some("10.100.0.0/24".to_string()),
                     advanced: false,
                 });
-            },
-            
-            Test::VpnConnectivity(_) => {
-                // No additional fields beyond timeout - just tests basic VPN server reachability
             },
         }
     }
@@ -424,14 +407,11 @@ impl Test {
         
         match self {
             Test::Connectivity(_) => format!("Can we connect to your {}?", node_type_name),
-            Test::DirectIp(_) => format!("Can we reach your {} directly by IP?", node_type_name),
-            Test::Ping(_) => format!("Can we ping your {}?", node_type_name),
             Test::DnsResolution(_) => format!("Can your {} resolve DNS queries?", node_type_name),
             Test::DnsLookup(_) => format!("Can your {} domain be resolved to the correct IP?", node_type_name),
             Test::DnsOverHttps(_) => format!("Can your {} resolve DNS over HTTPS?", node_type_name),
             Test::ReverseDns(_) => format!("Can your {} IP be resolved to the correct domain?", node_type_name),
-            Test::VpnConnectivity(_) => format!("Can we reach your {}?", node_type_name),
-            Test::VpnTunnel(_) => format!("Is your {} tunnel working correctly?", node_type_name),
+            Test::VpnSubnetAccess(_) => format!("Is your {} tunnel working correctly?", node_type_name),
             Test::ServiceHealth(_) => format!("Is your {} responding properly?", node_type_name),
         }
     }
@@ -446,14 +426,11 @@ impl TypeMetadataProvider for Test {
     fn display_name(&self) -> &str {
         match self {
             Test::Connectivity(_) => "Connectivity",
-            Test::DirectIp(_) => "Direct IP",
-            Test::Ping(_) => "Ping",
             Test::DnsResolution(_) => "DNS Resolution",
             Test::DnsOverHttps(_) => "DNS over HTTPS",
             Test::DnsLookup(_) => "DNS Lookup",
             Test::ReverseDns(_) => "Reverse DNS Lookup",
-            Test::VpnConnectivity(_) => "VPN Connectivity",
-            Test::VpnTunnel(_) => "VPN Tunnel",
+            Test::VpnSubnetAccess(_) => "VPN Subnet Access",
             Test::ServiceHealth(_) => "Service Health",
             // Test::DaemonCommand(_) => "Daemon Command",
             // Test::SshScript(_) => "SSH Script",
@@ -462,18 +439,17 @@ impl TypeMetadataProvider for Test {
     
     fn category(&self) -> &str {
         match self {
-            Test::Connectivity(_) | Test::DirectIp(_) | Test::Ping(_) => "Connectivity",
+            Test::Connectivity(_) => "Connectivity",
             Test::DnsResolution(_) | Test::DnsLookup(_) | Test::DnsOverHttps(_) | Test::ReverseDns(_) => "DNS",
-            Test::VpnTunnel(_) | Test::VpnConnectivity(_) => "VPN",
+            Test::VpnSubnetAccess(_) => "VPN",
             Test::ServiceHealth(_) => "Service",
         }
     }
     
     fn icon(&self) -> &str {
         match self {
-            Test::Connectivity(_) | Test::DirectIp(_) => "Wifi",
-            Test::Ping(_) => "Radio",
-            Test::VpnTunnel(_) | Test::VpnConnectivity(_) => "Shield",
+            Test::Connectivity(_) => "Wifi",
+            Test::VpnSubnetAccess(_) => "Shield",
             Test::ServiceHealth(_) => "Heart",
             Test::DnsResolution(_) | Test::DnsLookup(_) | Test::DnsOverHttps(_) | Test::ReverseDns(_) => "Search",
         }
@@ -481,8 +457,8 @@ impl TypeMetadataProvider for Test {
     
     fn color(&self) -> &str {
         match self {
-            Test::Connectivity(_) | Test::DirectIp(_) | Test::Ping(_) => "blue",
-            Test::VpnTunnel(_) | Test::VpnConnectivity(_) => "orange",
+            Test::Connectivity(_) => "blue",
+            Test::VpnSubnetAccess(_) => "orange",
             Test::ServiceHealth(_) => "green",
             Test::DnsResolution(_) | Test::DnsLookup(_) | Test::DnsOverHttps(_) | Test::ReverseDns(_) => "purple",
         }
@@ -491,14 +467,11 @@ impl TypeMetadataProvider for Test {
     fn description(&self) -> &str {
         match &self {
             Test::Connectivity(_) => "Test TCP connectivity to a target host and port",
-            Test::DirectIp(_) => "Test direct IP connectivity bypassing DNS resolution",
-            Test::Ping(_) => "Test network reachability using ICMP ping",
             Test::DnsResolution(_) => "Test DNS name resolution capabilities",
             Test::DnsOverHttps(_) => "Test DNS resolution using DNS over HTTPS",
             Test::DnsLookup(_) => "Test whether domain can be resolved to IP via DNS",
             Test::ReverseDns(_) => "Test whether IP can be resolved to domain via DNS",
-            Test::VpnConnectivity(_) => "Test VPN server reachability and connection",
-            Test::VpnTunnel(_) => "Test VPN tunnel functionality and subnet access",
+            Test::VpnSubnetAccess(_) => "Test network accessibility to remote subnet via VPN routing",
             Test::ServiceHealth(_) => "Test HTTP/HTTPS service health and response",
             // Test::DaemonCommand(_) => "Execute system commands via daemon",
             // Test::SshScript(_) => "Execute commands via SSH connection",
@@ -509,15 +482,12 @@ impl TypeMetadataProvider for Test {
         // Get default config for each test type
         let default_test = match self {
             Test::Connectivity(_) => Test::Connectivity(ConnectivityConfig::default()),
-            Test::DirectIp(_) => Test::DirectIp(DirectIpConfig::default()),
-            Test::Ping(_) => Test::Ping(PingConfig::default()),
             Test::ServiceHealth(_) => Test::ServiceHealth(ServiceHealthConfig::default()),
             Test::DnsResolution(_) => Test::DnsResolution(DnsResolutionConfig::default()),
             Test::DnsLookup(_) => Test::DnsLookup(DnsLookupConfig::default()),
             Test::DnsOverHttps(_) => Test::DnsOverHttps(DnsOverHttpsConfig::default()),
             Test::ReverseDns(_) => Test::ReverseDns(ReverseDnsConfig::default()),
-            Test::VpnConnectivity(_) => Test::VpnConnectivity(VpnConnectivityConfig::default()),
-            Test::VpnTunnel(_) => Test::VpnTunnel(VpnTunnelConfig::default()),
+            Test::VpnSubnetAccess(_) => Test::VpnSubnetAccess(VpnSubnetAccessConfig::default()),
         };
         
         serde_json::json!({

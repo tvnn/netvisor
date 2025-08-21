@@ -1,4 +1,5 @@
 use anyhow::Result;
+use uuid::Uuid;
 use std::{sync::Arc};
 use crate::components::{
     node_groups::storage::NodeGroupStorage, nodes::{
@@ -28,19 +29,16 @@ impl NodeService {
     /// Create a new node
     pub async fn create_node(&self, mut node: Node) -> Result<Node> {
         // Generate ID and timestamps
-        node.id = uuid::Uuid::new_v4().to_string();
+        node.id = uuid::Uuid::new_v4();
         let now = chrono::Utc::now();
         node.created_at = now.clone();
         node.updated_at = now;
-
-        // Set default capabilities based on node type
-        node.base.capabilities = node.base.node_type.typical_capabilities();
 
         self.storage.create(&node).await?;
         Ok(node)
     }
 
-    pub async fn get_node(&self, id: &str) -> Result<Option<Node>> {
+    pub async fn get_node(&self, id: &Uuid) -> Result<Option<Node>> {
         self.storage.get_by_id(id).await
     }
 
@@ -54,14 +52,14 @@ impl NodeService {
         Ok(node)
     }
 
-    pub async fn delete_node(&self, id: &str) -> Result<()> {
+    pub async fn delete_node(&self, id: &Uuid) -> Result<()> {
 
         let all_groups = self.group_storage.get_all().await?;
     
         // Remove node from all groups that contain it
         for mut group in all_groups {
-            if group.base.node_sequence.contains(&id.to_string()) {
-                group.base.node_sequence.retain(|seq_id| seq_id != &id.to_string());
+            if group.base.node_sequence.contains(&id) {
+                group.base.node_sequence.retain(|seq_id| seq_id != id);
                 group.updated_at = chrono::Utc::now();
                 self.group_storage.update(&group).await?;
             }
@@ -77,7 +75,7 @@ impl NodeService {
         let timer = Timer::now();
 
         for assigned in tests{
-            let result = self.test_service.execute_assigned_test(&assigned, &node).await;
+            let result = self.test_service.execute_assigned_test(assigned, &node, &self).await;
             test_results.push(result)
         };
 
@@ -90,44 +88,4 @@ impl NodeService {
             executed_at: timer.datetime(),
         }
     }
-
-    // Auto-detect and assign node type + capabilities from discovery results
-    // pub async fn auto_detect_from_discovery(
-    //     &self, 
-    //     node_id: &str, 
-    //     discovered_ports: &[u16]
-    // ) -> Result<Node> {
-    //     let mut node = self.get_node(node_id).await?
-    //         .ok_or_else(|| anyhow::anyhow!("Node not found"))?;
-
-    //     // 1. Detect capabilities from open ports
-    //     let detected_capabilities: Vec<NodeCapability> = discovered_ports
-    //         .iter()
-    //         .filter_map(|&port| NodeCapability::from_port(port))
-    //         .collect();
-
-    //     // 2. Auto-detect node type from ports
-    //     let detected_type = NodeType::detect_from_open_ports(discovered_ports);
-
-    //     // 3. Update node if detection provides better info than current
-    //     if node.base.node_type.is_none() || node.base.node_type == Some(NodeType::UnknownDevice) {
-    //         node.base.node_type = Some(detected_type.clone());
-    //     }
-
-    //     // 4. Add detected capabilities (don't remove existing ones)
-    //     for capability in detected_capabilities {
-    //         if !node.base.capabilities.contains(&capability) {
-    //             node.base.capabilities.push(capability);
-    //         }
-    //     }
-
-    //     // 5. If no capabilities detected, use typical ones for the node type
-    //     if node.base.capabilities.is_empty() {
-    //         if let Some(node_type) = &node.base.node_type {
-    //             node.base.capabilities = node_type.typical_capabilities();
-    //         }
-    //     }
-
-    //     self.update_node(node).await
-    // }
 }
