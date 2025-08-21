@@ -10,6 +10,10 @@ export const COLOR_CONFIG: Record<string, Record<string, string>> = {
     blue: {
         textColor: 'text-blue-400',
         bgColor: 'bg-blue-900/20',
+    },
+    purple: {
+        bgColor: 'bg-purple-900/30',
+        textColor: 'text-purple-400'
     }
 } as const;
 

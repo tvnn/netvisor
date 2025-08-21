@@ -3,7 +3,7 @@
   import ListManager from '$lib/components/common/ListManager.svelte';
   import TestConfigPanel from './TestConfigPanel.svelte';
   import { getCriticalityColor, getCriticalityDisplay, getTestDisplay } from "$lib/api/registry";
-  import { getTextColor } from "$lib/components/common/colors";
+  import { getBgColor, getTextColor } from "$lib/components/common/colors";
   
   export let tests: AssignedTest[];
   export let node: NodeFormData;
@@ -55,7 +55,7 @@
     return [{
       text: $getCriticalityDisplay(test.criticality),
       color: getTextColor($getCriticalityColor(test.criticality)),
-      bgColor: 'bg-gray-800'
+      bgColor: getBgColor($getCriticalityColor(test.criticality))
     }];
   }
   

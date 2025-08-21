@@ -98,36 +98,6 @@
       }
     }
   }
-  
-  // Capability recommendations cache
-  let capabilityRecommendations: string[] = [];
-  
-  // Auto-load capability recommendations when node type changes
-  let lastNodeType = formData.node_type;
-  $: if (formData.node_type !== lastNodeType && isOpen) {
-    lastNodeType = formData.node_type;
-    // Trigger capability recommendation fetch when node type changes
-    if (formData.node_type !== 'UnknownDevice') {
-      preloadCapabilityCompatibility();
-    }
-  }
-  
-  // Preload capability recommendations for better UX
-  async function preloadCapabilityCompatibility() {
-    try {
-      const response = await nodeActions.getCapabilityCompatibility(formData.node_type);
-      if (response) {
-        capabilityRecommendations = response.recommendations || [];
-        
-        // Auto-apply suggestions if no capabilities are currently selected
-        if (formData.capabilities.length === 0 && response.recommendations && response.recommendations.length > 0) {
-          formData.capabilities = [...response.recommendations];
-        }
-      }
-    } catch (error) {
-      console.error('Failed to preload capability recommendations:', error);
-    }
-  }
 </script>
 
 <EditModal
@@ -207,8 +177,6 @@
       <CapabilitiesForm 
         bind:selectedCapabilities={formData.capabilities}
         nodeType={formData.node_type || 'UnknownDevice'}
-        nodeId={node?.id}
-        preloadedRecommendations={capabilityRecommendations}
       />
       
     {:else if activeTab === 'tests'}

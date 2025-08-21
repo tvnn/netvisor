@@ -358,9 +358,11 @@
 
       {:else if schema}        
         <!-- Incompatible Test -->
+        {#if schema.compatibility !== 'Compatible'}
           <CompatibilityIndicator 
             schema={schema}
           />
+        {/if}
         {#if schema.compatibility === 'Compatible'}
           <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
             <label for="test-criticality" class="block text-sm font-medium text-gray-200 mb-2">
@@ -376,10 +378,6 @@
               <option value={crit.id}>{crit.display_name} - {crit.description}</option>
             {/each}
             </select>
-            <p class="text-xs text-gray-400 mt-2">
-              Critical tests cause complete node failure.
-              Important tests show as degraded.
-            </p>
           </div>
           <!-- Basic Configuration -->
           {#if basicFields.length > 0}

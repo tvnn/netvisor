@@ -3,7 +3,7 @@
   import { getNodeTargetString, type Node } from "$lib/types/nodes";
   import GenericCard from '../common/Card.svelte';
 	import { getCapabilityDisplay, getCriticalityColor, getNodeStatusColor, getNodeStatusDisplay, getNodeTypeDisplay, getNodeTypeIcon, getTestDisplay } from '$lib/api/registry';
-	import { getBgColor } from '../common/colors';
+	import { getBgColor, getTextColor } from '../common/colors';
   
   export let node: Node;
   export let groupInfo: any[] = [];
@@ -62,7 +62,7 @@
             label: `${i + 1}. ${$getTestDisplay(assigned.test.type)}`,
             disabled: (node.monitoring_interval == 0),
             bgColor:  getBgColor( $getCriticalityColor(assigned.criticality) ),
-            color: getBgColor( $getCriticalityColor(assigned.criticality) ),
+            color: getTextColor( $getCriticalityColor(assigned.criticality) ),
             badgeColor: 'text-gray-500',
             metadata: assigned
           };

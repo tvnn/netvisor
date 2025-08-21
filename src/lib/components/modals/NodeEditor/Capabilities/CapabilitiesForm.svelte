@@ -1,40 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { nodeActions } from '$lib/stores/nodes';
-  import { capabilities as allCapabilities, getCapabilityDescription, getCapabilityDisplay, getNodeTypeDisplay } from '$lib/api/registry';
+  import { capabilities as allCapabilities, getCapabilityDescription, getCapabilityDisplay, getNodeTypeDisplay, getNodeTypeMetadata } from '$lib/api/registry';
   
   export let selectedCapabilities: string[];
   export let nodeType: string;
-  export let nodeId: string | undefined = undefined;
-  export let preloadedRecommendations: string[];
   
   let recommendations: string[];
-  let loading = false;
-
-  // Fetch recommendations from backend
-  async function fetchCapabilityCompatibility() {
-    if (!nodeId) {
-      // For new nodes, no recommendations - just show all capabilities
-      return;
-    }
-    
-    loading = true;
-    try {
-      const response = await nodeActions.getCapabilityCompatibility(nodeType);
-      if (response) {
-        recommendations = response.recommendations;
-        
-        // Auto-apply suggested capabilities if none are currently selected
-        if (selectedCapabilities.length === 0 && response.recommendations.length > 0) {
-          selectedCapabilities = [...response.recommendations];
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch capabilities:', error);
-    } finally {
-      loading = false;
-    }
-  }
   
   function handleCapabilityToggle(capability: string) {
     if (selectedCapabilities.includes(capability)) {
@@ -49,36 +19,14 @@
       selectedCapabilities = [...recommendations];
     }
   }
-  
-  // Auto-apply suggestions when they change (for node type changes)
-  let lastSuggestions: string[] = [];
-  $: if (recommendations && JSON.stringify(recommendations) !== JSON.stringify(lastSuggestions)) {
-    // Only auto-apply if user hasn't made manual selections or if capabilities are empty
-    if (selectedCapabilities.length === 0 || selectedCapabilities.every(cap => lastSuggestions.includes(cap))) {
-      selectedCapabilities = [...recommendations];
-    }
-    lastSuggestions = [...recommendations];
+
+  $: if (nodeType) {
+    console.log($getNodeTypeMetadata(nodeType))
+    console.log($allCapabilities)
+    recommendations = $getNodeTypeMetadata(nodeType)['typical_capabilities'];
+    selectedCapabilities = [...recommendations];
   }
-  
-  onMount(() => {
-    // Use preloaded recommendations if available, otherwise fetch
-    if (preloadedRecommendations) {
-      recommendations = preloadedRecommendations;
-    } else {
-      fetchCapabilityCompatibility();
-    }
-  });
-  
-  // Use preloaded recommendations when they become available
-  $: if (preloadedRecommendations) {
-    recommendations = preloadedRecommendations;
-  }
-  
-  // Only fetch if we don't have preloaded data and node type changes
-  $: if (!preloadedRecommendations && nodeType && nodeType !== 'UnknownDevice') {
-    fetchCapabilityCompatibility();
-  }
-  
+    
   // Computed values
   $: suggestedCapabilities = recommendations || [];
   $: otherCapabilities = recommendations 
@@ -88,19 +36,10 @@
 
 <div class="space-y-4">
   <!-- Header with description -->
-  <div>
-    <!-- <div class="flex items-center justify-between mb-2">
-      <div class="flex items-center gap-2">
-        {#if loading}
-          <div class="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-        {/if}
-      </div>
-    </div> -->
-    <p class="text-sm text-gray-400">
-      Capabilities help determine which tests are compatible with this node and enable 
-      automatic test recommendations. Select the services and access methods available on this device.
-    </p>
-  </div>
+  <p class="text-sm text-gray-400">
+    Capabilities help determine which tests are compatible with this node and enable 
+    automatic test recommendations. Select the services and access methods available on this device.
+  </p>
   
   <!-- Capabilities List -->
   {#if recommendations}

@@ -196,6 +196,12 @@ export const getNodeTargetMetadata = derived(typeRegistry, $registry => {
   };
 });
 
+export const getNodeTypeMetadata = derived(typeRegistry, $registry => {
+  return (target: string) => {
+    const targ = $registry?.node_types?.find(t => t.id === target);
+    return targ?.metadata || {};
+  };
+});
 
 // Load registry function
 async function loadRegistry() {
