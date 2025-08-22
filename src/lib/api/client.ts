@@ -1,8 +1,8 @@
-import type { DiagnosticExecutionApi } from "$lib/types/diagnostics";
-import type { NodeGroupApi, NodeGroup } from "../types/node-groups";
-import type { NodeApi, Node } from "../types/nodes";
+import type { DiagnosticExecution, DiagnosticExecutionApi } from "$lib/components/diagnostics/types";
+import type { NodeGroupApi, NodeGroup } from "../components/node_groups/types";
+import type { NodeApi, Node } from "../components/nodes/types";
 
-// API client for NetFrog backend
+// API client for NetVisor backend
 const API_BASE = 'http://localhost:3000/api';
 
 interface ApiResponse<T> {
@@ -29,9 +29,9 @@ interface NodeGroupResponse {
   group: NodeGroup;
 }
 
-interface CapabilityCompatibilityResponse {
-  recommendations: string[];
-  warnings: string[];
+interface DiagnosticExecutionResponse {
+  executions: DiagnosticExecution[];
+  total: number;
 }
 
 class ApiClient {
@@ -98,10 +98,6 @@ class ApiClient {
     });
   }
 
-  async getCapabilityCompatibility(nodeType: string) {
-    return this.request<CapabilityCompatibilityResponse>(`/nodes/capability-compatibility?node_type=${nodeType.toString()}`);
-  }
-
   // Node group operations
   async getNodeGroups() {
     return this.request<NodeGroupListResponse>('/groups');
@@ -132,6 +128,24 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  }
+
+  async getDiagnostics() {
+    return this.request<DiagnosticExecutionResponse>('/diagnostics', {
+      method:  'GET'
+    })
+  }
+
+  async getDiagnostic(id: string) {
+    return this.request<DiagnosticExecutionResponse>(`/diagnostics/${id}`, {
+      method:  'GET'
+    })
+  }
+
+  async deleteDiagnostic(id: string) {
+    return this.request<DiagnosticExecutionResponse>(`/diagnostics/${id}`, {
+      method:  'DELETE'
+    })
   }
 }
 

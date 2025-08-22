@@ -1,19 +1,20 @@
 <script lang="ts">
-  import { Server, Workflow } from 'lucide-svelte';
+  import { Server, Stethoscope, Workflow } from 'lucide-svelte';
   
-  export let activeTab: string;
+  export let activeTab: string = 'nodes';
   export let onTabChange: (tab: string) => void;
   
   const navItems = [
     { id: 'nodes', label: 'Nodes', icon: Server },
-    { id: 'diagnostics', label: 'Diagnostic Groups', icon: Workflow },
+    { id: 'groups', label: 'Groups', icon: Workflow },
+    { id: 'diagnostics', label: 'Diagnostics', icon: Stethoscope },
   ];
 </script>
 
 <div class="w-64 bg-gray-800 border-r border-gray-700 min-h-screen flex flex-col">
   <!-- Logo/Brand -->
   <div class="p-6 border-b border-gray-700">
-    <h1 class="text-xl font-bold text-white">NetFrog</h1>
+    <h1 class="text-xl font-bold text-white">NetVisor</h1>
     <p class="text-sm text-gray-400">Network Diagnostics</p>
   </div>
   

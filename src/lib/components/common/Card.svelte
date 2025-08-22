@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { CardAction, CardSection, CardList } from '$lib/types/index';
+  import type { CardAction, CardSection, CardList } from '$lib/components/common/types';
 	import { getIcon } from './icons';
 
   export let title: string;
@@ -46,9 +46,9 @@
     <!-- List sections -->
     {#each lists as list}
       <div class="text-sm">
-        <span class="text-gray-400">{list.label}:</span>
-        {#if list.items.length > 0}
-          <div class="mt-1 flex flex-wrap gap-2">
+        <div class="flex items-center flex-wrap gap-2">
+          <span class="text-gray-400">{list.label}:</span>
+          {#if list.items.length > 0}
             {#each list.items as item}
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">
@@ -87,10 +87,10 @@
                 {/if}
               </div>
             {/each}
-          </div>
-        {:else}
-          <span class="text-gray-500 ml-2">{list.emptyText || `No ${list.label.toLowerCase()}`}</span>
-        {/if}
+          {:else}
+            <span class="text-gray-500">{list.emptyText || `No ${list.label.toLowerCase()}`}</span>
+          {/if}
+        </div>
       </div>
     {/each}
   </div>

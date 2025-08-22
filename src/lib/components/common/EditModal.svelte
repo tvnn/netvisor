@@ -7,6 +7,7 @@
   export let deleting = false;
   export let submitLabel = 'Save';
   export let cancelLabel = 'Cancel';
+  export let showCancel = true;
   export let onSubmit: (data: any) => Promise<void> | void;
   export let onClose: () => void;
   export let onCancel: () => void;
@@ -82,23 +83,26 @@
             </div>
             
             <!-- Save/Cancel buttons (right side) -->
-            <div class="flex gap-3">
-              <button
-                type="button"
-                on:click={onCancel}
-                disabled={loading || deleting}
-                class="px-4 py-2 text-gray-300 hover:text-white border border-gray-600 rounded-md hover:border-gray-500 transition-colors disabled:opacity-50"
-              >
-                {cancelLabel}
-              </button>
-              <button
-                type="submit"
-                disabled={loading || deleting}
-                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-              >
-                {loading ? 'Saving...' : submitLabel}
-              </button>
-            </div>
+            
+              <div class="flex gap-3">
+                {#if showCancel}
+                <button
+                  type="button"
+                  on:click={onCancel}
+                  disabled={loading || deleting}
+                  class="px-4 py-2 text-gray-300 hover:text-white border border-gray-600 rounded-md hover:border-gray-500 transition-colors disabled:opacity-50"
+                >
+                  {cancelLabel}
+                </button>
+                {/if}
+                <button
+                  type="submit"
+                  disabled={loading || deleting}
+                  class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+                >
+                  {loading ? 'Saving...' : submitLabel}
+                </button>
+              </div>
           </div>
         </div>
       </form>

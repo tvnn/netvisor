@@ -1,15 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import NodesTab from '../lib/components/tabs/NodesTab.svelte';
-  import DiagnosticsTab from '../lib/components/tabs/DiagnosticsTab.svelte';
+  import NodesTab from '../lib/components/nodes/NodeTab.svelte';
   import Sidebar from '../lib/components/common/Sidebar.svelte';
-  import { nodeActions } from '../lib/stores/nodes';
+	import DiagnosticsTab from '$lib/components/diagnostics/DiagnosticsTab.svelte';
+	import NodeGroupTab from '$lib/components/node_groups/NodeGroupTab.svelte';
   
   let activeTab = 'nodes';
-  
-  onMount(() => {
-    nodeActions.loadNodes();
-  });
   
   function handleTabChange(tab: string) {
     activeTab = tab;
@@ -25,6 +20,8 @@
     <div class="p-8">
       {#if activeTab === 'nodes'}
         <NodesTab />
+      {:else if activeTab === 'groups'}
+        <NodeGroupTab />
       {:else if activeTab === 'diagnostics'}
         <DiagnosticsTab />
       {/if}
