@@ -6,13 +6,23 @@
     Loader2,
     AlertTriangle,
     Clock,
-    Server
+    Server,
+
+	CircleX
+
   } from 'lucide-svelte';
   import EditModal from '../common/EditModal.svelte';
-  import type { DiagnosticExecution, NodeResult } from './types';
+  import type { DiagnosticExecution } from './types';
   import type { TestResult } from '../tests/types';
   import { nodeGroups } from '../node_groups/store';
-	import { formatDuration, formatTimestamp, getNodeBackgroundClass, getStatusClass, getStatusIcon } from './store';
+	import { formatDuration, formatTimestamp } from './store';
+	import { getDiagnosticStatusColor, getDiagnosticStatusIcon } from '$lib/api/registry';
+	import type { NodeResult } from '../nodes/types';
+	import { getBgColor, getTextColor } from '../common/colors';
+	import { getIcon } from '../common/icons';
+	import { nodes } from '../nodes/store';
+	import Tag from '../common/Tag.svelte';
+	import JsonContainer from '../common/JsonContainer.svelte';
 
   export let execution: DiagnosticExecution | null = null;
   export let isOpen = false;
@@ -28,13 +38,14 @@
   $: sortedNodes = execution?.node_results ? sortNodesBySequence(execution.node_results) : [];
 
   function sortNodesBySequence(nodes: NodeResult[]) {
-    return [...nodes].sort((a, b) => {
-      if (a.sequence !== undefined && b.sequence !== undefined) {
-        return a.sequence - b.sequence;
-      }
-      // Fallback to executed_at since node_name might not be available
-      return (a.executed_at || '').localeCompare(b.executed_at || '');
-    });
+      return [...nodes].sort((a, b) => {
+          if (a.executed_at !== undefined && b.executed_at !== undefined) {
+              return new Date(a.executed_at).getTime() - new Date(b.executed_at).getTime();
+          }
+          if (a.executed_at === undefined) return 1;
+          if (b.executed_at === undefined) return -1;
+          return 0
+      });
   }
 
   function countNodeTests(nodeResult: NodeResult) {
@@ -44,34 +55,6 @@
     const passed = nodeResult.test_results.filter(test => test.success).length;
     
     return { passed, total };
-  }
-
-  function getSkipReason(nodeResult: NodeResult) {
-    if (nodeResult.skip_reason) {
-      return nodeResult.skip_reason;
-    }
-    
-    if (nodeResult.status === 'Skipped') {
-      return 'Skipped due to dependency failure';
-    }
-    
-    return '';
-  }
-
-  // Derive node status from the API data
-  function getNodeStatus(nodeResult: NodeResult): string {
-    if (nodeResult.status) return nodeResult.status;
-    
-    // Derive from node_status and test results
-    if (nodeResult.node_status === 'Healthy') {
-      if (nodeResult.test_results && nodeResult.test_results.length > 0) {
-        const allPassed = nodeResult.test_results.every(test => test.success);
-        return allPassed ? 'Passed' : 'Failed';
-      }
-      return 'Passed';
-    }
-    
-    return 'Failed';
   }
 
   function handleSubmit() {}
@@ -96,21 +79,17 @@
     <div class="space-y-6">
       <!-- Execution Summary -->
       <div class="bg-gray-700/30 rounded-lg p-6 border border-gray-600">
+        <h3 class="text-lg font-semibold text-white mb-4">Execution Summary</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <h3 class="text-lg font-semibold text-white mb-4">Execution Summary</h3>
             <div class="space-y-3 text-sm">
               <div class="flex justify-between">
                 <span class="text-gray-400">Status:</span>
                 <div class="flex items-center gap-2">
-                  {#if execution}
-                    <svelte:component 
-                      this={getStatusIcon(execution.status)} 
-                      size={14} 
-                      class={getStatusClass(execution.status)}
-                    />
-                    <span class="text-white">{execution.status}</span>
-                  {/if}
+                  <Tag
+                    bgColor={getBgColor($getDiagnosticStatusColor(execution.status))}
+                    textColor={getTextColor($getDiagnosticStatusColor(execution.status))}
+                    label={execution.status} />
                 </div>
               </div>
               <div class="flex justify-between">
@@ -118,6 +97,13 @@
                 <span class="text-white">{getGroupName(execution.group_id)}</span>
               </div>
               <div class="flex justify-between">
+                <span class="text-gray-400">Trigger Reason:</span>
+                <span class="text-white">{execution.trigger_reason}</span>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-3 text-sm">
+            <div class="flex justify-between">
                 <span class="text-gray-400">Started:</span>
                 <span class="text-white">{formatTimestamp(execution.started_at)}</span>
               </div>
@@ -131,23 +117,10 @@
                 <span class="text-gray-400">Duration:</span>
                 <span class="text-white">{formatDuration(execution.started_at, execution?.completed_at || '')}</span>
               </div>
-            </div>
-          </div>
-          
-          <div>
-            <h3 class="text-lg font-semibold text-white mb-4">Trigger Information</h3>
-            <div class="space-y-3 text-sm">
-              <div>
-                <span class="text-gray-400 block mb-1">Trigger Reason:</span>
-                <span class="text-white">{execution.trigger_reason || 'Unknown'}</span>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Execution ID:</span>
+                <span class="text-white">{execution.id}</span>
               </div>
-              {#if execution.id}
-                <div>
-                  <span class="text-gray-400 block mb-1">Execution ID:</span>
-                  <span class="text-white font-mono text-xs">{execution.id}</span>
-                </div>
-              {/if}
-            </div>
           </div>
         </div>
       </div>
@@ -167,46 +140,30 @@
           <div class="space-y-3">
             {#each sortedNodes as nodeResult (nodeResult.node_id || nodeResult.executed_at)}
               {#if nodeResult}
-                {#each [getNodeStatus(nodeResult)] as nodeStatus}
+                {#each [nodeResult.node_status] as nodeStatus}
                   {#each [countNodeTests(nodeResult)] as testCounts}
-                    {#each [getSkipReason(nodeResult)] as skipReason}
                       
-                      <div class="border rounded-lg overflow-hidden {getNodeBackgroundClass(nodeStatus)}">
+                      <div class="border rounded-lg overflow-hidden">
                         <!-- Node Header -->
                         <div class="px-4 py-3 border-b border-gray-700 flex items-center gap-3">
-                          <svelte:component 
+                          <!-- <svelte:component 
                             this={getStatusIcon(nodeStatus)} 
                             size={16} 
                             class="{getStatusClass(nodeStatus)} flex-shrink-0"
-                          />
+                          /> -->
                           <div class="flex-1">
                             <div class="flex items-center gap-2">
                               <span class="font-semibold text-white">
-                                {nodeResult.node_name || `Node (${nodeResult.node_status})`}
+                                {$nodes.filter(n => n.id = nodeResult.node_id)[0].name}
                               </span>
-                              {#if nodeResult.sequence !== undefined}
-                                <span class="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">
-                                  #{nodeResult.sequence}
-                                </span>
-                              {/if}
                             </div>
                             <div class="text-sm text-gray-400 mt-1">
-                              {#if nodeStatus === 'Skipped'}
-                                {skipReason}
-                              {:else if testCounts.total > 0}
-                                {testCounts.passed}/{testCounts.total} checks passed
-                              {:else if nodeStatus === 'Running'}
-                                Running checks...
-                              {:else}
-                                No checks performed
-                              {/if}
+                              {testCounts.passed}/{testCounts.total} checks passed
                             </div>
                           </div>
-                          {#if nodeResult.completed_at || nodeResult.executed_at}
-                            <span class="text-xs text-gray-400">
-                              Completed {new Date(nodeResult.completed_at || nodeResult.executed_at).toLocaleTimeString()}
-                            </span>
-                          {/if}
+                          <span class="text-xs text-gray-400">
+                            Executed at {new Date(nodeResult.executed_at).toLocaleTimeString()} for {nodeResult.duration_ms} ms
+                          </span>
                         </div>
 
                         <!-- Test Results -->
@@ -215,20 +172,18 @@
                             {#each nodeResult.test_results as test}
                               <div class="flex items-start gap-3 text-sm">
                                 <svelte:component 
-                                  this={getStatusIcon(test.success ? 'Passed' : 'Failed')} 
+                                  this={test.success ? CheckCircle : XCircle} 
                                   size={14} 
-                                  class="{getStatusClass(test.success ? 'Passed' : 'Failed')} flex-shrink-0 mt-0.5"
+                                  class="flex-shrink-0 mt-0.5"
                                 />
                                 <div class="flex-1 min-w-0">
                                   <div class="font-medium {test.success ? 'text-gray-300' : 'text-red-300'}">
-                                    {test.details || 'Test check'}
-                                  </div>
-                                  <div class="text-xs text-gray-400 mt-1">
                                     {test.message}
                                     {#if test.duration_ms}
                                       • {test.duration_ms}ms
                                     {/if}
                                   </div>
+                                  <JsonContainer data={test.details} title="Test Details"/>
                                 </div>
                               </div>
                             {/each}
@@ -245,17 +200,8 @@
                             <span class="text-gray-500 text-sm">No test results available</span>
                           </div>
                         {/if}
-
-                        <!-- Error Message -->
-                        {#if nodeResult.error_message}
-                          <div class="px-4 py-2 bg-red-500/20 border-t border-red-500/30 flex items-center gap-2">
-                            <AlertTriangle size={14} class="text-red-400 flex-shrink-0" />
-                            <span class="text-red-300 text-sm">{nodeResult.error_message}</span>
-                          </div>
-                        {/if}
                       </div>
 
-                    {/each}
                   {/each}
                 {/each}
               {/if}

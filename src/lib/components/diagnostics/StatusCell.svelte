@@ -1,19 +1,24 @@
 <script lang="ts">
-  import { CheckCircle, AlertTriangle, Clock, Loader2 } from 'lucide-svelte';
-	import { getStatusBadgeClass, getStatusClass, getStatusIcon } from './store';
+	import { diagnosticStatuses, getDiagnosticStatusColor, getDiagnosticStatusIcon } from '$lib/api/registry';
+	import { RotateCwSquare } from 'lucide-svelte';
+	import { getBgColor, getTextColor } from '../common/colors';
+	import { getIcon } from '../common/icons';
+	import type { DiagnosticExecution } from './types';
+	import Tag from '../common/Tag.svelte';
   
-  export let status: string;
+  export let row: DiagnosticExecution;
 
-  $: StatusIcon = getStatusIcon(status);
+  $: StatusIcon = getIcon( $getDiagnosticStatusIcon(row.status) );
+
+  console.log(row.status)
+  console.log($diagnosticStatuses)
+  console.log($getDiagnosticStatusColor(row.status))
+
 </script>
 
-<div class="flex items-center gap-2 whitespace-nowrap">
-  <svelte:component 
-    this={StatusIcon} 
-    size={16} 
-    class={getStatusClass(status)}
-  />
-  <span class="inline-flex px-2 py-1 text-xs font-medium rounded border {getStatusBadgeClass(status)}">
-    {status}
-  </span>
-</div>
+<Tag
+  enableIcon={false}
+  icon={StatusIcon}
+  bgColor={getBgColor($getDiagnosticStatusColor(row.status))}
+  textColor={getTextColor($getDiagnosticStatusColor(row.status))}
+  label={row.status} />

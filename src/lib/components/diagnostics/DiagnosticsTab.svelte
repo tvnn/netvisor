@@ -2,14 +2,13 @@
   import { onMount } from 'svelte';
   import { Eye, Trash2, AlertTriangle, CheckCircle, Clock, Loader2 } from 'lucide-svelte';
   import SvelteTable from 'svelte-table';
-  import { diagnosticExecutions, loading, error, diagnosticsActions, formatTimestamp, formatDuration, getDisplayStatus } from './store';
+  import { diagnosticExecutions, loading, error, diagnosticsActions, formatTimestamp, formatDuration, diagnosticsActionsStore } from './store';
   import { nodeGroups } from '../node_groups/store';
   import type { DiagnosticExecution } from './types';
   import DiagnosticDetailsModal from './DiagnosticDetailsModal.svelte';
 
   // Define cell components
   import StatusCell from './StatusCell.svelte';
-  import GroupCell from './GroupCell.svelte';
   import ActionCell from './ActionCell.svelte';
 	import TabHeader from '../common/TabHeader.svelte';
 	import Error from '../common/Error.svelte';
@@ -22,41 +21,48 @@
   let deletingId: string | null = null;
 
   onMount(() => {
+    diagnosticsActionsStore.set({
+      handleViewDetails,
+      handleDelete,
+      deletingId
+    });
+    
     diagnosticsActions.loadExecutions();
+
   });
+
+  $: diagnosticsActionsStore.update(current => ({ 
+    ...current, 
+    deletingId 
+  }));
 
   // Table configuration
   $: columns = [
     {
       key: 'status',
       title: 'Status',
-      value: (row: DiagnosticExecution) => getDisplayStatus(row?.status || 'Unknown'),
+      value: (row: DiagnosticExecution) => row.status,
       sortable: true,
       headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
       class: 'text-center',
       renderComponent: {
         component: StatusCell,
-        props: (row: DiagnosticExecution) => ({ status: getDisplayStatus(row?.status || 'Unknown') })
+        props: (row: DiagnosticExecution) => ({ 
+          execution: row
+        })
       }
     },
     {
       key: 'group_id',
       title: 'Group',
-      value: (row: DiagnosticExecution) => getGroupName(row?.group_id || ''),
+      value: (row: DiagnosticExecution) => getGroupName(row.group_id),
       sortable: true,
       headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
-      renderComponent: {
-        component: GroupCell,
-        props: (row: DiagnosticExecution) => ({ 
-          groupName: getGroupName(row?.group_id || ''),
-          groupId: row?.group_id || ''
-        })
-      }
     },
     {
       key: 'trigger_reason',
       title: 'Trigger',
-      value: (row: DiagnosticExecution) => getTriggerDisplay(row?.trigger_reason || ''),
+      value: (row: DiagnosticExecution) => row.trigger_reason,
       sortable: true,
       headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
       class: 'max-w-xs'
@@ -92,15 +98,7 @@
       sortable: false,
       headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
       class: 'text-center',
-      renderComponent: {
-        component: ActionCell,
-        props: (row: DiagnosticExecution) => ({ 
-          execution: row,
-          deletingId,
-          onViewDetails: handleViewDetails,
-          onDelete: handleDelete
-        })
-      }
+      renderComponent: ActionCell
     }
   ];
 
@@ -149,13 +147,6 @@
   function getGroupName(groupId: string): string {
     const group = $nodeGroups.find(g => g.id === groupId);
     return group?.name || groupId; // Fallback to ID if name not found
-  }
-
-  function getTriggerDisplay(trigger: string) {
-    if (!trigger) return 'Unknown';
-    return trigger
-      .replace(/^(Manual diagnostic: )/, '')
-      .replace(/( check failed)$/, ' failed');
   }
 </script>
 

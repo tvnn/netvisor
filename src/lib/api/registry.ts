@@ -18,6 +18,7 @@ export interface TypeRegistry {
   criticality_levels: TypeMetadata[];
   node_statuses: TypeMetadata[];
   node_targets: TypeMetadata[];
+  diagnostic_statuses: TypeMetadata[];
 }
 
 // Core registry store
@@ -48,6 +49,10 @@ export const nodeStatuses = derived(typeRegistry, $registry =>
 
 export const nodeTargets = derived(typeRegistry, $registry => 
   $registry?.node_targets || []
+);
+
+export const diagnosticStatuses = derived(typeRegistry, $registry => 
+  $registry?.diagnostic_statuses || []
 );
 
 // Derived helper stores
@@ -112,6 +117,13 @@ export const getNodeStatusDisplay = derived(typeRegistry, $registry => {
   };
 });
 
+export const getDiagnosticStatusDisplay = derived(typeRegistry, $registry => {
+  return (status: string) => {
+    const stat = $registry?.diagnostic_statuses?.find(t => t.id === status);
+    return stat?.display_name || status;
+  };
+});
+
 // Description helper stores
 
 export const getCapabilityDescription = derived(typeRegistry, $registry => {
@@ -120,7 +132,6 @@ export const getCapabilityDescription = derived(typeRegistry, $registry => {
     return cap?.description || "";
   };
 });
-
 
 // Icon helper stores
 export const getTestIcon = derived(typeRegistry, $registry => {
@@ -133,6 +144,13 @@ export const getTestIcon = derived(typeRegistry, $registry => {
 export const getNodeTypeIcon = derived(typeRegistry, $registry => {
   return (nodeType: string) => {
     const type = $registry?.node_types?.find(t => t.id === nodeType);
+    return type?.icon || 'help-circle';
+  };
+});
+
+export const getDiagnosticStatusIcon = derived(typeRegistry, $registry => {
+  return (status: string) => {
+    const type = $registry?.diagnostic_statuses?.find(t => t.id === status);
     return type?.icon || 'help-circle';
   };
 });
@@ -170,6 +188,13 @@ export const getNodeStatusColor = derived(typeRegistry, $registry => {
 export const getCriticalityColor = derived(typeRegistry, $registry => {
   return (criticality: string) => {
     const cap = $registry?.criticality_levels?.find(t => t.id === criticality);
+    return cap?.color || 'text-gray-400';
+  };
+});
+
+export const getDiagnosticStatusColor = derived(typeRegistry, $registry => {
+  return (status: string) => {
+    const cap = $registry?.diagnostic_statuses?.find(t => t.id === status);
     return cap?.color || 'text-gray-400';
   };
 });

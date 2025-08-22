@@ -1,27 +1,26 @@
 <script lang="ts">
   import { Eye, Trash2 } from 'lucide-svelte';
-	import type { DiagnosticExecution } from './types';
+  import type { DiagnosticExecution } from './types';
+  import { diagnosticsActionsStore } from './store';
   
-  export let execution: DiagnosticExecution;
-  export let deletingId: string | null;
-  export let onViewDetails: (execution: DiagnosticExecution) => void;
-  export let onDelete: (execution: DiagnosticExecution) => void;
+  export let row: DiagnosticExecution;
 </script>
 
 <div class="flex items-center gap-2 whitespace-nowrap">
   <button
-    on:click={() => onViewDetails(execution)}
+    on:click={() => $diagnosticsActionsStore.handleViewDetails?.(row)}
     class="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
     title="View Details"
   >
     <Eye size={16} />
   </button>
-  <!-- <button
-    on:click={() => onDelete(execution)}
-    disabled={deletingId === execution.id}
+  
+  <button
+    on:click={() => $diagnosticsActionsStore.handleDelete?.(row)}
+    disabled={$diagnosticsActionsStore.deletingId === row.id}
     class="p-2 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors disabled:opacity-50"
     title="Delete"
   >
-    <Trash2 size={16} class="{deletingId === execution.id ? 'animate-pulse' : ''}" />
-  </button> -->
+    <Trash2 size={16} class="{$diagnosticsActionsStore.deletingId === row.id ? 'animate-pulse' : ''}" />
+  </button>
 </div>

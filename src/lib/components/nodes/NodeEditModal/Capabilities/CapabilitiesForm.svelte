@@ -21,8 +21,6 @@
   }
 
   $: if (nodeType) {
-    console.log($getNodeTypeMetadata(nodeType))
-    console.log($allCapabilities)
     recommendations = $getNodeTypeMetadata(nodeType)['typical_capabilities'];
     selectedCapabilities = [...recommendations];
   }

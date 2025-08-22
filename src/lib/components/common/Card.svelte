@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { CardAction, CardSection, CardList } from '$lib/components/common/types';
 	import { getIcon } from './icons';
+	import Tag from './Tag.svelte';
 
   export let title: string;
   export let subtitle: string = '';
@@ -52,22 +53,14 @@
             {#each list.items as item}
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-2">
-                  <!-- Item with proper Svelte icon support -->
-                  <div class="flex items-center space-x-2">
-                    <!-- Icon (if provided) -->
-                    {#if item.icon}
-                      <svelte:component this={item.icon} size={16} class={item.iconColor || 'text-gray-400'} />
-                    {/if}
-                    
-                    <!-- Main content -->
-                    <span class="inline-block {!item.disabled ? item.bgColor : 'bg-gray-700/30'} {!item.disabled ? item.color : 'text-gray-500'} px-2 py-1 rounded text-xs">
-                      {item.label}
-                      {#if item.badge && !item.disabled}
-                        <span class="text-xs {!item.disabled ? item.color : 'text-gray-500'}">({item.disabled ? 'disabled' : item.badge})</span>
-                      {/if}
-                    </span>
-                    
-                  </div>
+                  <Tag
+                    icon={item.icon}
+                    enableIcon={!!item.icon}
+                    disabled={item.disabled}
+                    bgColor={item.bgColor}
+                    textColor={item.color}
+                    badge={item.badge}
+                    label={item.label} />
                 </div>
                 
                 <!-- Item actions -->

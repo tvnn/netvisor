@@ -1,5 +1,6 @@
 import { getNodeTargetMetadata } from "$lib/api/registry";
 import { get } from 'svelte/store';
+import type { TestResult } from "../tests/types";
 
 // Base form data - what the form actually handles
 export interface NodeFormData {
@@ -97,6 +98,14 @@ export interface AssignedTest {
     config: Record<string, any>
   };
   criticality: string;
+}
+
+export interface NodeResult {
+  test_results: TestResult[];
+  executed_at: string;
+  node_status: string;
+  duration_ms: number;
+  node_id: string;
 }
 
 export interface DetectedService {
