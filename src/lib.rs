@@ -1,4 +1,3 @@
-// NetFrog Library - Core type system exports
 pub mod api;
 pub mod components;
 pub mod shared;

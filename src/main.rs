@@ -29,11 +29,11 @@ pub struct AppState {
 }
 
 #[derive(Parser)]
-#[command(name = "netfrog-server")]
-#[command(about = "NetFrog network diagnostics server")]
+#[command(name = "netvisor-server")]
+#[command(about = "NetVisor network diagnostics server")]
 struct Cli {
     /// Configuration file path
-    #[arg(short, long, default_value = "netfrog.toml")]
+    #[arg(short, long, default_value = "netvisor.toml")]
     config: String,
     
     /// Override server host
@@ -50,7 +50,7 @@ struct Cli {
 }
 
 async fn serve_web_assets(_uri: Uri) -> Response {
-    Html("<h1>NetFrog API Server</h1><p>UI not built yet. API available at /api</p>").into_response()
+    Html("<h1>NetVisor API Server</h1><p>Api available at /api</p>").into_response()
 }
 
 #[tokio::main]
@@ -114,7 +114,7 @@ async fn main() -> anyhow::Result<()> {
     let addr = format!("{}:{}", config.server.host, config.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     
-    tracing::info!("🚀 NetFrog server starting on http://{}", addr);
+    tracing::info!("🚀 NetVisor server starting on http://{}", addr);
     tracing::info!("📊 Web UI available at http://{}", addr);
     tracing::info!("🔧 API available at http://{}/api", addr);
     

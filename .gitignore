@@ -1,6 +1,6 @@
 /target
 .DS_STORE
 .env
-netfrog.db
+netvisor.db
 migrations/
 .sqlx/
