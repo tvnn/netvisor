@@ -83,6 +83,7 @@ impl NodeService {
 
         NodeTestResults {
             test_results,
+            node_id: node.id,
             node_status: node.base.current_status.clone(),
             duration_ms: timer.elapsed_ms(),
             executed_at: timer.datetime(),

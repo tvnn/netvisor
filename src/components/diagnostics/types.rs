@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::components::{nodes::types::{status::NodeStatus, tests::NodeTestResults}, tests::types::execution::Timer};
+use strum::IntoDiscriminant;
+use strum_macros::{Display, EnumDiscriminants, EnumIter};
+use crate::{components::{nodes::types::{status::NodeStatus, tests::NodeTestResults}, tests::types::execution::Timer}, shared::metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiagnosticTrigger {
@@ -24,7 +26,6 @@ pub struct DiagnosticExecution {
     pub generated_remediation_id: Option<String>,
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
-    pub created_at: DateTime<Utc>,
     #[serde(flatten)]
     pub base: DiagnosticExecutionBase,
 }
@@ -36,11 +37,10 @@ impl DiagnosticExecution {
             id: uuid::Uuid::new_v4().to_string(),
             base,
             node_results: Vec::new(),
-            status: DiagnosticStatus::NotStarted,
+            status: DiagnosticStatus::Started,
             generated_remediation_id: None,
             started_at: timer.datetime(),
             completed_at: None,
-            created_at: timer.datetime(),
         }
     }
 
@@ -72,56 +72,75 @@ impl DiagnosticExecution {
         } else if has_degraded {
             DiagnosticStatus::PartialFail
         } else if all_healthy {
-            DiagnosticStatus::Success
+            DiagnosticStatus::Completed
         } else {
             DiagnosticStatus::Unknown
         };
     }
-
-    /// Get a summary of the diagnostic results
-    pub fn get_summary(&self) -> DiagnosticSummary {
-        let total_nodes = self.node_results.len();
-        let healthy_nodes = self.node_results.iter().filter(|nr| nr.node_status == NodeStatus::Healthy).count();
-        let degraded_nodes = self.node_results.iter().filter(|nr| nr.node_status == NodeStatus::Degraded).count();
-        let failed_nodes = self.node_results.iter().filter(|nr| nr.node_status == NodeStatus::Failed).count();
-
-        let total_tests = self.node_results.iter().map(|nr| nr.test_results.len()).sum();
-        let passed_tests = self.node_results.iter()
-            .flat_map(|nr| &nr.test_results)
-            .filter(|tr| tr.success)
-            .count();
-
-        DiagnosticSummary {
-            total_nodes,
-            healthy_nodes,
-            degraded_nodes,
-            failed_nodes,
-            total_tests,
-            passed_tests,
-            failed_tests: total_tests - passed_tests,
-        }
-    }
 }
 
 /// Status of a diagnostic execution
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
+#[strum_discriminants(derive(Display, Serialize, Deserialize))]
 pub enum DiagnosticStatus {
-    NotStarted,  // Diagnostic created but run not started
-    Success,     // All checks passed
-    PartialFail, // Some checks failed, mixed results
-    Failed,      // All critical checks failed
-    Unknown      // Fallback
+    Started,
+    Completed,   
+    PartialFail, 
+    Failed,      
+    Unknown      
 }
 
-impl DiagnosticStatus {
-    pub fn display_name(&self) -> &'static str {
+impl TypeMetadataProvider for DiagnosticStatus {
+    fn id(&self) -> String { 
+        self.discriminant().to_string()
+    }
+
+    fn display_name(&self) -> &str {
         match self {
-            DiagnosticStatus::NotStarted => "Not Started",
-            DiagnosticStatus::Success => "Success",
+            DiagnosticStatus::Started => "Started",
+            DiagnosticStatus::Completed => "Completed",
             DiagnosticStatus::PartialFail => "Partial Failure",
             DiagnosticStatus::Failed => "Failed",
-            DiagnosticStatus::Unknown => "Unknown",
+            DiagnosticStatus::Unknown => "Unknown"
         }
+    }
+
+    fn description(&self) -> &str {
+        match self {
+            DiagnosticStatus::Started => "Diagnostic run started",
+            DiagnosticStatus::Completed => "All tests passed",
+            DiagnosticStatus::PartialFail => "One or more Important tests failed",
+            DiagnosticStatus::Failed => "One or more Critical tests failed",
+            DiagnosticStatus::Unknown => "Unknown"
+        }
+    }
+
+    fn category(&self) -> &str {
+        ""
+    }
+
+    fn icon(&self) -> &str {
+        match self {
+            DiagnosticStatus::Started => "Loader2",
+            DiagnosticStatus::Completed => "CheckCircle",
+            DiagnosticStatus::PartialFail => "AlertTriangle",
+            DiagnosticStatus::Failed => "CircleX",
+            DiagnosticStatus::Unknown => "CircleQuestionMark"
+        }
+    }
+
+    fn color(&self) -> &str {
+        match self {
+            DiagnosticStatus::Started => "blue",
+            DiagnosticStatus::Completed => "green",
+            DiagnosticStatus::PartialFail => "yellow",
+            DiagnosticStatus::Failed => "red",
+            DiagnosticStatus::Unknown => "gray"
+        }
+    }
+
+    fn metadata(&self) -> serde_json::Value {
+        serde_json::json!({})
     }
 }
 
@@ -148,7 +167,6 @@ pub struct ExecuteDiagnosticRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiagnosticExecutionResponse {
     pub execution: DiagnosticExecution,
-    pub summary: DiagnosticSummary,
 }
 
 /// Response for listing diagnostic executions
@@ -156,39 +174,4 @@ pub struct DiagnosticExecutionResponse {
 pub struct DiagnosticListResponse {
     pub executions: Vec<DiagnosticExecution>,
     pub total: usize,
-}
-
-/// Query parameters for listing diagnostics
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiagnosticListQuery {
-    pub group_id: Option<String>,
-    pub status: Option<DiagnosticStatus>,
-    pub limit: Option<usize>,
-    pub offset: Option<usize>,
-}
-
-/// Response for group diagnostic status
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct GroupDiagnosticStatusResponse {
-    pub group_id: String,
-    pub latest_status: Option<DiagnosticStatus>,
-    pub latest_execution_id: Option<String>,
-    pub last_execution_time: Option<chrono::DateTime<chrono::Utc>>,
-    pub total_executions: usize,
-}
-
-/// Statistics about diagnostic executions
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DiagnosticStatistics {
-    pub total_executions: usize,
-    pub successful_executions: usize,
-    pub failed_executions: usize,
-    pub partial_failure_executions: usize,
-    pub average_execution_time_ms: Option<i64>,
-}
-
-/// Response for diagnostic statistics
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct DiagnosticStatisticsResponse {
-    pub statistics: DiagnosticStatistics
 }

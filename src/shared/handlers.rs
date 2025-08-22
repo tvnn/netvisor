@@ -4,7 +4,7 @@ use std::sync::Arc;
 use crate::{
     api::ApiResponse, 
     components::{
-        diagnostics::handlers as diagnostic_handlers, node_groups::handlers as group_handlers, nodes::{capabilities::base::NodeCapability, handlers as node_handlers, types::{criticality::TestCriticality, status::NodeStatus, targets::NodeTarget, types::NodeType}}, tests::{handlers as test_handlers, types::base::Test}
+        diagnostics::{handlers as diagnostic_handlers, types::DiagnosticStatus}, node_groups::handlers as group_handlers, nodes::{capabilities::base::NodeCapability, handlers as node_handlers, types::{criticality::TestCriticality, status::NodeStatus, targets::NodeTarget, types::NodeType}}, tests::{handlers as test_handlers, types::base::Test}
     }, shared::metadata::{TypeMetadataProvider, TypeRegistry}, AppState
 };
 
@@ -25,6 +25,7 @@ async fn get_type_registry() -> Json<ApiResponse<TypeRegistry>> {
         criticality_levels: TestCriticality::iter().map(|t| t.to_metadata()).collect(),
         node_statuses: NodeStatus::iter().map(|t| t.to_metadata()).collect(),
         node_targets: NodeTarget::iter().map(|t| t.to_metadata()).collect(),
+        diagnostic_statuses: DiagnosticStatus::iter().map(|t| t.to_metadata()).collect(),
     };
     
     Json(ApiResponse::success(registry))

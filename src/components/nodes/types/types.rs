@@ -37,7 +37,7 @@ impl NodeType {
             NodeType::Router => vec![
                 NodeCapabilityDiscriminants::HttpService,
                 NodeCapabilityDiscriminants::SshAccess,
-                NodeCapabilityDiscriminants::DhcpService,
+                // NodeCapabilityDiscriminants::DhcpService,
             ],
             NodeType::Switch => vec![
                 NodeCapabilityDiscriminants::HttpService,

@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
 use crate::components::{nodes::types::{criticality::TestCriticality, status::NodeStatus}, tests::types::{base::Test, execution::TestResult}};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -31,6 +32,7 @@ impl TestCriticality {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeTestResults {
     pub test_results: Vec<TestResult>,
+    pub node_id: Uuid,
     pub executed_at: DateTime<Utc>,
     pub node_status: NodeStatus,
     pub duration_ms: u64,

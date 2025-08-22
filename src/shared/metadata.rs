@@ -7,7 +7,8 @@ pub struct TypeRegistry {
     pub capabilities: Vec<TypeMetadata>,
     pub criticality_levels: Vec<TypeMetadata>,
     pub node_statuses: Vec<TypeMetadata>,
-    pub node_targets: Vec<TypeMetadata>
+    pub node_targets: Vec<TypeMetadata>,
+    pub diagnostic_statuses: Vec<TypeMetadata>
 }
 
 #[derive(Serialize, Debug, Clone)]

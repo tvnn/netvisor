@@ -46,7 +46,6 @@ CREATE TABLE IF NOT EXISTS diagnostic_executions (
     node_results TEXT NOT NULL,
     status TEXT NOT NULL,
     generated_remediation_id TEXT,
-    created_at TEXT NOT NULL,
     started_at TEXT NOT NULL,
     updated_at TEXT,
     completed_at TEXT
@@ -64,4 +63,4 @@ CREATE TABLE IF NOT EXISTS remediations (
 CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(node_type);
 CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_group ON diagnostic_executions(group_id);
 CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_status ON diagnostic_executions(status);
-CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_created ON diagnostic_executions(created_at);
+CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_created ON diagnostic_executions(started_at);
