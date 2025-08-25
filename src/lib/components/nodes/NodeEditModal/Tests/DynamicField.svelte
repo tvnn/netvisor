@@ -1,18 +1,53 @@
 <script lang="ts">
   import { AlertCircle, Server } from 'lucide-svelte';
-  import type { ConfigField } from '$lib/components/tests/types';
+  import type { ConfigField } from '$lib/components/tests/types'
+  import RichSelect from '../../../common/RichSelect.svelte';
   
   export let field: ConfigField;
   export let value: any;
   export let error: string | null = null;
   export let onUpdate: (value: any) => void;
   
-  // Stable value to prevent unnecessary re-renders
-  let inputValue = value || '';
+  // Use default value if no value is provided
+  function getInitialValue() {
+    // If a value is explicitly provided, use it
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+    
+    // Otherwise, use the field's default value
+    if (field.default_value !== undefined && field.default_value !== null) {
+      return field.default_value;
+    }
+    
+    // Fallback to empty string or appropriate default based on field type
+    switch (field.field_type.base_type) {
+      case 'boolean':
+        return false;
+      case 'integer':
+        return '';
+      case 'select':
+      case 'node_selector':
+        return '';
+      default:
+        return '';
+    }
+  }
   
-  // Update internal value when prop changes
-  $: if (value !== inputValue) {
-    inputValue = value || '';
+  // Initialize with the determined initial value
+  let inputValue = getInitialValue();
+  
+  // Update internal value when prop changes, but preserve defaults
+  $: {
+    const newInitialValue = getInitialValue();
+    if (newInitialValue !== inputValue) {
+      inputValue = newInitialValue;
+      // Notify parent of the default value if it wasn't already set
+      if ((value === undefined || value === null || value === '') && 
+          field.default_value !== undefined && field.default_value !== null) {
+        onUpdate(field.default_value);
+      }
+    }
   }
   
   function handleInput(event: Event) {
@@ -31,6 +66,14 @@
     
     // Call parent update
     onUpdate(newValue);
+  }
+  
+  function handleRichSelectChange(value: any) {
+    // Update internal value immediately
+    inputValue = value;
+    
+    // Call parent update
+    onUpdate(value);
   }
 </script>
 
@@ -101,59 +144,34 @@
         {/each}
       </select>
       
-    {:else if field.field_type.base_type === 'node_selector'}
-      <div class="space-y-3">
-        {#if !field.field_type.options || field.field_type.options.length === 0}
-          <div class="p-4 bg-yellow-900/20 border border-yellow-600 rounded-lg">
-            <div class="flex items-center gap-2">
-              <AlertCircle class="w-4 h-4 text-yellow-400" />
-              <span class="text-sm text-yellow-200">No compatible nodes available</span>
-            </div>
-            <p class="text-xs text-yellow-300 mt-1">
-              Create a node with the required capabilities first.
-            </p>
-          </div>
-        {:else}
-          <div class="grid grid-cols-1 gap-3">
-            {#each field.field_type.options as nodeOption}
-              <label class="flex items-start gap-3 p-3 bg-gray-700/50 border border-gray-600 rounded-lg 
-                            cursor-pointer hover:bg-gray-700/70 transition-colors
-                            {inputValue === nodeOption.value ? 'border-blue-500 bg-blue-900/20' : ''}">
-                <input
-                  type="radio"
-                  name={field.id}
-                  value={nodeOption.value}
-                  checked={inputValue === nodeOption.value}
-                  on:change={handleInput}
-                  class="mt-0.5 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500"
-                />
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <Server class="w-4 h-4 text-blue-400" />
-                    <span class="font-medium text-white">{nodeOption.label}</span>
-                  </div>
-                  {#if nodeOption.description}
-                    <p class="text-sm text-gray-400 mt-1">{nodeOption.description}</p>
-                  {/if}
-                </div>
-              </label>
-            {/each}
-          </div>
-        {/if}
+    {:else if field.field_type.base_type === 'rich_select'}
+      <RichSelect
+        selectedValue={inputValue}
+        options={field.field_type.options?.map(opt => ({
+          value: opt.value,
+          label: opt.label,
+          description: opt.description,
+          disabled: opt.disabled || false
+        })) || []}
+        placeholder={field.placeholder || 'Select an option...'}
+        required={field.required}
+        error={error}
+        onSelect={handleRichSelectChange}
+        getOptionIcon={field.id.includes('node') ? () => Server : null}
+        getOptionIconColor={field.id.includes('node') ? () => 'text-blue-400' : null}
+      />
+      
+    {/if}
+    
+    {#if error}
+      <div class="flex items-center gap-2 text-red-400 text-sm">
+        <AlertCircle class="w-4 h-4" />
+        <span>{error}</span>
       </div>
     {/if}
     
-    <!-- Help Text -->
     {#if field.help_text && field.field_type.base_type !== 'boolean'}
       <p class="text-xs text-gray-400">{field.help_text}</p>
-    {/if}
-    
-    <!-- Error Message -->
-    {#if error}
-      <p class="text-xs text-red-400 flex items-center gap-1">
-        <AlertCircle class="w-3 h-3" />
-        {error}
-      </p>
     {/if}
   </div>
 {/key}

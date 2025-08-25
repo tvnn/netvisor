@@ -14,8 +14,8 @@
   import { type AssignedTest, type NodeFormData } from '$lib/components/nodes/types';
   import { criticalityLevels } from '$lib/api/registry';
   import DynamicField from './DynamicField.svelte';
-  import CompatibilityIndicator from './CompatibilityIndicator.svelte';
   import TestTypeDropdown from './TestTypeDropdown.svelte';
+	import Tag from '$lib/components/common/Tag.svelte';
   
   export let test: AssignedTest | null = null;
   export let onClose: () => void;
@@ -235,12 +235,6 @@
         </div>
 
       {:else if schema}        
-        <!-- Incompatible Test -->
-        {#if schema.compatibility !== 'Compatible'}
-          <CompatibilityIndicator 
-            schema={schema}
-          />
-        {/if}
         {#if schema.compatibility === 'Compatible'}
           <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
             <label for="test-criticality" class="block text-sm font-medium text-gray-200 mb-2">

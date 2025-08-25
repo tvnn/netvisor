@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { Circle } from "lucide-svelte";
 	import type { Component } from "svelte";
+	import { getBgColor, getTextColor } from "./colors";
 
     export let icon = Circle;
     export let enableIcon = false
 
+    export let color: string = 'gray';
     export let bgColor: string = 'bg-gray-700/30';
     export let textColor: string = 'text-gray-500';
 
@@ -12,6 +14,11 @@
     export let label: string;
 
     export let badge: string = ''
+
+    if (color !== 'gray') {
+        bgColor = getBgColor(color);
+        textColor = getTextColor(color);
+    }
 
 </script>
 
