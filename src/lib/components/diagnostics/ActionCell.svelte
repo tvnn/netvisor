@@ -6,7 +6,7 @@
   export let row: DiagnosticExecution;
 </script>
 
-<div class="flex items-center gap-2 whitespace-nowrap">
+<div class="items-center gap-2 whitespace-nowrap">
   <button
     on:click={() => $diagnosticsActionsStore.handleViewDetails?.(row)}
     class="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"

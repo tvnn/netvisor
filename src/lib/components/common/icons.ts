@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle, CircleQuestionMark, CircleX, Database, Globe, Loader2, Rabbit, Router, Server, Shield, Wifi } from 'lucide-svelte';
+import { AlertTriangle, CheckCircle, CircleQuestionMark, CircleX, Database, Globe, Loader2, Rabbit, Router, Search, Server, Shield, Wifi } from 'lucide-svelte';
 
 const ICON_CONFIG: Record<string, any> = {
     'Globe': Globe,
@@ -7,6 +7,7 @@ const ICON_CONFIG: Record<string, any> = {
     'Wifi': Wifi,
     'Database': Database,
     'Shield': Shield,
+    'Search': Search,
     "Loader2": Loader2,
     "CheckCircle": CheckCircle,
     "AlertTriangle": AlertTriangle,

@@ -43,7 +43,7 @@
       title: 'Status',
       value: (row: DiagnosticExecution) => row.status,
       sortable: true,
-      headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
+      headerClass: 'px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider',
       class: 'text-center',
       renderComponent: {
         component: StatusCell,
@@ -57,22 +57,23 @@
       title: 'Group',
       value: (row: DiagnosticExecution) => getGroupName(row.group_id),
       sortable: true,
-      headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
+      class: 'text-center',
+      headerClass: 'px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider',
     },
     {
       key: 'trigger_reason',
       title: 'Trigger',
       value: (row: DiagnosticExecution) => row.trigger_reason,
       sortable: true,
-      headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
-      class: 'max-w-xs'
+      headerClass: 'px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider',
+      class: 'max-w-xs text-center'
     },
     {
       key: 'nodes',
       title: 'Nodes',
       value: (row: DiagnosticExecution) => getNodesSummary(row),
       sortable: false,
-      headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
+      headerClass: 'px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider',
       class: 'text-center'
     },
     {
@@ -80,7 +81,8 @@
       title: 'Started',
       value: (row: DiagnosticExecution) => formatTimestamp(row?.started_at || ''),
       sortable: true,
-      headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
+      class: 'text-center',
+      headerClass: 'px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider',
       parseHTML: false
     },
     {
@@ -88,7 +90,7 @@
       title: 'Duration',
       value: (row: DiagnosticExecution) => formatDuration(row?.started_at || '', row?.completed_at || ''),
       sortable: false,
-      headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
+      headerClass: 'px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider',
       class: 'text-center'
     },
     {
@@ -96,7 +98,7 @@
       title: 'Actions',
       value: () => '',
       sortable: false,
-      headerClass: 'px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider',
+      headerClass: 'px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider',
       class: 'text-center',
       renderComponent: ActionCell
     }

@@ -15,7 +15,7 @@
 
 </script>
 
-<div class="flex items-center space-x-2">
+<div class="items-center space-x-2">
 
 {#if enableIcon}
     <svelte:component this={icon} size={16} class={textColor} />

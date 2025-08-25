@@ -10,10 +10,6 @@
 
   $: StatusIcon = getIcon( $getDiagnosticStatusIcon(row.status) );
 
-  console.log(row.status)
-  console.log($diagnosticStatuses)
-  console.log($getDiagnosticStatusColor(row.status))
-
 </script>
 
 <Tag

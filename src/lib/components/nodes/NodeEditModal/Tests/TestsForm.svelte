@@ -1,12 +1,78 @@
 <script lang="ts">
-  import type { AssignedTest, NodeFormData } from "$lib/components/nodes/types";
+  import { createDefaultTestsFromSchemas, type AssignedTest, type NodeFormData } from "$lib/components/nodes/types";
   import ListManager from '$lib/components/common/ListManager.svelte';
   import TestConfigPanel from './TestConfigPanel.svelte';
-  import { getCriticalityColor, getCriticalityDisplay, getTestDisplay } from "$lib/api/registry";
+  import { getCriticalityColor, getCriticalityDisplay, getTestDisplay, testTypes, type TypeMetadata } from "$lib/api/registry";
   import { getBgColor, getTextColor } from "$lib/components/common/colors";
+	import { fetchTestSchemas } from "$lib/components/tests/store";
   
   export let tests: AssignedTest[];
   export let node: NodeFormData;
+
+  // Test schema for config panel fields
+  let schemasLoading = false;
+  let schemaCache = new Map();
+  let defaultTestApplied = false;
+
+  // Convert NodeFormData to the simple context needed by schema API
+  $: nodeContext = {
+    node_id: undefined,
+    node_type: node.node_type,
+    capabilities: node.capabilities,
+    target: node.target,
+    assigned_tests: node.assigned_tests.map(t => t.test.type),
+  };
+
+  // Track node context changes to reload schemas and reset defaults
+  let lastNodeContextKey = '';
+  $: {
+    const nodeContextKey = `${node.node_type}-${node.capabilities.join(',')}-${JSON.stringify(node.target)}`;
+    if (nodeContextKey !== lastNodeContextKey) {
+      lastNodeContextKey = nodeContextKey;
+      defaultTestApplied = false;
+      if ($testTypes?.length > 0) {
+        preloadSchemas();
+      }
+    }
+  }
+  
+  // Load schemas when test types are available
+  $: if ($testTypes?.length > 0 && !schemasLoading && !defaultTestApplied) {
+    preloadSchemas();
+  }
+  
+  // Preload all schemas and apply defaults
+  async function preloadSchemas() {
+    if (!$testTypes || $testTypes.length === 0) return;
+    
+    schemasLoading = true;
+    schemaCache.clear();
+    
+    try {
+      const testTypeIds = $testTypes.map((t: TypeMetadata) => t.id);
+      const schemas = await fetchTestSchemas(nodeContext, testTypeIds);
+
+      // Apply default tests if none exist yet
+      if (!defaultTestApplied && tests.length === 0) {
+        const defaultTests = createDefaultTestsFromSchemas(schemas);
+        tests = [...defaultTests];
+        defaultTestApplied = true;
+      }
+      
+      // Store schemas in cache for TestConfigPanel to use
+      Object.entries(schemas).forEach(([testType, schema]) => {
+        schemaCache.set(testType, schema);
+      });
+      
+      // Trigger reactivity
+      schemaCache = new Map(schemaCache);
+      
+    } catch (err) {
+      console.error('Failed to preload schemas:', err);
+    } finally {
+      schemasLoading = false;
+    }
+  }
   
   // State for which test is being edited
   let editingIndex = -1;
@@ -117,7 +183,7 @@
   <div class="space-y-4">
     <TestConfigPanel
       test={editingTest}
-      {node}
+      {schemaCache}
       onClose={handleCloseConfig}
       onChange={handleTestUpdate}
     />

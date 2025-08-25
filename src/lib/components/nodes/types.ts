@@ -1,6 +1,6 @@
 import { getNodeTargetMetadata } from "$lib/api/registry";
 import { get } from 'svelte/store';
-import type { TestResult } from "../tests/types";
+import type { TestConfigSchema, TestResult } from "../tests/types";
 
 // Base form data - what the form actually handles
 export interface NodeFormData {
@@ -134,6 +134,42 @@ export interface GraphPosition {
 }
 
 // Utility functions
+export function createDefaultTestsFromSchemas(schemas: Record<string, TestConfigSchema>): AssignedTest[] {
+  const defaultTests: AssignedTest[] = [];
+  
+  // Create Connectivity test from schema if available
+  if (schemas['Connectivity']) {
+    const connectivitySchema = schemas['Connectivity'];
+    const defaultConfig: Record<string, any> = {};
+    
+    // Extract default values from schema fields
+    connectivitySchema.fields?.forEach(field => {
+      if (field.default_value !== null && field.default_value !== undefined) {
+        defaultConfig[field.id] = field.default_value;
+      }
+    });
+    
+    defaultTests.push({
+      test: {
+        type: 'Connectivity',
+        config: defaultConfig
+      },
+      criticality: 'Important'
+    });
+  } else {
+    // Fallback if no schema available
+    defaultTests.push({
+      test: {
+        type: 'Connectivity',
+        config: { timeout_ms: 10000 }
+      },
+      criticality: 'Important'
+    });
+  }
+  
+  return defaultTests;
+}
+
 export function createEmptyNodeFormData(): NodeFormData {
   return {
     name: '',

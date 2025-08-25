@@ -10,18 +10,17 @@
     Plus,
     Settings
   } from 'lucide-svelte';
-  import { fetchTestSchema } from '$lib/components/tests/store';
   import type { TestConfigSchema } from '$lib/components/tests/types';
-  import type { AssignedTest, NodeFormData } from '$lib/components/nodes/types';
-  import { criticalityLevels, testTypes } from '$lib/api/registry';
+  import { type AssignedTest, type NodeFormData } from '$lib/components/nodes/types';
+  import { criticalityLevels } from '$lib/api/registry';
   import DynamicField from './DynamicField.svelte';
   import CompatibilityIndicator from './CompatibilityIndicator.svelte';
   import TestTypeDropdown from './TestTypeDropdown.svelte';
   
   export let test: AssignedTest | null = null;
-  export let node: NodeFormData;
   export let onClose: () => void;
   export let onChange: (test: AssignedTest) => void;
+  export let schemaCache: Map<string, any>;
   
   let schema: TestConfigSchema | null = null;
   let loading = false;
@@ -32,50 +31,16 @@
   let showAdvanced = false;
   let mounted = false;
   
-  // Schema cache - preload schemas for all test types
-  let schemaCache: Map<string, TestConfigSchema> = new Map();
-  let schemasLoading = false;
-  
   // Prevent updates during initialization
   let isInitializing = false;
-  let updateTimeout: number;
-  
-  onMount(() => {
-    mounted = true;
-  });
-  
-  onDestroy(() => {
-    if (updateTimeout) {
-      clearTimeout(updateTimeout);
-    }
-  });
-  
-  // Convert NodeFormData to the simple context needed by schema API
-  $: nodeContext = {
-    node_id: undefined,
-    node_type: node.node_type,
-    capabilities: node.capabilities,
-    target: node.target,
-    assigned_tests: node.assigned_tests.map(t => t.test.type),
-  };
-  
-  // Preload schemas when node context changes
-  let lastNodeContextKey = '';
-  $: if (mounted) {
-    const nodeContextKey = `${node.node_type}-${node.capabilities.join(',')}-${JSON.stringify(node.target)}`;
-    if (nodeContextKey !== lastNodeContextKey) {
-      lastNodeContextKey = nodeContextKey;
-      preloadSchemas();
-    }
-  }
   
   // Get schema from cache when test type changes
-  $: if (mounted && test?.test.type && schemaCache.has(test.test.type)) {
+  $: if (test?.test.type && schemaCache.has(test.test.type)) {
     schema = schemaCache.get(test.test.type) || null;
     error = null;
     loading = false;
     
-    // Initialize form data with defaults
+    // Initialize form data with defaults merged with existing values
     if (schema) {
       const defaults = Object.fromEntries(
         schema.fields
@@ -87,13 +52,14 @@
       formData = { ...defaults, ...(test?.test.config || {}) };
       isInitializing = false;
     }
-  } else if (mounted && test?.test.type && !schemaCache.has(test.test.type) && !schemasLoading) {
-    // Schema not in cache and not currently loading - this shouldn't happen if preload works
-    // but fallback to individual load
-    loadSchemaForTest(test.test.type);
+  } else if (test?.test.type && !schemaCache.has(test.test.type)) {
+    // Schema not available - this shouldn't happen if TestsForm loaded them
+    schema = null;
+    error = `Schema not available for ${test.test.type}`;
+    loading = false;
   }
   
-  // Initialize form data only when test changes (not on every config update)
+  // Initialize form data when test changes
   let lastTestId = '';
   $: if (test) {
     const testId = `${test.test.type}-${Object.keys(test.test.config || {}).join(',')}`;
@@ -102,76 +68,6 @@
       isInitializing = true;
       formData = { ...test.test.config };
       isInitializing = false;
-    }
-  }
-  
-  // Preload all schemas for the current node context
-  async function preloadSchemas() {
-    if (!$testTypes || $testTypes.length === 0) return;
-    
-    schemasLoading = true;
-    schemaCache.clear();
-    
-    try {
-      // Load schemas for all test types in parallel
-      const schemaPromises = $testTypes.map(async (testType) => {
-        try {
-          const schema = await fetchTestSchema(testType.id, nodeContext);
-          return { testType: testType.id, schema };
-        } catch (err) {
-          console.warn(`Failed to preload schema for ${testType.id}:`, err);
-          return null;
-        }
-      });
-      
-      const results = await Promise.all(schemaPromises);
-      
-      // Store successful results in cache
-      results.forEach(result => {
-        if (result) {
-          schemaCache.set(result.testType, result.schema);
-        }
-      });
-      
-      // Trigger reactivity by reassigning the cache
-      schemaCache = new Map(schemaCache);
-      
-    } catch (err) {
-      console.error('Failed to preload schemas:', err);
-    } finally {
-      schemasLoading = false;
-    }
-  }
-  
-  // Fallback function for individual schema loading (shouldn't be needed usually)
-  async function loadSchemaForTest(testType: string) {
-    if (!testType) return;
-    
-    loading = true;
-    error = null;
-    schema = null;
-    
-    try {
-      schema = await fetchTestSchema(testType, nodeContext);
-      
-      // Store in cache for future use
-      schemaCache.set(testType, schema);
-      schemaCache = new Map(schemaCache);
-      
-      // Initialize form data with defaults merged with existing values
-      const defaults = Object.fromEntries(
-        schema.fields
-          .filter(field => field.default_value !== null && field.default_value !== undefined)
-          .map(field => [field.id, field.default_value])
-      );
-      
-      isInitializing = true;
-      formData = { ...defaults, ...(test?.test.config || {}) };
-      isInitializing = false;
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load test configuration';
-    } finally {
-      loading = false;
     }
   }
   
@@ -224,24 +120,6 @@
         validationErrors = { ...validationErrors, [fieldId]: errorMsg };
       }
     }
-    
-    // Debounce the onChange call to prevent excessive updates
-    if (updateTimeout) {
-      clearTimeout(updateTimeout);
-    }
-    
-    updateTimeout = setTimeout(() => {
-      if (test) {
-        const updatedTest: AssignedTest = {
-          ...test,
-          test: {
-            ...test.test,
-            config: formData
-          }
-        };
-        onChange(updatedTest);
-      }
-    }, 300); // Increased debounce to 300ms
   }
   
   function validateField(field: any, value: any): string | null {
