@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
-use crate::{components::nodes::capabilities::{base::{NodeCapabilityDiscriminants}}, shared::metadata::TypeMetadataProvider};
+use crate::{components::nodes::capabilities::base::NodeCapabilityDiscriminants, shared::types::metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
 pub enum NodeType {

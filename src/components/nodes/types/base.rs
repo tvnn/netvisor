@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::components::{nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}}, tests::types::{base::Test, configs::ConnectivityConfig, execution::TestResult}};
-use crate::shared::types::ApplicationProtocol;
+use crate::{components::{nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}}, tests::types::{base::Test, configs::ConnectivityConfig, execution::TestResult}}, shared::types::protocols::ApplicationProtocol};
 use super::{
     types::{NodeType},
     tests::{AssignedTest},

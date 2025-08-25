@@ -3,12 +3,9 @@ use sqlx::SqlitePool;
 use std::sync::Arc;
 
 
-use crate::components::{
-    nodes::storage::{NodeStorage, SqliteNodeStorage},
-    node_groups::storage::{NodeGroupStorage, SqliteNodeGroupStorage},
-    diagnostics::storage::{DiagnosticStorage, SqliteDiagnosticStorage},
-};
-use super::database::DatabaseMigrations;
+use crate::{components::{
+    diagnostics::storage::{DiagnosticStorage, SqliteDiagnosticStorage}, node_groups::storage::{NodeGroupStorage, SqliteNodeGroupStorage}, nodes::storage::{NodeStorage, SqliteNodeStorage}
+}, shared::database::DatabaseMigrations};
 
 pub struct StorageFactory {
     pub nodes: Arc<dyn NodeStorage>,

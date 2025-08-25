@@ -1,5 +1,4 @@
-use crate::{components::{nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{base::Node, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}}}, shared::schema::{ConfigField, FieldType, MessageSeverity, SelectOption, ValidationMessage}};
-use crate::shared::metadata::TypeMetadataProvider;
+use crate::{components::{nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{base::Node, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}}, tests::types::schema::*}, shared::types::metadata::TypeMetadataProvider};
 
 pub fn generate_timeout_field() -> ConfigField {
     ConfigField {

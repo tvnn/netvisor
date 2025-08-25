@@ -1,18 +1,14 @@
 use std::net::{IpAddr, Ipv4Addr};
-
 use uuid::Uuid;
-
-// src/shared/database/defaults.rs
-use crate::components::{
+use crate::{components::{
     nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability, http::{HttpServiceCapability, HttpsServiceCapability}}, types::{
-        base::{Node}, criticality::TestCriticality, targets::{IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}, tests::AssignedTest, types::NodeType
+        base::Node, criticality::TestCriticality, targets::{IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}, tests::AssignedTest, types::NodeType
     }},
     tests::types::{
         base::Test,
-        configs::{ConnectivityConfig},
+        configs::ConnectivityConfig,
     },
-};
-use crate::shared::types::ApplicationProtocol;
+}, shared::types::protocols::ApplicationProtocol};
 
 pub fn create_internet_connectivity_node(dns_id: Uuid) -> Node {
 

@@ -3,12 +3,8 @@ use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 
 use crate::{components::nodes::capabilities::{
-    ssh::SshAccessCapability,
-    http::*,
-    dns::*,
-    vpn::*,
-}, 
-shared::metadata::TypeMetadataProvider};
+    dns::*, http::*, ssh::SshAccessCapability, vpn::*
+}, shared::types::metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, Serialize, Deserialize))]

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
 
-use crate::shared::metadata::TypeMetadataProvider;
+use crate::shared::types::metadata::TypeMetadataProvider;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
 pub enum TestCriticality {

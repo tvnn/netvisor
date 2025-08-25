@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr};
-use crate::shared::{metadata::TypeMetadataProvider, types::ApplicationProtocol};
 use strum_macros::{EnumIter, EnumDiscriminants, Display};
+
+use crate::shared::types::{metadata::TypeMetadataProvider, protocols::ApplicationProtocol};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, EnumIter))]

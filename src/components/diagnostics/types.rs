@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
-use crate::{components::{nodes::types::{status::NodeStatus, tests::NodeTestResults}, tests::types::execution::Timer}, shared::metadata::TypeMetadataProvider};
+use crate::{components::{nodes::types::{status::NodeStatus, tests::NodeTestResults}, tests::types::execution::Timer}, shared::types::metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiagnosticTrigger {

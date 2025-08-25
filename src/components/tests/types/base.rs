@@ -7,17 +7,22 @@ use crate::components::nodes::capabilities::{
     vpn::*,
 };
 use crate::components::nodes::service::NodeService;
-use crate::components::tests::types::field_factory::{generate_timeout_field};
+use crate::components::tests::field_factory::{generate_timeout_field};
+use crate::components::tests::types::schema::*;
 use crate::components::{
     nodes::types::{
         base::Node, 
         targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}, 
     tests::{
         implementations::*, 
-        types::{configs::*, execution::*, field_factory::{generate_dns_resolver_selection_field, generate_domain_to_resolve_field, generate_expected_ip_field}}}};
+        types::{
+            configs::*, 
+            execution::*,
+        },
+        field_factory::{generate_dns_resolver_selection_field, generate_domain_to_resolve_field, generate_expected_ip_field}
+    }};
+use crate::shared::types::metadata::TypeMetadataProvider;
 use strum_macros::{EnumIter, EnumDiscriminants, Display};
-use crate::shared::metadata::{TypeMetadataProvider};
-use crate::shared::{schema::*};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, EnumIter, Deserialize, Serialize, Hash))]

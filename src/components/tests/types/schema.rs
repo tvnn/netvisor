@@ -1,11 +1,12 @@
 use serde::{Deserialize, Serialize};
 use crate::components::nodes::capabilities::base::NodeCapability;
 use crate::components::nodes::types::types::NodeType;
-use crate::shared::metadata::TypeMetadata;
+
 use crate::components::{
     nodes::types::{targets::NodeTarget}
 };
 use crate::components::nodes::capabilities::base::{deserialize_capabilities_from_discriminants};
+use crate::shared::types::metadata::TypeMetadata;
 
 #[derive(Serialize, Debug, Clone)]
 pub struct TestConfigSchema {
@@ -77,5 +78,4 @@ pub struct NodeContext {
     )]
     pub capabilities: Vec<NodeCapability>,
     pub target: NodeTarget,
-    pub assigned_tests: Vec<String>,
 }

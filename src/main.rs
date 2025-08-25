@@ -19,7 +19,8 @@ mod shared;
 
 use config::ServerConfig;
 use shared::handlers::create_router;
-use shared::storage::StorageFactory;
+
+use crate::shared::types::storage::StorageFactory;
 
 pub struct AppState {
     pub config: ServerConfig,

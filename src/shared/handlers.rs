@@ -2,10 +2,9 @@ use axum::{routing::get, Json, Router};
 use strum::IntoEnumIterator;
 use std::sync::Arc;
 use crate::{
-    api::ApiResponse, 
-    components::{
+    api::ApiResponse, components::{
         diagnostics::{handlers as diagnostic_handlers, types::DiagnosticStatus}, node_groups::handlers as group_handlers, nodes::{capabilities::base::NodeCapability, handlers as node_handlers, types::{criticality::TestCriticality, status::NodeStatus, targets::NodeTarget, types::NodeType}}, tests::{handlers as test_handlers, types::base::Test}
-    }, shared::metadata::{TypeMetadataProvider, TypeRegistry}, AppState
+    }, shared::types::metadata::{TypeMetadataProvider, TypeRegistry}, AppState
 };
 
 pub fn create_router() -> Router<Arc<AppState>> {

@@ -1,33 +1,18 @@
-// Complete src/components/tests/handlers.rs - Single endpoint approach
-
 use axum::{extract::State, routing::post, Json, Router};
-use serde::{Deserialize, Serialize};
 use std::{sync::Arc, collections::HashMap};
 use strum::IntoEnumIterator;
 use crate::{
     api::{ApiError, ApiResponse, ApiResult}, 
     components::{
-        nodes::{service::NodeService}, 
-        tests::types::{base::{Test, TestDiscriminants}, configs::*},
+        nodes::service::NodeService, 
+        tests::types::{api::{SchemaRequest, SchemaResponse}, base::{Test, TestDiscriminants}, configs::*},
     }, 
-    shared::{schema::{NodeContext, TestConfigSchema}}, 
     AppState
 };
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/schemas", post(get_test_schemas))  // Single endpoint handles all cases
-}
-
-#[derive(Deserialize)]
-pub struct SchemaRequest {
-    pub test_types: Option<Vec<TestDiscriminants>>,  // None = get all schemas
-    pub node_context: NodeContext,
-}
-
-#[derive(Serialize)]
-pub struct SchemaResponse {
-    pub schemas: HashMap<TestDiscriminants, TestConfigSchema>,
 }
 
 impl TestDiscriminants {
