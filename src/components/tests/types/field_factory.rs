@@ -1,5 +1,26 @@
-use crate::{components::nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{base::Node, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}}, shared::schema::{ConfigField, FieldType, MessageSeverity, SelectOption, ValidationMessage}};
+use crate::{components::{nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{base::Node, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}}}, shared::schema::{ConfigField, FieldType, MessageSeverity, SelectOption, ValidationMessage}};
 use crate::shared::metadata::TypeMetadataProvider;
+
+pub fn generate_timeout_field() -> ConfigField {
+    ConfigField {
+        id: "timeout_ms".to_string(),
+        label: "Timeout (milliseconds)".to_string(),
+        field_type: FieldType {
+            base_type: "integer".to_string(),
+            constraints: serde_json::json!({
+                "min": 1000,
+                "max": 120000,
+                "step": 1000
+            }),
+            options: None,
+        },
+        required: false,
+        default_value: Some(serde_json::json!(30000)),
+        help_text: Some("Maximum time to wait for test completion".to_string()),
+        placeholder: Some("30000".to_string()),
+        advanced: true,
+    }
+}
 
 pub fn generate_domain_to_resolve_field(help_text: String) -> ConfigField {
     ConfigField {
@@ -71,15 +92,15 @@ pub fn generate_dns_resolver_selection_field(available_nodes: &[Node]) -> (Optio
         ConfigField {
             id: "dns_resolver_node".to_string(),
             label: "DNS Server".to_string(),
+            default_value: Some(serde_json::json!(&dns_capable_nodes[0].value)),
             field_type: FieldType {
-                base_type: "node_selector".to_string(),
+                base_type: "rich_select".to_string(),
                 constraints: serde_json::json!({
                     "filter_capabilities": [NodeCapability::DnsService(DnsServiceCapability {  })]
                 }),
                 options: Some(dns_capable_nodes),
             },
             required: true,
-            default_value: None,
             help_text: Some("DNS server to use for resolving this node's domain".to_string()),
             placeholder: None,
             advanced: false,

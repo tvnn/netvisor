@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::components::nodes::{capabilities::base::NodeCapability, types::status::NodeStatus};
 use crate::components::nodes::types::targets::NodeTarget;
 use crate::components::nodes::types::base::DetectedService;
+use crate::components::nodes::capabilities::base::{deserialize_optional_capabilities_from_discriminants, serialize_optional_capabilities_as_discriminants};
 use crate::components::nodes::types::topology::GraphPosition;
 
 use super::{
@@ -27,6 +28,10 @@ pub struct UpdateNodeRequest {
     pub open_ports: Option<Vec<u16>>,
     pub detected_services: Option<Vec<DetectedService>>,
     pub mac_address: Option<Option<String>>,
+    #[serde(
+        serialize_with = "serialize_optional_capabilities_as_discriminants",
+        deserialize_with = "deserialize_optional_capabilities_from_discriminants"
+    )]
     pub capabilities: Option<Vec<NodeCapability>>,
     
     // Monitoring

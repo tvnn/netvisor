@@ -132,6 +132,26 @@ where
     discriminants.serialize(serializer)
 }
 
+// Serialization for Option<Vec<NodeCapability>>: Option<Vec<NodeCapability>> -> Option<Vec<NodeCapabilityDiscriminants>>
+pub fn serialize_optional_capabilities_as_discriminants<S>(
+    capabilities: &Option<Vec<NodeCapability>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    match capabilities {
+        Some(caps) => {
+            let discriminants: Vec<NodeCapabilityDiscriminants> = caps
+                .iter()
+                .map(|cap| cap.into())
+                .collect();
+            Some(discriminants).serialize(serializer)
+        }
+        None => None::<Vec<NodeCapabilityDiscriminants>>.serialize(serializer),
+    }
+}
+
 // Deserialization: Vec<NodeCapabilityDiscriminants> -> Vec<NodeCapability>
 pub fn deserialize_capabilities_from_discriminants<'de, D>(
     deserializer: D,
@@ -151,4 +171,31 @@ where
         })
         .collect();
     Ok(capabilities)
+}
+
+// Deserialization for Option<Vec<NodeCapability>>: Option<Vec<NodeCapabilityDiscriminants>> -> Option<Vec<NodeCapability>>
+pub fn deserialize_optional_capabilities_from_discriminants<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<NodeCapability>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let option_discriminants: Option<Vec<NodeCapabilityDiscriminants>> = Option::deserialize(deserializer)?;
+    
+    match option_discriminants {
+        Some(discriminants) => {
+            let capabilities: Vec<NodeCapability> = discriminants
+                .into_iter()
+                .map(|d| match d {
+                    NodeCapabilityDiscriminants::SshAccess => NodeCapability::SshAccess(SshAccessCapability {  }),
+                    NodeCapabilityDiscriminants::HttpService => NodeCapability::HttpService(HttpServiceCapability {  }),
+                    NodeCapabilityDiscriminants::HttpsService => NodeCapability::HttpsService(HttpsServiceCapability {  }),
+                    NodeCapabilityDiscriminants::DnsService => NodeCapability::DnsService(DnsServiceCapability {  }),
+                    NodeCapabilityDiscriminants::VpnService => NodeCapability::VpnService(VpnServiceCapability {  }),
+                })
+                .collect();
+            Ok(Some(capabilities))
+        }
+        None => Ok(None),
+    }
 }

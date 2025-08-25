@@ -7,6 +7,7 @@ use crate::components::nodes::capabilities::{
     vpn::*,
 };
 use crate::components::nodes::service::NodeService;
+use crate::components::tests::types::field_factory::{generate_timeout_field};
 use crate::components::{
     nodes::types::{
         base::Node, 
@@ -19,7 +20,7 @@ use crate::shared::metadata::{TypeMetadataProvider};
 use crate::shared::{schema::*};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
-#[strum_discriminants(derive(Display, EnumIter))]
+#[strum_discriminants(derive(Display, EnumIter, Deserialize, Serialize, Hash))]
 #[serde(tag="type", content="config")]
 pub enum Test {
     // Basic Connectivity Tests
@@ -195,24 +196,7 @@ impl Test {
     
     fn generate_fields(&self, context: &NodeContext, schema: &mut TestConfigSchema, available_nodes: &[Node]) {
         // Common timeout field for all tests
-        schema.fields.push(ConfigField {
-            id: "timeout_ms".to_string(),
-            label: "Timeout (milliseconds)".to_string(),
-            field_type: FieldType {
-                base_type: "integer".to_string(),
-                constraints: serde_json::json!({
-                    "min": 1000,
-                    "max": 120000,
-                    "step": 1000
-                }),
-                options: None,
-            },
-            required: false,
-            default_value: Some(serde_json::json!(30000)),
-            help_text: Some("Maximum time to wait for test completion".to_string()),
-            placeholder: Some("30000".to_string()),
-            advanced: true,
-        });
+        schema.fields.push(generate_timeout_field());
         
         match self {
             Test::ServiceHealth(_) => {

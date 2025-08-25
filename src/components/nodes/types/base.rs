@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::components::{nodes::{capabilities::{base::{NodeCapability}, dns::DnsServiceCapability}, types::{criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}}, tests::types::execution::TestResult};
+use crate::components::{nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}}, tests::types::{base::Test, configs::ConnectivityConfig, execution::TestResult}};
 use crate::shared::types::ApplicationProtocol;
 use super::{
     types::{NodeType},
@@ -73,7 +73,12 @@ impl Node {
             mac_address: None,
             capabilities: Vec::new(),
 
-            assigned_tests: Vec::new(),
+            assigned_tests: vec![
+                AssignedTest {
+                    test: Test::Connectivity(ConnectivityConfig::default()),
+                    criticality: TestCriticality::Important,
+                }
+            ],
             monitoring_interval: 5,
             node_groups: Vec::new(),
             position: None,

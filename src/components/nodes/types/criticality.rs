@@ -29,7 +29,7 @@ impl TypeMetadataProvider for TestCriticality {
         }
     }
     
-    fn category(&self) -> &str { "Test Impact" }
+    fn category(&self) -> &str { "" }
     
     fn icon(&self) -> &str {
         match self {
