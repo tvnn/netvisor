@@ -1,4 +1,2 @@
-pub mod config;
-pub mod service;
-pub mod types;
-pub mod storage;
+pub mod daemon;
+pub mod discovery;

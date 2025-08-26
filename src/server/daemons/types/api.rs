@@ -12,6 +12,7 @@ use crate::server::{
 pub struct DaemonRegistrationRequest {
     pub ip: IpAddr,
     pub port: u16,
+    pub name: String,
     pub hostname: Option<String>,
 }
 

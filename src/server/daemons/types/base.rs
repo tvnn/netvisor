@@ -16,6 +16,7 @@ pub enum DaemonStatus {
 pub struct DaemonBase {
     pub ip: IpAddr,
     pub port: u16,
+    pub name: String,
     pub hostname: Option<String>,
     pub status: DaemonStatus,
 }

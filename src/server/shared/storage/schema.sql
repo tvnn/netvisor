@@ -41,15 +41,16 @@ CREATE TABLE IF NOT EXISTS diagnostic_executions (
     completed_at TEXT
 );
 
-CREATE TABLE IF NOT EXISTS daemons {
+CREATE TABLE IF NOT EXISTS daemons (
     id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
     ip TEXT NOT NULL,
     port INTEGER NOT NULL,
     hostname TEXT NOT NULL,
     status TEXT NOT NULL,
     registered_at TEXT NOT NULL,
     last_seen TEXT NOT NULL
-}
+);
 
 CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(node_type);
 CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_group ON diagnostic_executions(group_id);

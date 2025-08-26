@@ -33,12 +33,13 @@ impl DaemonStorage for SqliteDaemonStorage {
         sqlx::query(
             r#"
             INSERT INTO daemons (
-                id, ip, port, hostname, status,
+                id, name, ip, port, hostname, status,
                 last_seen, registered_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&daemon.id)
+        .bind(&daemon.base.name)
         .bind(ip_json)
         .bind(&daemon.base.port)
         .bind(&daemon.base.hostname)
@@ -83,11 +84,12 @@ impl DaemonStorage for SqliteDaemonStorage {
         sqlx::query(
             r#"
             UPDATE daemons SET 
-                ip = ?, port = ?, hostname = ?, 
+                name = ?, ip = ?, port = ?, hostname = ?, 
                 status = ?, last_seen = ?
             WHERE id = ?
             "#
         )
+        .bind(&daemon.base.name)
         .bind(ip_json)
         .bind(&daemon.base.port)
         .bind(&daemon.base.hostname)
@@ -122,6 +124,7 @@ fn row_to_daemon(row: sqlx::sqlite::SqliteRow) -> Result<Daemon> {
         registered_at: row.get("registered_at"),
         base: DaemonBase {
             ip,
+            name: row.get("name"),
             port: row.get("port"),
             hostname: row.get("hostname"),
             status,
