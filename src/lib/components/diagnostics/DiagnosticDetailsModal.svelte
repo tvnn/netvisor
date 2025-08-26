@@ -154,7 +154,7 @@
                           <div class="flex-1">
                             <div class="flex items-center gap-2">
                               <span class="font-semibold text-white">
-                                {$nodes.filter(n => n.id = nodeResult.node_id)[0].name}
+                                {$nodes.filter(n => n.id == nodeResult.node_id)[0].name}
                               </span>
                             </div>
                             <div class="text-sm text-gray-400 mt-1">

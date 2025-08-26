@@ -2,6 +2,7 @@
 	import { getNodeTarget, getNodeTypeDisplay, nodeTargets, nodeTypes } from "$lib/api/registry";
   import type { NodeFormData, NodeTarget } from "$lib/components/nodes/types";
   import TargetConfigForm from './TargetConfigForm.svelte';
+  import RichRadioCheck from '../../../common/RichRadioCheck.svelte';
   
   export let formData: NodeFormData;
   export let errors: Record<string, string>;
@@ -14,18 +15,28 @@
   }
   
   const nodeTypeSelectOptions = $nodeTypes.map(t => {return {value:t.id, label: t.display_name}});
-  const nodeTargetTypeRadioOptions = $nodeTargets
 
   $: selectOptions = isEditing 
     ? nodeTypeSelectOptions  
     : [{ value: '', label: 'Please select...' }, ...nodeTypeSelectOptions];
 
+  // Transform node targets into RichRadioCheck format
+  $: targetTypeOptions = $nodeTargets.map(target => ({
+    id: target.id,
+    title: target.display_name,
+    description: target.description,
+    value: target.id,
+    category: target.category,
+    metadata: target.metadata
+  }));
+
   // Handle target type changes
-  function handleTargetTypeChange(newTargetType: string) {
-    const targetMetadata = $getNodeTarget(newTargetType);
+  function handleTargetTypeChange(value: string | string[]) {
+    const selectedTargetType = typeof value === 'string' ? value : value[0];
+    const targetMetadata = $getNodeTarget(selectedTargetType);
     
     formData.target = {
-        type: newTargetType,
+        type: selectedTargetType,
         config: {}
       } as NodeTarget;
     
@@ -58,7 +69,7 @@
     
     <div>
       <label for="node_type" class="block text-sm font-medium text-gray-300 mb-1">
-        Type
+        Node Type
       </label>
       <select
         id="node_type"
@@ -77,7 +88,7 @@
     </div>
   </div>
 
-    <!-- Description -->
+  <!-- Description -->
   <div>
     <label for="description" class="block text-sm font-medium text-gray-300 mb-1">
       Description
@@ -99,28 +110,15 @@
       <label for="target_type" class="block text-sm font-medium text-gray-300 mb-2">
         Connection Method
       </label>
-      <div class="space-y-2">
-        {#each nodeTargetTypeRadioOptions as targetType}
-          <label class="flex items-start space-x-3 p-3 bg-gray-700/30 border border-gray-600 rounded-lg cursor-pointer hover:bg-gray-700/50 transition-colors">
-            <input
-              type="radio"
-              name="target_type"
-              value={targetType.id}
-              checked={formData.target.type === targetType.id}
-              on:change={() => handleTargetTypeChange(targetType.id)}
-              class="mt-1 text-blue-600 bg-gray-700 border-gray-600 focus:ring-blue-500"
-            />
-            <div class="flex-1">
-              <div class="text-sm font-medium text-white">
-                {targetType.display_name}
-              </div>
-              <div class="text-xs text-gray-400 mt-1">
-                {targetType.description}
-              </div>
-            </div>
-          </label>
-        {/each}
-      </div>
+      
+      <RichRadioCheck
+        mode="radio"
+        name="target_type"
+        options={targetTypeOptions}
+        selectedValue={formData.target.type}
+        onChange={handleTargetTypeChange}
+        columns={1}
+      />
     </div>
 
     <!-- Target-specific Configuration -->

@@ -57,6 +57,5 @@ export interface NodeContextForAPI {
   node_id?: string;
   node_type: string;
   capabilities: string[];
-  target: any; // Just pass through the existing NodeTarget
-  assigned_tests: string[];
+  target: any;
 }

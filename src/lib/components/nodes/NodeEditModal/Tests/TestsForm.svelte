@@ -12,7 +12,7 @@
   // Test schema for config panel fields
   let schemasLoading = false;
   let schemaCache = new Map();
-  let defaultTestApplied = false;
+  let schemasLoadedForContext = false; // Track whether schemas have been loaded for current node context
 
   // Convert NodeFormData to the simple context needed by schema API
   $: nodeContext = {
@@ -20,7 +20,6 @@
     node_type: node.node_type,
     capabilities: node.capabilities,
     target: node.target,
-    assigned_tests: node.assigned_tests.map(t => t.test.type),
   };
 
   // Track node context changes to reload schemas and reset defaults
@@ -29,7 +28,7 @@
     const nodeContextKey = `${node.node_type}-${node.capabilities.join(',')}-${JSON.stringify(node.target)}`;
     if (nodeContextKey !== lastNodeContextKey) {
       lastNodeContextKey = nodeContextKey;
-      defaultTestApplied = false;
+      schemasLoadedForContext = false;
       if ($testTypes?.length > 0) {
         preloadSchemas();
       }
@@ -37,7 +36,7 @@
   }
   
   // Load schemas when test types are available
-  $: if ($testTypes?.length > 0 && !schemasLoading && !defaultTestApplied) {
+  $: if ($testTypes?.length > 0 && !schemasLoading && !schemasLoadedForContext) {
     preloadSchemas();
   }
   
@@ -53,10 +52,9 @@
       const schemas = await fetchTestSchemas(nodeContext, testTypeIds);
 
       // Apply default tests if none exist yet
-      if (!defaultTestApplied && tests.length === 0) {
+      if (tests.length === 0) {
         const defaultTests = createDefaultTestsFromSchemas(schemas);
         tests = [...defaultTests];
-        defaultTestApplied = true;
       }
       
       // Store schemas in cache for TestConfigPanel to use
@@ -66,6 +64,7 @@
       
       // Trigger reactivity
       schemaCache = new Map(schemaCache);
+      schemasLoadedForContext = true;
       
     } catch (err) {
       console.error('Failed to preload schemas:', err);

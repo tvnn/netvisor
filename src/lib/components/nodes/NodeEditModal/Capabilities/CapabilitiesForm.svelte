@@ -1,16 +1,15 @@
 <script lang="ts">
   import { capabilities as allCapabilities, getCapabilityDescription, getCapabilityDisplay, getNodeTypeDisplay, getNodeTypeMetadata } from '$lib/api/registry';
+  import RichRadioCheck from '../../../common/RichRadioCheck.svelte';
   
   export let selectedCapabilities: string[];
   export let nodeType: string;
   
   let recommendations: string[];
   
-  function handleCapabilityToggle(capability: string) {
-    if (selectedCapabilities.includes(capability)) {
-      selectedCapabilities = selectedCapabilities.filter(c => c !== capability);
-    } else {
-      selectedCapabilities = [...selectedCapabilities, capability];
+  function handleCapabilitiesChange(value: string | string[]) {
+    if (Array.isArray(value)) {
+      selectedCapabilities = value;
     }
   }
   
@@ -25,11 +24,23 @@
     selectedCapabilities = [...recommendations];
   }
     
-  // Computed values
-  $: suggestedCapabilities = recommendations || [];
-  $: otherCapabilities = recommendations 
-    ? $allCapabilities.filter(cap => !suggestedCapabilities.includes(cap.id))
-    : [];
+  // Transform capabilities into RichRadioCheck format and handle grouping
+  $: capabilityOptions = $allCapabilities.map(capability => {
+    const isSuggested = recommendations?.includes(capability.id) || false;
+    return {
+      id: capability.id,
+      title: $getCapabilityDisplay(capability.id),
+      description: $getCapabilityDescription(capability.id),
+      category: capability.category,
+      metadata: { ...capability.metadata, suggested: isSuggested }
+    };
+  });
+  
+  // Group capabilities by suggested vs other
+  $: suggestedCapabilities = capabilityOptions.filter(cap => cap.metadata?.suggested);
+  $: otherCapabilities = capabilityOptions.filter(cap => !cap.metadata?.suggested);
+  
+  $: recommendedCapabilities = recommendations || [];
 </script>
 
 <div class="space-y-4">
@@ -39,77 +50,58 @@
     automatic test recommendations. Select the services and access methods available on this device.
   </p>
   
-  <!-- Capabilities List -->
+  <!-- Reset to Suggested Button -->
+  {#if recommendations && recommendations.length > 0}
+    <div class="flex justify-between items-center">
+      <div></div>
+      <button
+        type="button"
+        on:click={applySuggested}
+        class="text-sm text-blue-400 hover:text-blue-300 underline"
+      >
+        Reset to Suggested
+      </button>
+    </div>
+  {/if}
+  
+  <!-- Capabilities Selection -->
   {#if recommendations}
-    <div class="space-y-4">
-      <!-- Suggested capabilities first (if any) -->
+    <div class="space-y-6">
+      <!-- Suggested Capabilities -->
       {#if suggestedCapabilities.length > 0}
         <div>
-          <div class="flex justify-between">
-            <h4 class="text-sm font-medium text-blue-300 mb-3 flex items-center gap-2">
-              <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
-              Suggested for {$getNodeTypeDisplay(nodeType)}
-            </h4>
-            {#if suggestedCapabilities.length > 0}
-              <button
-                type="button"
-                on:click={applySuggested}
-                class="text-sm text-blue-400 hover:text-blue-300 underline"
-              >
-                Reset to Suggested
-              </button>
-            {/if}
-          </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {#each suggestedCapabilities as capability}
-              <label class="flex items-start space-x-3 cursor-pointer p-3 bg-blue-900/10 border border-blue-800/30 rounded-lg hover:bg-blue-900/20 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={selectedCapabilities.includes(capability)}
-                  on:change={() => handleCapabilityToggle(capability)}
-                  class="mt-0.5 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <div class="flex-1 min-w-0">
-                  <div class="text-sm font-medium text-blue-300">
-                    {$getCapabilityDisplay(capability)}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">
-                    {$getCapabilityDescription(capability)}
-                  </div>
-                </div>
-              </label>
-            {/each}
-          </div>
+          <h4 class="text-sm font-medium mb-3 flex items-center gap-2">
+            <span class="w-2 h-2 bg-blue-400 rounded-full"></span>
+            <span class="text-blue-300">Suggested for {$getNodeTypeDisplay(nodeType)}</span>
+          </h4>
+          
+          <RichRadioCheck
+            mode="checkbox"
+            name="capabilities"
+            options={suggestedCapabilities}
+            bind:selectedValues={selectedCapabilities}
+            onChange={handleCapabilitiesChange}
+            columns={2}
+          />
         </div>
       {/if}
       
-      <!-- Other capabilities -->
+      <!-- Other Capabilities -->
       {#if otherCapabilities.length > 0}
         <div>
-          <h4 class="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
+          <h4 class="text-sm font-medium mb-3 flex items-center gap-2">
             <span class="w-2 h-2 bg-gray-500 rounded-full"></span>
-            Other Available Capabilities
+            <span class="text-gray-300">Other Available Capabilities</span>
           </h4>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {#each otherCapabilities as capability}
-              <label class="flex items-start space-x-3 cursor-pointer p-3 bg-gray-700/20 border border-gray-600 rounded-lg hover:bg-gray-700/30 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={selectedCapabilities.includes(capability.id)}
-                  on:change={() => handleCapabilityToggle(capability.id)}
-                  class="mt-0.5 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
-                />
-                <div class="flex-1 min-w-0">
-                  <div class="text-sm font-medium text-gray-300">
-                    {$getCapabilityDisplay(capability.id)}
-                  </div>
-                  <div class="text-xs text-gray-400 mt-1">
-                    {$getCapabilityDescription(capability.id)}
-                  </div>
-                </div>
-              </label>
-            {/each}
-          </div>
+          
+          <RichRadioCheck
+            mode="checkbox"
+            name="capabilities"
+            options={otherCapabilities}
+            bind:selectedValues={selectedCapabilities}
+            onChange={handleCapabilitiesChange}
+            columns={2}
+          />
         </div>
       {/if}
     </div>
@@ -133,8 +125,8 @@
       <p class="text-sm text-gray-400">
         <span class="font-medium text-white">{selectedCapabilities.length}</span> 
         capabilit{selectedCapabilities.length === 1 ? 'y' : 'ies'} selected
-        {#if suggestedCapabilities.length > 0}
-          • <span class="text-blue-400">{suggestedCapabilities.filter(cap => selectedCapabilities.includes(cap)).length} of {suggestedCapabilities.length} suggested</span>
+        {#if recommendedCapabilities.length > 0}
+          • <span class="text-blue-400">{recommendedCapabilities.filter(cap => selectedCapabilities.includes(cap)).length} of {recommendedCapabilities.length} suggested</span>
         {/if}
       </p>
     {/if}
