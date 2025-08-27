@@ -27,23 +27,16 @@ impl SqliteDaemonStorage {
 impl DaemonStorage for SqliteDaemonStorage {
     async fn create(&self, daemon: &Daemon) -> Result<()> {
 
-        let ip_json = serde_json::to_string(&daemon.base.ip)?;
-        let status_json = serde_json::to_string(&daemon.base.status)?;
-
         sqlx::query(
             r#"
             INSERT INTO daemons (
-                id, name, ip, port, hostname, status,
+                id, node_id,
                 last_seen, registered_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&daemon.id)
-        .bind(&daemon.base.name)
-        .bind(ip_json)
-        .bind(&daemon.base.port)
-        .bind(&daemon.base.hostname)
-        .bind(status_json)
+        .bind(&daemon.base.node_id)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
@@ -78,22 +71,15 @@ impl DaemonStorage for SqliteDaemonStorage {
     }
 
     async fn update(&self, daemon: &Daemon) -> Result<()> {
-        let ip_json = serde_json::to_string(&daemon.base.ip)?;
-        let status_json = serde_json::to_string(&daemon.base.status)?;
 
         sqlx::query(
             r#"
             UPDATE daemons SET 
-                name = ?, ip = ?, port = ?, hostname = ?, 
-                status = ?, last_seen = ?
+                node_id = ?, last_seen = ?
             WHERE id = ?
             "#
         )
-        .bind(&daemon.base.name)
-        .bind(ip_json)
-        .bind(&daemon.base.port)
-        .bind(&daemon.base.hostname)
-        .bind(status_json)
+        .bind(&daemon.base.node_id)
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
         .await?;
@@ -112,22 +98,12 @@ impl DaemonStorage for SqliteDaemonStorage {
 }
 
 fn row_to_daemon(row: sqlx::sqlite::SqliteRow) -> Result<Daemon> {
-    let ip_json: String = row.get("ip");
-    let status_json: String = row.get("status");
-    
-    let ip = serde_json::from_str(&ip_json)?;
-    let status = serde_json::from_str(&status_json)?;
-
     Ok(Daemon {
         id: row.get("id"),
         last_seen: row.get("last_seen"),
         registered_at: row.get("registered_at"),
         base: DaemonBase {
-            ip,
-            name: row.get("name"),
-            port: row.get("port"),
-            hostname: row.get("hostname"),
-            status,
+            node_id: row.get("node_id"),
         }
     })
 }

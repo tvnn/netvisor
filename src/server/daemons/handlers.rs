@@ -12,10 +12,9 @@ use crate::server::{
         service::DaemonService, 
         types::{
             api::{
-                DaemonRegistrationRequest, DaemonRegistrationResponse,
-                DaemonDiscoveryProgress, DaemonNodeReport, DaemonTestResult
+                DaemonDiscoveryProgressResponse, DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonTestResult
             }, 
-            base::{Daemon, DaemonBase, DaemonStatus}
+            base::{Daemon, DaemonBase}
         }
     }, 
     shared::types::api::{ApiError, ApiResponse, ApiResult}
@@ -27,10 +26,8 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/:id/heartbeat", put(receive_heartbeat))
         .route("/", get(get_all_daemons))
         .route("/:id", get(get_daemon))
-        .route("/:id/health", get(check_daemon_health))
         // Routes for receiving reports from daemons
         .route("/discovery_progress", post(receive_discovery_progress))
-        .route("/discovered_node", post(receive_discovered_node))
         .route("/test_result", post(receive_test_result))
 }
 
@@ -39,14 +36,10 @@ async fn register_daemon(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DaemonRegistrationRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonRegistrationResponse>>> {
-    let service = DaemonService::new(state.daemon_storage.clone());
+    let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
     let daemon = Daemon::new(DaemonBase {
-        ip: request.ip, 
-        port: request.port, 
-        name: request.name,
-        hostname: request.hostname, 
-        status: DaemonStatus::Active
+        node_id: request.node.id
     });
             
     let registered_daemon = service.register_daemon(daemon).await
@@ -62,7 +55,7 @@ async fn receive_heartbeat(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = DaemonService::new(state.daemon_storage.clone());
+    let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
 
     let daemon = service.get_daemon(&id).await
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemon: {}", e)))?
@@ -78,7 +71,7 @@ async fn receive_heartbeat(
 async fn get_all_daemons(
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<ApiResponse<Vec<Daemon>>>> {
-    let service = DaemonService::new(state.daemon_storage.clone());
+    let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
     let daemons = service.get_all_daemons().await
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemons: {}", e)))?;
@@ -91,7 +84,7 @@ async fn get_daemon(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<Daemon>>> {
-    let service = DaemonService::new(state.daemon_storage.clone());
+    let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
     let daemon = service.get_daemon(&id).await
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemon: {}", e)))?
@@ -100,45 +93,14 @@ async fn get_daemon(
     Ok(Json(ApiResponse::success(daemon)))
 }
 
-/// Check daemon health status
-async fn check_daemon_health(
-    State(state): State<Arc<AppState>>,
-    Path(id): Path<Uuid>,
-) -> ApiResult<Json<ApiResponse<bool>>> {
-    let service = DaemonService::new(state.daemon_storage.clone());
-    
-    let daemon = service.get_daemon(&id).await
-        .map_err(|e| ApiError::internal_error(&format!("Failed to get daemon: {}", e)))?
-        .ok_or_else(|| ApiError::not_found(&format!("Daemon '{}' not found", &id)))?;
-    
-    let is_healthy = service.check_daemon_health(&daemon).await
-        .map_err(|e| ApiError::internal_error(&format!("Failed to check daemon health: {}", e)))?;
-    
-    Ok(Json(ApiResponse::success(is_healthy)))
-}
-
 /// Receive discovery progress update from daemon
 async fn receive_discovery_progress(
     State(state): State<Arc<AppState>>,
-    Json(progress): Json<DaemonDiscoveryProgress>,
+    Json(progress): Json<DaemonDiscoveryProgressResponse>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = DaemonService::new(state.daemon_storage.clone());
     
-    service.process_discovery_progress(progress).await
+    state.discovery_manager.update_progress(progress).await
         .map_err(|e| ApiError::internal_error(&format!("Failed to process discovery progress: {}", e)))?;
-    
-    Ok(Json(ApiResponse::success(())))
-}
-
-/// Receive discovered node report from daemon
-async fn receive_discovered_node(
-    State(state): State<Arc<AppState>>,
-    Json(node_report): Json<DaemonNodeReport>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = DaemonService::new(state.daemon_storage.clone());
-    
-    service.process_discovered_node(node_report).await
-        .map_err(|e| ApiError::internal_error(&format!("Failed to process discovered node: {}", e)))?;
     
     Ok(Json(ApiResponse::success(())))
 }
@@ -148,10 +110,12 @@ async fn receive_test_result(
     State(state): State<Arc<AppState>>,
     Json(test_result): Json<DaemonTestResult>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = DaemonService::new(state.daemon_storage.clone());
+    let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
     service.process_test_result(test_result).await
         .map_err(|e| ApiError::internal_error(&format!("Failed to process test result: {}", e)))?;
     
     Ok(Json(ApiResponse::success(())))
 }
+
+// TODO delete daemon - also delete ID from daemon capability

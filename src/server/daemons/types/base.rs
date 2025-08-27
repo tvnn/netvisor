@@ -1,24 +1,10 @@
-use std::net::IpAddr;
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum DaemonStatus {
-    Active,
-    Inactive,
-    Error,
-}
-
-/// Daemon record stored in server database
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonBase {
-    pub ip: IpAddr,
-    pub port: u16,
-    pub name: String,
-    pub hostname: Option<String>,
-    pub status: DaemonStatus,
+    pub node_id: Uuid
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,14 +25,5 @@ impl Daemon {
             last_seen: now,
             registered_at: now,
         }
-    }
-
-    pub fn endpoint_url(&self) -> String {
-        format!("http://{}:{}", self.base.ip, self.base.port)
-    }
-
-    pub fn update_last_seen(&mut self) {
-        self.last_seen = Utc::now();
-        self.base.status = DaemonStatus::Active;
     }
 }

@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State},
+    extract::{Path, State},
     response::Json,
     routing::{get, post},
     Router,
@@ -9,73 +9,89 @@ use std::sync::Arc;
 use crate::server::{
     config::AppState, daemons::{
         service::DaemonService, 
-        types::{api::{DaemonDiscoveryRequest, InitiateDiscoveryRequest, InitiateDiscoveryResponse}}
-    }, shared::types::api::{ApiError, ApiResponse, ApiResult}
+        types::api::DaemonDiscoveryRequest
+    }, discovery::types::api::{DiscoveryStatusResponse, InitiateDiscoveryRequest, InitiateDiscoveryResponse}, shared::types::api::{ApiError, ApiResponse, ApiResult}
 };
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/initiate", post(initiate_discovery))
-        .route("/:session_id/stream", get(stream_discovery_results))
+        .route("/:session_id/status", get(get_discovery_status))
         .route("/:session_id/cancel", post(cancel_discovery))
 }
 
+/// Initiate discovery on a specific daemon
 async fn initiate_discovery(
     State(state): State<Arc<AppState>>,
     Json(request): Json<InitiateDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<InitiateDiscoveryResponse>>> {
-    let daemon_service = DaemonService::new(state.daemon_storage.clone());
+    let daemon_service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
+    // Get the specified daemon
     let daemon = match daemon_service.get_daemon(&request.daemon_id).await? {
         Some(daemon) => daemon,
         None => return Err(ApiError::not_found(&format!("Daemon '{}' not found", &request.daemon_id)))
     };
 
+    // Check if daemon is already running discovery
+    if let Some(existing_session_id) = state.discovery_manager.is_daemon_discovering(&daemon.id).await {
+        return Err(ApiError::conflict(&format!(
+            "Daemon '{}' is already running discovery session '{}'", 
+            daemon.id, 
+            existing_session_id
+        )));
+    }
+
     let session_id = Uuid::new_v4();
 
-    daemon_service.send_discovery_request(&daemon, DaemonDiscoveryRequest{session_id}).await?;    
-    
+    // Create discovery session
+    state.discovery_manager.create_session(session_id, daemon.id).await
+        .map_err(|e| ApiError::internal_error(&format!("Failed to create discovery session: {}", e)))?;
+
+    // Send discovery request to daemon
+    daemon_service.send_discovery_request(&daemon, DaemonDiscoveryRequest { session_id }).await?;    
+        
     Ok(Json(ApiResponse::success(InitiateDiscoveryResponse {
         session_id
     })))
 }
 
-async fn stream_discovery_results(
+/// Get discovery status for polling
+async fn get_discovery_status(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<InitiateDiscoveryRequest>,
-) -> ApiResult<Json<ApiResponse<InitiateDiscoveryResponse>>> {
-    let daemon_service = DaemonService::new(state.daemon_storage.clone());
-    
-    let daemon = match daemon_service.get_daemon(&request.daemon_id).await? {
-        Some(daemon) => daemon,
-        None => return Err(ApiError::not_found(&format!("Daemon '{}' not found", &request.daemon_id)))
-    };
+    Path(session_id): Path<Uuid>,
+) -> ApiResult<Json<ApiResponse<DiscoveryStatusResponse>>> {
+    let session = state.discovery_manager.get_session(&session_id).await
+        .ok_or_else(|| ApiError::not_found(&format!("Discovery session '{}' not found", session_id)))?;
 
-    let session_id = Uuid::new_v4();
-
-    daemon_service.send_discovery_request(&daemon, DaemonDiscoveryRequest {session_id});
-    
-    Ok(Json(ApiResponse::success(InitiateDiscoveryResponse {
-        session_id
-    })))
+    Ok(Json(ApiResponse::success(DiscoveryStatusResponse {session})))
 }
 
+/// Cancel an active discovery session
 async fn cancel_discovery(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<InitiateDiscoveryRequest>,
-) -> ApiResult<Json<ApiResponse<InitiateDiscoveryResponse>>> {
-    let daemon_service = DaemonService::new(state.daemon_storage.clone());
-    
-    let daemon = match daemon_service.get_daemon(&request.daemon_id).await? {
-        Some(daemon) => daemon,
-        None => return Err(ApiError::not_found(&format!("Daemon '{}' not found", &request.daemon_id)))
+    Path(session_id): Path<Uuid>,
+) -> ApiResult<Json<ApiResponse<()>>> {
+    // Cancel the session and get daemon ID
+    let daemon_id = match state.discovery_manager.cancel_session(&session_id).await {
+        Some(daemon_id) => daemon_id,
+        None => return Err(ApiError::not_found(&format!("Discovery session '{}' not found or already completed", session_id)))
     };
 
-    let session_id = Uuid::new_v4();
-
-    daemon_service.send_discovery_request(&daemon, DaemonDiscoveryRequest {session_id});
+    // Send cancellation request to daemon
+    let daemon_service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
-    Ok(Json(ApiResponse::success(InitiateDiscoveryResponse {
-        session_id
-    })))
+    if let Some(daemon) = daemon_service.get_daemon(&daemon_id).await? {
+        if let Err(e) = daemon_service.send_discovery_cancellation(&daemon, session_id).await {
+            tracing::warn!("Failed to send discovery cancellation to daemon {} for session {}: {}", daemon_id, session_id, e);
+            // Don't return error - local cancellation succeeded
+        } else {
+            tracing::info!("Cancellation request sent to daemon {} for session {}", daemon_id, session_id);
+        }
+    } else {
+        tracing::warn!("Daemon {} not found when trying to cancel discovery session {}", daemon_id, session_id);
+    }
+
+    tracing::info!("Discovery session {} cancelled", session_id);
+    Ok(Json(ApiResponse::success(())))
 }

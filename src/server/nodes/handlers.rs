@@ -34,12 +34,7 @@ async fn create_node(
 ) -> ApiResult<Json<ApiResponse<NodeResponse>>> {
     let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
-    let mut node = Node::from_name(request.node.name);
-    node.base.target = request.node.target;
-    node.base.description = request.node.description;
-    node.base.capabilities = request.node.capabilities;
-    node.base.node_type = request.node.node_type;
-    node.base.assigned_tests = request.node.assigned_tests;
+    let node = Node::new(request.node);
             
     let created_node = service.create_node(node).await?;
     

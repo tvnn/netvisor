@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Error;
 use uuid::Uuid;
 
-use crate::{daemon::shared::storage::ConfigStore, server::{daemons::types::api::{DaemonTestRequest, DaemonTestResult}, nodes::types::targets::NodeTarget, tests::types::execution::TestResult}};
+use crate::{daemon::shared::storage::ConfigStore, server::{daemons::types::api::{DaemonTestRequest, DaemonTestResult}, tests::types::execution::TestResult}};
 
 pub struct DaemonTestService {
     pub config_store: Arc<ConfigStore>,
@@ -19,11 +19,13 @@ impl DaemonTestService {
     }
 
     /// Report test result back to server
-    pub async fn report_test_result(&self, server_target: &NodeTarget, session_id: Uuid, result: TestResult) -> Result<(), Error> {
+    pub async fn report_test_result(&self, session_id: Uuid, result: TestResult) -> Result<(), Error> {
         let test_result = DaemonTestResult {
             session_id,
             result,
         };
+
+        let server_target = self.config_store.get_server_endpoint().await?;
 
         let response = self
             .client

@@ -1,18 +1,13 @@
-use std::net::IpAddr;
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::server::{
+use crate::{daemon::discovery::types::base::DiscoveryPhase, server::{
     daemons::types::base::Daemon, nodes::types::base::Node, tests::types::execution::TestResult
-};
+}};
 
 /// Daemon registration request from daemon to server
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonRegistrationRequest {
-    pub ip: IpAddr,
-    pub port: u16,
-    pub name: String,
-    pub hostname: Option<String>,
+    pub node: Node
 }
 
 /// Daemon registration response from server to daemon
@@ -20,20 +15,6 @@ pub struct DaemonRegistrationRequest {
 pub struct DaemonRegistrationResponse {
     pub daemon: Daemon
 }
-
-// Request from frontend to server
-#[derive(Debug, Serialize, Deserialize)]
-pub struct InitiateDiscoveryRequest {
-    pub daemon_id: Uuid,
-}
-
-// Response from server to frontend
-#[derive(Debug, Serialize, Deserialize)]
-pub struct InitiateDiscoveryResponse {
-    pub session_id: Uuid,
-}
-
-
 
 /// Daemon discovery request from server to daemon
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,24 +28,25 @@ pub struct DaemonDiscoveryResponse {
     pub session_id: Uuid,
 }
 
-
+/// Cancellation request from server to daemon
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DaemonDiscoveryCancellationRequest {
+    pub session_id: Uuid,
+}
 
 /// Progress update from daemon to server during discovery
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DaemonDiscoveryProgress {
+pub struct DaemonDiscoveryProgressResponse {
     pub session_id: Uuid,
-    pub phase: String,
+    pub phase: DiscoveryPhase,
     pub completed: usize,
     pub total: usize,
     pub discovered_count: usize,
 }
 
-/// Discovered node report from daemon to server
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DaemonNodeReport {
-    pub session_id: Uuid,
-    pub node: Node,
-}
+
+
+
 
 /// Test execution request from server to daemon
 #[derive(Debug, Clone, Serialize, Deserialize)]

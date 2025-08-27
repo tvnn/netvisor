@@ -59,6 +59,15 @@ impl Node {
             base,
         }
     }
+
+    pub fn default_tests() -> Vec<AssignedTest> {
+        vec!(
+            AssignedTest {
+                test: Test::Connectivity(ConnectivityConfig::default()),
+                criticality: TestCriticality::Critical,
+            }
+        )
+    }
     
     // Helper constructor for just a name
     pub fn from_name(name: String) -> Self {
@@ -75,12 +84,7 @@ impl Node {
             capabilities: Vec::new(),
 
             status: NodeStatus::Unknown,
-            assigned_tests: vec![
-                AssignedTest {
-                    test: Test::Connectivity(ConnectivityConfig::default()),
-                    criticality: TestCriticality::Critical,
-                }
-            ],
+            assigned_tests: Node::default_tests(),
             monitoring_interval: 5,
             node_groups: Vec::new(),
         };

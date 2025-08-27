@@ -1,12 +1,9 @@
 use axum::{
-    http::{Method, Uri},
-    response::{Html, Response, IntoResponse},
+    http::{Method},
     Router,
 };
 use clap::Parser;
-use netvisor::{
-    server::config::ServerConfig, server::shared::{handlers::create_router, types::storage::StorageFactory}
-};
+use netvisor::server::{config::ServerConfig, discovery::manager::DiscoverySessionManager, shared::{handlers::create_router, types::storage::StorageFactory}};
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::{
@@ -34,10 +31,6 @@ struct Cli {
     /// Override log level
     #[arg(long)]
     log_level: Option<String>,
-}
-
-async fn serve_web_assets(_uri: Uri) -> Response {
-    Html("<h1>NetVisor API Server</h1><p>Api available at /api</p>").into_response()
 }
 
 #[tokio::main]
@@ -78,7 +71,8 @@ async fn main() -> anyhow::Result<()> {
         node_storage: storage.nodes,
         node_group_storage: storage.node_groups,
         diagnostic_storage: storage.diagnostics,
-        daemon_storage: storage.daemons
+        daemon_storage: storage.daemons,
+        discovery_manager: DiscoverySessionManager::new()
     });
     
     // Create router
@@ -87,7 +81,6 @@ async fn main() -> anyhow::Result<()> {
     // Create main app with web assets fallback
     let app = Router::new()
         .merge(api_router)
-        .fallback(serve_web_assets)
         .layer(
             ServiceBuilder::new()
                 .layer(TraceLayer::new_for_http())

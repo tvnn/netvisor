@@ -5,20 +5,22 @@ use crate::server::{daemons::{
         storage::DaemonStorage, 
         types::{
             api::{
-                DaemonDiscoveryProgress, DaemonDiscoveryRequest, DaemonDiscoveryResponse, DaemonNodeReport, DaemonTestRequest, DaemonTestResult
+                DaemonDiscoveryCancellationRequest, DaemonDiscoveryProgressResponse, DaemonDiscoveryRequest, DaemonDiscoveryResponse, DaemonTestRequest, DaemonTestResult
             }, base::Daemon
         }
-    }, shared::types::api::ApiResponse};
+    }, discovery::{manager::DiscoverySessionManager}, nodes::storage::NodeStorage, shared::types::api::ApiResponse};
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
+    node_storage: Arc<dyn NodeStorage>,
     client: reqwest::Client,
 }
 
 impl DaemonService {
-    pub fn new(daemon_storage: Arc<dyn DaemonStorage>) -> Self {
+    pub fn new(daemon_storage: Arc<dyn DaemonStorage>, node_storage: Arc<dyn NodeStorage>,) -> Self {
         Self {
             daemon_storage,
+            node_storage,
             client: reqwest::Client::new(),
         }
     }
@@ -48,8 +50,14 @@ impl DaemonService {
 
     /// Send discovery request to daemon
     pub async fn send_discovery_request(&self, daemon: &Daemon, request: DaemonDiscoveryRequest) -> Result<(), Error> {        
+        
+        let daemon_node = match self.node_storage.get_by_id(&daemon.base.node_id).await? {
+            Some(node) => node,
+            None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
+        };
+        
         let response: ApiResponse<DaemonDiscoveryResponse> = self.client
-            .post(format!("{}/discover", daemon.endpoint_url()))
+            .post(format!("{}/api/discovery/initiate", daemon_node.base.target.to_string()))
             .json(&request)
             .send()
             .await?
@@ -67,8 +75,14 @@ impl DaemonService {
 
     /// Send test execution request to daemon
     pub async fn send_test_request(&self, daemon: &Daemon, request: DaemonTestRequest) -> Result<()> {        
+        
+        let daemon_node = match self.node_storage.get_by_id(&daemon.base.node_id).await? {
+            Some(node) => node,
+            None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
+        };
+        
         let response = self.client
-            .post(format!("{}/execute_test", daemon.endpoint_url()))
+            .post(format!("{}/api/tests/execute", daemon_node.base.target.to_string()))
             .json(&request)
             .send()
             .await?;
@@ -83,68 +97,33 @@ impl DaemonService {
         Ok(())
     }
 
-    /// Check daemon health
-    pub async fn check_daemon_health(&self, daemon: &Daemon) -> Result<bool> {
-        
-        match self.client
-            .get(format!("{}/health", daemon.endpoint_url()))
-            .timeout(std::time::Duration::from_secs(5))
-            .send()
-            .await 
-        {
-            Ok(response) => Ok(response.status().is_success()),
-            Err(_) => Ok(false),
-        }
-    }
-
-    /// Get list of healthy daemons
-    pub async fn get_healthy_daemons(&self) -> Result<Vec<Daemon>> {
-        let all_daemons = self.get_all_daemons().await?;
-        let mut healthy_daemons = Vec::new();
-
-        for daemon in all_daemons {
-            if self.check_daemon_health(&daemon).await.unwrap_or(false) {
-                healthy_daemons.push(daemon);
-            }
-        }
-
-        Ok(healthy_daemons)
-    }
-
     /// Process discovery progress update from daemon
-    pub async fn process_discovery_progress(&self, progress: DaemonDiscoveryProgress) -> Result<()> {
-        tracing::info!(
-            "Discovery progress from session {}: {}/{} completed, {} discovered", 
-            progress.session_id,
-            progress.completed,
-            progress.total,
-            progress.discovered_count
-        );
-
-        // TODO: Implement actual progress tracking
-        // This could:
-        // 1. Update active discovery session status
-        // 2. Notify WebSocket clients of progress
-        // 3. Store progress in database for later retrieval
-
+    pub async fn process_discovery_progress(
+        &self, 
+        progress: DaemonDiscoveryProgressResponse, 
+        discovery_manager: &DiscoverySessionManager
+    ) -> Result<(), anyhow::Error> {
+        
         Ok(())
     }
 
-    /// Process discovered node from daemon
-    pub async fn process_discovered_node(&self, node_report: DaemonNodeReport) -> Result<()> {
-        tracing::info!(
-            "Discovered node from session {}: {} ({})", 
-            node_report.session_id,
-            node_report.node.base.name,
-            node_report.node.base.target
-        );
+    pub async fn send_discovery_cancellation(&self, daemon: &Daemon, session_id: Uuid) -> Result<(), anyhow::Error> {
 
-        // TODO: Implement actual node processing
-        // This could:
-        // 1. Auto-create node in database
-        // 2. Queue for user review and approval  
-        // 3. Merge with existing node if duplicate detected
-        // 4. Trigger automatic capability detection
+        let daemon_node = match self.node_storage.get_by_id(&daemon.base.node_id).await? {
+            Some(node) => node,
+            None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
+        };
+
+        let response = self.client
+            .post(format!("{}/api/discovery/cancel", daemon_node.base.target.to_string()))
+            .json(&DaemonDiscoveryCancellationRequest { session_id })
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to send discovery cancellation to daemon {}: HTTP {}", 
+                         daemon.id, response.status());
+        }
 
         Ok(())
     }

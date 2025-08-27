@@ -10,6 +10,7 @@ pub struct CapabilitySource {
     pub port_detection: Option<u16>,    // Port where service was detected
     pub process_detection: Option<String>, // Process name that matched  
     pub manual: bool,                   // True if user manually added
+    pub system: bool                    // For daemon capability, assigned by system
 }
 
 impl CapabilitySource {
@@ -18,6 +19,7 @@ impl CapabilitySource {
             port_detection: Some(port),
             process_detection: None,
             manual: false,
+            system: false
         }
     }
     
@@ -26,6 +28,7 @@ impl CapabilitySource {
             port_detection: None,
             process_detection: Some(process_name),
             manual: false,
+            system: false
         }
     }
     
@@ -34,6 +37,16 @@ impl CapabilitySource {
             port_detection: None,
             process_detection: None,
             manual: true,
+            system: false
+        }
+    }
+
+    pub fn system() -> Self {
+        Self {
+            port_detection: None,
+            process_detection: None,
+            manual: false,
+            system: true
         }
     }
     

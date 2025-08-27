@@ -7,16 +7,18 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 use crate::server::nodes::types::targets::NodeTarget;
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonConfig {
     /// Unique daemon identifier assigned by server
     pub id: Option<Uuid>,
     /// Server endpoint configuration
-    pub server_endpoint: Option<NodeTarget>,
+    pub server_target: NodeTarget,
     /// Last successful heartbeat timestamp
     pub last_heartbeat: Option<chrono::DateTime<chrono::Utc>>,
     /// Additional daemon configuration
     pub settings: DaemonSettings,
+    /// Daemon's port
+    pub port: u16
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,10 +47,16 @@ pub struct ConfigStore {
 }
 
 impl ConfigStore {
-    pub fn new(path: PathBuf) -> Self {
+    pub fn new(path: PathBuf, server_target: NodeTarget) -> Self {
         Self {
             path,
-            config: Arc::new(RwLock::new(DaemonConfig::default())),
+            config: Arc::new(RwLock::new(DaemonConfig {
+                id: None,
+                server_target,
+                last_heartbeat: None,
+                settings: DaemonSettings::default(),
+                port: 3001
+            })),
         }
     }
 
@@ -118,19 +126,36 @@ impl ConfigStore {
         self.save().await
     }
 
+    /// Get port
+    pub async fn get_port(&self) -> Result<u16> {
+        let config = self.config.read().await;
+        Ok(config.port)
+    }
+
+    // Set port
+    pub async fn set_port(&self, port: u16) -> Result<()> {
+        {
+            let mut config = self.config.write().await;
+            config.port = port;
+        }
+        self.save().await
+    }
+
+    
+
     /// Set server endpoint
     pub async fn set_server_endpoint(&self, endpoint: NodeTarget) -> Result<()> {
         {
             let mut config = self.config.write().await;
-            config.server_endpoint = Some(endpoint);
+            config.server_target = endpoint;
         }
         self.save().await
     }
 
     /// Get server endpoint
-    pub async fn get_server_endpoint(&self) -> Result<Option<NodeTarget>> {
+    pub async fn get_server_endpoint(&self) -> Result<NodeTarget> {
         let config = self.config.read().await;
-        Ok(config.server_endpoint.clone())
+        Ok(config.server_target.clone())
     }
 
     /// Update last heartbeat timestamp

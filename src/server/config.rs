@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::server::daemons::storage::DaemonStorage;
 use crate::server::diagnostics::storage::DiagnosticStorage;
+use crate::server::discovery::manager::DiscoverySessionManager;
 use crate::server::node_groups::storage::NodeGroupStorage;
 use crate::server::nodes::storage::NodeStorage;
 
@@ -12,7 +13,8 @@ pub struct AppState {
     pub node_storage: Arc<dyn NodeStorage>,
     pub node_group_storage: Arc<dyn NodeGroupStorage>,
     pub diagnostic_storage: Arc<dyn DiagnosticStorage>,
-    pub daemon_storage: Arc<dyn DaemonStorage>
+    pub daemon_storage: Arc<dyn DaemonStorage>,
+    pub discovery_manager: DiscoverySessionManager
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
