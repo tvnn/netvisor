@@ -39,7 +39,11 @@ impl Default for IpAddressTargetConfig {
 
 impl std::fmt::Display for IpAddressTargetConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.ip, self.port.unwrap_or(80))
+        if let Some(port) = self.port {
+            write!(f, "http://{}:{}", self.ip, port)
+        } else {
+            write!(f, "http://{}", self.ip)
+        }
     }
 }
 
@@ -60,7 +64,11 @@ impl Default for HostnameTargetConfig {
 
 impl std::fmt::Display for HostnameTargetConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.hostname, self.port.unwrap_or(80))
+        if let Some(port) = self.port {
+            write!(f, "http://{}:{}", self.hostname, port)
+        } else {
+            write!(f, "http://{}", self.hostname)
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
-use crate::{server::nodes::capabilities::base::NodeCapabilityDiscriminants, server::shared::types::metadata::TypeMetadataProvider};
+use crate::{server::nodes::types::capabilities::NodeCapabilityDiscriminants, server::shared::types::metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
 pub enum NodeType {
@@ -30,14 +30,15 @@ impl NodeType {
     pub fn typical_capabilities(&self) -> Vec<NodeCapabilityDiscriminants> {
         match self {
             NodeType::VpnServer => vec![
-                NodeCapabilityDiscriminants::VpnService,
+                NodeCapabilityDiscriminants::WireGuardService,
+                NodeCapabilityDiscriminants::OpenVpnService,
+                NodeCapabilityDiscriminants::IpsecService,
                 NodeCapabilityDiscriminants::SshAccess,
                 NodeCapabilityDiscriminants::HttpService,
             ],
             NodeType::Router => vec![
                 NodeCapabilityDiscriminants::HttpService,
                 NodeCapabilityDiscriminants::SshAccess,
-                // NodeCapabilityDiscriminants::DhcpService,
             ],
             NodeType::Switch => vec![
                 NodeCapabilityDiscriminants::HttpService,

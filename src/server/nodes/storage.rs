@@ -1,10 +1,9 @@
 use async_trait::async_trait;
 use anyhow::Result;
+use cidr::IpCidr;
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::nodes::{capabilities::base::NodeCapability, types::{
-    base::{DetectedService, Node, NodeBase}, status::NodeStatus, targets::NodeTarget, tests::AssignedTest, topology::GraphPosition, types::NodeType
-}};
+use crate::server::nodes::types::{base::{DiscoveryStatus, Node, NodeBase}, capabilities::NodeCapability, status::NodeStatus, targets::NodeTarget, tests::AssignedTest, types::NodeType};
 
 #[async_trait]
 pub trait NodeStorage: Send + Sync {
@@ -29,44 +28,40 @@ impl SqliteNodeStorage {
 #[async_trait]
 impl NodeStorage for SqliteNodeStorage {
     async fn create(&self, node: &Node) -> Result<()> {
-        let capabilities_json = serde_json::to_string(&node.base.capabilities)?;
-        let assigned_tests_json = serde_json::to_string(&node.base.assigned_tests)?;
-        let node_groups_json = serde_json::to_string(&node.base.node_groups)?;
-        let position_json = node.base.position.as_ref().map(|p| serde_json::to_string(p)).transpose()?;
-        let subnet_membership_json = serde_json::to_string(&node.base.subnet_membership)?;
+        let capabilities_str = serde_json::to_string(&node.base.capabilities)?;
+        let assigned_tests_str = serde_json::to_string(&node.base.assigned_tests)?;
+        let node_groups_str = serde_json::to_string(&node.base.node_groups)?;
+        let subnets_str = serde_json::to_string(&node.base.subnets)?;
         let node_type_str = serde_json::to_string(&node.base.node_type)?;
         let last_seen_str = node.last_seen.as_ref().map(|dt| dt.to_rfc3339());
-        let target_json = serde_json::to_string(&node.base.target)?;
-        let open_ports_json = serde_json::to_string(&node.base.open_ports)?;
-        let detected_services_json = serde_json::to_string(&node.base.detected_services)?;
-        let current_status_json = serde_json::to_string(&node.base.current_status)?;
+        let target_str = serde_json::to_string(&node.base.target)?;
+        let status_str = serde_json::to_string(&node.base.status)?;
+        let discovery_status_str = serde_json::to_string(&node.base.discovery_status)?;
 
         sqlx::query(
             r#"
             INSERT INTO nodes (
-                id, name, target, description,
+                id, name, hostname, target, description,
                 node_type, capabilities, assigned_tests, monitoring_interval,
-                node_groups, position, current_status, subnet_membership,
-                open_ports, detected_services, mac_address,
-                last_seen, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                node_groups, status, discovery_status, subnets,
+                mac_address, last_seen, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&node.id)
         .bind(&node.base.name)
-        .bind(target_json)
-        .bind(&node.base.description)
         .bind(node_type_str)
-        .bind(capabilities_json)
-        .bind(assigned_tests_json)
-        .bind(node.base.monitoring_interval)
-        .bind(node_groups_json)
-        .bind(position_json)
-        .bind(current_status_json)
-        .bind(subnet_membership_json)
-        .bind(open_ports_json)
-        .bind(detected_services_json)
+        .bind(&node.base.hostname)
         .bind(&node.base.mac_address)
+        .bind(&node.base.description)
+        .bind(target_str)
+        .bind(subnets_str)
+        .bind(discovery_status_str)
+        .bind(capabilities_str)
+        .bind(status_str)
+        .bind(assigned_tests_str)
+        .bind(node.base.monitoring_interval)
+        .bind(node_groups_str)
         .bind(last_seen_str)
         .bind(&node.created_at)
         .bind(&node.updated_at)
@@ -102,43 +97,41 @@ impl NodeStorage for SqliteNodeStorage {
     }
 
     async fn update(&self, node: &Node) -> Result<()> {
-        let capabilities_json = serde_json::to_string(&node.base.capabilities)?;
-        let assigned_tests_json = serde_json::to_string(&node.base.assigned_tests)?;
-        let node_groups_json = serde_json::to_string(&node.base.node_groups)?;
-        let position_json = node.base.position.as_ref().map(|p| serde_json::to_string(p)).transpose()?;
-        let subnet_membership_json = serde_json::to_string(&node.base.subnet_membership)?;
+        let capabilities_str = serde_json::to_string(&node.base.capabilities)?;
+        let assigned_tests_str = serde_json::to_string(&node.base.assigned_tests)?;
+        let node_groups_str = serde_json::to_string(&node.base.node_groups)?;
+        let subnets_str = serde_json::to_string(&node.base.subnets)?;
         let node_type_str = serde_json::to_string(&node.base.node_type)?;
         let last_seen_str = node.last_seen.as_ref().map(|dt| dt.to_rfc3339());
-        let target_json = serde_json::to_string(&node.base.target)?;
-        let open_ports_json = serde_json::to_string(&node.base.open_ports)?;
-        let detected_services_json = serde_json::to_string(&node.base.detected_services)?;
-        let current_status_json = serde_json::to_string(&node.base.current_status)?;
+        let target_str = serde_json::to_string(&node.base.target)?;
+        let status_str = serde_json::to_string(&node.base.status)?;
+        let discovery_status_str = serde_json::to_string(&node.base.discovery_status)?;
 
         sqlx::query(
             r#"
             UPDATE nodes SET 
-                name = ?, target = ?, description = ?,
+                name = ?, hostname = ?, target = ?, description = ?,
                 node_type = ?, capabilities = ?, assigned_tests = ?, monitoring_interval = ?,
-                node_groups = ?, position = ?, current_status = ?, subnet_membership = ?,
-                open_ports = ?, detected_services = ?, mac_address = ?,
-                last_seen = ?, updated_at = ?
+                node_groups = ?, status = ?, discovery_status = ?, subnets = ?,
+                mac_address = ?, last_seen = ?, created_at = ?, updated_at = ?
             WHERE id = ?
             "#
         )
         .bind(&node.base.name)
-        .bind(target_json)
-        .bind(&node.base.description)
         .bind(node_type_str)
-        .bind(capabilities_json)
-        .bind(assigned_tests_json)
+        .bind(&node.base.hostname)
+        .bind(&node.base.mac_address)
+        .bind(&node.base.description)
+        .bind(target_str)
+        .bind(subnets_str)
+        .bind(discovery_status_str)
+        .bind(capabilities_str)
+        .bind(status_str)
+        .bind(assigned_tests_str)
         .bind(node.base.monitoring_interval)
-        .bind(node_groups_json)
-        .bind(position_json)
-        .bind(current_status_json)
-        .bind(subnet_membership_json)
-        .bind(open_ports_json)
-        .bind(detected_services_json)
+        .bind(node_groups_str)
         .bind(last_seen_str)
+        .bind(&node.created_at)
         .bind(&node.updated_at)
         .bind(&node.id)
         .execute(&self.pool)
@@ -172,30 +165,16 @@ impl NodeStorage for SqliteNodeStorage {
 }
 
 fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
-    let capabilities_json: String = row.get("capabilities");
-    let assigned_tests_json: String = row.get("assigned_tests");
-    let node_groups_json: String = row.get("node_groups");
-    let subnet_membership_json: String = row.get("subnet_membership");
-    let current_status_json: String = row.get("current_status");
-    let target_json: String = row.get("target");
-    let open_ports_json: String = row.get("open_ports");
-    let detected_services_json: String = row.get("detected_services");
-    
-    let capabilities: Vec<NodeCapability> = serde_json::from_str(&capabilities_json)?;
-    let assigned_tests: Vec<AssignedTest> = serde_json::from_str(&assigned_tests_json)?;
-    let node_groups: Vec<Uuid> = serde_json::from_str(&node_groups_json)?;
-    let subnet_membership: Vec<String> = serde_json::from_str(&subnet_membership_json)?;
-    let current_status: NodeStatus = serde_json::from_str(&current_status_json)?;
-    let target: NodeTarget = serde_json::from_str(&target_json)?;
+    let capabilities: Vec<NodeCapability> = serde_json::from_str(row.get("capabilities"))?;
+    let hostname: String = serde_json::from_str(row.get("hostname"))?;
+    let assigned_tests: Vec<AssignedTest> = serde_json::from_str(row.get("assigned_tests"))?;
+    let node_groups: Vec<Uuid> = serde_json::from_str(row.get("node_groups"))?;
+    let subnets: Vec<IpCidr> = serde_json::from_str(row.get("subnets"))?;
+    let status: NodeStatus = serde_json::from_str(row.get("status"))?;
+    let target: NodeTarget = serde_json::from_str(row.get("target"))?;
     let node_type: NodeType = serde_json::from_str(row.get("node_type"))?;
-    let open_ports: Vec<u16> = serde_json::from_str(&open_ports_json)?;
-    let detected_services: Vec<DetectedService> = serde_json::from_str(&detected_services_json)?;
-    
-    let position: Option<GraphPosition> = match row.get::<Option<String>, _>("position") {
-        Some(pos_str) => Some(serde_json::from_str(&pos_str)?),
-        None => None,
-    };
-    
+    let discovery_status: DiscoveryStatus = serde_json::from_str(row.get("discovery_status"))?;
+        
     let last_seen = match row.get::<Option<String>, _>("last_seen") {
         Some(dt_str) => Some(chrono::DateTime::parse_from_rfc3339(&dt_str)?.with_timezone(&chrono::Utc)),
         None => None,
@@ -209,18 +188,17 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
         base: NodeBase {
             name: row.get("name"),
             target,
+            hostname: Some(hostname),
             description: row.get("description"),
             node_type,
             capabilities,
-            detected_services,
-            open_ports,
+            discovery_status: Some(discovery_status),
             assigned_tests,
             mac_address: row.get("mac_address"),
             monitoring_interval: row.get("monitoring_interval"),
             node_groups,
-            position,
-            current_status,
-            subnet_membership,
+            status,
+            subnets,
         }        
     })
 }

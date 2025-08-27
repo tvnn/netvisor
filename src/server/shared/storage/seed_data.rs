@@ -1,9 +1,9 @@
 use std::net::{IpAddr, Ipv4Addr};
 use uuid::Uuid;
 use crate::server::{
-    nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability, http::{HttpServiceCapability, HttpsServiceCapability}}, types::{
-        base::Node, criticality::TestCriticality, targets::{IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}, tests::AssignedTest, types::NodeType
-    }}, shared::types::protocols::ApplicationProtocol, tests::types::{
+    nodes::types::{
+        base::Node, capabilities::{CapabilitySource, NodeCapability}, criticality::TestCriticality, targets::{IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}, tests::AssignedTest, types::NodeType
+    }, shared::types::protocols::ApplicationProtocol, tests::types::{
         base::Test,
         configs::ConnectivityConfig,
     }
@@ -22,8 +22,7 @@ pub fn create_internet_connectivity_node(dns_id: Uuid) -> Node {
     node.base.node_type = NodeType::WebServer;
     node.base.monitoring_interval = 0;
     node.base.capabilities = vec![
-        NodeCapability::HttpsService(HttpsServiceCapability {  }),
-        NodeCapability::HttpService(HttpServiceCapability {  })
+        NodeCapability::HttpsService{ source: CapabilitySource::from_port(443) },
     ];
     node.base.assigned_tests = vec![
         AssignedTest {
@@ -47,7 +46,7 @@ pub fn create_public_dns_node() -> Node {
     node.base.node_type = NodeType::DnsServer;
     node.base.monitoring_interval = 0;
     node.base.capabilities = vec![
-        NodeCapability::DnsService(DnsServiceCapability {  }),
+        NodeCapability::DnsService{ source: CapabilitySource::from_port(53) },
     ];
 
     node

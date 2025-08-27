@@ -5,3 +5,4 @@ pub mod diagnostics;
 pub mod daemons;
 pub mod shared;
 pub mod config;
+pub mod discovery;

@@ -1,12 +1,7 @@
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::server::nodes::capabilities::base::NodeCapability;
-use crate::server::nodes::capabilities::{
-    http::*,
-    dns::*,
-    vpn::*,
-};
+use crate::server::nodes::types::capabilities::{NodeCapability, NodeCapabilityDiscriminants};
 use crate::server::nodes::service::NodeService;
 use crate::server::shared::types::metadata::TypeMetadataProvider;
 use crate::server::tests::field_factory::{generate_timeout_field};
@@ -56,13 +51,9 @@ impl Test {
     async fn resolve_dns_server_config_from_node_uuid(&self, id: &Uuid, node_service: &NodeService) -> Result<DnsServerConfig, Error> {
         let node = node_service.get_node(id).await?.ok_or_else(|| Error::msg("Node could not be resolved from id"))?;
 
-        node
-            .base
-            .capabilities
-            .iter()
-            .any(|c| matches!(c, NodeCapability::DnsService(_)))
-            .then_some(())
-            .ok_or_else(|| Error::msg("Node does not have DNS capability"))?;
+        if !node.has_capability(NodeCapabilityDiscriminants::DnsService) {
+            return Err(Error::msg("Node does not have DNS capability"));
+        }
 
         match node.base.target {
             NodeTarget::IpAddress(target) => Ok(DnsServerConfig {
@@ -137,7 +128,7 @@ impl Test {
         match self {
             Test::ServiceHealth(_) => {
                 let has_http_capability = context.capabilities.iter()
-                    .any(|cap| matches!(cap, NodeCapability::HttpService(HttpServiceCapability {  }) | NodeCapability::HttpsService(HttpsServiceCapability {  })));
+                    .any(|cap| matches!(cap, NodeCapability::HttpService{ .. } | NodeCapability::HttpsService{ .. }));
                 
                 let has_service_target = matches!(context.target, NodeTarget::Service { .. });
                 
@@ -161,7 +152,7 @@ impl Test {
             },
             
             Test::DnsResolution(_) => {
-                let has_dns_capability = context.capabilities.contains(&NodeCapability::DnsService(DnsServiceCapability {  }));
+                let has_dns_capability = context.capabilities.iter().any(|c| matches!(c, NodeCapability::DnsService{ .. }));
                 
                 if !has_dns_capability {
                     schema.compatibility = CompatibilityStatus::Incompatible;
@@ -207,7 +198,7 @@ impl Test {
             },
             
             Test::DnsOverHttps(_) => {
-                let has_dns_capability = context.capabilities.contains(&NodeCapability::DnsService(DnsServiceCapability {  }));
+                let has_dns_capability = context.capabilities.iter().any(|c| matches!(c, NodeCapability::DnsService{ .. }));
                 let has_service_target = matches!(context.target, NodeTarget::Service { .. });
                 
                 if !has_dns_capability {
@@ -230,13 +221,15 @@ impl Test {
             },
             
             Test::VpnSubnetAccess(_) => {
-                let has_vpn_capability = context.capabilities.contains(&NodeCapability::VpnService(VpnServiceCapability {  }));
+                let has_vpn_capability = context.capabilities
+                    .iter()
+                    .any(|c| matches!(c, NodeCapability::WireGuardService{ .. } | NodeCapability::OpenVpnService{ .. } | NodeCapability::IpsecService{ .. }));
                 
                 if !has_vpn_capability {
                     schema.compatibility = CompatibilityStatus::Incompatible;
-                    schema.compatibility_reason = Some("VPN tests require VPN service capability".to_string());
+                    schema.compatibility_reason = Some("VPN tests require a VPN service capability".to_string());
                     schema.errors.push(ValidationMessage {
-                        message: "Add VPN Service capability to this node".to_string(),
+                        message: "Add a VPN Service capability to this node".to_string(),
                         field_id: None,
                         severity: MessageSeverity::Error,
                     });

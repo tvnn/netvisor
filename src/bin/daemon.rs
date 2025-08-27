@@ -1,6 +1,6 @@
 use clap::Parser;
 use netvisor::{
-    daemon::daemon::{
+    daemon::runtime::{
         service::DaemonClientService, 
         storage::{ConfigStore, default_config_path}, 
         handlers::create_daemon_router
@@ -92,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("🔗 Server target: {}", server_target);
     
     // Initialize storage and service
-    let storage = ConfigStore::new(default_config_path());
+    let storage = Arc::new(ConfigStore::new(default_config_path()));
     storage.initialize().await?;
     
     let mut service = DaemonClientService::new(storage);

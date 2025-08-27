@@ -1,19 +1,21 @@
 CREATE TABLE IF NOT EXISTS nodes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    target TEXT NOT NULL,
-    description TEXT,
     node_type TEXT,
+    hostname TEXT,
+    mac_address TEXT,
+    description TEXT,
+    target TEXT NOT NULL,
+    subnets TEXT,
+
+    discovery_status TEXT,
     capabilities TEXT,
+
+    status TEXT,
     assigned_tests TEXT,
     monitoring_interval INTEGER,
     node_groups TEXT,
-    position TEXT,
-    current_status TEXT DEFAULT 'Unknown',
-    subnet_membership TEXT,
-    open_ports TEXT,
-    detected_services TEXT,
-    mac_address TEXT,
+    
     last_seen TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL

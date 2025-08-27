@@ -1,18 +1,14 @@
-use anyhow::Result;
+use anyhow::{Error, Result};
 use uuid::Uuid;
 use std::sync::Arc;
-use crate::server::{
-    daemons::{
+use crate::server::{daemons::{
         storage::DaemonStorage, 
         types::{
-            base::Daemon,
             api::{
-                DaemonDiscoveryRequest, DaemonTestRequest, 
-                DaemonDiscoveryProgress, DaemonNodeReport, DaemonTestResult
-            }
+                DaemonDiscoveryProgress, DaemonDiscoveryRequest, DaemonDiscoveryResponse, DaemonNodeReport, DaemonTestRequest, DaemonTestResult
+            }, base::Daemon
         }
-    },
-};
+    }, shared::types::api::ApiResponse};
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
@@ -51,31 +47,28 @@ impl DaemonService {
     }
 
     /// Send discovery request to daemon
-    pub async fn send_discovery_request(&self, daemon: &Daemon, request: DaemonDiscoveryRequest) -> Result<()> {
-        let daemon_url = self.build_daemon_url(daemon);
-        
-        let response = self.client
-            .post(format!("{}/discover", daemon_url))
+    pub async fn send_discovery_request(&self, daemon: &Daemon, request: DaemonDiscoveryRequest) -> Result<(), Error> {        
+        let response: ApiResponse<DaemonDiscoveryResponse> = self.client
+            .post(format!("{}/discover", daemon.endpoint_url()))
             .json(&request)
             .send()
+            .await?
+            .error_for_status()?  
+            .json()
             .await?;
 
-        if !response.status().is_success() {
-            anyhow::bail!("Failed to send discovery request to daemon {}: HTTP {}", 
-                         daemon.id, response.status());
+        if !response.success {
+            anyhow::bail!("Failed to send discovery request to daemon {}: {}", daemon.id, response.error.unwrap_or("Unknown error".to_string()));
         }
 
-        tracing::info!("Discovery request sent to daemon {} for session {}", 
-                      daemon.id, request.session_id);
+        tracing::info!("Discovery request sent to daemon {} for session {}", daemon.id, request.session_id);
         Ok(())
     }
 
     /// Send test execution request to daemon
-    pub async fn send_test_request(&self, daemon: &Daemon, request: DaemonTestRequest) -> Result<()> {
-        let daemon_url = self.build_daemon_url(daemon);
-        
+    pub async fn send_test_request(&self, daemon: &Daemon, request: DaemonTestRequest) -> Result<()> {        
         let response = self.client
-            .post(format!("{}/execute_test", daemon_url))
+            .post(format!("{}/execute_test", daemon.endpoint_url()))
             .json(&request)
             .send()
             .await?;
@@ -92,10 +85,9 @@ impl DaemonService {
 
     /// Check daemon health
     pub async fn check_daemon_health(&self, daemon: &Daemon) -> Result<bool> {
-        let daemon_url = self.build_daemon_url(daemon);
         
         match self.client
-            .get(format!("{}/health", daemon_url))
+            .get(format!("{}/health", daemon.endpoint_url()))
             .timeout(std::time::Duration::from_secs(5))
             .send()
             .await 
@@ -174,10 +166,5 @@ impl DaemonService {
         // 4. Update monitoring dashboards
 
         Ok(())
-    }
-
-    /// Build daemon URL from daemon info
-    fn build_daemon_url(&self, daemon: &Daemon) -> String {
-        format!("http://{}:{}", daemon.base.ip, daemon.base.port)
     }
 }

@@ -3,4 +3,3 @@ pub mod storage;
 pub mod service;
 pub mod monitoring;
 pub mod types;
-pub mod capabilities;

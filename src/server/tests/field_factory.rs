@@ -1,4 +1,5 @@
-use crate::server::{nodes::{capabilities::{base::NodeCapability, dns::DnsServiceCapability}, types::{base::Node, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}}, shared::types::metadata::TypeMetadataProvider, tests::types::schema::*};
+use crate::server::{nodes::types::{base::Node, capabilities::NodeCapability, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}, tests::types::schema::*};
+use crate::server::shared::types::metadata::TypeMetadataProvider;
 
 pub fn generate_timeout_field() -> ConfigField {
     ConfigField {
@@ -57,7 +58,7 @@ pub fn generate_expected_ip_field(help_text: String) -> ConfigField {
 
 pub fn generate_dns_resolver_selection_field(available_nodes: &[Node]) -> (Option<ValidationMessage>, ConfigField) {
     let dns_capable_nodes: Vec<SelectOption> = available_nodes.iter()
-            .filter(|node| node.base.capabilities.contains(&NodeCapability::DnsService(DnsServiceCapability{  })))
+            .filter(|node| node.base.capabilities.iter().any(|c| matches!(c, NodeCapability::DnsService{ .. })))
             .map(|node| {
                 let target_summary = match &node.base.target {
                     NodeTarget::IpAddress(IpAddressTargetConfig{ ip, .. }) => ip.to_string(),
@@ -94,9 +95,7 @@ pub fn generate_dns_resolver_selection_field(available_nodes: &[Node]) -> (Optio
             default_value: Some(serde_json::json!(&dns_capable_nodes[0].value)),
             field_type: FieldType {
                 base_type: "rich_select".to_string(),
-                constraints: serde_json::json!({
-                    "filter_capabilities": [NodeCapability::DnsService(DnsServiceCapability {  })]
-                }),
+                constraints: serde_json::json!({}),
                 options: Some(dns_capable_nodes),
             },
             required: true,

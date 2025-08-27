@@ -1,40 +1,41 @@
+use cidr::{IpCidr};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::server::{nodes::{capabilities::base::NodeCapability, types::{criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}}, shared::types::protocols::ApplicationProtocol, tests::types::{base::Test, configs::ConnectivityConfig, execution::TestResult}};
+use strum::IntoDiscriminant;
+use DiscoveryPort::*;
+use crate::server::{discovery::types::base::DiscoveryPort, nodes::types::{capabilities::{CapabilitySource, NodeCapability, NodeCapabilityDiscriminants}, criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}, tests::types::{base::Test, configs::ConnectivityConfig, execution::TestResult}};
 use super::{
     types::{NodeType},
     tests::{AssignedTest},
-    topology::{GraphPosition}
 };
 use uuid::{Uuid};
-use crate::server::nodes::capabilities::base::{deserialize_capabilities_from_discriminants, serialize_capabilities_as_discriminants};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct NodeBase {
     pub name: String,
     pub node_type: NodeType,
+    pub hostname: Option<String>,
+    pub mac_address: Option<String>,
     pub description: Option<String>,
     pub target: NodeTarget,
+    pub subnets: Vec<IpCidr>,
     
     // Discovery & Capability Data
-    pub open_ports: Vec<u16>,
-    pub detected_services: Vec<DetectedService>,
-    pub mac_address: Option<String>,
-    #[serde(
-        serialize_with = "serialize_capabilities_as_discriminants",
-        deserialize_with = "deserialize_capabilities_from_discriminants"
-    )]
+    pub discovery_status: Option<DiscoveryStatus>,
     pub capabilities: Vec<NodeCapability>,
     
     // Monitoring
+    pub status: NodeStatus,
     pub assigned_tests: Vec<AssignedTest>,
     pub monitoring_interval: u16,
     pub node_groups: Vec<Uuid>,
-    
-    // Topology visualization
-    pub position: Option<GraphPosition>,
-    pub current_status: NodeStatus,
-    pub subnet_membership: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub enum DiscoveryStatus {
+    Discovered { session_id: Uuid, discovered_at: DateTime<Utc> },
+    Reviewed,
+    Manual,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
@@ -64,25 +65,24 @@ impl Node {
         let base = NodeBase {
             name,
             description: None,
+            hostname: None,
             target: NodeTarget::IpAddress(IpAddressTargetConfig::default()),
             node_type: NodeType::UnknownDevice,
+            discovery_status: None,
             
-            open_ports: Vec::new(),
-            detected_services: Vec::new(),
             mac_address: None,
+            subnets: Vec::new(),
             capabilities: Vec::new(),
 
+            status: NodeStatus::Unknown,
             assigned_tests: vec![
                 AssignedTest {
                     test: Test::Connectivity(ConnectivityConfig::default()),
-                    criticality: TestCriticality::Important,
+                    criticality: TestCriticality::Critical,
                 }
             ],
             monitoring_interval: 5,
             node_groups: Vec::new(),
-            position: None,
-            current_status: NodeStatus::Unknown,
-            subnet_membership: Vec::new(),
         };
         Self::new(base)
     }
@@ -104,7 +104,7 @@ impl Node {
     pub fn update_status_from_tests(&mut self, test_results: &[TestResult]) {        
         
         if test_results.is_empty() {
-            self.base.current_status = NodeStatus::Unknown;
+            self.base.status = NodeStatus::Unknown;
         }
         
         let mut has_critical_failure = false;
@@ -129,34 +129,97 @@ impl Node {
             NodeStatus::Healthy
         };
         
-        self.base.current_status = new_status;
+        self.base.status = new_status;
     }
 
-    // pub fn as_dns_capability(&self) -> Option<CapabilityWithNode<DnsServiceCapability>> {
-    //     self.base.capabilities.iter()
-    //         .find_map(|cap| match cap {
-    //             NodeCapability::DnsService(capability) => Some(CapabilityWithNode::new(capability, self)),
-    //             _ => None,
-    //         })
-    // }
-}
+    pub fn has_capability(&self, capability_discriminant: NodeCapabilityDiscriminants) -> bool{
+        self.base.capabilities.iter().any(|c| c.discriminant() == capability_discriminant)
+    }
 
-// pub struct CapabilityWithNode<'a, T> {
-//     pub capability: &'a T,
-//     pub node: &'a Node,
-// }
+    pub fn get_capability(&mut self, capability_discriminant: NodeCapabilityDiscriminants) -> Option<&mut NodeCapability>{
+        self.base.capabilities.iter_mut().find(|c| c.discriminant() == capability_discriminant)
+    }
 
-// impl<'a, T> CapabilityWithNode<'a, T> {
-//     pub fn new(capability: &'a T, node: &'a Node) -> Self {
-//         Self { capability, node }
-//     }
-// }
+    pub fn add_capability_from_port(&mut self, port: u16) {
+        let capability = match DiscoveryPort::try_from(port).ok() {
+            Some(Ssh) => NodeCapability::SshAccess {
+                source: CapabilitySource::from_port(port),
+            },
+            Some(Dns) => NodeCapability::DnsService {
+                source: CapabilitySource::from_port(port),
+            },
+            Some(Http | HttpAlt) => NodeCapability::HttpService {
+                source: CapabilitySource::from_port(port),
+            },
+            Some(Https | HttpsAlt) => NodeCapability::HttpsService {
+                source: CapabilitySource::from_port(port),
+            },
+            Some(WireGuard) => NodeCapability::WireGuardService {
+                source: CapabilitySource::from_port(port),
+            },
+            Some(OpenVpn | Pptp) => NodeCapability::OpenVpnService {
+                source: CapabilitySource::from_port(port),
+            },
+            Some(IpsecIke | IpsecNat) => NodeCapability::IpsecService {
+                source: CapabilitySource::from_port(port),
+            },
+            Some(Snmp | SnmpTrap) => NodeCapability::SnmpService {
+                source: CapabilitySource::from_port(port),
+            },
+            Some(Rdp) => NodeCapability::RdpService {
+                source: CapabilitySource::from_port(port),
+            },
+            Some(Telnet) => NodeCapability::TelnetService {
+                source: CapabilitySource::from_port(port),
+            },
+            None => return,
+        };
+        
+        // Check if we already have this capability type and update it, or add new
+        if let Some(existing) = self.base.capabilities.iter_mut().find(|cap| {
+            std::mem::discriminant(*cap) == std::mem::discriminant(&capability)
+        }) {
+            existing.source_mut().set_port(port);
+        } else {
+            self.base.capabilities.push(capability);
+        }
+    }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct DetectedService {
-    pub port: u16,
-    pub protocol: ApplicationProtocol,
-    pub service_name: Option<String>, // "nginx", "OpenSSH", "MySQL"
-    pub version: Option<String>, // "1.20.1", "8.9p1", "8.0.32"
-    pub banner: Option<String>,  // Raw service banner
+    pub fn add_capability_from_process(&mut self, process_name: &str) {
+        let service_capabilities: Vec<NodeCapability> = match process_name.to_lowercase().as_str() {
+            name if name.contains("wg") || name.contains("wireguard") => 
+                vec![NodeCapability::WireGuardService {
+                    source: CapabilitySource::from_process(process_name.to_string()),
+                }],
+            name if name.contains("openvpn") => 
+                vec![NodeCapability::OpenVpnService {
+                    source: CapabilitySource::from_process(process_name.to_string()),
+                }],
+            name if name.contains("nginx") || name.contains("apache") || name.contains("httpd") => 
+                vec![
+                    NodeCapability::HttpService {
+                        source: CapabilitySource::from_process(process_name.to_string()),
+                    },
+                    NodeCapability::HttpsService {
+                        source: CapabilitySource::from_process(process_name.to_string()),
+                    }
+                ],
+            name if name.contains("sshd") => 
+                vec![NodeCapability::SshAccess {
+                    source: CapabilitySource::from_process(process_name.to_string()),
+                }],
+            _ => vec![],
+        };
+        
+        for capability in service_capabilities {
+            // Check if we already have this capability type and update it, or add new
+            if let Some(existing) = self.base.capabilities.iter_mut().find(|cap| {
+                std::mem::discriminant(*cap) == std::mem::discriminant(&capability)
+            }) {
+                existing.source_mut().set_process(process_name.to_string());
+            } else {
+                self.base.capabilities.push(capability);
+            }
+        }
+    }
 }

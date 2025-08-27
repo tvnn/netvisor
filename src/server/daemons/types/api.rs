@@ -1,6 +1,5 @@
 use std::net::IpAddr;
 
-use cidr::IpCidr;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::server::{
@@ -22,25 +21,33 @@ pub struct DaemonRegistrationResponse {
     pub daemon: Daemon
 }
 
+// Request from frontend to server
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InitiateDiscoveryRequest {
+    pub daemon_id: Uuid,
+}
+
+// Response from server to frontend
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InitiateDiscoveryResponse {
+    pub session_id: Uuid,
+}
+
+
+
 /// Daemon discovery request from server to daemon
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonDiscoveryRequest {
     pub session_id: Uuid,
-    pub target_subnets: Vec<IpCidr>,
-    pub discovery_depth: String,
-    pub include_services: bool,
-    pub snmp_communities: Vec<String>,
-    pub max_concurrent: usize,
-    pub timeout_ms: u64,
 }
 
 /// Daemon discovery response (for immediate acknowledgment)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonDiscoveryResponse {
-    pub success: bool,
     pub session_id: Uuid,
-    pub message: String,
 }
+
+
 
 /// Progress update from daemon to server during discovery
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,9 +76,7 @@ pub struct DaemonTestRequest {
 /// Test execution response from daemon to server
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonTestResponse {
-    pub success: bool,
     pub session_id: Uuid,
-    pub message: String,
 }
 
 /// Test result report from daemon to server

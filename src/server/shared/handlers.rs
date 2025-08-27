@@ -5,7 +5,7 @@ use crate::{
     server::{
         diagnostics::{handlers as diagnostic_handlers, types::DiagnosticStatus}, 
         node_groups::handlers as group_handlers, 
-        nodes::{capabilities::base::NodeCapability, handlers as node_handlers, types::{criticality::TestCriticality, status::NodeStatus, targets::NodeTarget, types::NodeType}}, shared::types::{api::ApiResponse, metadata::{TypeMetadataProvider, TypeRegistry}}, 
+        nodes::{types::capabilities::NodeCapability, handlers as node_handlers, types::{criticality::TestCriticality, status::NodeStatus, targets::NodeTarget, types::NodeType}}, shared::types::{api::ApiResponse, metadata::{TypeMetadataProvider, TypeRegistry}}, 
         tests::{handlers as test_handlers, types::base::Test},
         daemons::{handlers as daemon_handlers}
     }, server::config::AppState
