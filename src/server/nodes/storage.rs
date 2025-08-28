@@ -36,7 +36,10 @@ impl NodeStorage for SqliteNodeStorage {
         let last_seen_str = node.last_seen.as_ref().map(|dt| dt.to_rfc3339());
         let target_str = serde_json::to_string(&node.base.target)?;
         let status_str = serde_json::to_string(&node.base.status)?;
-        let discovery_status_str = serde_json::to_string(&node.base.discovery_status)?;
+        let discovery_status_str = match &node.base.discovery_status {
+            Some(status) => serde_json::to_string(status)?,
+            None => "null".to_string(),
+        };
 
         sqlx::query(
             r#"
@@ -48,23 +51,23 @@ impl NodeStorage for SqliteNodeStorage {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
-        .bind(&node.id)
-        .bind(&node.base.name)
-        .bind(node_type_str)
-        .bind(&node.base.hostname)
-        .bind(&node.base.mac_address)
-        .bind(&node.base.description)
-        .bind(target_str)
-        .bind(subnets_str)
-        .bind(discovery_status_str)
-        .bind(capabilities_str)
-        .bind(status_str)
-        .bind(assigned_tests_str)
-        .bind(node.base.monitoring_interval)
-        .bind(node_groups_str)
-        .bind(last_seen_str)
-        .bind(&node.created_at)
-        .bind(&node.updated_at)
+        .bind(&node.id)                        // id
+        .bind(&node.base.name)                 // name
+        .bind(&node.base.hostname)             // hostname (plain string)
+        .bind(target_str)                      // target (JSON)
+        .bind(&node.base.description)          // description (plain string)
+        .bind(node_type_str)                   // node_type (JSON)
+        .bind(capabilities_str)                // capabilities (JSON)
+        .bind(assigned_tests_str)              // assigned_tests (JSON)
+        .bind(node.base.monitoring_interval)   // monitoring_interval
+        .bind(node_groups_str)                 // node_groups (JSON)
+        .bind(status_str)                      // status (JSON)
+        .bind(discovery_status_str)            // discovery_status (JSON)
+        .bind(subnets_str)                     // subnets (JSON)
+        .bind(&node.base.mac_address)          // mac_address (plain string)
+        .bind(last_seen_str)                   // last_seen (plain string)
+        .bind(&node.created_at.to_rfc3339())   // created_at
+        .bind(&node.updated_at.to_rfc3339())   // updated_at
         .execute(&self.pool)
         .await?;
 
@@ -110,10 +113,10 @@ impl NodeStorage for SqliteNodeStorage {
         sqlx::query(
             r#"
             UPDATE nodes SET 
-                name = ?, hostname = ?, target = ?, description = ?,
-                node_type = ?, capabilities = ?, assigned_tests = ?, monitoring_interval = ?,
-                node_groups = ?, status = ?, discovery_status = ?, subnets = ?,
-                mac_address = ?, last_seen = ?, created_at = ?, updated_at = ?
+                name = ?, node_type = ?, hostname = ?, mac_address = ?, description = ?,
+                target = ?, subnets = ?, discovery_status = ?, capabilities = ?, 
+                status = ?, assigned_tests = ?, monitoring_interval = ?, node_groups = ?,
+                last_seen = ?, updated_at = ?
             WHERE id = ?
             "#
         )
@@ -131,7 +134,6 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(node.base.monitoring_interval)
         .bind(node_groups_str)
         .bind(last_seen_str)
-        .bind(&node.created_at)
         .bind(&node.updated_at)
         .bind(&node.id)
         .execute(&self.pool)
@@ -165,36 +167,51 @@ impl NodeStorage for SqliteNodeStorage {
 }
 
 fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
-    let capabilities: Vec<NodeCapability> = serde_json::from_str(row.get("capabilities"))?;
-    let hostname: String = serde_json::from_str(row.get("hostname"))?;
-    let assigned_tests: Vec<AssignedTest> = serde_json::from_str(row.get("assigned_tests"))?;
-    let node_groups: Vec<Uuid> = serde_json::from_str(row.get("node_groups"))?;
-    let subnets: Vec<IpCidr> = serde_json::from_str(row.get("subnets"))?;
-    let status: NodeStatus = serde_json::from_str(row.get("status"))?;
-    let target: NodeTarget = serde_json::from_str(row.get("target"))?;
-    let node_type: NodeType = serde_json::from_str(row.get("node_type"))?;
-    let discovery_status: DiscoveryStatus = serde_json::from_str(row.get("discovery_status"))?;
-        
+    // Parse JSON fields safely
+    let capabilities: Vec<NodeCapability> = serde_json::from_str(&row.get::<String, _>("capabilities"))?;
+    let assigned_tests: Vec<AssignedTest> = serde_json::from_str(&row.get::<String, _>("assigned_tests"))?;
+    let node_groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("node_groups"))?;
+    let subnets: Vec<IpCidr> = serde_json::from_str(&row.get::<String, _>("subnets"))?;
+    let status: NodeStatus = serde_json::from_str(&row.get::<String, _>("status"))?;
+    let target: NodeTarget = serde_json::from_str(&row.get::<String, _>("target"))?;
+    let node_type: NodeType = serde_json::from_str(&row.get::<String, _>("node_type"))?;
+    
+    // Handle nullable discovery_status
+    let discovery_status: Option<DiscoveryStatus> = {
+        let discovery_str: String = row.get("discovery_status");
+        if discovery_str == "null" {
+            None
+        } else {
+            Some(serde_json::from_str(&discovery_str)?)
+        }
+    };
+
+    // Handle datetime fields  
     let last_seen = match row.get::<Option<String>, _>("last_seen") {
         Some(dt_str) => Some(chrono::DateTime::parse_from_rfc3339(&dt_str)?.with_timezone(&chrono::Utc)),
         None => None,
     };
 
+    let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
+        .with_timezone(&chrono::Utc);
+    let updated_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("updated_at"))?
+        .with_timezone(&chrono::Utc);
+
     Ok(Node {
         id: row.get("id"),
-        created_at: row.get("created_at"),
-        updated_at: row.get("updated_at"),
+        created_at,
+        updated_at,
         last_seen,
         base: NodeBase {
             name: row.get("name"),
             target,
-            hostname: Some(hostname),
-            description: row.get("description"),
+            hostname: row.get("hostname"), // Plain string
+            description: row.get("description"), // Plain string  
             node_type,
             capabilities,
-            discovery_status: Some(discovery_status),
+            discovery_status,
             assigned_tests,
-            mac_address: row.get("mac_address"),
+            mac_address: row.get("mac_address"), // Plain string
             monitoring_interval: row.get("monitoring_interval"),
             node_groups,
             status,

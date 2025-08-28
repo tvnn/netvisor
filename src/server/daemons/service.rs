@@ -56,17 +56,20 @@ impl DaemonService {
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };
         
-        let response: ApiResponse<DaemonDiscoveryResponse> = self.client
+        let response = self.client
             .post(format!("{}/api/discovery/initiate", daemon_node.base.target.to_string()))
             .json(&request)
             .send()
-            .await?
-            .error_for_status()?  
-            .json()
             .await?;
 
-        if !response.success {
-            anyhow::bail!("Failed to send discovery request to daemon {}: {}", daemon.id, response.error.unwrap_or("Unknown error".to_string()));
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to send discovery request: HTTP {}", response.status());
+        }
+
+        let api_response: ApiResponse<DaemonDiscoveryResponse> = response.json().await?;
+
+        if !api_response.success {
+            anyhow::bail!("Failed to send discovery request to daemon {}: {}", daemon.id, api_response.error.unwrap_or("Unknown error".to_string()));
         }
 
         tracing::info!("Discovery request sent to daemon {} for session {}", daemon.id, request.session_id);

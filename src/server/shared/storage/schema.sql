@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     hostname TEXT,
     mac_address TEXT,
     description TEXT,
-    target TEXT,
+    target TEXT NOT NULL,
     subnets TEXT,
 
     discovery_status TEXT,
@@ -45,11 +45,7 @@ CREATE TABLE IF NOT EXISTS diagnostic_executions (
 
 CREATE TABLE IF NOT EXISTS daemons (
     id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    ip TEXT NOT NULL,
-    port INTEGER NOT NULL,
-    hostname TEXT NOT NULL,
-    status TEXT NOT NULL,
+    node_id TEXT NOT NULL,
     registered_at TEXT NOT NULL,
     last_seen TEXT NOT NULL
 );

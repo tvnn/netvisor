@@ -194,7 +194,7 @@ impl DaemonDiscoveryService {
 
         let response = self
             .client
-            .post(format!("{}/api/nodes/create", server_target.to_string()))
+            .post(format!("{}/api/nodes", server_target.to_string()))
             .json(&CreateNodeRequest {node: node.base.clone()})
             .send()
             .await?;

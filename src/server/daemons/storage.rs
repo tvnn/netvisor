@@ -32,7 +32,7 @@ impl DaemonStorage for SqliteDaemonStorage {
             INSERT INTO daemons (
                 id, node_id,
                 last_seen, registered_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?)
             "#
         )
         .bind(&daemon.id)
@@ -58,7 +58,7 @@ impl DaemonStorage for SqliteDaemonStorage {
     }
 
     async fn get_all(&self) -> Result<Vec<Daemon>> {
-        let rows = sqlx::query("SELECT * FROM daemons ORDER BY name")
+        let rows = sqlx::query("SELECT * FROM daemons")
             .fetch_all(&self.pool)
             .await?;
 

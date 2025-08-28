@@ -4,6 +4,8 @@ use uuid::Uuid;
 use strum::IntoEnumIterator;
 use hostname::get as get_hostname;
 use mac_address::get_mac_address;
+use crate::server::nodes::types::api::{CreateNodeRequest, NodeResponse};
+use crate::server::nodes::types::capabilities::NodeCapability;
 use crate::{
     daemon::{discovery::{utils::{get_daemon_subnet, get_local_ip_address, port_scan}}, shared::storage::ConfigStore}, server::{
         daemons::types::api::{
@@ -26,8 +28,9 @@ impl DaemonRuntimeService {
     }
 
     /// Register daemon with server and return assigned ID
-    pub async fn register_with_server(&mut self, node: Node) -> Result<Uuid> {
-        let registration_request = DaemonRegistrationRequest {node};
+    pub async fn register_with_server(&mut self, node: Node, daemon_id: Uuid) -> Result<()> {
+        tracing::info!("Registering daemon with ID: {}, Node ID: {:?}", daemon_id, node.id);
+        let registration_request = DaemonRegistrationRequest {daemon_id, node};
 
         let server_target = self.config_store.get_server_endpoint().await?;
 
@@ -56,7 +59,7 @@ impl DaemonRuntimeService {
         
         tracing::info!("Successfully registered with server, assigned ID: {}", daemon_id);
         
-        Ok(daemon_id)
+        Ok(())
     }
 
     pub async fn heartbeat(&self) -> Result<()> {
@@ -105,9 +108,7 @@ impl DaemonRuntimeService {
         Ok(())
     }
 
-    pub async fn create_self_as_node(&self) -> Result<Node> {
-        tracing::info!("Discovering self as node");
-        
+    pub async fn create_self_as_node(&self, daemon_id: Uuid) -> Result<Node> {        
         // Get daemon configuration
         let config = &self.config_store;
 
@@ -156,12 +157,35 @@ impl DaemonRuntimeService {
             node.add_capability_from_port(*port);
         }
 
-        // Always add daemon service capability for self
-        node.base.capabilities.push(crate::server::nodes::types::capabilities::NodeCapability::DaemonService { 
+        node.base.capabilities.push(NodeCapability::DaemonService { 
             source: CapabilitySource::system(),
-            daemon_id: config.get_id().await?.expect("ID should have a value at this point, either from config or assigned"),
+            daemon_id
         });
 
-        Ok(node)
+        let server_target = self.config_store.get_server_endpoint().await?;
+
+        let response = self
+            .client
+            .post(format!("{}/api/nodes", server_target.to_string()))
+            .json(&CreateNodeRequest {node: node.base.clone()})
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to report daemon as node: HTTP {}", response.status());
+        }
+
+        let api_response: ApiResponse<NodeResponse> = response.json().await?;
+
+        if !api_response.success {
+            let error_msg = api_response.error.unwrap_or_else(|| "Unknown error".to_string());
+            anyhow::bail!("Failed to create node: {}", error_msg);
+        }
+
+        let created_node = api_response.data
+            .ok_or_else(|| anyhow::anyhow!("No node data in successful response"))?
+            .node;
+
+        Ok(created_node)
     }
 }

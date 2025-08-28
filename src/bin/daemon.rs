@@ -1,14 +1,13 @@
 use clap::Parser;
 use netvisor::{
     daemon::{
-        discovery::utils::get_local_ip_address, 
         runtime::service::DaemonRuntimeService, 
         shared::{handlers::create_router, storage::{ConfigStore, AppConfig, CliArgs}}
     },
 };
+use uuid::Uuid;
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use hostname::get as get_hostname;
 use directories_next::ProjectDirs;
 
 #[derive(Parser)]
@@ -113,22 +112,19 @@ async fn main() -> anyhow::Result<()> {
     let daemon_id = if let Some(existing_id) = runtime_service.config_store.get_id().await? {
         tracing::info!("📋 Using existing daemon ID: {}", existing_id);
         existing_id
-    } else {
-        // Get local network info
-        let local_ip = get_local_ip_address()?;
-        let hostname = get_hostname()
-            .ok()
-            .map(|os_str| os_str.to_string_lossy().into_owned());
-
-        tracing::info!("🌐 Local IP: {}, Hostname: {:?}", local_ip, hostname);
+    } else {        
         tracing::info!("📝 Registering with server...");
         
-        // Create self as node, register with server, and save returned daemon ID
-        let node = runtime_service.create_self_as_node().await?;
-        let new_id = runtime_service.register_with_server(node).await?;
-        runtime_service.config_store.set_id(new_id).await?;
+        let daemon_id = Uuid::new_v4();
+
+        // Create self as node, register with server, and save daemon ID
+        let node = runtime_service.create_self_as_node(daemon_id).await?;
+        tracing::info!("🌐 Local IP: {}, Hostname: {:?}", node.base.target.to_string(), node.base.hostname);
+
+        runtime_service.register_with_server(node, daemon_id).await?;
+        runtime_service.config_store.set_id(daemon_id).await?;
         
-        new_id
+        daemon_id
     };
     
     tracing::info!("✅ Daemon ID: {}", daemon_id);

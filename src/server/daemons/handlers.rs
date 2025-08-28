@@ -36,14 +36,17 @@ async fn register_daemon(
     State(state): State<Arc<AppState>>,
     Json(request): Json<DaemonRegistrationRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonRegistrationResponse>>> {
+
     let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
-    
-    let daemon = Daemon::new(DaemonBase {
+
+    let daemon = Daemon::new(request.daemon_id, DaemonBase {
         node_id: request.node.id
     });
             
     let registered_daemon = service.register_daemon(daemon).await
-        .map_err(|e| ApiError::internal_error(&format!("Failed to register daemon: {}", e)))?;
+        .map_err(|e| {
+            ApiError::internal_error(&format!("Failed to register daemon: {}", e))
+        })?;
     
     Ok(Json(ApiResponse::success(DaemonRegistrationResponse {
         daemon: registered_daemon,

@@ -17,10 +17,10 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    pub fn new(base: DaemonBase) -> Self {
+    pub fn new(id: Uuid, base: DaemonBase) -> Self {
         let now = Utc::now();
         Self {
-            id: uuid::Uuid::new_v4(),
+            id,
             base,
             last_seen: now,
             registered_at: now,
