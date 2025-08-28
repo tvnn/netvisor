@@ -19,6 +19,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/initiate", post(initiate_discovery))
         .route("/:session_id/status", get(get_discovery_status))
         .route("/:session_id/cancel", post(cancel_discovery))
+        .route("/active", get(get_active_sessions))
 }
 
 /// Initiate discovery on a specific daemon
@@ -55,6 +56,14 @@ async fn initiate_discovery(
     Ok(Json(ApiResponse::success(InitiateDiscoveryResponse {
         session_id
     })))
+}
+
+// Get all active discovery sessions
+async fn get_active_sessions(
+    State(state): State<Arc<AppState>>,
+) -> ApiResult<Json<ApiResponse<Vec<DaemonDiscoveryUpdate>>>> {
+    let sessions = state.discovery_manager.get_active_sessions().await;
+    Ok(Json(ApiResponse::success(sessions)))
 }
 
 /// Get discovery status for polling

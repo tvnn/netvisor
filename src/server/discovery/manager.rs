@@ -125,8 +125,15 @@ impl DiscoverySessionManager {
     }
 
     /// Get active session count for monitoring
-    pub async fn get_active_session_count(&self) -> usize {
-        self.daemon_sessions.read().await.len()
+    pub async fn get_active_sessions(&self) -> Vec<DaemonDiscoveryUpdate> {
+        self.sessions.read().await
+            .values()
+            .filter(|session| !matches!(
+                session.phase, 
+                DiscoveryPhase::Cancelled | DiscoveryPhase::Complete | DiscoveryPhase::Finished
+            ))
+            .cloned()
+            .collect()
     }
 }
 
