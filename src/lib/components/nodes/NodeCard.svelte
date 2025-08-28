@@ -46,12 +46,17 @@
     lists: [
       {
         label: 'Capabilities',
-        items: node.capabilities.map(cap => ({
-          id: cap,
-          label: $getCapabilityDisplay(cap),
-          bgColor: 'bg-purple-900/30',
-          color: 'text-purple-300'
-        })),
+        items: node.capabilities.map(cap => {
+
+          const [capId, capInfo] = Object.entries(cap)[0];
+
+          return ({
+            id: capId,
+            label: $getCapabilityDisplay(capId),
+            bgColor: 'bg-purple-900/30',
+            color: 'text-purple-300'
+          })
+        }),
         emptyText: 'No capabilities assigned'
       },
       {

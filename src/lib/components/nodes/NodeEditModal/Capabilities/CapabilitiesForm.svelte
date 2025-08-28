@@ -1,11 +1,12 @@
 <script lang="ts">
   import { capabilities as allCapabilities, getCapabilityDescription, getCapabilityDisplay, getNodeTypeDisplay, getNodeTypeMetadata } from '$lib/api/registry';
   import RichRadioCheck from '../../../common/RichRadioCheck.svelte';
+	import type { NodeCapability } from '../../types';
   
-  export let selectedCapabilities: string[];
+  export let selectedCapabilities: Record<string, NodeCapability>[];
   export let nodeType: string;
   
-  let recommendations: string[];
+  let recommendations: string;
   
   function handleCapabilitiesChange(value: string | string[]) {
     if (Array.isArray(value)) {
@@ -26,6 +27,7 @@
     
   // Transform capabilities into RichRadioCheck format and handle grouping
   $: capabilityOptions = $allCapabilities.map(capability => {
+
     const isSuggested = recommendations?.includes(capability.id) || false;
     return {
       id: capability.id,

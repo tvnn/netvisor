@@ -11,7 +11,7 @@ export interface NodeFormData {
   target: NodeTarget;
   
   node_type: string;
-  capabilities: string[];
+  capabilities: Array<Record<string, NodeCapability>>;
   
   // Discovery data (auto-populated)
   mac_address?: string;
@@ -37,7 +37,7 @@ export interface NodeApi {
   
   // Discovery & Capability Data
   mac_address?: string;
-  capabilities: string[];
+  capabilities: Record<string, NodeCapability>[];
   
   // Network Context
   subnets: string[]; // CIDR blocks
@@ -79,6 +79,11 @@ export enum ApplicationProtocol {
   Http = "Http",
   Https = "Https",
   Ftp = "Ftp"
+}
+
+export type NodeCapability = {
+  source: Record<string, any>,
+  daemon_id: string
 }
 
 export type NodeTarget =

@@ -1,6 +1,6 @@
 import type { DaemonListResponse } from "$lib/components/daemons/types";
 import type { DiagnosticExecutionApi, DiagnosticExecutionResponse } from "$lib/components/diagnostics/types";
-import type { CancelDiscoveryResponse, DiscoverySessionRequest, DiscoveryStatusResponse, InitiateDiscoveryRequest, InitiateDiscoveryResponse } from "$lib/components/discovery/types";
+import type { CancelDiscoveryResponse, DiscoverySessionRequest, DaemonDiscoveryUpdate, InitiateDiscoveryRequest, InitiateDiscoveryResponse } from "$lib/components/discovery/types";
 import type { NodeGroupApi, NodeGroupListResponse, NodeGroupResponse } from "../components/node_groups/types";
 import type { NodeApi, NodeListResponse, NodeResponse } from "../components/nodes/types";
 
@@ -147,7 +147,7 @@ class ApiClient {
   }
 
   async discoveryStatus(session_id: string) {
-    return this.request<DiscoveryStatusResponse>(`/discovery/${session_id}/status`, {
+    return this.request<DaemonDiscoveryUpdate>(`/discovery/${session_id}/status`, {
       method:  'GET',
     })
   }
