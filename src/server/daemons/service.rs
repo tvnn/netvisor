@@ -5,10 +5,10 @@ use crate::server::{daemons::{
         storage::DaemonStorage, 
         types::{
             api::{
-                DaemonDiscoveryCancellationRequest, DaemonDiscoveryProgressResponse, DaemonDiscoveryRequest, DaemonDiscoveryResponse, DaemonTestRequest, DaemonTestResult
+                DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse, DaemonTestRequest, DaemonTestResult
             }, base::Daemon
         }
-    }, discovery::{manager::DiscoverySessionManager}, nodes::storage::NodeStorage, shared::types::api::ApiResponse};
+    }, nodes::storage::NodeStorage, shared::types::api::ApiResponse};
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
@@ -94,16 +94,6 @@ impl DaemonService {
 
         tracing::info!("Test request sent to daemon {} for session {}", 
                       daemon.id, request.session_id);
-        Ok(())
-    }
-
-    /// Process discovery progress update from daemon
-    pub async fn process_discovery_progress(
-        &self, 
-        progress: DaemonDiscoveryProgressResponse, 
-        discovery_manager: &DiscoverySessionManager
-    ) -> Result<(), anyhow::Error> {
-        
         Ok(())
     }
 

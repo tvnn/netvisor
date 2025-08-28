@@ -12,7 +12,7 @@ use crate::server::{
         service::DaemonService, 
         types::{
             api::{
-                DaemonDiscoveryProgressResponse, DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonTestResult
+                DaemonDiscoveryProgressResponse, DaemonListResponse, DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse, DaemonTestResult
             }, 
             base::{Daemon, DaemonBase}
         }
@@ -70,27 +70,29 @@ async fn receive_heartbeat(
 /// Get all registered daemons
 async fn get_all_daemons(
     State(state): State<Arc<AppState>>,
-) -> ApiResult<Json<ApiResponse<Vec<Daemon>>>> {
+) -> ApiResult<Json<ApiResponse<DaemonListResponse>>> {
     let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
     let daemons = service.get_all_daemons().await
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemons: {}", e)))?;
+
+    let total = daemons.len();
     
-    Ok(Json(ApiResponse::success(daemons)))
+    Ok(Json(ApiResponse::success(DaemonListResponse { daemons, total })))
 }
 
 /// Get specific daemon by ID
 async fn get_daemon(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-) -> ApiResult<Json<ApiResponse<Daemon>>> {
+) -> ApiResult<Json<ApiResponse<DaemonResponse>>> {
     let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
     let daemon = service.get_daemon(&id).await
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemon: {}", e)))?
         .ok_or_else(|| ApiError::not_found(&format!("Daemon '{}' not found", &id)))?;
     
-    Ok(Json(ApiResponse::success(daemon)))
+    Ok(Json(ApiResponse::success(DaemonResponse{ daemon })))
 }
 
 /// Receive discovery progress update from daemon

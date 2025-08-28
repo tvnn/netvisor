@@ -1,6 +1,4 @@
 use std::sync::Arc;
-
-use anyhow::Error;
 use tokio::sync::RwLock;
 
 pub struct DaemonDiscoverySessionManager {
@@ -25,13 +23,8 @@ impl DaemonDiscoverySessionManager {
     }
 
     /// Set the current discovery task for cancellation
-    pub async fn set_current_task(&self, handle: tokio::task::JoinHandle<()>) -> Result<(), Error> {
-        if self.is_discovery_running().await {
-            return Err(Error::msg("Discovery already running on this daemon"));
-        }
-        
+    pub async fn set_current_task(&self, handle: tokio::task::JoinHandle<()>) {        
         *self.current_task.write().await = Some(handle);
-        Ok(())
     }
 
     /// Cancel current discovery task

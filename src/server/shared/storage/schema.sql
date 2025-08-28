@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     hostname TEXT,
     mac_address TEXT,
     description TEXT,
-    target TEXT NOT NULL,
+    target TEXT,
     subnets TEXT,
 
     discovery_status TEXT,

@@ -62,7 +62,7 @@ impl DaemonRuntimeService {
     pub async fn heartbeat(&self) -> Result<()> {
 
         let daemon_id = self.config_store.get_id().await?.expect("By the time heartbeat is running, ID will be assigned");
-        let interval = Duration::from_secs(self.config_store.get_settings().await.heartbeat_interval);
+        let interval = Duration::from_secs(self.config_store.get_heartbeat_interval().await?);
 
         let mut interval_timer = tokio::time::interval(interval);
         interval_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);

@@ -4,6 +4,17 @@ use crate::{daemon::discovery::types::base::DiscoveryPhase, server::{
     daemons::types::base::Daemon, nodes::types::base::Node, tests::types::execution::TestResult
 }};
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DaemonResponse {
+    pub daemon: Daemon
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DaemonListResponse {
+    pub daemons: Vec<Daemon>,
+    pub total: usize
+}
+
 /// Daemon registration request from daemon to server
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonRegistrationRequest {
@@ -31,6 +42,12 @@ pub struct DaemonDiscoveryResponse {
 /// Cancellation request from server to daemon
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonDiscoveryCancellationRequest {
+    pub session_id: Uuid,
+}
+
+/// Cancellation response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DaemonDiscoveryCancellationResponse {
     pub session_id: Uuid,
 }
 

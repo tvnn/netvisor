@@ -3,16 +3,13 @@ use netvisor::{
     daemon::{
         discovery::utils::get_local_ip_address, 
         runtime::service::DaemonRuntimeService, 
-        shared::{handlers::create_router, storage::{default_config_path, ConfigStore}}
+        shared::{handlers::create_router, storage::{ConfigStore, AppConfig, CliArgs}}
     },
-    server::nodes::types::targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget},
 };
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use hostname::get as get_hostname;
 use directories_next::ProjectDirs;
-use serde::{Deserialize, Serialize};
-use figment::{Figment, providers::{Format, Json, Env, Serialized}};
 
 #[derive(Parser)]
 #[command(name = "netvisor-daemon")]
@@ -51,121 +48,36 @@ struct Cli {
     heartbeat_interval: Option<u64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct AppConfig {
-    pub server_ip: Option<String>,
-    pub server_hostname: Option<String>,
-    pub server_port: u16,
-    pub port: u16,
-    pub host: String,
-    pub name: String,
-    pub log_level: String,
-    pub heartbeat_interval: u64,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
+impl From<Cli> for CliArgs {
+    fn from(cli: Cli) -> Self {
         Self {
-            server_ip: None,
-            server_hostname: None,
-            server_port: 3000,
-            port: 3001,
-            host: "127.0.0.1".to_string(),
-            name: "netvisor-daemon".to_string(),
-            log_level: "info".to_string(),
-            heartbeat_interval: 30,
+            server_ip: cli.server_ip,
+            server_hostname: cli.server_hostname,
+            server_port: cli.server_port,
+            port: cli.port,
+            host: cli.host,
+            name: cli.name,
+            log_level: cli.log_level,
+            heartbeat_interval: cli.heartbeat_interval,
         }
     }
 }
 
-impl AppConfig {
-    pub fn load() -> anyhow::Result<(Self, bool)> {
-        let proj_dirs = ProjectDirs::from("com", "netvisor", "daemon")
-            .ok_or_else(|| anyhow::anyhow!("Unable to determine config directory"))?;
-        
-        let config_path = proj_dirs.config_dir().join("daemon.json");
-        let config_exists = config_path.exists();
-
-        let cli = Cli::parse();
-
-        // Standard configuration layering: Defaults → Config file → Env → CLI (highest priority)
-        let mut figment = Figment::from(Serialized::defaults(AppConfig::default()));
-
-        // Add config file if it exists
-        if config_exists {
-            figment = figment.merge(Json::file(&config_path));
-        }
-
-        // Add environment variables
-        figment = figment.merge(Env::prefixed("NETVISOR_"));
-
-        // Add CLI overrides (highest priority) - only if explicitly provided
-        if let Some(server_ip) = cli.server_ip {
-            figment = figment.merge(("server_ip", server_ip));
-        }
-        if let Some(server_hostname) = cli.server_hostname {
-            figment = figment.merge(("server_hostname", server_hostname));
-        }
-        if let Some(server_port) = cli.server_port {
-            figment = figment.merge(("server_port", server_port));
-        }
-        if let Some(port) = cli.port {
-            figment = figment.merge(("port", port));
-        }
-        if let Some(host) = cli.host {
-            figment = figment.merge(("host", host));
-        }
-        if let Some(name) = cli.name {
-            figment = figment.merge(("name", name));
-        }
-        if let Some(log_level) = cli.log_level {
-            figment = figment.merge(("log_level", log_level));
-        }
-        if let Some(heartbeat_interval) = cli.heartbeat_interval {
-            figment = figment.merge(("heartbeat_interval", heartbeat_interval));
-        }
-
-        let config: AppConfig = figment.extract()
-            .map_err(|e| anyhow::anyhow!("Configuration error: {}", e))?;
-
-        Ok((config, config_exists))
-    }
-
-    pub fn server_target(&self) -> anyhow::Result<NodeTarget> {
-        match (self.server_ip.as_ref(), self.server_hostname.as_ref()) {
-            (Some(ip), _) => {
-                let ip_addr = ip.parse()
-                    .map_err(|_| anyhow::anyhow!("Invalid server IP address: {}", ip))?;
-                Ok(NodeTarget::IpAddress(IpAddressTargetConfig {
-                    ip: ip_addr,
-                    port: Some(self.server_port),
-                }))
-            }
-            (None, Some(hostname)) => {
-                Ok(NodeTarget::Hostname(HostnameTargetConfig {
-                    hostname: hostname.clone(),
-                    port: Some(self.server_port),
-                }))
-            }
-            (None, None) => {
-                Err(anyhow::anyhow!("Must specify either server_ip or server_hostname"))
-            }
-        }
-    }
-
-    pub fn validate(&self) -> anyhow::Result<()> {
-        // Validate server connection is specified
-        if self.server_ip.is_none() && self.server_hostname.is_none() {
-            return Err(anyhow::anyhow!("Must specify either server_ip or server_hostname"));
-        }
-        Ok(())
-    }
+fn get_runtime_config_path() -> anyhow::Result<std::path::PathBuf> {
+    let proj_dirs = ProjectDirs::from("com", "netvisor", "daemon")
+        .ok_or_else(|| anyhow::anyhow!("Unable to determine config directory"))?;
+    
+    Ok(proj_dirs.data_dir().join("runtime.json"))
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Load configuration with automatic layering
-    let (config, from_file) = AppConfig::load()?;
+    // Parse CLI and convert to CliArgs
+    let cli = Cli::parse();
+    let cli_args = CliArgs::from(cli);
+    
+    // Load unified configuration
+    let (config, from_file) = AppConfig::load(cli_args)?;
     
     // Validate configuration
     config.validate()?;
@@ -189,14 +101,13 @@ async fn main() -> anyhow::Result<()> {
     let server_target = config.server_target()?;
     tracing::info!("🔗 Server target: {}", server_target);
     
-    // Initialize storage with server target
-    let storage = Arc::new(ConfigStore::new(default_config_path(), server_target.clone()));
+    // Initialize unified storage with full config
+    // Use separate path for runtime state to avoid conflicts
+    let runtime_path = get_runtime_config_path()?;
+    let storage = Arc::new(ConfigStore::new(runtime_path, server_target.clone(), config.clone()));
     storage.initialize().await?;
     
     let mut runtime_service = DaemonRuntimeService::new(storage.clone());
-    
-    // Set daemon port from configuration
-    runtime_service.config_store.set_port(config.port).await?;
     
     // Get or register daemon ID
     let daemon_id = if let Some(existing_id) = runtime_service.config_store.get_id().await? {
