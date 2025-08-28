@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Plus, Search } from 'lucide-svelte';
+  import { Search } from 'lucide-svelte';
   import { nodes, nodeActions, loading, error } from './store';
   import { nodeGroups, nodeGroupActions } from '../node_groups/store';
   import { getNodeTargetString, type Node } from './types';
@@ -12,6 +12,7 @@
 	import SummaryStats from '../common/SummaryStats.svelte';
 	import TabHeader from '../common/TabHeader.svelte';
 	import SearchField from '../common/SearchField.svelte';
+	import DiscoveryButton from '../discovery/DiscoveryButton.svelte';
   
   let searchTerm = '';
   let showNodeEditor = false;
@@ -87,6 +88,10 @@
     showNodeEditor = false;
     editingNode = null;
   }
+
+  function handleDiscovery() {
+
+  }
 </script>
 
 <div class="space-y-6">
@@ -94,8 +99,17 @@
    <TabHeader
     title="Nodes"
     subtitle="Manage network endpoints and services"
-    onClick={handleCreateNode}
-    cta="Add Node" />
+    buttons={[
+      {
+        type: "component",
+        component: DiscoveryButton
+      },
+      {
+        onClick: handleCreateNode,
+        cta: "Add Node"
+      }
+    ]}
+     />
 
   <!-- Summary stats -->
   {#if $nodes.length > 0}
@@ -103,9 +117,9 @@
       totalStatLabel="Total Nodes"
       totalStatValue={$nodes.length}
       goodStatLabel="Healthy"
-      goodStatValue={$nodes.filter((n: Node) => n.current_status === 'Healthy').length}
+      goodStatValue={$nodes.filter((n: Node) => n.status === 'Healthy').length}
       badStatLabel="Failed"
-      badStatValue={$nodes.filter((n: Node) => n.current_status === 'Failed').length}
+      badStatValue={$nodes.filter((n: Node) => n.status === 'Failed').length}
       infoStatLabel="Monitored"
       infoStatValue={$nodes.filter((n: Node) => n.monitoring_interval > 0).length}
     />

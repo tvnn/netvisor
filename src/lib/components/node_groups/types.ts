@@ -1,3 +1,5 @@
+import type { NodeGroup } from "./types";
+
 export interface NodeGroupFormData {
   name: string;
   description: string;
@@ -16,4 +18,11 @@ export interface NodeGroup extends NodeGroupApi {
   id: string;
   created_at: string;
   updated_at: string;
+}
+export interface NodeGroupListResponse {
+  groups: NodeGroup[];
+  total: number;
+}
+export interface NodeGroupResponse {
+  group: NodeGroup;
 }

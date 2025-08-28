@@ -3,10 +3,7 @@
 
     export let title: string;
     export let subtitle: string;
-    export let onClick: () => void;
-    export let IconComponent = Plus;
-    export let cta = '';
-    export let ctaDisabled: boolean = false;
+    export let buttons: any[];
 </script>
 
 <div class="flex items-center justify-between">
@@ -14,12 +11,20 @@
         <h2 class="text-2xl font-bold text-white">{title}</h2>
         <p class="text-gray-400 mt-1">{subtitle}</p>
     </div>
-    <button
-        on:click={onClick}
-        disabled={ctaDisabled}
-        class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-    >
-        <svelte:component this={IconComponent} class="w-4 h-4" />
-        {cta}
-    </button>
+    <div class="flex gap-4">
+        {#each buttons as button}
+            {#if button.type == 'component'}
+                <svelte:component this={button.component}/>
+            {:else}
+            <button
+                on:click={button.onClick}
+                disabled={button.disabled}
+                class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+                <svelte:component this={button.IconComponent} class="w-4 h-4" />
+                {button.cta}
+            </button>
+            {/if}
+        {/each}
+    </div>
 </div>

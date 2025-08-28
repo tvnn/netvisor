@@ -1,5 +1,6 @@
 import type { NodeResult } from "../nodes/types";
 import type { TestResult } from "../tests/types";
+import type { DiagnosticExecution } from "./types";
 
 export interface DiagnosticExecutionApi {
   group_id: string;
@@ -16,4 +17,8 @@ export interface DiagnosticExecution {
   started_at: string;
   completed_at?: string | null;
   created_at: string;
+}
+export interface DiagnosticExecutionResponse {
+  executions: DiagnosticExecution[];
+  total: number;
 }

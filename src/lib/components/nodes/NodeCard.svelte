@@ -15,7 +15,7 @@
     if (node.monitoring_interval == 0) {
       return 'Monitoring Disabled';
     }
-    return $getNodeStatusDisplay(node.current_status);
+    return $getNodeStatusDisplay(node.status);
   }
   
   // Get the status color - gray for monitoring disabled, otherwise node status color
@@ -23,7 +23,7 @@
     if (node.monitoring_interval == 0) {
       return 'text-gray-400';
     }
-    return $getNodeStatusColor(node.current_status);
+    return $getNodeStatusColor(node.status);
   }
   
   // Build connection info

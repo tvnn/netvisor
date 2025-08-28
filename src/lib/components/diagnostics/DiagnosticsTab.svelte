@@ -157,10 +157,15 @@
    <TabHeader
     title="Diagnostics"
     subtitle="Monitor and manage diagnostic executions"
-    onClick={diagnosticsActions.loadExecutions}
-    IconComponent={Loader2}
-    ctaDisabled={$loading}
-    cta="Reload" />
+    buttons={[
+      {
+        onclick: diagnosticsActions.loadExecutions,
+        IconComponent: Loader2,
+        disabled: $loading,
+        cta: "Reload"
+      }
+    ]}
+    />
 
   <!-- Error display -->
   <Error error={$error} onClear={diagnosticsActions.clearError} />

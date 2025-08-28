@@ -1,6 +1,8 @@
-import type { DiagnosticExecution, DiagnosticExecutionApi } from "$lib/components/diagnostics/types";
-import type { NodeGroupApi, NodeGroup } from "../components/node_groups/types";
-import type { NodeApi, Node } from "../components/nodes/types";
+import type { DaemonListResponse } from "$lib/components/daemons/types";
+import type { DiagnosticExecutionApi, DiagnosticExecutionResponse } from "$lib/components/diagnostics/types";
+import type { CancelDiscoveryResponse, DiscoverySessionRequest, DiscoveryStatusResponse, InitiateDiscoveryRequest, InitiateDiscoveryResponse } from "$lib/components/discovery/types";
+import type { NodeGroupApi, NodeGroupListResponse, NodeGroupResponse } from "../components/node_groups/types";
+import type { NodeApi, NodeListResponse, NodeResponse } from "../components/nodes/types";
 
 // API client for NetVisor backend
 const API_BASE = 'http://localhost:3000/api';
@@ -9,29 +11,6 @@ interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
-}
-
-interface NodeListResponse {
-  nodes: Node[];
-  total: number;
-}
-
-interface NodeResponse {
-  node: Node;
-}
-
-interface NodeGroupListResponse {
-  groups: NodeGroup[];
-  total: number;
-}
-
-interface NodeGroupResponse {
-  group: NodeGroup;
-}
-
-interface DiagnosticExecutionResponse {
-  executions: DiagnosticExecution[];
-  total: number;
 }
 
 class ApiClient {
@@ -147,6 +126,33 @@ class ApiClient {
       method:  'DELETE'
     })
   }
+
+  async getDaemons() {
+    return this.request<DaemonListResponse>('/daemons', {
+      method:  'GET'
+    })
+  }
+
+  async initiateDiscovery(data: InitiateDiscoveryRequest) {
+    return this.request<InitiateDiscoveryResponse>('/discovery/initiate', {
+      method:  'POST',
+      body: JSON.stringify(data)
+    })
+  }
+
+  async cancelDiscovery(session_id: string) {
+    return this.request<CancelDiscoveryResponse>(`/discovery/${session_id}/cancel`, {
+      method:  'POST',
+    })
+  }
+
+  async discoveryStatus(session_id: string) {
+    return this.request<DiscoveryStatusResponse>(`/discovery/${session_id}/status`, {
+      method:  'GET',
+    })
+  }
+
+
 }
 
 export const api = new ApiClient();

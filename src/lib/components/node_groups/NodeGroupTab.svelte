@@ -75,8 +75,13 @@
   <TabHeader
     title="Groups"
     subtitle="Create node groups to define logical network paths for diagnostics"
-    onClick={handleCreateGroup}
-    cta="Create Group" />
+    buttons={[
+      {
+        onClick: handleCreateGroup,
+        cta: "Create Group"
+      }
+    ]}
+    />
 
   {#if $nodeGroups.length > 0}
     <SummaryStats 

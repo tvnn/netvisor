@@ -14,10 +14,7 @@ export interface NodeFormData {
   capabilities: string[];
   
   // Discovery data (auto-populated)
-  open_ports?: number[];
-  detected_services?: DetectedService[];
   mac_address?: string;
-  vlan_id?: number;
   
   // Monitoring configuration
   monitoring_interval: number; // 0 = disabled, >0 = interval
@@ -31,6 +28,7 @@ export interface NodeFormData {
 export interface NodeApi {
   name: string;
   description?: string;
+  hostname?: string;
   
   // Target configuration matching Rust NodeTarget enum
   target: NodeTarget;
@@ -38,14 +36,11 @@ export interface NodeApi {
   node_type: string;
   
   // Discovery & Capability Data
-  open_ports: number[];
-  detected_services: DetectedService[];
   mac_address?: string;
   capabilities: string[];
   
   // Network Context
-  subnet_membership: string[]; // CIDR blocks
-  vlan_id?: number;
+  subnets: string[]; // CIDR blocks
   
   // Monitoring Configuration
   monitoring_interval: number; // minutes, 0 = disabled, >0 = enabled with interval
@@ -53,8 +48,7 @@ export interface NodeApi {
   
   // Standard Fields
   node_groups: string[]; // Group IDs this node belongs to
-  position?: GraphPosition;
-  current_status: string;
+  status: string;
 }
 
 export interface Node extends NodeApi {
@@ -107,32 +101,6 @@ export interface NodeResult {
   duration_ms: number;
   node_id: string;
 }
-
-export interface DetectedService {
-  port: number;
-  protocol: string;        // "HTTP", "SSH", "MySQL", "Unknown"
-  service_name?: string;   // "nginx", "OpenSSH", "MySQL"
-  version?: string;        // "1.20.1", "8.9p1", "8.0.32"
-  banner?: string;         // Raw service banner
-  confidence: number;      // 0.0-1.0 detection confidence
-}
-
-export interface SubnetGroup {
-  id: string;
-  name: string;
-  cidr: string;
-  node_ids: string[];
-  vlan_id?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface GraphPosition {
-  x: number;
-  y: number;
-  z?: number;
-}
-
 // Utility functions
 export function createDefaultTestsFromSchemas(schemas: Record<string, TestConfigSchema>): AssignedTest[] {
   const defaultTests: AssignedTest[] = [];
@@ -154,16 +122,7 @@ export function createDefaultTestsFromSchemas(schemas: Record<string, TestConfig
         type: 'Connectivity',
         config: defaultConfig
       },
-      criticality: 'Important'
-    });
-  } else {
-    // Fallback if no schema available
-    defaultTests.push({
-      test: {
-        type: 'Connectivity',
-        config: { timeout_ms: 10000 }
-      },
-      criticality: 'Important'
+      criticality: 'Critical'
     });
   }
   
@@ -182,8 +141,6 @@ export function createEmptyNodeFormData(): NodeFormData {
     },
     node_type: 'UnknownDevice',
     capabilities: [],
-    open_ports: [],
-    detected_services: [],
     monitoring_interval: 10,
     assigned_tests: [],
     node_groups: []
@@ -197,10 +154,7 @@ export function nodeToFormData(node: Node): NodeFormData {
     target: node.target,
     node_type: node.node_type,
     capabilities: [...node.capabilities],
-    open_ports: [...node.open_ports],
-    detected_services: [...node.detected_services],
     mac_address: node.mac_address,
-    vlan_id: node.vlan_id,
     monitoring_interval: node.monitoring_interval,
     assigned_tests: [...node.assigned_tests],
     node_groups: [...node.node_groups]
@@ -213,16 +167,13 @@ export function formDataToNodeApi(formData: NodeFormData): NodeApi {
     description: formData.description.trim() || undefined,
     target: formData.target,
     node_type: formData.node_type,
-    open_ports: formData.open_ports || [],
-    detected_services: formData.detected_services || [],
     mac_address: formData.mac_address,
     capabilities: formData.capabilities,
-    subnet_membership: [],
-    vlan_id: formData.vlan_id,
+    subnets: [],
     monitoring_interval: formData.monitoring_interval,
     assigned_tests: formData.assigned_tests,
     node_groups: formData.node_groups,
-    current_status: 'Unknown'
+    status: 'Unknown'
   };
 }
 
@@ -271,4 +222,11 @@ export function validateTarget(target: NodeTarget): string[] {
   }
   
   return errors;
+}
+export interface NodeListResponse {
+  nodes: Node[];
+  total: number;
+}
+export interface NodeResponse {
+  node: Node;
 }
