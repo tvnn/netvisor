@@ -54,7 +54,6 @@ impl From<Cli> for CliArgs {
             server_hostname: cli.server_hostname,
             server_port: cli.server_port,
             port: cli.port,
-            host: cli.host,
             name: cli.name,
             log_level: cli.log_level,
             heartbeat_interval: cli.heartbeat_interval,
@@ -137,7 +136,7 @@ async fn main() -> anyhow::Result<()> {
     
     // Create HTTP server with config values
     let app = create_router().with_state(storage);
-    let addr = format!("{}:{}", config.host, config.port);
+    let addr = format!("0.0.0.0:{}", config.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     
     tracing::info!("🚀 NetVisor daemon listening on http://{}", addr);

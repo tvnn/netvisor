@@ -6,12 +6,13 @@ use axum::{
 };
 use uuid::Uuid;
 use std::sync::Arc;
-use crate::server::{
+use crate::{server::daemons::types::api::DaemonDiscoveryUpdate};
+use crate::{daemon::discovery::types::base::DiscoveryPhase, server::{
     config::AppState, daemons::{
         service::DaemonService, 
         types::api::DaemonDiscoveryRequest
-    }, discovery::types::api::{DiscoveryStatusResponse, InitiateDiscoveryRequest, InitiateDiscoveryResponse}, shared::types::api::{ApiError, ApiResponse, ApiResult}
-};
+    }, discovery::types::api::{InitiateDiscoveryRequest, InitiateDiscoveryResponse}, shared::types::api::{ApiError, ApiResponse, ApiResult}
+}};
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
@@ -60,11 +61,11 @@ async fn initiate_discovery(
 async fn get_discovery_status(
     State(state): State<Arc<AppState>>,
     Path(session_id): Path<Uuid>,
-) -> ApiResult<Json<ApiResponse<DiscoveryStatusResponse>>> {
-    let session = state.discovery_manager.get_session(&session_id).await
+) -> ApiResult<Json<ApiResponse<DaemonDiscoveryUpdate>>> {
+    let status = state.discovery_manager.get_session(&session_id).await
         .ok_or_else(|| ApiError::not_found(&format!("Discovery session '{}' not found", session_id)))?;
 
-    Ok(Json(ApiResponse::success(DiscoveryStatusResponse {session})))
+    Ok(Json(ApiResponse::success(status)))
 }
 
 /// Cancel an active discovery session
@@ -73,9 +74,9 @@ async fn cancel_discovery(
     Path(session_id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     // Cancel the session and get daemon ID
-    let daemon_id = match state.discovery_manager.cancel_session(&session_id).await {
-        Some(daemon_id) => daemon_id,
-        None => return Err(ApiError::not_found(&format!("Discovery session '{}' not found or already completed", session_id)))
+    let daemon_id = match state.discovery_manager.terminate_session(&session_id, DiscoveryPhase::Cancelled).await {
+        Ok(daemon_id) => daemon_id,
+        Err(e) => return Err(ApiError::not_found(&format!("Failed to cancel session '{}': {}", session_id, e)))
     };
 
     // Send cancellation request to daemon

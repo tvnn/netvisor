@@ -1,19 +1,14 @@
 use std::collections::HashMap;
+use anyhow::Error;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use chrono::{Utc};
 
-use crate::{server::{
-    daemons::{
-        types::{api::{
-            DaemonDiscoveryProgressResponse,
-        }},
-    }, discovery::types::session::{DiscoverySessionState, DiscoverySessionStatus}
-}};
+use crate::{daemon::discovery::types::base::DiscoveryPhase, server::daemons::types::api::DaemonDiscoveryUpdate};
 
 /// Server-side session management for discovery
 pub struct DiscoverySessionManager {
-    sessions: RwLock<HashMap<Uuid, DiscoverySessionState>>,
+    sessions: RwLock<HashMap<Uuid, DaemonDiscoveryUpdate>>, // session_id -> session state mapping
     daemon_sessions: RwLock<HashMap<Uuid, Uuid>>, // daemon_id -> session_id mapping
 }
 
@@ -32,15 +27,7 @@ impl DiscoverySessionManager {
             return Err(anyhow::anyhow!("Daemon is already running discovery"));
         }
 
-        let session_state = DiscoverySessionState {
-            session_id,
-            daemon_id,
-            status: DiscoverySessionStatus::Running,
-            progress: None,
-            error_message: None,
-            started_at: Utc::now(),
-            completed_at: None,
-        };
+        let session_state = DaemonDiscoveryUpdate::new(session_id, daemon_id);
 
         self.sessions.write().await.insert(session_id, session_state);
         self.daemon_sessions.write().await.insert(daemon_id, session_id);
@@ -50,77 +37,68 @@ impl DiscoverySessionManager {
     }
 
     /// Get session state
-    pub async fn get_session(&self, session_id: &Uuid) -> Option<DiscoverySessionState> {
+    pub async fn get_session(&self, session_id: &Uuid) -> Option<DaemonDiscoveryUpdate> {
         self.sessions.read().await.get(session_id).cloned()
     }
 
     /// Update progress for a session
-    pub async fn update_progress(&self, progress: DaemonDiscoveryProgressResponse) -> Result<(), anyhow::Error> {
-        if let Some(session) = self.sessions.write().await.get_mut(&progress.session_id) {
-            session.progress = Some(progress);
-            tracing::debug!("Updated progress for session {}: {} ({}/{})", 
-                           session.session_id, session.progress.as_ref().unwrap().phase,
-                           session.progress.as_ref().unwrap().completed,
-                           session.progress.as_ref().unwrap().total);
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Session not found"))
-        }
-    }
-
-    /// Mark session as completed
-    pub async fn complete_session(&self, session_id: &Uuid) -> Result<(), anyhow::Error> {
-        if let Some(session) = self.sessions.write().await.get_mut(session_id) {
-            session.status = DiscoverySessionStatus::Completed;
-            session.completed_at = Some(Utc::now());
-            
-            // Remove from daemon sessions mapping
-            self.daemon_sessions.write().await.remove(&session.daemon_id);
-            
-            tracing::info!("Completed discovery session {}", session_id);
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Session not found"))
-        }
-    }
-
-    /// Mark session as failed
-    pub async fn fail_session(&self, session_id: &Uuid, error_message: String) -> Result<(), anyhow::Error> {
-        if let Some(session) = self.sessions.write().await.get_mut(session_id) {
-            session.status = DiscoverySessionStatus::Failed;
-            session.error_message = Some(error_message);
-            session.completed_at = Some(Utc::now());
-            
-            // Remove from daemon sessions mapping
-            self.daemon_sessions.write().await.remove(&session.daemon_id);
-            
-            tracing::warn!("Failed discovery session {}: {}", session_id, session.error_message.as_ref().unwrap());
-            Ok(())
-        } else {
-            Err(anyhow::anyhow!("Session not found"))
-        }
-    }
-
-    /// Cancel session
-    pub async fn cancel_session(&self, session_id: &Uuid) -> Option<Uuid> {
-        if let Some(session) = self.sessions.write().await.get_mut(session_id) {
+    pub async fn update_session(&self, update: DaemonDiscoveryUpdate) -> Result<Uuid, Error> {
+        if let Some(session) = self.sessions.write().await.get_mut(&update.session_id) {
             let daemon_id = session.daemon_id;
-            session.status = DiscoverySessionStatus::Cancelled;
-            session.completed_at = Some(Utc::now());
-            
-            // Remove from daemon sessions mapping
-            self.daemon_sessions.write().await.remove(&daemon_id);
-            
-            tracing::info!("Cancelled discovery session {} for daemon {}", session_id, daemon_id);
-            Some(daemon_id)
+            tracing::debug!("Updated session {}: {} ({}/{})", 
+                           update.session_id, update.phase,
+                           update.completed,
+                           update.total);
+            *session = update;
+
+            if matches!(session.phase, DiscoveryPhase::Cancelled | DiscoveryPhase::Complete | DiscoveryPhase::Finished) {
+                // Remove from daemon sessions mapping
+                match &session.error {
+                    Some(e) => tracing::error!("{} discovery session {} with error {}", &session.phase, &session.session_id, e),
+                    None => tracing::info!("{} discovery session {}", &session.phase, &session.session_id)
+                }
+                self.daemon_sessions.write().await.remove(&session.daemon_id);
+                session.finished_at = Some(Utc::now());
+            }
+
+            Ok(daemon_id)
         } else {
-            None
+            Err(anyhow::anyhow!("Session not found"))
+        }
+    }
+
+    pub async fn terminate_session(&self, session_id: &Uuid, phase: DiscoveryPhase) -> Result<Uuid, Error> {
+        if let Some(session) = self.sessions.write().await.get(session_id) {
+            let mut update = session.clone();
+            update.phase = phase;
+            self.update_session(update).await
+        } else {
+            Err(anyhow::anyhow!("Session not found"))
         }
     }
 
     /// Check if daemon is discovering
     pub async fn is_daemon_discovering(&self, daemon_id: &Uuid) -> Option<Uuid> {
         self.daemon_sessions.read().await.get(daemon_id).copied()
+    }
+
+    /// Check for timed out sessions and mark them as failed
+    pub async fn check_timeouts(&self, timeout_minutes: i64) {
+        let timeout_cutoff = Utc::now() - chrono::Duration::minutes(timeout_minutes);
+        let mut sessions = self.sessions.write().await;        
+        let mut timed_out_sessions = Vec::new();
+        
+        for (session_id, session) in sessions.iter_mut() {
+            if session.finished_at == None && session.started_at < Some(timeout_cutoff) {
+                session.error = Some("Discovery timed out".to_string());
+                match self.terminate_session(session_id, DiscoveryPhase::Failed).await {
+                    Ok(_) => (),
+                    Err(e) => tracing::error!("Could not terminate session: {}", e)
+                };
+                timed_out_sessions.push((*session_id, session.daemon_id));
+                tracing::warn!("Discovery session {} timed out after {} minutes", session_id, timeout_minutes);
+            }
+        }
     }
 
     /// Cleanup old completed sessions (call periodically)
@@ -131,8 +109,8 @@ impl DiscoverySessionManager {
         
         let mut to_remove = Vec::new();
         for (session_id, session) in sessions.iter() {
-            if let Some(completed_at) = session.completed_at {
-                if completed_at < cutoff {
+            if let Some(finished_at) = session.finished_at {
+                if finished_at < cutoff {
                     to_remove.push(*session_id);
                 }
             }

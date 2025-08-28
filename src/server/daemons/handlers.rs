@@ -6,19 +6,19 @@ use axum::{
 };
 use uuid::Uuid;
 use std::sync::Arc;
-use crate::server::{
+use crate::{server::{
     config::AppState, 
     daemons::{
         service::DaemonService, 
         types::{
             api::{
-                DaemonDiscoveryProgressResponse, DaemonListResponse, DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse, DaemonTestResult
+                DaemonDiscoveryUpdate, DaemonListResponse, DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse, DaemonTestResult
             }, 
             base::{Daemon, DaemonBase}
         }
     }, 
     shared::types::api::{ApiError, ApiResponse, ApiResult}
-};
+}};
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
@@ -27,7 +27,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/", get(get_all_daemons))
         .route("/:id", get(get_daemon))
         // Routes for receiving reports from daemons
-        .route("/discovery_progress", post(receive_discovery_progress))
+        .route("/discovery_update", post(receive_discovery_update))
         .route("/test_result", post(receive_test_result))
 }
 
@@ -99,13 +99,12 @@ async fn get_daemon(
 }
 
 /// Receive discovery progress update from daemon
-async fn receive_discovery_progress(
+async fn receive_discovery_update(
     State(state): State<Arc<AppState>>,
-    Json(progress): Json<DaemonDiscoveryProgressResponse>,
+    Json(update): Json<DaemonDiscoveryUpdate>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     
-    state.discovery_manager.update_progress(progress).await
-        .map_err(|e| ApiError::internal_error(&format!("Failed to process discovery progress: {}", e)))?;
+    state.discovery_manager.update_session(update).await?;
     
     Ok(Json(ApiResponse::success(())))
 }
@@ -122,5 +121,3 @@ async fn receive_test_result(
     
     Ok(Json(ApiResponse::success(())))
 }
-
-// TODO delete daemon - also delete ID from daemon capability

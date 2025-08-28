@@ -74,6 +74,21 @@ async fn main() -> anyhow::Result<()> {
         daemon_storage: storage.daemons,
         discovery_manager: DiscoverySessionManager::new()
     });
+
+    // Create discovery cleanup task
+    let cleanup_state = state.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300));
+        loop {
+            interval.tick().await;
+            
+            // Check for timeouts (fail sessions running > 10 minutes)
+            cleanup_state.discovery_manager.check_timeouts(10).await;
+            
+            // Clean up old sessions (remove completed sessions > 24 hours old)
+            cleanup_state.discovery_manager.cleanup_old_sessions(24).await;
+        }
+    });
     
     // Create router
     let api_router = create_router().with_state(state);

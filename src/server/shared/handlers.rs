@@ -7,7 +7,8 @@ use crate::{
         node_groups::handlers as group_handlers, 
         nodes::{types::capabilities::NodeCapability, handlers as node_handlers, types::{criticality::TestCriticality, status::NodeStatus, targets::NodeTarget, types::NodeType}}, shared::types::{api::ApiResponse, metadata::{TypeMetadataProvider, TypeRegistry}}, 
         tests::{handlers as test_handlers, types::base::Test},
-        daemons::{handlers as daemon_handlers}
+        daemons::{handlers as daemon_handlers},
+        discovery::{handlers as discovery_handlers}
     }, server::config::AppState
 };
 
@@ -19,6 +20,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .nest("/api/groups", group_handlers::create_router())
         .nest("/api/diagnostics", diagnostic_handlers::create_router())
         .nest("/api/daemons", daemon_handlers::create_router())
+        .nest("/api/discovery", discovery_handlers::create_router())
 }
 
 async fn get_type_registry() -> Json<ApiResponse<TypeRegistry>> {
