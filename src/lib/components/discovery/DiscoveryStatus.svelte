@@ -15,7 +15,7 @@
     discoveryActions 
   } from './store';
   import DaemonDiscoveryStatus from '../daemons/DaemonDiscoveryStatus.svelte';
-	import RichSelect from '../common/RichSelect.svelte';
+	import RichSelect from '../common/forms/RichSelect.svelte';
 	import { getNodeTargetString } from '../nodes/types';
 	import { getNodeStatus, getNodeStatusColor, nodeStatuses } from '$lib/api/registry';
 	import { getBgColor, getTextColor } from '../common/colors';

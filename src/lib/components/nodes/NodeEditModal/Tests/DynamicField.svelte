@@ -1,7 +1,8 @@
 <script lang="ts">
   import { AlertCircle, Server } from 'lucide-svelte';
   import type { ConfigField } from '$lib/components/tests/types'
-  import RichSelect from '../../../common/RichSelect.svelte';
+  import RichSelect from '../../../common/forms/RichSelect.svelte';
+	import { getBgColor, getTextColor } from '$lib/components/common/colors';
   
   export let field: ConfigField;
   export let value: any;
@@ -25,9 +26,9 @@
       case 'boolean':
         return false;
       case 'integer':
-        return '';
+        return 0;
       case 'select':
-      case 'node_selector':
+      case 'rich_select':
         return '';
       default:
         return '';
@@ -151,7 +152,8 @@
           value: opt.value,
           label: opt.label,
           description: opt.description,
-          disabled: opt.disabled || false
+          disabled: opt.disabled || false,
+          metadata: opt.metadata
         })) || []}
         placeholder={field.placeholder || 'Select an option...'}
         required={field.required}
@@ -159,6 +161,18 @@
         onSelect={handleRichSelectChange}
         getOptionIcon={field.id.includes('node') ? () => Server : null}
         getOptionIconColor={field.id.includes('node') ? () => 'text-blue-400' : null}
+        getOptionTag={(option) => {
+          switch (field.id) {
+            case 'capability':
+              return {
+                text: "Port: " + option.metadata?.tag,
+                textColor: getTextColor("yellow"),
+                bgColor: getBgColor("yellow")
+              }
+            default:
+              return null
+          }
+        }}
       />
       
     {/if}

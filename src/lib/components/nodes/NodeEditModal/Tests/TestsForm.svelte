@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createDefaultTestsFromSchemas, type AssignedTest, type NodeFormData } from "$lib/components/nodes/types";
-  import ListManager from '$lib/components/common/ListManager.svelte';
+  import ListManager from '$lib/components/common/forms/ListManager.svelte';
   import TestConfigPanel from './TestConfigPanel.svelte';
   import { getCriticalityColor, getCriticalityDisplay, getTestDisplay, testTypes, type TypeMetadata } from "$lib/api/registry";
   import { getBgColor, getTextColor } from "$lib/components/common/colors";

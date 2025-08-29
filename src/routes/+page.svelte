@@ -1,6 +1,6 @@
 <script lang="ts">
   import NodesTab from '../lib/components/nodes/NodeTab.svelte';
-  import Sidebar from '../lib/components/common/Sidebar.svelte';
+  import Sidebar from '../lib/components/common/layout/Sidebar.svelte';
 	import DiagnosticsTab from '$lib/components/diagnostics/DiagnosticsTab.svelte';
 	import NodeGroupTab from '$lib/components/node_groups/NodeGroupTab.svelte';
 	import { onDestroy, onMount } from 'svelte';
@@ -9,8 +9,6 @@
 	import { cleanupDiscoveryPolling, discoveryActions } from '$lib/components/discovery/store';
 	import { nodeGroupActions } from '$lib/components/node_groups/store';
 	import { diagnosticsActions } from '$lib/components/diagnostics/store';
-    import { get } from 'svelte/store';
-  import { session_id, daemonSessions } from '$lib/components/discovery/store';
   
   let activeTab = 'nodes';
   

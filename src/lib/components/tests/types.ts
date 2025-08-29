@@ -1,3 +1,10 @@
+export interface NodeContextForAPI {
+  node_id?: string;
+  node_type: string;
+  capabilities: Record<string, any>[];
+  target: any;
+}
+
 export interface TestResult {
   success: boolean;
   message: string;
@@ -45,17 +52,13 @@ export interface SelectOption {
   label: string;
   description?: string;
   disabled: boolean;
+  metadata?: {
+    tag: string
+  }
 }
 
 export interface ValidationMessage {
   message: string;
   field_id?: string;
   severity: 'Error' | 'Warning' | 'Info';
-}
-
-export interface NodeContextForAPI {
-  node_id?: string;
-  node_type: string;
-  capabilities: string[];
-  target: any;
 }

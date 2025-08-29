@@ -2,7 +2,8 @@
 	import { getNodeTarget, getNodeTypeDisplay, nodeTargets, nodeTypes } from "$lib/api/registry";
   import type { NodeFormData, NodeTarget } from "$lib/components/nodes/types";
   import TargetConfigForm from './TargetConfigForm.svelte';
-  import RichRadioCheck from '../../../common/RichRadioCheck.svelte';
+  import RichRadioCheck from '../../../common/forms/RichRadioCheck.svelte';
+	import SubnetListEditor from "$lib/components/common/forms/SubnetListEditor.svelte";
   
   export let formData: NodeFormData;
   export let errors: Record<string, string>;
@@ -86,6 +87,39 @@
         <p class="text-red-400 text-xs mt-1">{errors.node_type}</p>
       {/if}
     </div>
+
+      <!-- Hostname (separate from target config) -->
+      <div>
+        <label for="hostname" class="block text-sm font-medium text-gray-300 mb-1">
+          Hostname
+        </label>
+        <input
+          id="hostname"
+          name="hostname"
+          bind:value={formData.hostname}
+          type="text"
+          placeholder="server.local"
+          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <p class="text-xs text-gray-400 mt-1">Resolved or configured hostname for this node</p>
+      </div>
+
+      <!-- MAC Address -->
+      <div>
+        <label for="mac_address" class="block text-sm font-medium text-gray-300 mb-1">
+          MAC Address
+        </label>
+        <input
+          id="mac_address"
+          name="mac_address"
+          bind:value={formData.mac_address}
+          type="text"
+          placeholder="00:1B:44:11:3A:B7"
+          pattern="^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
+          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <p class="text-xs text-gray-400 mt-1">Physical network address</p>
+      </div>
   </div>
 
   <!-- Description -->
@@ -102,6 +136,9 @@
       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
     ></textarea>
   </div>
+
+  <!-- Network Subnets -->
+  <SubnetListEditor bind:subnets={formData.subnets} />
   
   <!-- Target Configuration Section -->
   <div class="space-y-4">
@@ -111,14 +148,14 @@
         Connection Method
       </label>
       
-      <RichRadioCheck
-        mode="radio"
-        name="target_type"
-        options={targetTypeOptions}
-        selectedValue={formData.target.type}
-        onChange={handleTargetTypeChange}
-        columns={1}
-      />
+        <RichRadioCheck
+          mode="radio"
+          name="target_type"
+          options={targetTypeOptions}
+          selectedValue={formData.target.type}
+          onChange={handleTargetTypeChange}
+          columns={2}
+        />
     </div>
 
     <!-- Target-specific Configuration -->

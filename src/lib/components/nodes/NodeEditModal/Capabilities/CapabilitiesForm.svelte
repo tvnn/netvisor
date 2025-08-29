@@ -1,33 +1,69 @@
+<!-- In src/lib/components/nodes/NodeEditModal/Capabilities/CapabilitiesForm.svelte -->
 <script lang="ts">
   import { capabilities as allCapabilities, getCapabilityDescription, getCapabilityDisplay, getNodeTypeDisplay, getNodeTypeMetadata } from '$lib/api/registry';
-  import RichRadioCheck from '../../../common/RichRadioCheck.svelte';
-	import type { NodeCapability } from '../../types';
+	import RichRadioCheck from '$lib/components/common/forms/RichRadioCheck.svelte';
   
-  export let selectedCapabilities: Record<string, NodeCapability>[];
+  export let selectedCapabilities: Record<string, any>[];
   export let nodeType: string;
   
-  let recommendations: string;
+  let recommendations: string[] = [];
+  
+  // Extract capability types from the complex backend structure for UI
+  $: selectedCapabilityTypes = selectedCapabilities.map(cap => {
+    const keys = Object.keys(cap);
+    return keys.length > 0 ? keys[0] : '';
+  }).filter(type => type !== '');
   
   function handleCapabilitiesChange(value: string | string[]) {
     if (Array.isArray(value)) {
-      selectedCapabilities = value;
+      // Convert selected capability type strings back to complex backend structure
+      selectedCapabilities = value.map(capabilityType => {
+        // Check if we already have this capability to preserve existing source data
+        const existing = selectedCapabilities.find(cap => Object.keys(cap)[0] === capabilityType);
+        if (existing) {
+          return existing; // Preserve existing configuration and source data
+        }
+        
+        // Create new capability with default source (manual entry)
+        const newCapability: Record<string, any> = {
+          [capabilityType]: {
+            source: {
+              port_detection: null,
+              process_detection: null,
+              manual: true,
+              system: false
+            }
+          }
+        };
+        
+        // Add daemon_id for DaemonService capabilities
+        if (capabilityType === 'DaemonService') {
+          newCapability[capabilityType].daemon_id = null;
+        }
+        
+        return newCapability;
+      });
     }
   }
   
   function applySuggested() {
     if (recommendations && recommendations.length > 0) {
-      selectedCapabilities = [...recommendations];
+      handleCapabilitiesChange(recommendations);
     }
   }
 
   $: if (nodeType) {
-    recommendations = $getNodeTypeMetadata(nodeType)['typical_capabilities'];
-    selectedCapabilities = [...recommendations];
+    const nodeTypeMetadata = $getNodeTypeMetadata(nodeType);
+    recommendations = nodeTypeMetadata?.['typical_capabilities'] || [];
+    
+    // Only auto-apply on initial load when no capabilities are selected
+    if (selectedCapabilities.length === 0 && recommendations.length > 0) {
+      handleCapabilitiesChange(recommendations);
+    }
   }
     
   // Transform capabilities into RichRadioCheck format and handle grouping
   $: capabilityOptions = $allCapabilities.map(capability => {
-
     const isSuggested = recommendations?.includes(capability.id) || false;
     return {
       id: capability.id,
@@ -41,8 +77,6 @@
   // Group capabilities by suggested vs other
   $: suggestedCapabilities = capabilityOptions.filter(cap => cap.metadata?.suggested);
   $: otherCapabilities = capabilityOptions.filter(cap => !cap.metadata?.suggested);
-  
-  $: recommendedCapabilities = recommendations || [];
 </script>
 
 <div class="space-y-4">
@@ -67,7 +101,7 @@
   {/if}
   
   <!-- Capabilities Selection -->
-  {#if recommendations}
+  {#if recommendations !== undefined}
     <div class="space-y-6">
       <!-- Suggested Capabilities -->
       {#if suggestedCapabilities.length > 0}
@@ -81,7 +115,7 @@
             mode="checkbox"
             name="capabilities"
             options={suggestedCapabilities}
-            bind:selectedValues={selectedCapabilities}
+            bind:selectedValues={selectedCapabilityTypes}
             onChange={handleCapabilitiesChange}
             columns={2}
           />
@@ -100,7 +134,7 @@
             mode="checkbox"
             name="capabilities"
             options={otherCapabilities}
-            bind:selectedValues={selectedCapabilities}
+            bind:selectedValues={selectedCapabilityTypes}
             onChange={handleCapabilitiesChange}
             columns={2}
           />
@@ -119,16 +153,16 @@
   
   <!-- Summary -->
   <div class="pt-4 border-t border-gray-600">
-    {#if selectedCapabilities.length === 0}
+    {#if selectedCapabilityTypes.length === 0}
       <p class="text-sm text-yellow-400">
         ⚠️ No capabilities selected. Consider selecting at least SSH Access for remote management.
       </p>
     {:else}
       <p class="text-sm text-gray-400">
-        <span class="font-medium text-white">{selectedCapabilities.length}</span> 
-        capabilit{selectedCapabilities.length === 1 ? 'y' : 'ies'} selected
-        {#if recommendedCapabilities.length > 0}
-          • <span class="text-blue-400">{recommendedCapabilities.filter(cap => selectedCapabilities.includes(cap)).length} of {recommendedCapabilities.length} suggested</span>
+        <span class="font-medium text-white">{selectedCapabilityTypes.length}</span> 
+        capabilit{selectedCapabilityTypes.length === 1 ? 'y' : 'ies'} selected
+        {#if recommendations.length > 0}
+          • <span class="text-blue-400">{recommendations.filter(cap => selectedCapabilityTypes.includes(cap)).length} of {recommendations.length} suggested</span>
         {/if}
       </p>
     {/if}

@@ -9,9 +9,9 @@
 	import NodeGroupEditModal from './NodeGroupEditModal.svelte';
   import Error from '../common/Error.svelte';
 	import Loading from '../common/Loading.svelte';
-	import EmptyState from '../common/EmptyState.svelte';
-	import SummaryStats from '../common/SummaryStats.svelte';
-	import TabHeader from '../common/TabHeader.svelte';
+	import EmptyState from '../common/layout/EmptyState.svelte';
+	import SummaryStats from '../common/layout/SummaryStats.svelte';
+	import TabHeader from '../common/layout/TabHeader.svelte';
   
   let showGroupEditor = false;
   let editingGroup: NodeGroup | null = null;

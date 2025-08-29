@@ -9,7 +9,6 @@
   const protocolOptions = [
     { value: ApplicationProtocol.Http, label: 'HTTP' },
     { value: ApplicationProtocol.Https, label: 'HTTPS' },
-    { value: ApplicationProtocol.Ftp, label: 'FTP' }
   ];
   
   function updateConfig(field: string, value: any) {
@@ -27,7 +26,7 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="md:col-span-2">
         <label for="ip_address" class="block text-sm font-medium text-gray-300 mb-1">
-          IP Address
+          IP Address *
         </label>
         <input
           id="ip_address"
@@ -39,60 +38,8 @@
           class:border-red-500={targetErrors.includes('IP address is required')}
         />
       </div>
-      
-      <div>
-        <label for="ip_port" class="block text-sm font-medium text-gray-300 mb-1">
-          Port
-        </label>
-        <input
-          id="ip_port"
-          bind:value={target.config.port}
-          type="number"
-          min="1"
-          max="65535"
-          placeholder="80"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          class:border-red-500={targetErrors.includes('Port must be between 1 and 65535')}
-        />
-      </div>
     </div>
-
-  {:else if target.type === 'Hostname'}
-    <!-- Hostname Configuration -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="md:col-span-2">
-        <label for="hostname" class="block text-sm font-medium text-gray-300 mb-1">
-          Hostname *
-        </label>
-        <input
-          id="hostname"
-          bind:value={target.config.hostname}
-          type="text"
-          required
-          placeholder="server.local"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          class:border-red-500={targetErrors.includes('Hostname is required')}
-        />
-      </div>
-      
-      <div>
-        <label for="hostname_port" class="block text-sm font-medium text-gray-300 mb-1">
-          Port
-        </label>
-        <input
-          id="hostname_port"
-          bind:value={target.config.port}
-          type="number"
-          min="1"
-          max="65535"
-          placeholder="80"
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          class:border-red-500={targetErrors.includes('Port must be between 1 and 65535')}
-        />
-      </div>
-    </div>
-
-  {:else if target.type === 'Service'}
+  {:else if target.type === 'Url'}
     <!-- Service URL Configuration -->
     <div class="space-y-4">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -129,23 +76,7 @@
         </div>
       </div>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label for="service_port" class="block text-sm font-medium text-gray-300 mb-1">
-            Port
-          </label>
-          <input
-            id="service_port"
-            bind:value={target.config.port}
-            type="number"
-            min="1"
-            max="65535"
-            placeholder="80"
-            class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            class:border-red-500={targetErrors.includes('Port must be between 1 and 65535')}
-          />
-        </div>
-        
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">        
         <div>
           <label for="service_path" class="block text-sm font-medium text-gray-300 mb-1">
             Path

@@ -10,10 +10,10 @@
   // Define cell components
   import StatusCell from './StatusCell.svelte';
   import ActionCell from './ActionCell.svelte';
-	import TabHeader from '../common/TabHeader.svelte';
+	import TabHeader from '../common/layout/TabHeader.svelte';
 	import Error from '../common/Error.svelte';
 	import Loading from '../common/Loading.svelte';
-	import EmptyState from '../common/EmptyState.svelte';
+	import EmptyState from '../common/layout/EmptyState.svelte';
 
   // Component state
   let selectedExecution: DiagnosticExecution | null = null;

@@ -6,49 +6,30 @@ import type { TestConfigSchema, TestResult } from "../tests/types";
 export interface NodeFormData {
   name: string;
   description: string;
-  
-  // Target configuration
+  hostname?: string;                    
   target: NodeTarget;
-  
   node_type: string;
-  capabilities: Array<Record<string, NodeCapability>>;
-  
-  // Discovery data (auto-populated)
-  mac_address?: string;
-  
-  // Monitoring configuration
-  monitoring_interval: number; // 0 = disabled, >0 = interval
-  assigned_tests: AssignedTest[];
-  
-  // Group membership
-  node_groups: string[];
+  capabilities: Record<string, any>[];
+  mac_address?: string;                 
+  subnets: string[];                   
+  monitoring_interval: number;
+  assigned_tests: AssignedTest[];                   
 }
-
 // API data model - what the backend expects/returns
 export interface NodeApi {
   name: string;
   description?: string;
   hostname?: string;
-  
-  // Target configuration matching Rust NodeTarget enum
   target: NodeTarget;
-  
   node_type: string;
-  
-  // Discovery & Capability Data
-  mac_address?: string;
   capabilities: Record<string, NodeCapability>[];
-  
-  // Network Context
+  mac_address?: string;
   subnets: string[]; // CIDR blocks
-  
-  // Monitoring Configuration
-  monitoring_interval: number; // minutes, 0 = disabled, >0 = enabled with interval
+  monitoring_interval: number;
   assigned_tests: AssignedTest[];
-  
-  // Standard Fields
-  node_groups: string[]; // Group IDs this node belongs to
-  status: string;
+  node_groups?: string[];
+  discovery_status?: string;              
+  status?: string;
 }
 
 export interface Node extends NodeApi {
@@ -60,17 +41,10 @@ export interface Node extends NodeApi {
 
 export interface IpNodeTargetConfig {
   ip: string;
-  port?: number;
 }
 
-export interface HostnameTargetConfig {
+export interface UrlTargetConfig {
   hostname: string;
-  port?: number;
-}
-
-export interface ServiceTargetConfig {
-  hostname: string;
-  port?: number;
   path: string;
   protocol: ApplicationProtocol
 }
@@ -88,8 +62,7 @@ export type NodeCapability = {
 
 export type NodeTarget =
   | { type: 'IpAddress', config: IpNodeTargetConfig}
-  | { type: 'Hostname', config: HostnameTargetConfig}
-  | { type: 'Service', config: ServiceTargetConfig}
+  | { type: 'Url', config: UrlTargetConfig}
 
 export interface AssignedTest {
   test: {
@@ -134,10 +107,42 @@ export function createDefaultTestsFromSchemas(schemas: Record<string, TestConfig
   return defaultTests;
 }
 
+// In src/lib/components/nodes/types.ts
+export function nodeToFormData(node: Node): NodeFormData {
+  return {
+    name: node.name,
+    description: node.description || '',
+    hostname: node.hostname || '',                    
+    target: node.target,
+    node_type: node.node_type,
+    capabilities: [...node.capabilities],
+    mac_address: node.mac_address || '',             
+    subnets: node.subnets || [],                     
+    monitoring_interval: node.monitoring_interval,
+    assigned_tests: [...node.assigned_tests],
+  };
+}
+
+export function formDataToNodeApi(formData: NodeFormData): NodeApi {
+  return {
+    name: formData.name.trim(),
+    description: formData.description.trim() || undefined,
+    hostname: formData.hostname?.trim() || undefined,  
+    target: formData.target,
+    node_type: formData.node_type,
+    mac_address: formData.mac_address?.trim() || undefined, 
+    capabilities: formData.capabilities,
+    subnets: formData.subnets || [],                
+    monitoring_interval: formData.monitoring_interval,
+    assigned_tests: formData.assigned_tests, 
+  };
+}
+
 export function createEmptyNodeFormData(): NodeFormData {
   return {
     name: '',
     description: '',
+    hostname: '',              
     target: {
       type: 'IpAddress',
       config: {
@@ -146,53 +151,21 @@ export function createEmptyNodeFormData(): NodeFormData {
     },
     node_type: 'UnknownDevice',
     capabilities: [],
+    mac_address: '',           
+    subnets: [],              
     monitoring_interval: 10,
     assigned_tests: [],
-    node_groups: []
-  };
-}
-
-export function nodeToFormData(node: Node): NodeFormData {
-  return {
-    name: node.name,
-    description: node.description || '',
-    target: node.target,
-    node_type: node.node_type,
-    capabilities: [...node.capabilities],
-    mac_address: node.mac_address,
-    monitoring_interval: node.monitoring_interval,
-    assigned_tests: [...node.assigned_tests],
-    node_groups: [...node.node_groups]
-  };
-}
-
-export function formDataToNodeApi(formData: NodeFormData): NodeApi {
-  return {
-    name: formData.name.trim(),
-    description: formData.description.trim() || undefined,
-    target: formData.target,
-    node_type: formData.node_type,
-    mac_address: formData.mac_address,
-    capabilities: formData.capabilities,
-    subnets: [],
-    monitoring_interval: formData.monitoring_interval,
-    assigned_tests: formData.assigned_tests,
-    node_groups: formData.node_groups,
-    status: 'Unknown'
   };
 }
 
 export function getNodeTargetString(target: NodeTarget): string {
   switch (target.type) {
     case 'IpAddress':
-      return target.config.ip + (target.config.port ? `:${target.config.port}` : '');
-    case 'Hostname':
-      return target.config.hostname + (target.config.port ? `:${target.config.port}` : '');
-    case 'Service':
+      return target.config.ip;
+    case 'Url':
       const base = `${target.config.protocol.toLowerCase()}://${target.config.hostname}`;
-      const port = target.config.port ? `:${target.config.port}` : '';
       const path = target.config.path || '';
-      return base + port + path;
+      return base + path;
     default:
       return 'Unknown target';
   }
@@ -207,12 +180,7 @@ export function validateTarget(target: NodeTarget): string[] {
         errors.push('IP address is required');
       }
       break;
-    case 'Hostname':
-      if (!target.config.hostname) {
-        errors.push('Hostname is required');
-      }
-      break;
-    case 'Service':
+    case 'Url':
       if (!target.config.protocol) {
         errors.push('Protocol is required');
       }
@@ -220,10 +188,6 @@ export function validateTarget(target: NodeTarget): string[] {
         errors.push('Hostname is required');
       }
       break;
-  }
-  
-  if (target.config.port && (target.config.port < 1 || target.config.port > 65535)) {
-    errors.push('Port must be between 1 and 65535');
   }
   
   return errors;

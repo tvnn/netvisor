@@ -1,7 +1,7 @@
 <script lang="ts">
   import { nodes } from '../nodes/store';
   import GenericEditModal from '../common/EditModal.svelte';
-  import ListManager from '../common/ListManager.svelte';
+  import ListManager from '../common/forms/ListManager.svelte';
   import type { NodeGroupApi, NodeGroup, NodeGroupFormData } from '$lib/components/node_groups/types'
 	import { getNodeTargetString } from '$lib/components/nodes/types';
   

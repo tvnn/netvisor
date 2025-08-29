@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Server } from 'lucide-svelte';
   import { testTypes } from '$lib/api/registry';
-  import RichSelect from '../../../common/RichSelect.svelte'
+  import RichSelect from '../../../common/forms/RichSelect.svelte'
   
   export let selectedTestType: string;
   export let onTestTypeChange: (testType: string) => void;
@@ -85,7 +85,6 @@
   options={richOptions}
   placeholder="Select a test type..."
   required={true}
-  showDescriptionInTrigger={false}
   onSelect={onTestTypeChange}
   {getOptionIcon}
   {getOptionIconColor}
