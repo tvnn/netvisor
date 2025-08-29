@@ -20,7 +20,7 @@
 
   onMount(async () => {
     // Load initial data
-    await nodeActions.loadNodes();
+    await nodeActions.loadNodes(true);
     await daemonActions.loadDaemons();
     await nodeGroupActions.loadGroups();
     await diagnosticsActions.loadExecutions();

@@ -18,6 +18,7 @@
   export let getOptionTag: ((option: RichSelectOption) => RichSelectTag | null) | null = null;
   export let getOptionStatusText: ((option: RichSelectOption) => string | null) | null = null;
   export let showDescriptionInClosedDropdown: boolean = false;
+  export let showDescriptionUnderDropdown: boolean = false;
   
   interface RichSelectOption {
     value: string;
@@ -119,7 +120,7 @@
     </button>
     
     <!-- Description below trigger (optional) -->
-    {#if selectedOption && selectedOption.description && !showDescriptionInClosedDropdown}
+    {#if selectedOption && selectedOption.description && showDescriptionUnderDropdown}
       <div class="mt-2">
         <p class="text-sm text-gray-400">
           {selectedOption.description}

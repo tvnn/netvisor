@@ -4,6 +4,7 @@ import type { NodeGroup } from '$lib/components/node_groups/types'
 
 export const nodeGroups = writable<NodeGroup[]>([]);
 export const loading = writable(false);
+export const polling = writable(false);
 export const error = writable<string | null>(null);
 
 export const nodeGroupActions = {

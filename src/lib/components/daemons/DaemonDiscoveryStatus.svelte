@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Search, X, Loader2, AlertTriangle } from 'lucide-svelte';
+  import { Search, X, Loader2, AlertTriangle, Radar } from 'lucide-svelte';
   import type { Daemon } from '../daemons/types';
   import type { Node } from '../nodes/types';
 	import { discoveryActions } from '../discovery/store';
@@ -82,7 +82,6 @@
         <span class="text-red-600 text-sm">{discoveryData.error}</span>
         </div>
     {/if} -->
-
     <button 
         class="p-2 text-red-400 hover:text-red-300 hover:bg-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         on:click={handleCancelDiscovery}
@@ -99,19 +98,19 @@
 </div>
 {:else}
     <!-- Inactive - Start Discovery CTA -->
-    <div class="flex-shrink">
-        <button 
-            class="flex items-center justify-center gap-2 w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            on:click={handleStartDiscovery}
-            disabled={loading}
-        >
-            {#if loading}
-            <Loader2 class="w-4 h-4 animate-spin" />
-            {:else}
-            <Search class="w-4 h-4" />
-            {/if}
-            <span>Discover Nodes</span>
-        </button>
+    <div class="flex justify-end">
+    <button 
+        class="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        on:click={handleStartDiscovery}
+        disabled={loading}
+    >
+        {#if loading}
+        <Loader2 class="w-4 h-4 animate-spin" />
+        {:else}
+        <Radar class="w-4 h-4" />
+        {/if}
+        <span>Discover Nodes</span>
+    </button>
     </div>
 {/if}
 </div>

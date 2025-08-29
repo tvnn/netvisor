@@ -100,9 +100,8 @@
         cta: "Add Node"
       }
     ]}
+    CenterComponent={DiscoveryStatus}
      />
-
-  <DiscoveryStatus />
 
   <!-- Summary stats -->
   <!-- {#if $nodes.length > 0}

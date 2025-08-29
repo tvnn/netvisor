@@ -5,6 +5,7 @@ import { createPoller, type Poller } from '../../utils/polling';
 
 export const nodes = writable<Node[]>([]);
 export const loading = writable(false);
+export const polling = writable(false);
 export const error = writable<string | null>(null);
 
 // Create node polling instance
@@ -19,7 +20,7 @@ export const nodeActions = {
     nodePoller = createPoller({
       intervalMs: 30000, // 30 seconds
       onPoll: async () => {
-        await this.loadNodes();
+        await this.loadNodes(false);
       },
       onError: (error) => {
         console.error('Failed to poll nodes:', error);
@@ -41,8 +42,9 @@ export const nodeActions = {
     return nodePoller?.getIsRunning() ?? false;
   },
 
-  async loadNodes() {
-    loading.set(true);
+  async loadNodes(showLoading: boolean) {
+    if (showLoading) loading.set(true);
+    else polling.set(true)
     error.set(null);
     
     try {
@@ -56,7 +58,8 @@ export const nodeActions = {
       error.set('Network error');
       console.error('Failed to load nodes:', err);
     } finally {
-      loading.set(false);
+      if (showLoading) loading.set(false);
+      else polling.set(false)
     }
   },
 

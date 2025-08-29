@@ -64,36 +64,35 @@
   }
 </script>
 
-<div class="flex flex-col gap-3 p-3">
-     <!-- border border-gray-700 rounded-md bg-gray-800"> -->
-  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-    <div class="lg:col-span-1">
-        <RichSelect
-            selectedValue={selectedDaemonId}
-            showDescriptionInClosedDropdown={true}
-            options={$daemons.map(d => {
-                let node = $nodes.find(n => n.id === d.node_id)
-                return {
-                    value: d.id,
-                    label: node?.name || `Daemon ${d.id.substring(0, 8)}`,
-                    description: node ? `on ${getNodeTargetString(node?.target)}` : `Daemon ${d.id.substring(0, 8)}`,
-                    metadata: {
-                        status: node?.status
+<div class="flex items-center">
+    {#if sessionId == null}
+        <div class="flex">
+            <RichSelect
+                selectedValue={selectedDaemonId}
+                options={$daemons.map(d => {
+                    let node = $nodes.find(n => n.id === d.node_id)
+                    return {
+                        value: d.id,
+                        label: node?.name || `Daemon ${d.id.substring(0, 8)}`,
+                        description: node ? `on ${getNodeTargetString(node?.target)}` : `Daemon ${d.id.substring(0, 8)}`,
+                        metadata: {
+                            status: node?.status
+                        }
                     }
-                }
-            })}
-            getOptionTag={(option) => {
-                let color = $getNodeStatusColor(option.metadata.status)
-                return {
-                    text: option.metadata.status,
-                    bgColor: getBgColor(color),
-                    textColor: getTextColor(color)
-                }
-            }}
-            onSelect={handleDaemonSelect} />
-    </div>
+                })}
+                getOptionTag={(option) => {
+                    let color = $getNodeStatusColor(option.metadata.status)
+                    return {
+                        text: option.metadata.status,
+                        bgColor: getBgColor(color),
+                        textColor: getTextColor(color)
+                    }
+                }}
+                onSelect={handleDaemonSelect} />
+        </div>
+    {/if}
     
-    <div class="lg:col-span-2">
+    <div class="flex">
       {#if selectedDaemon}
         <DaemonDiscoveryStatus
           daemon={selectedDaemon}
@@ -109,5 +108,4 @@
         </div>
       {/if}
     </div>
-  </div>
 </div>

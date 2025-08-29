@@ -29,7 +29,7 @@ async function pollDiscoveryStatus(sessionId: string) {
     if (get(session_id) === sessionId) {
 
       if (get(discovered_count) < response.data.discovered_count) {
-        nodeActions.loadNodes();
+        nodeActions.loadNodes(false);
       }
 
       discoveryStatus.set(response.data.phase);
