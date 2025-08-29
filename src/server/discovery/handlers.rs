@@ -7,7 +7,7 @@ use axum::{
 use uuid::Uuid;
 use std::sync::Arc;
 use crate::{server::daemons::types::api::DaemonDiscoveryUpdate};
-use crate::{daemon::discovery::types::base::DiscoveryPhase, server::{
+use crate::{server::{
     config::AppState, daemons::{
         service::DaemonService, 
         types::api::DaemonDiscoveryRequest
@@ -46,12 +46,12 @@ async fn initiate_discovery(
 
     let session_id = Uuid::new_v4();
 
+    // Send discovery request to daemon
+    daemon_service.send_discovery_request(&daemon, DaemonDiscoveryRequest { session_id }).await?;    
+
     // Create discovery session
     state.discovery_manager.create_session(session_id, daemon.id).await
         .map_err(|e| ApiError::internal_error(&format!("Failed to create discovery session: {}", e)))?;
-
-    // Send discovery request to daemon
-    daemon_service.send_discovery_request(&daemon, DaemonDiscoveryRequest { session_id }).await?;    
         
     Ok(Json(ApiResponse::success(InitiateDiscoveryResponse {
         session_id
@@ -83,10 +83,15 @@ async fn cancel_discovery(
     Path(session_id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     // Cancel the session and get daemon ID
-    let daemon_id = match state.discovery_manager.terminate_session(&session_id, DiscoveryPhase::Cancelled).await {
-        Ok(daemon_id) => daemon_id,
-        Err(e) => return Err(ApiError::not_found(&format!("Failed to cancel session '{}': {}", session_id, e)))
+    let daemon_id = match state.discovery_manager.get_session(&session_id).await {
+        Some(session) => session.daemon_id,
+        None => return Err(ApiError::not_found(&format!("Session '{}' not found", session_id)))
     };
+    
+    // .terminate_session(&session_id, DiscoveryPhase::Cancelled).await {
+    //     Ok(daemon_id) => daemon_id,
+    //     Err(e) => return Err(ApiError::not_found(&format!("Failed to cancel session '{}': {}", session_id, e)))
+    // };
 
     // Send cancellation request to daemon
     let daemon_service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());

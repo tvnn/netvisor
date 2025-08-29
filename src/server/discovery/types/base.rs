@@ -12,6 +12,7 @@ pub enum DiscoveryPort {
     OpenVpn = 1194,
     Pptp = 1723,
     IpsecNat = 4500,
+    Dhcp = 67,
     WireGuard = 51820,
     Snmp = 161,
     SnmpTrap = 162,

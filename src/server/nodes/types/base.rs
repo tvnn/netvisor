@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
 use DiscoveryPort::*;
-use crate::server::{discovery::types::base::DiscoveryPort, nodes::types::{capabilities::{CapabilitySource, NodeCapability, NodeCapabilityDiscriminants}, criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}, tests::types::{base::Test, configs::ConnectivityConfig, execution::TestResult}};
+use crate::server::{discovery::types::base::DiscoveryPort, nodes::types::{capabilities::{CapabilityConfig, NodeCapability, NodeCapabilityDiscriminants}, criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}, tests::types::{base::Test, configs::ConnectivityConfig, execution::TestResult}};
 use super::{
     types::{NodeType},
     tests::{AssignedTest},
@@ -140,41 +140,44 @@ impl Node {
         self.base.capabilities.iter().any(|c| c.discriminant() == capability_discriminant)
     }
 
-    pub fn get_capability(&mut self, capability_discriminant: NodeCapabilityDiscriminants) -> Option<&mut NodeCapability>{
-        self.base.capabilities.iter_mut().find(|c| c.discriminant() == capability_discriminant)
+    pub fn get_capability(&self, capability_discriminant: NodeCapabilityDiscriminants) -> Option<&NodeCapability>{
+        self.base.capabilities.iter().find(|c| c.discriminant() == capability_discriminant)
     }
 
     pub fn add_capability_from_port(&mut self, port: u16) {
         let capability = match DiscoveryPort::try_from(port).ok() {
             Some(Ssh) => NodeCapability::SshAccess {
-                source: CapabilitySource::from_port(port),
+                config: CapabilityConfig::from_port(port),
             },
             Some(Dns) => NodeCapability::DnsService {
-                source: CapabilitySource::from_port(port),
+                config: CapabilityConfig::from_port(port),
             },
             Some(Http | HttpAlt) => NodeCapability::HttpService {
-                source: CapabilitySource::from_port(port),
+                config: CapabilityConfig::from_port(port),
             },
             Some(Https | HttpsAlt) => NodeCapability::HttpsService {
-                source: CapabilitySource::from_port(port),
+                config: CapabilityConfig::from_port(port),
             },
             Some(WireGuard) => NodeCapability::WireGuardService {
-                source: CapabilitySource::from_port(port),
+                config: CapabilityConfig::from_port(port),
             },
             Some(OpenVpn | Pptp) => NodeCapability::OpenVpnService {
-                source: CapabilitySource::from_port(port),
+                config: CapabilityConfig::from_port(port),
             },
             Some(IpsecIke | IpsecNat) => NodeCapability::IpsecService {
-                source: CapabilitySource::from_port(port),
+                config: CapabilityConfig::from_port(port),
             },
             Some(Snmp | SnmpTrap) => NodeCapability::SnmpService {
-                source: CapabilitySource::from_port(port),
+                config: CapabilityConfig::from_port(port),
             },
             Some(Rdp) => NodeCapability::RdpService {
-                source: CapabilitySource::from_port(port),
+                config: CapabilityConfig::from_port(port),
             },
             Some(Telnet) => NodeCapability::TelnetService {
-                source: CapabilitySource::from_port(port),
+                config: CapabilityConfig::from_port(port),
+            },
+            Some(Dhcp) => NodeCapability::DhcpService {
+                config: CapabilityConfig::from_port(port),
             },
             None => return,
         };
@@ -183,47 +186,47 @@ impl Node {
         if let Some(existing) = self.base.capabilities.iter_mut().find(|cap| {
             std::mem::discriminant(*cap) == std::mem::discriminant(&capability)
         }) {
-            existing.source_mut().set_port(port);
+            existing.config_mut().set_port(port);
         } else {
             self.base.capabilities.push(capability);
         }
     }
 
-    pub fn add_capability_from_process(&mut self, process_name: &str) {
-        let service_capabilities: Vec<NodeCapability> = match process_name.to_lowercase().as_str() {
-            name if name.contains("wg") || name.contains("wireguard") => 
-                vec![NodeCapability::WireGuardService {
-                    source: CapabilitySource::from_process(process_name.to_string()),
-                }],
-            name if name.contains("openvpn") => 
-                vec![NodeCapability::OpenVpnService {
-                    source: CapabilitySource::from_process(process_name.to_string()),
-                }],
-            name if name.contains("nginx") || name.contains("apache") || name.contains("httpd") => 
-                vec![
-                    NodeCapability::HttpService {
-                        source: CapabilitySource::from_process(process_name.to_string()),
-                    },
-                    NodeCapability::HttpsService {
-                        source: CapabilitySource::from_process(process_name.to_string()),
-                    }
-                ],
-            name if name.contains("sshd") => 
-                vec![NodeCapability::SshAccess {
-                    source: CapabilitySource::from_process(process_name.to_string()),
-                }],
-            _ => vec![],
-        };
+    // pub fn add_capability_from_process(&mut self, process_name: &str) {
+    //     let service_capabilities: Vec<NodeCapability> = match process_name.to_lowercase().as_str() {
+    //         name if name.contains("wg") || name.contains("wireguard") => 
+    //             vec![NodeCapability::WireGuardService {
+    //                 config: CapabilityConfig::from_process(process_name.to_string()),
+    //             }],
+    //         name if name.contains("openvpn") => 
+    //             vec![NodeCapability::OpenVpnService {
+    //                 config: CapabilityConfig::from_process(process_name.to_string()),
+    //             }],
+    //         name if name.contains("nginx") || name.contains("apache") || name.contains("httpd") => 
+    //             vec![
+    //                 NodeCapability::HttpService {
+    //                     config: CapabilityConfig::from_process(process_name.to_string()),
+    //                 },
+    //                 NodeCapability::HttpsService {
+    //                     config: CapabilityConfig::from_process(process_name.to_string()),
+    //                 }
+    //             ],
+    //         name if name.contains("sshd") => 
+    //             vec![NodeCapability::SshAccess {
+    //                 config: CapabilityConfig::from_process(process_name.to_string()),
+    //             }],
+    //         _ => vec![],
+    //     };
         
-        for capability in service_capabilities {
-            // Check if we already have this capability type and update it, or add new
-            if let Some(existing) = self.base.capabilities.iter_mut().find(|cap| {
-                std::mem::discriminant(*cap) == std::mem::discriminant(&capability)
-            }) {
-                existing.source_mut().set_process(process_name.to_string());
-            } else {
-                self.base.capabilities.push(capability);
-            }
-        }
-    }
+    //     for capability in service_capabilities {
+    //         // Check if we already have this capability type and update it, or add new
+    //         if let Some(existing) = self.base.capabilities.iter_mut().find(|cap| {
+    //             std::mem::discriminant(*cap) == std::mem::discriminant(&capability)
+    //         }) {
+    //             existing.config_mut().set_process(process_name.to_string());
+    //         } else {
+    //             self.base.capabilities.push(capability);
+    //         }
+    //     }
+    // }
 }

@@ -18,34 +18,26 @@ pub async fn execute_connectivity_test(
     dns_server: Option<&DnsServerConfig>
 ) -> Result<TestResult, Error> {
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
+
+    let port = match config.capability.config().port {
+        Some(p) => p,
+        None => return Err(Error::msg("Selected capability does not have a port"))
+    };
     
     let (connection_result, dns_result) = match &node.base.target {
 
         NodeTarget::IpAddress(ip_config) => {
             // Direct IP connection - no DNS needed
-            let port = ip_config.port.unwrap_or(80);
             let addr = SocketAddr::new(ip_config.ip, port);
             (timeout(timeout_duration, TcpStream::connect(addr)).await, None)
         },
-        NodeTarget::Hostname(hostname_config) => {
-
-            let Some(dns) = dns_server else {
-                return Err(Error::msg("Connectivity test targeting hostname requires a DNS resolver in test config"))
-            };
-
-            let dns_result = DnsUtils::resolve_domain(dns, &hostname_config.hostname, config.timeout_ms).await?;
-            let port = hostname_config.port.unwrap_or(80);
-            let addr = SocketAddr::new(dns_result.resolved_addresses[0], port);
-            (timeout(timeout_duration, TcpStream::connect(addr)).await, Some(dns_result))
-        },
-        NodeTarget::Service(service_config) => {
+        NodeTarget::Url(service_config) => {
 
             let Some(dns) = dns_server else {
                 return Err(Error::msg("Connectivity test targeting service requires a DNS resolver in test config"))
             };
 
             let dns_result = DnsUtils::resolve_domain(dns, &service_config.hostname, config.timeout_ms).await?;
-            let port = service_config.port.unwrap_or(service_config.protocol.default_port());
             let addr = SocketAddr::new(dns_result.resolved_addresses[0], port);
             (timeout(timeout_duration, TcpStream::connect(addr)).await, Some(dns_result))
         }

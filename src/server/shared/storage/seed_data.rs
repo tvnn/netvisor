@@ -2,7 +2,7 @@ use std::net::{IpAddr, Ipv4Addr};
 use uuid::Uuid;
 use crate::server::{
     nodes::types::{
-        base::Node, capabilities::{CapabilitySource, NodeCapability}, criticality::TestCriticality, targets::{IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}, tests::AssignedTest, types::NodeType
+        base::Node, capabilities::{CapabilityConfig, NodeCapability}, criticality::TestCriticality, targets::{IpAddressTargetConfig, NodeTarget, UrlTargetConfig}, tests::AssignedTest, types::NodeType
     }, shared::types::protocols::ApplicationProtocol, tests::types::{
         base::Test,
         configs::ConnectivityConfig,
@@ -12,21 +12,20 @@ use crate::server::{
 pub fn create_internet_connectivity_node(dns_id: Uuid) -> Node {
 
     let mut node = Node::from_name("Google.com".to_string());
+
+    let connectivity_capability = NodeCapability::HttpsService{ config: CapabilityConfig::from_port(443) };
     
     node.base.description = Some("Google.com for connectivity testing".to_string());
-    node.base.target = NodeTarget::Service(ServiceTargetConfig { 
+    node.base.target = NodeTarget::Url(UrlTargetConfig { 
         protocol: ApplicationProtocol::Https, 
         hostname: "google.com".to_string(), 
-        port: Some(443), 
         path: Some("/".to_string()) });
     node.base.node_type = NodeType::WebServer;
     node.base.monitoring_interval = 0;
-    node.base.capabilities = vec![
-        NodeCapability::HttpsService{ source: CapabilitySource::from_port(443) },
-    ];
+    node.base.capabilities = vec![connectivity_capability.clone()];
     node.base.assigned_tests = vec![
         AssignedTest {
-            test: Test::Connectivity(ConnectivityConfig { timeout_ms: Some(5000), dns_resolver_node: Some(dns_id) }),
+            test: Test::Connectivity(ConnectivityConfig { capability: connectivity_capability, timeout_ms: Some(5000), dns_resolver_node: Some(dns_id) }),
             criticality: TestCriticality::Critical
         }
     ];
@@ -41,12 +40,11 @@ pub fn create_public_dns_node() -> Node {
     node.base.description = Some("Cloudflare DNS for DNS resolution testing".to_string());
     node.base.target = NodeTarget::IpAddress(IpAddressTargetConfig { 
         ip: IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 
-        port: Some(53)
     }); 
     node.base.node_type = NodeType::DnsServer;
     node.base.monitoring_interval = 0;
     node.base.capabilities = vec![
-        NodeCapability::DnsService{ source: CapabilitySource::from_port(53) },
+        NodeCapability::DnsService{ config: CapabilityConfig::from_port(53) },
     ];
 
     node

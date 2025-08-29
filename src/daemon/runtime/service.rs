@@ -5,12 +5,12 @@ use strum::IntoEnumIterator;
 use hostname::get as get_hostname;
 use mac_address::get_mac_address;
 use crate::server::nodes::types::api::{CreateNodeRequest, NodeResponse};
-use crate::server::nodes::types::capabilities::NodeCapability;
+use crate::server::nodes::types::capabilities::{CapabilityConfig, NodeCapability};
 use crate::{
     daemon::{discovery::{utils::{get_daemon_subnet, get_local_ip_address, port_scan}}, shared::storage::ConfigStore}, server::{
         daemons::types::api::{
             DaemonRegistrationRequest, DaemonRegistrationResponse, 
-        }, discovery::types::base::DiscoveryPort, nodes::types::{base::{Node, NodeBase}, capabilities::CapabilitySource, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType}, shared::types::api::ApiResponse
+        }, discovery::types::base::DiscoveryPort, nodes::types::{base::{Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType}, shared::types::api::ApiResponse
     }
 };
 
@@ -111,6 +111,7 @@ impl DaemonRuntimeService {
     pub async fn create_self_as_node(&self, daemon_id: Uuid) -> Result<Node> {        
         // Get daemon configuration
         let config = &self.config_store;
+        let own_port = config.get_port().await?;
 
         // Get local IP address using proper method
         let local_ip = get_local_ip_address()?;
@@ -132,13 +133,12 @@ impl DaemonRuntimeService {
         
         // Create node base
         let node_base = NodeBase {
-            name: hostname.clone().unwrap_or_else(|| format!("NetVisor-Daemon-{}", local_ip)),
+            name: format!("NetVisor-Daemon-{}", local_ip),
             hostname,
             node_type: NodeType::UnknownDevice,
             description: Some("NetVisor daemon for network diagnostics".to_string()),
             target: NodeTarget::IpAddress(IpAddressTargetConfig {
                 ip: local_ip,
-                port: Some(config.get_port().await?),
             }),
             mac_address,
             capabilities: vec![], // Will be populated below
@@ -158,7 +158,7 @@ impl DaemonRuntimeService {
         }
 
         node.base.capabilities.push(NodeCapability::DaemonService { 
-            source: CapabilitySource::system(),
+            config: CapabilityConfig::system(Some(own_port), None),
             daemon_id
         });
 

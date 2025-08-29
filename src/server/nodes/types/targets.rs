@@ -9,100 +9,58 @@ use crate::server::shared::types::{metadata::TypeMetadataProvider, protocols::Ap
 #[serde(tag="type", content="config")]
 pub enum NodeTarget {
     IpAddress(IpAddressTargetConfig),
-    Hostname(HostnameTargetConfig),
-    Service(ServiceTargetConfig)
+    Url(UrlTargetConfig)
 }
 
 impl std::fmt::Display for NodeTarget {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             NodeTarget::IpAddress(config) => write!(f, "{}", config),
-            NodeTarget::Hostname(config) => write!(f, "{}", config),
-            NodeTarget::Service(config) => write!(f, "{}", config),
+            NodeTarget::Url(config) => write!(f, "{}", config),
         }
     }
 }
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IpAddressTargetConfig {
     pub ip: IpAddr,
-    pub port: Option<u16> 
 }
 
 impl Default for IpAddressTargetConfig {
     fn default() -> Self {
         Self {
             ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-            port: Some(80)
         }
     }
 }
 
 impl std::fmt::Display for IpAddressTargetConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(port) = self.port {
-            write!(f, "http://{}:{}", self.ip, port)
-        } else {
-            write!(f, "http://{}", self.ip)
-        }
+        write!(f, "http://{}", self.ip)
     }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct HostnameTargetConfig {
-    pub hostname: String, 
-    pub port: Option<u16> 
-}
-
-impl Default for HostnameTargetConfig {
-    fn default() -> Self {
-        Self {
-            hostname: "example.com".to_string(),
-            port: Some(80)
-        }
-    }
-}
-
-impl std::fmt::Display for HostnameTargetConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(port) = self.port {
-            write!(f, "http://{}:{}", self.hostname, port)
-        } else {
-            write!(f, "http://{}", self.hostname)
-        }
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct ServiceTargetConfig {
+pub struct UrlTargetConfig {
     pub protocol: ApplicationProtocol,
     pub hostname: String,
-    pub port: Option<u16>,
     pub path: Option<String>,
 }
 
-impl Default for ServiceTargetConfig {
+impl Default for UrlTargetConfig {
     fn default() -> Self {
         Self {
             protocol: ApplicationProtocol::Http,
             hostname: "example.com".to_string(),
-            port: Some(80),
             path: Some("/".to_string())
         }
     }
 }
 
 
-impl std::fmt::Display for ServiceTargetConfig {
+impl std::fmt::Display for UrlTargetConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let path = self.path.as_deref().unwrap_or("");
-        let port = self.port.unwrap_or_else(|| self.protocol.default_port());
-        
-        // Only show port if it's not the default for this protocol
-        if port == self.protocol.default_port() {
-            write!(f, "{:?}://{}{}", self.protocol, self.hostname, path)
-        } else {
-            write!(f, "{:?}://{}:{}{}", self.protocol, self.hostname, port, path)
-        }
+        write!(f, "{:?}://{}{}", self.protocol, self.hostname, path)
     }
 }
 
@@ -110,27 +68,6 @@ impl NodeTarget {
     pub fn variant_name(&self) -> String {
         NodeTargetDiscriminants::from(self).to_string()
     }
-
-    // pub fn as_ip_config(&self) -> Option<&IpAddressTargetConfig> {
-    //     match self {
-    //         NodeTarget::IpAddress(config) => Some(config),
-    //         _ => None,
-    //     }
-    // }
-    
-    // pub fn as_hostname_config(&self) -> Option<&HostnameTargetConfig> {
-    //     match self {
-    //         NodeTarget::Hostname(config) => Some(config),
-    //         _ => None,
-    //     }
-    // }
-    
-    // pub fn as_service_config(&self) -> Option<&ServiceTargetConfig> {
-    //     match self {
-    //         NodeTarget::Service(config) => Some(config),
-    //         _ => None,
-    //     }
-    // }
 }
 
 impl TypeMetadataProvider for NodeTarget {
@@ -141,16 +78,14 @@ impl TypeMetadataProvider for NodeTarget {
     fn display_name(&self) -> &str {
         match self {
             NodeTarget::IpAddress(..) => "IP Address",
-            NodeTarget::Hostname(..) => "Hostname",
-            NodeTarget::Service(..) => "Service",
+            NodeTarget::Url(..) => "URL",
         }
     }
     
     fn description(&self) -> &str {
         match self {
             NodeTarget::IpAddress(..) => "Direct connection using IP address",
-            NodeTarget::Hostname(..) => "Connect using domain name or hostname",
-            NodeTarget::Service(..) => "Full service endpoint with protocol and path",
+            NodeTarget::Url(..) => "Connect using a URL",
         }
     }
     
@@ -171,19 +106,15 @@ impl TypeMetadataProvider for NodeTarget {
             NodeTarget::IpAddress(..) => serde_json::json!({
                 "defaultConfig": {
                     "ip": "127.0.0.1",
-                    "port": 80
                 }
             }),
-            NodeTarget::Hostname(..) => serde_json::json!({"defaultConfig": {
-                "hostname": "example.com",
-                "port": 80
-            }}),
-            NodeTarget::Service(..) => serde_json::json!({"defaultConfig": {
-                "protocol": ApplicationProtocol::Http,
-                "hostname": "127.0.0.1",
-                "port": 80,
-                "path": '/'
-            }}),
+            NodeTarget::Url(..) => serde_json::json!({
+                "defaultConfig": {
+                    "protocol": ApplicationProtocol::Http,
+                    "hostname": "127.0.0.1",
+                    "path": '/'
+                }
+            }),
         }
     }
 }

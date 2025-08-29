@@ -4,9 +4,7 @@ use serde::{Deserialize, Serialize};
 pub enum DiscoveryPhase {
     Created, // Initial state, set by server; all subsequent states until Finished are set by Daemon
     Started,
-    ScanningHosts,
-    PortScanning,
-    GatheringInfo,
+    Scanning,
     Complete,
     Failed,
     Cancelled,
@@ -18,9 +16,7 @@ impl std::fmt::Display for DiscoveryPhase {
         match self {
             DiscoveryPhase::Created => write!(f, "Session created in server"),
             DiscoveryPhase::Started => write!(f, "Session started in daemon"),
-            DiscoveryPhase::ScanningHosts => write!(f, "Scanning for active hosts"),
-            DiscoveryPhase::PortScanning => write!(f, "Port scanning discovered hosts"),
-            DiscoveryPhase::GatheringInfo => write!(f, "Gathering device information"),
+            DiscoveryPhase::Scanning => write!(f, "Scanning for active hosts"),
             DiscoveryPhase::Complete => write!(f, "Discovery complete"),
             DiscoveryPhase::Cancelled => write!(f, "Discovery cancelled"),
             DiscoveryPhase::Failed => write!(f, "Discovery failed"),

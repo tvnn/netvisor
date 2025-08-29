@@ -4,34 +4,8 @@ use cidr::{IpCidr, Ipv4Cidr, Ipv6Cidr};
 use local_ip_address::local_ip;
 use tokio::{net::TcpStream, time::timeout};
 use get_if_addrs::get_if_addrs;
-use surge_ping::{IcmpPacket, PingIdentifier, PingSequence};
 
-use crate::server::tests::utilities::dns::DnsUtils;
-
-const PORT_SCAN_TIMEOUT: Duration = Duration::from_millis(3000);
-const PING_TIMEOUT: Duration = Duration::from_millis(2000);
-
-/// Ping a host using ICMP
-pub async fn ping_host(ip: IpAddr) -> Result<bool> {
-    let config = surge_ping::Config::default();
-    let ping_client = surge_ping::Client::new(&config)?;
-    let mut pinger = ping_client.pinger(ip, PingIdentifier(1)).await;
-    
-    match timeout(PING_TIMEOUT, pinger.ping(PingSequence(1), &[])).await {
-        Ok(Ok((IcmpPacket::V4(_packet), _))) => {
-            // Successfully received ICMP reply
-            Ok(true)
-        }
-        Ok(Ok((IcmpPacket::V6(_packet), _))) => {
-            // Successfully received ICMPv6 reply
-            Ok(true)
-        }
-        Ok(Err(_)) | Err(_) => {
-            // Ping failed or timed out
-            Ok(false)
-        }
-    }
-}
+const PORT_SCAN_TIMEOUT: Duration = Duration::from_millis(2000);
 
 /// Perform concurrent port scan on a specific host
 pub async fn port_scan(ip: IpAddr, ports: &Vec<u16>) -> Result<Vec<u16>> {
@@ -114,20 +88,41 @@ pub fn get_daemon_subnet() -> Result<IpCidr, Error> {
 }
 
 /// Use existing reverse DNS lookup from utilities
+// pub async fn reverse_dns_lookup(ip: IpAddr) -> Result<String, anyhow::Error> {
+//     // Create a basic DNS server config using system DNS
+//     let dns_server = crate::server::tests::utilities::dns::DnsServerConfig {
+//         ip: "8.8.8.8".parse().unwrap(),
+//         port: 53,
+//         name: "Google DNS".to_string(),
+//     };
+    
+//     let result = DnsUtils::reverse_lookup_ip(&dns_server, ip, Some(5000)).await?;
+    
+//     if result.success && !result.resolved_domains.is_empty() {
+//         Ok(result.resolved_domains[0].clone())
+//     } else {
+//         Err(anyhow!("Reverse DNS lookup failed or returned no results"))
+//     }
+// }
+
 pub async fn reverse_dns_lookup(ip: IpAddr) -> Result<String, anyhow::Error> {
-    // Create a basic DNS server config using system DNS
-    let dns_server = crate::server::tests::utilities::dns::DnsServerConfig {
-        ip: "8.8.8.8".parse().unwrap(),
-        port: 53,
-        name: "Google DNS".to_string(),
-    };
+    use trust_dns_resolver::TokioAsyncResolver;
     
-    let result = DnsUtils::reverse_lookup_ip(&dns_server, ip, Some(5000)).await?;
+    // Use system resolver - automatically picks up local DNS settings
+    let resolver = TokioAsyncResolver::tokio_from_system_conf()?;
     
-    if result.success && !result.resolved_domains.is_empty() {
-        Ok(result.resolved_domains[0].clone())
-    } else {
-        Err(anyhow!("Reverse DNS lookup failed or returned no results"))
+    match resolver.reverse_lookup(ip).await {
+        Ok(lookup) => {
+            if let Some(name) = lookup.iter().next() {
+                let hostname = name.to_string();
+                // Remove trailing dot if present
+                let hostname = hostname.trim_end_matches('.').to_string();
+                Ok(hostname)
+            } else {
+                Err(anyhow!("No PTR records found"))
+            }
+        },
+        Err(e) => Err(anyhow!("Reverse DNS lookup failed: {}", e))
     }
 }
 

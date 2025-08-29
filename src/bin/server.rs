@@ -55,10 +55,7 @@ async fn main() -> anyhow::Result<()> {
     
     // Initialize tracing
     tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| format!("{}=debug,tower_http=debug", env!("CARGO_CRATE_NAME")).into()),
-        )
+        .with(tracing_subscriber::EnvFilter::new("debug"))
         .with(tracing_subscriber::fmt::layer())
         .init();
     
@@ -83,7 +80,7 @@ async fn main() -> anyhow::Result<()> {
             interval.tick().await;
             
             // Check for timeouts (fail sessions running > 10 minutes)
-            cleanup_state.discovery_manager.check_timeouts(10).await;
+            // cleanup_state.discovery_manager.check_timeouts(10).await;
             
             // Clean up old sessions (remove completed sessions > 24 hours old)
             cleanup_state.discovery_manager.cleanup_old_sessions(24).await;
@@ -93,7 +90,7 @@ async fn main() -> anyhow::Result<()> {
     // Create router
     let api_router = create_router().with_state(state);
     
-    // Create main app with web assets fallback
+    // Create main app
     let app = Router::new()
         .merge(api_router)
         .layer(

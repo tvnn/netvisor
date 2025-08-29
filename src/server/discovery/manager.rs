@@ -67,15 +67,15 @@ impl DiscoverySessionManager {
         }
     }
 
-    pub async fn terminate_session(&self, session_id: &Uuid, phase: DiscoveryPhase) -> Result<Uuid, Error> {
-        if let Some(session) = self.sessions.write().await.get(session_id) {
-            let mut update = session.clone();
-            update.phase = phase;
-            self.update_session(update).await
-        } else {
-            Err(anyhow::anyhow!("Session not found"))
-        }
-    }
+    // pub async fn terminate_session(&self, session_id: &Uuid, phase: DiscoveryPhase) -> Result<Uuid, Error> {
+    //     if let Some(session) = self.sessions.write().await.get(session_id) {
+    //         let mut update = session.clone();
+    //         update.phase = phase;
+    //         self.update_session(update).await
+    //     } else {
+    //         Err(anyhow::anyhow!("Session not found"))
+    //     }
+    // }
 
     /// Check if daemon is discovering
     pub async fn is_daemon_discovering(&self, daemon_id: &Uuid) -> Option<Uuid> {
@@ -83,23 +83,23 @@ impl DiscoverySessionManager {
     }
 
     /// Check for timed out sessions and mark them as failed
-    pub async fn check_timeouts(&self, timeout_minutes: i64) {
-        let timeout_cutoff = Utc::now() - chrono::Duration::minutes(timeout_minutes);
-        let mut sessions = self.sessions.write().await;        
-        let mut timed_out_sessions = Vec::new();
+    // pub async fn check_timeouts(&self, timeout_minutes: i64) {
+    //     let timeout_cutoff = Utc::now() - chrono::Duration::minutes(timeout_minutes);
+    //     let mut sessions = self.sessions.write().await;        
+    //     let mut timed_out_sessions = Vec::new();
         
-        for (session_id, session) in sessions.iter_mut() {
-            if session.finished_at == None && session.started_at < Some(timeout_cutoff) {
-                session.error = Some("Discovery timed out".to_string());
-                match self.terminate_session(session_id, DiscoveryPhase::Failed).await {
-                    Ok(_) => (),
-                    Err(e) => tracing::error!("Could not terminate session: {}", e)
-                };
-                timed_out_sessions.push((*session_id, session.daemon_id));
-                tracing::warn!("Discovery session {} timed out after {} minutes", session_id, timeout_minutes);
-            }
-        }
-    }
+    //     for (session_id, session) in sessions.iter_mut() {
+    //         if session.finished_at == None && session.started_at < Some(timeout_cutoff) {
+    //             session.error = Some("Discovery timed out".to_string());
+    //             match self.terminate_session(session_id, DiscoveryPhase::Failed).await {
+    //                 Ok(_) => (),
+    //                 Err(e) => tracing::error!("Could not terminate session: {}", e)
+    //             };
+    //             timed_out_sessions.push((*session_id, session.daemon_id));
+    //             tracing::warn!("Discovery session {} timed out after {} minutes", session_id, timeout_minutes);
+    //         }
+    //     }
+    // }
 
     /// Cleanup old completed sessions (call periodically)
     pub async fn cleanup_old_sessions(&self, max_age_hours: i64) {

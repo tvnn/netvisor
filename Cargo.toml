@@ -75,3 +75,5 @@ surge-ping = "0.8.2"
 mac_address = "1.1.8"
 directories-next = "2.0.0"
 figment = { version = "0.10", features = ["json", "env"] }
+tokio-util = "0.7.16"
+fastrand = "2.3.0"

@@ -21,20 +21,7 @@ pub async fn execute_vpn_subnet_access_test(
         NodeTarget::IpAddress(ip_config) => {
             Some(ip_config.ip)
         },
-        NodeTarget::Hostname(hostname_config) => {
-            let Some(dns) = dns_server else {
-                return Err(Error::msg("VPN Subnet test targeting hostname requires a DNS resolver in test config"))
-            };
-
-            match DnsUtils::resolve_domain(dns, &hostname_config.hostname, config.timeout_ms).await {
-                Ok(dns_result) if dns_result.success && !dns_result.resolved_addresses.is_empty() => {
-                    Some(dns_result.resolved_addresses[0])
-                },
-                _ => None // DNS resolution failed, continue without IP
-            }
-
-        },
-        NodeTarget::Service(service_config) => {
+        NodeTarget::Url(service_config) => {
 
             let Some(dns) = dns_server else {
                 return Err(Error::msg("VPN Subnet test targeting service requires a DNS resolver in test config"))

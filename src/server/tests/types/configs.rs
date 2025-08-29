@@ -3,17 +3,21 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use cidr::{IpCidr, Ipv4Cidr};
 
+use crate::server::nodes::types::capabilities::{CapabilityConfig, NodeCapability};
+
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 pub struct ConnectivityConfig {
     pub timeout_ms: Option<u32>,
-    pub dns_resolver_node: Option<Uuid>
+    pub dns_resolver_node: Option<Uuid>,
+    pub capability: NodeCapability
 }
 
 impl Default for ConnectivityConfig {
     fn default() -> Self {
         Self {
             timeout_ms: Some(30000),
-            dns_resolver_node: Some(Uuid::new_v4())
+            dns_resolver_node: Some(Uuid::new_v4()),
+            capability: NodeCapability::HttpsService { config: CapabilityConfig::manual() }
         }
     }
 }

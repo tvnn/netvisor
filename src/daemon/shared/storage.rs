@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Error, Result};
 use async_fs;
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
@@ -6,13 +6,11 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 use directories_next::ProjectDirs;
 use figment::{Figment, providers::{Format, Json, Env, Serialized}};
-use crate::server::nodes::types::targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget};
 
 /// CLI arguments structure (for figment integration)
 #[derive(Debug)]
 pub struct CliArgs {
     pub server_ip: Option<String>,
-    pub server_hostname: Option<String>,
     pub server_port: Option<u16>,
     pub port: Option<u16>,
     pub name: Option<String>,
@@ -25,7 +23,6 @@ pub struct CliArgs {
 pub struct AppConfig {
     // Server connection (CLI/startup config)
     pub server_ip: Option<String>,
-    pub server_hostname: Option<String>,
     pub server_port: u16,
     
     // Daemon settings (CLI/startup config)
@@ -42,8 +39,6 @@ pub struct AppConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<Uuid>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub server_target: Option<NodeTarget>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_heartbeat: Option<chrono::DateTime<chrono::Utc>>,
 }
 
@@ -51,7 +46,6 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             server_ip: None,
-            server_hostname: None,
             server_port: 3000,
             port: 3001,
             name: "netvisor-daemon".to_string(),
@@ -60,7 +54,6 @@ impl Default for AppConfig {
             max_concurrent_operations: 10,
             request_timeout_ms: 30000,
             id: None,
-            server_target: None,
             last_heartbeat: None,
         }
     }
@@ -89,9 +82,6 @@ impl AppConfig {
         if let Some(server_ip) = cli_args.server_ip {
             figment = figment.merge(("server_ip", server_ip));
         }
-        if let Some(server_hostname) = cli_args.server_hostname {
-            figment = figment.merge(("server_hostname", server_hostname));
-        }
         if let Some(server_port) = cli_args.server_port {
             figment = figment.merge(("server_port", server_port));
         }
@@ -113,42 +103,6 @@ impl AppConfig {
 
         Ok((config, config_exists))
     }
-
-    pub fn server_target(&self) -> anyhow::Result<NodeTarget> {
-        // If we have a full server_target from config file, use it
-        if let Some(target) = &self.server_target {
-            return Ok(target.clone());
-        }
-
-        // Otherwise, build from individual fields
-        match (self.server_ip.as_ref(), self.server_hostname.as_ref()) {
-            (Some(ip), _) => {
-                let ip_addr = ip.parse()
-                    .map_err(|_| anyhow::anyhow!("Invalid server IP address: {}", ip))?;
-                Ok(NodeTarget::IpAddress(IpAddressTargetConfig {
-                    ip: ip_addr,
-                    port: Some(self.server_port),
-                }))
-            }
-            (None, Some(hostname)) => {
-                Ok(NodeTarget::Hostname(HostnameTargetConfig {
-                    hostname: hostname.clone(),
-                    port: Some(self.server_port),
-                }))
-            }
-            (None, None) => {
-                Err(anyhow::anyhow!("Must specify either server_ip, server_hostname, or server_target"))
-            }
-        }
-    }
-
-    pub fn validate(&self) -> anyhow::Result<()> {
-        // Validate server connection is specified
-        if self.server_target.is_none() && self.server_ip.is_none() && self.server_hostname.is_none() {
-            return Err(anyhow::anyhow!("Must specify either server_ip, server_hostname, or server_target"));
-        }
-        Ok(())
-    }
 }
 
 /// Unified ConfigStore that uses AppConfig directly
@@ -158,13 +112,10 @@ pub struct ConfigStore {
 }
 
 impl ConfigStore {
-    pub fn new(path: PathBuf, server_target: NodeTarget, initial_config: AppConfig) -> Self {
-        let mut config = initial_config;
-        config.server_target = Some(server_target);
-        
+    pub fn new(path: PathBuf, initial_config: AppConfig) -> Self {        
         Self {
             path,
-            config: Arc::new(RwLock::new(config)),
+            config: Arc::new(RwLock::new(initial_config)),
         }
     }
 
@@ -196,7 +147,6 @@ impl ConfigStore {
         let mut config = self.config.write().await;
         config.id = loaded_config.id;
         config.last_heartbeat = loaded_config.last_heartbeat;
-        config.server_target = loaded_config.server_target.or_else(|| config.server_target.clone());
         
         tracing::info!("Loaded daemon runtime state from {}", self.path.display());
         Ok(())
@@ -225,10 +175,8 @@ impl ConfigStore {
     }
 
     pub async fn set_id(&self, id: Uuid) -> Result<()> {
-        {
-            let mut config = self.config.write().await;
-            config.id = Some(id);
-        }
+        let mut config = self.config.write().await;
+        config.id = Some(id);
         self.save().await
     }
 
@@ -238,25 +186,27 @@ impl ConfigStore {
     }
 
     pub async fn set_port(&self, port: u16) -> Result<()> {
+        let mut config = self.config.write().await;
+        config.port = port;
+        self.save().await
+    }
+
+    pub async fn set_server_ip(&self, ip: String) -> Result<()> {
         {
             let mut config = self.config.write().await;
-            config.port = port;
+            config.server_ip = Some(ip);
         }
         self.save().await
     }
 
-    pub async fn set_server_endpoint(&self, endpoint: NodeTarget) -> Result<()> {
-        {
-            let mut config = self.config.write().await;
-            config.server_target = Some(endpoint);
-        }
-        self.save().await
-    }
-
-    pub async fn get_server_endpoint(&self) -> Result<NodeTarget> {
+    pub async fn get_server_endpoint(&self) -> Result<String> {
         let config = self.config.read().await;
-        config.server_target.clone()
-            .ok_or_else(|| anyhow::anyhow!("Server target not configured"))
+
+        if let Some(ip) = &config.server_ip {
+            Ok(format!("{}:{}", ip, config.server_port))
+        } else {
+            Err(Error::msg("No IP configured for server"))
+        }
     }
 
     pub async fn get_heartbeat_interval(&self) -> Result<u64> {

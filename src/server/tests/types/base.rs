@@ -3,14 +3,15 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::server::nodes::types::capabilities::{NodeCapability, NodeCapabilityDiscriminants};
 use crate::server::nodes::service::NodeService;
+use crate::server::nodes::types::targets::UrlTargetConfig;
 use crate::server::shared::types::metadata::TypeMetadataProvider;
-use crate::server::tests::field_factory::{generate_timeout_field};
+use crate::server::tests::field_factory::{generate_capability_selection_field, generate_timeout_field};
 use crate::server::tests::types::schema::*;
 use crate::server::tests::utilities::dns::DnsServerConfig;
 use crate::server::{
     nodes::types::{
         base::Node, 
-        targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}, 
+        targets::{IpAddressTargetConfig, NodeTarget}}, 
     tests::{
         implementations::*, 
         types::{
@@ -51,14 +52,20 @@ impl Test {
     async fn resolve_dns_server_config_from_node_uuid(&self, id: &Uuid, node_service: &NodeService) -> Result<DnsServerConfig, Error> {
         let node = node_service.get_node(id).await?.ok_or_else(|| Error::msg("Node could not be resolved from id"))?;
 
-        if !node.has_capability(NodeCapabilityDiscriminants::DnsService) {
-            return Err(Error::msg("Node does not have DNS capability"));
-        }
+        let dns_capability = match node.get_capability(NodeCapabilityDiscriminants::DnsService) {
+            Some(cap) => cap,
+            None => return Err(Error::msg("Node does not have DNS capability"))
+        };
+
+        let port = match dns_capability.config().port {
+            Some(p) => p,
+            None => return Err(Error::msg("DNS capability does not have a port"))
+        };
 
         match node.base.target {
             NodeTarget::IpAddress(target) => Ok(DnsServerConfig {
                 ip: target.ip,
-                port: target.port.unwrap_or(53),
+                port,
                 name: node.base.name,
             }),
             _ => Err(Error::msg("Provided DNS node does not have an IP address target")),
@@ -130,7 +137,7 @@ impl Test {
                 let has_http_capability = context.capabilities.iter()
                     .any(|cap| matches!(cap, NodeCapability::HttpService{ .. } | NodeCapability::HttpsService{ .. }));
                 
-                let has_service_target = matches!(context.target, NodeTarget::Service { .. });
+                let has_url_target = matches!(context.target, NodeTarget::Url { .. });
                 
                 if !has_http_capability {
                     schema.compatibility = CompatibilityStatus::Incompatible;
@@ -140,7 +147,7 @@ impl Test {
                         field_id: None,
                         severity: MessageSeverity::Error,
                     });
-                } else if !has_service_target {
+                } else if !has_url_target {
                     schema.compatibility = CompatibilityStatus::Incompatible;
                     schema.compatibility_reason = Some("ServiceHealth test requires Service target configuration".to_string());
                     schema.errors.push(ValidationMessage {
@@ -166,12 +173,10 @@ impl Test {
             },
             
             Test::DnsLookup(_) => {
-                // Requires hostname-based target
-                let has_hostname_target = matches!(context.target, 
-                    NodeTarget::Service { .. } | NodeTarget::Hostname { .. }
-                );
+                // Requires url-based target
+                let has_url_target = matches!(context.target, NodeTarget::Url { .. });
                 
-                if !has_hostname_target {
+                if !has_url_target {
                     schema.compatibility = CompatibilityStatus::Incompatible;
                     schema.compatibility_reason = Some("DNS Lookup test requires hostname-based target".to_string());
                     schema.errors.push(ValidationMessage {
@@ -199,7 +204,7 @@ impl Test {
             
             Test::DnsOverHttps(_) => {
                 let has_dns_capability = context.capabilities.iter().any(|c| matches!(c, NodeCapability::DnsService{ .. }));
-                let has_service_target = matches!(context.target, NodeTarget::Service { .. });
+                let has_url_target = matches!(context.target, NodeTarget::Url { .. });
                 
                 if !has_dns_capability {
                     schema.compatibility = CompatibilityStatus::Incompatible;
@@ -209,7 +214,7 @@ impl Test {
                         field_id: None,
                         severity: MessageSeverity::Error,
                     });
-                } else if !has_service_target {
+                } else if !has_url_target {
                     schema.compatibility = CompatibilityStatus::Incompatible;
                     schema.compatibility_reason = Some("DNS over HTTPS test requires Service target for HTTPS endpoint".to_string());
                     schema.errors.push(ValidationMessage {
@@ -318,39 +323,12 @@ impl Test {
                 });
             },
             
-            Test::Connectivity(_) => {
-                // Port field for targets that don't already specify port
-                let port_specified = match &context.target {
-                    NodeTarget::IpAddress(IpAddressTargetConfig{ port: Some(_), .. }) => true,
-                    NodeTarget::Service(ServiceTargetConfig{ port: Some(_), .. }) => true,
-                    NodeTarget::Hostname(HostnameTargetConfig{ port: Some(_), .. }) => true,
-                    _ => false,
-                };
-                
-                if !port_specified {
-                    schema.fields.push(ConfigField {
-                        id: "port".to_string(),
-                        label: "Target Port".to_string(),
-                        field_type: FieldType {
-                            base_type: "integer".to_string(),
-                            constraints: serde_json::json!({
-                                "min": 1,
-                                "max": 65535
-                            }),
-                            options: None,
-                        },
-                        required: true,
-                        default_value: None,
-                        help_text: Some("Network port to test connectivity to".to_string()),
-                        placeholder: Some("80".to_string()),
-                        advanced: false,
-                    });
-                }
+            Test::Connectivity(_) => {                
+                schema.fields.push(generate_capability_selection_field(&context));
 
                 let needs_dns_resolution = match &context.target {
                     NodeTarget::IpAddress(IpAddressTargetConfig{ .. }) => false,
-                    NodeTarget::Service(ServiceTargetConfig{  .. }) => true,
-                    NodeTarget::Hostname(HostnameTargetConfig{ .. }) => true,
+                    NodeTarget::Url(UrlTargetConfig{  .. }) => true,
                 };
 
                 if needs_dns_resolution {                
@@ -369,8 +347,7 @@ impl Test {
                 
                 let needs_dns_resolution = match &context.target {
                     NodeTarget::IpAddress(IpAddressTargetConfig{ .. }) => false,
-                    NodeTarget::Service(ServiceTargetConfig{  .. }) => true,
-                    NodeTarget::Hostname(HostnameTargetConfig{ .. }) => true,
+                    NodeTarget::Url(UrlTargetConfig{  .. }) => true,
                 };
 
                 if needs_dns_resolution {                
@@ -402,31 +379,8 @@ impl Test {
         }
     }
     
-    fn check_node_configuration(&self, context: &NodeContext, schema: &mut TestConfigSchema) {
-        // Only add warnings for optional improvements, not blocking issues
-        // Blocking issues are handled in assess_compatibility
-        
-        match self {
-            Test::Connectivity(_) => {
-                // Suggest adding port to node target for convenience
-                let needs_port = match &context.target {
-                    NodeTarget::IpAddress(IpAddressTargetConfig{ port: None, .. }) => true,
-                    NodeTarget::Service(ServiceTargetConfig{ port: None, .. }) => true,
-                    NodeTarget::Hostname(HostnameTargetConfig{ port: None, .. }) => true,
-                    _ => false,
-                };
-                
-                if needs_port {
-                    schema.warnings.push(ValidationMessage {
-                        message: "Consider adding a port to this node's target configuration to avoid specifying it for each test".to_string(),
-                        field_id: None,
-                        severity: MessageSeverity::Info,
-                    });
-                }
-            },
-            _ => {}
-        }
-        
+    fn check_node_configuration(&self, _context: &NodeContext, schema: &mut TestConfigSchema) {
+        // Only add warnings for optional improvements, not blocking issues        
         // Set requirements_met based on compatibility and field availability
         let missing_required_fields = schema.fields.iter()
             .filter(|field| field.required && field.default_value.is_none())

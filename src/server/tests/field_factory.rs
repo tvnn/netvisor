@@ -1,4 +1,4 @@
-use crate::server::{nodes::types::{base::Node, capabilities::NodeCapability, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget, ServiceTargetConfig}}, tests::types::schema::*};
+use crate::server::{nodes::types::{base::Node, capabilities::NodeCapability, targets::{IpAddressTargetConfig, NodeTarget, UrlTargetConfig}}, tests::types::schema::*};
 use crate::server::shared::types::metadata::TypeMetadataProvider;
 
 pub fn generate_timeout_field() -> ConfigField {
@@ -56,14 +56,41 @@ pub fn generate_expected_ip_field(help_text: String) -> ConfigField {
     }
 }
 
+pub fn generate_capability_selection_field(node_context: &NodeContext) -> ConfigField {
+    let capabilities: Vec<SelectOption> = node_context.capabilities.iter()
+        .map(|cap| {
+            SelectOption {
+                value: cap.id(),
+                label: cap.display_name().to_string(),
+                description: Some(cap.description().to_string()),
+                disabled: false,
+            }
+        })
+        .collect();
+
+    ConfigField {
+        id: "capability".to_string(),
+        label: "Capabilities".to_string(),
+        default_value: Some(serde_json::json!(&capabilities[0].value)),
+        field_type: FieldType {
+            base_type: "rich_select".to_string(),
+            constraints: serde_json::json!({}),
+            options: Some(capabilities),
+        },
+        required: true,
+        help_text: Some("Select capability for test target".to_string()),
+        placeholder: None,
+        advanced: false,
+    }
+}
+
 pub fn generate_dns_resolver_selection_field(available_nodes: &[Node]) -> (Option<ValidationMessage>, ConfigField) {
     let dns_capable_nodes: Vec<SelectOption> = available_nodes.iter()
             .filter(|node| node.base.capabilities.iter().any(|c| matches!(c, NodeCapability::DnsService{ .. })))
             .map(|node| {
                 let target_summary = match &node.base.target {
                     NodeTarget::IpAddress(IpAddressTargetConfig{ ip, .. }) => ip.to_string(),
-                    NodeTarget::Service(ServiceTargetConfig{ hostname, .. })=> hostname.clone(),
-                    NodeTarget::Hostname(HostnameTargetConfig{ hostname, .. }) => hostname.clone(),
+                    NodeTarget::Url(UrlTargetConfig{ hostname, .. })=> hostname.clone(),
                 };
                 
                 SelectOption {

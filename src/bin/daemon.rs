@@ -1,12 +1,12 @@
 use clap::Parser;
-use netvisor::{
-    daemon::{
-        runtime::service::DaemonRuntimeService, 
-        shared::{handlers::create_router, storage::{ConfigStore, AppConfig, CliArgs}}
-    },
-};
+use netvisor::daemon::{
+        discovery::service::DaemonDiscoveryService, runtime::{service::DaemonRuntimeService, types::base::DaemonState}, shared::{handlers::create_router, storage::{AppConfig, CliArgs, ConfigStore}}
+    };
+use tower::ServiceBuilder;
+use tower_http::{cors::{Any, CorsLayer}, trace::TraceLayer};
+use axum::{http::{Method}, Router};
 use uuid::Uuid;
-use std::sync::Arc;
+use std::{sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use directories_next::ProjectDirs;
 
@@ -16,15 +16,11 @@ use directories_next::ProjectDirs;
 struct Cli {
     /// Server IP address
     #[arg(long)]
-    server_ip: Option<String>,
-    
-    /// Server hostname  
-    #[arg(long)]
-    server_hostname: Option<String>,
-    
+    server_ip: String,
+        
     /// Server port
     #[arg(long)]
-    server_port: Option<u16>,
+    server_port: u16,
     
     /// Daemon listen port
     #[arg(short, long)]
@@ -50,9 +46,8 @@ struct Cli {
 impl From<Cli> for CliArgs {
     fn from(cli: Cli) -> Self {
         Self {
-            server_ip: cli.server_ip,
-            server_hostname: cli.server_hostname,
-            server_port: cli.server_port,
+            server_ip: Some(cli.server_ip),
+            server_port: Some(cli.server_port),
             port: cli.port,
             name: cli.name,
             log_level: cli.log_level,
@@ -77,15 +72,9 @@ async fn main() -> anyhow::Result<()> {
     // Load unified configuration
     let (config, from_file) = AppConfig::load(cli_args)?;
     
-    // Validate configuration
-    config.validate()?;
-
-    // Initialize logging with config value
+    // Initialize tracing
     tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| format!("{}={}", env!("CARGO_CRATE_NAME"), config.log_level).into()),
-        )
+        .with(tracing_subscriber::EnvFilter::new("debug"))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
@@ -94,18 +83,15 @@ async fn main() -> anyhow::Result<()> {
     } else {
         tracing::info!("🤖 NetVisor daemon starting (CLI/environment only)");
     }
-
-    // Get server target from config
-    let server_target = config.server_target()?;
-    tracing::info!("🔗 Server target: {}", server_target);
     
     // Initialize unified storage with full config
     // Use separate path for runtime state to avoid conflicts
     let runtime_path = get_runtime_config_path()?;
-    let storage = Arc::new(ConfigStore::new(runtime_path, server_target.clone(), config.clone()));
+    let storage = Arc::new(ConfigStore::new(runtime_path, config.clone()));
     storage.initialize().await?;
     
     let mut runtime_service = DaemonRuntimeService::new(storage.clone());
+    let discovery_service = Arc::new(DaemonDiscoveryService::new(storage.clone()));
     
     // Get or register daemon ID
     let daemon_id = if let Some(existing_id) = runtime_service.config_store.get_id().await? {
@@ -133,9 +119,28 @@ async fn main() -> anyhow::Result<()> {
             tracing::warn!("Failed to update heartbeat timestamp: {}", e);
         }
     });
+
+    let state = Arc::new(DaemonState {
+        config: storage,
+        discovery_service
+    });
     
     // Create HTTP server with config values
-    let app = create_router().with_state(storage);
+    let api_router = create_router().with_state(state);
+
+    let app = Router::new()
+        .merge(api_router)
+        .layer(
+            ServiceBuilder::new()
+                .layer(TraceLayer::new_for_http())
+                .layer(
+                    CorsLayer::new()
+                        .allow_origin(Any)
+                        .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE])
+                        .allow_headers(Any),
+                ),
+        );
+
     let addr = format!("0.0.0.0:{}", config.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     
