@@ -75,7 +75,7 @@ pub async fn execute_dns_lookup_test(
 ) -> Result<TestResult, Error> {
     // Get the domain to lookup from node's hostname target
     let domain_to_lookup = match &node.base.target {
-        NodeTarget::Url(service_config) => service_config.hostname.clone(),
+        NodeTarget::Hostname(hostname_config) => hostname_config.hostname.clone(),
         NodeTarget::IpAddress(_) => {
             return Err(Error::msg("Reverse DNS test requires node with hostname or service target"))
         }

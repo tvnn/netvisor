@@ -31,13 +31,13 @@ pub async fn execute_connectivity_test(
             let addr = SocketAddr::new(ip_config.ip, port);
             (timeout(timeout_duration, TcpStream::connect(addr)).await, None)
         },
-        NodeTarget::Url(service_config) => {
+        NodeTarget::Hostname(hostname_config) => {
 
             let Some(dns) = dns_server else {
                 return Err(Error::msg("Connectivity test targeting service requires a DNS resolver in test config"))
             };
 
-            let dns_result = DnsUtils::resolve_domain(dns, &service_config.hostname, config.timeout_ms).await?;
+            let dns_result = DnsUtils::resolve_domain(dns, &hostname_config.hostname, config.timeout_ms).await?;
             let addr = SocketAddr::new(dns_result.resolved_addresses[0], port);
             (timeout(timeout_duration, TcpStream::connect(addr)).await, Some(dns_result))
         }
@@ -94,7 +94,7 @@ pub async fn execute_connectivity_test(
     })
 }
 
-/// Execute service health test - HTTP request to node's service endpoint
+/// Execute service health test - HTTP/S request to node's service endpoint
 pub async fn execute_service_health_test(
     config: &ServiceHealthConfig,
     timer: &Timer,
@@ -102,8 +102,7 @@ pub async fn execute_service_health_test(
 ) -> Result<TestResult, Error> {
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
     
-    // Extract service URL from node configuration
-    let service_url = &node.base.target.to_string();
+    let service_url = config.capability.build_http_endpoint(&node.base.target)?;
     
     // Create HTTP client with timeout
     let client = Client::builder()
@@ -112,7 +111,7 @@ pub async fn execute_service_health_test(
         .map_err(|e| Error::msg(format!("Failed to create HTTP client: {}", e)))?;
 
     // Perform HTTP request
-    let request_result = timeout(timeout_duration, client.get(service_url).send()).await;
+    let request_result = timeout(timeout_duration, client.get(service_url.clone()).send()).await;
 
     let (success, message, details) = match request_result {
         Ok(Ok(response)) => {

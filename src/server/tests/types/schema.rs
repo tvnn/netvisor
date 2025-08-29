@@ -51,6 +51,20 @@ pub struct SelectOption {
     pub label: String,
     pub description: Option<String>,
     pub disabled: bool,
+    pub metadata: Option<serde_json::Value>
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct SelectMetadata {
+    pub tag: String
+}
+
+impl Default for SelectMetadata {
+    fn default() -> Self {
+        Self {
+            tag: String::new()
+        }
+    }
 }
 
 #[derive(Serialize, Debug, Clone)]

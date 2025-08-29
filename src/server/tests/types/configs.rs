@@ -17,7 +17,7 @@ impl Default for ConnectivityConfig {
         Self {
             timeout_ms: Some(30000),
             dns_resolver_node: Some(Uuid::new_v4()),
-            capability: NodeCapability::HttpsService { config: CapabilityConfig::manual() }
+            capability: NodeCapability::HttpsService { path: Some("/".to_string()), config: CapabilityConfig::from_port(443) }
         }
     }
 }
@@ -26,6 +26,7 @@ impl Default for ConnectivityConfig {
 pub struct ServiceHealthConfig {
     pub expected_status_code: u16,
     pub timeout_ms: Option<u32>,
+    pub capability: NodeCapability
 }
 
 impl Default for ServiceHealthConfig {
@@ -33,6 +34,7 @@ impl Default for ServiceHealthConfig {
         Self {
             expected_status_code: 200,
             timeout_ms: Some(30000),
+            capability: NodeCapability::HttpsService { path: Some("/".to_string()), config: CapabilityConfig::from_port(443) }
         }
     }
 }

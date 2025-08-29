@@ -60,12 +60,15 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
-    pub fn load(cli_args: CliArgs) -> anyhow::Result<(Self, bool)> {
+    pub fn get_config_path() -> Result<(bool, PathBuf)> {
         let proj_dirs = ProjectDirs::from("com", "netvisor", "daemon")
             .ok_or_else(|| anyhow::anyhow!("Unable to determine config directory"))?;
         
-        let config_path = proj_dirs.config_dir().join("daemon.json");
-        let config_exists = config_path.exists();
+        let config_path = proj_dirs.config_dir().join("config.json");
+        Ok((config_path.exists(), config_path))
+    }
+    pub fn load(cli_args: CliArgs) -> anyhow::Result<Self> {        
+        let (config_exists, config_path) = AppConfig::get_config_path()?;
 
         // Standard configuration layering: Defaults → Config file → Env → CLI (highest priority)
         let mut figment = Figment::from(Serialized::defaults(AppConfig::default()));
@@ -99,13 +102,12 @@ impl AppConfig {
         }
 
         let config: AppConfig = figment.extract()
-            .map_err(|e| anyhow::anyhow!("Configuration error: {}", e))?;
+            .map_err(|e| Error::msg(format!("Configuration error: {}", e)))?;
 
-        Ok((config, config_exists))
+        Ok(config)
     }
 }
 
-/// Unified ConfigStore that uses AppConfig directly
 pub struct ConfigStore {
     path: PathBuf,
     config: Arc<RwLock<AppConfig>>,
@@ -152,8 +154,7 @@ impl ConfigStore {
         Ok(())
     }
 
-    async fn save(&self) -> Result<()> {
-        let config = self.config.read().await;
+    async fn save(&self, config: &AppConfig) -> Result<()> {
         let json = serde_json::to_string_pretty(&*config)
             .context("Failed to serialize config")?;
 
@@ -177,7 +178,7 @@ impl ConfigStore {
     pub async fn set_id(&self, id: Uuid) -> Result<()> {
         let mut config = self.config.write().await;
         config.id = Some(id);
-        self.save().await
+        self.save(&config.clone()).await
     }
 
     pub async fn get_port(&self) -> Result<u16> {
@@ -188,22 +189,20 @@ impl ConfigStore {
     pub async fn set_port(&self, port: u16) -> Result<()> {
         let mut config = self.config.write().await;
         config.port = port;
-        self.save().await
+        self.save(&config.clone()).await
     }
 
     pub async fn set_server_ip(&self, ip: String) -> Result<()> {
-        {
-            let mut config = self.config.write().await;
-            config.server_ip = Some(ip);
-        }
-        self.save().await
+        let mut config = self.config.write().await;
+        config.server_ip = Some(ip);
+        self.save(&config.clone()).await
     }
 
     pub async fn get_server_endpoint(&self) -> Result<String> {
         let config = self.config.read().await;
 
         if let Some(ip) = &config.server_ip {
-            Ok(format!("{}:{}", ip, config.server_port))
+            Ok(format!("http://{}:{}", ip, config.server_port))
         } else {
             Err(Error::msg("No IP configured for server"))
         }
@@ -215,11 +214,9 @@ impl ConfigStore {
     }
 
     pub async fn update_heartbeat(&self) -> Result<()> {
-        {
-            let mut config = self.config.write().await;
-            config.last_heartbeat = Some(chrono::Utc::now());
-        }
-        self.save().await
+        let mut config = self.config.write().await;
+        config.last_heartbeat = Some(chrono::Utc::now());
+        self.save(&config.clone()).await
     }
 
     pub async fn get_config(&self) -> AppConfig {

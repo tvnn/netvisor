@@ -1,4 +1,4 @@
-use crate::server::{nodes::types::{base::Node, capabilities::NodeCapability, targets::{IpAddressTargetConfig, NodeTarget, UrlTargetConfig}}, tests::types::schema::*};
+use crate::server::{nodes::types::{base::Node, capabilities::NodeCapability, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget}}, tests::types::schema::*};
 use crate::server::shared::types::metadata::TypeMetadataProvider;
 
 pub fn generate_timeout_field() -> ConfigField {
@@ -56,14 +56,21 @@ pub fn generate_expected_ip_field(help_text: String) -> ConfigField {
     }
 }
 
-pub fn generate_capability_selection_field(node_context: &NodeContext) -> ConfigField {
+pub fn generate_capability_with_port_selection_field(node_context: &NodeContext) -> ConfigField {
     let capabilities: Vec<SelectOption> = node_context.capabilities.iter()
+        .filter(|cap| cap.config().port.is_some())
         .map(|cap| {
+
+            let port = cap.config().port.expect("Capabilities with None ports have been filtered out");
+            
             SelectOption {
                 value: cap.id(),
                 label: cap.display_name().to_string(),
                 description: Some(cap.description().to_string()),
                 disabled: false,
+                metadata: Some(serde_json::to_value( SelectMetadata {
+                    tag: port.to_string()
+                }).unwrap_or_default())
             }
         })
         .collect();
@@ -78,7 +85,43 @@ pub fn generate_capability_selection_field(node_context: &NodeContext) -> Config
             options: Some(capabilities),
         },
         required: true,
-        help_text: Some("Select capability for test target".to_string()),
+        help_text: Some("Select capability to determine port that test will target.".to_string()),
+        placeholder: None,
+        advanced: false,
+    }
+}
+
+pub fn generate_capability_with_http_endpoint_selection_field(node_context: &NodeContext) -> ConfigField {
+    let capabilities: Vec<SelectOption> = node_context.capabilities.iter()
+        .filter(|cap| cap.build_http_endpoint(&node_context.target).is_ok())
+        .map(|cap| {
+
+            let port = cap.config().port.expect("Capabilities with None ports have been filtered out");
+            // let protocol = cap.config().port.expect("Capabilities with None protocols have been filtered out");
+            
+            SelectOption {
+                value: cap.id(),
+                label: cap.display_name().to_string(),
+                description: Some(cap.description().to_string()),
+                disabled: false,
+                metadata: Some(serde_json::to_value( SelectMetadata {
+                    tag: port.to_string()
+                }).unwrap_or_default())
+            }
+        })
+        .collect();
+
+    ConfigField {
+        id: "capability".to_string(),
+        label: "Capabilities".to_string(),
+        default_value: Some(serde_json::json!(&capabilities[0].value)),
+        field_type: FieldType {
+            base_type: "rich_select".to_string(),
+            constraints: serde_json::json!({}),
+            options: Some(capabilities),
+        },
+        required: true,
+        help_text: Some("Select capability to determine port that test will target.".to_string()),
         placeholder: None,
         advanced: false,
     }
@@ -90,7 +133,7 @@ pub fn generate_dns_resolver_selection_field(available_nodes: &[Node]) -> (Optio
             .map(|node| {
                 let target_summary = match &node.base.target {
                     NodeTarget::IpAddress(IpAddressTargetConfig{ ip, .. }) => ip.to_string(),
-                    NodeTarget::Url(UrlTargetConfig{ hostname, .. })=> hostname.clone(),
+                    NodeTarget::Hostname(HostnameTargetConfig{ hostname, .. })=> hostname.clone(),
                 };
                 
                 SelectOption {
@@ -101,6 +144,7 @@ pub fn generate_dns_resolver_selection_field(available_nodes: &[Node]) -> (Optio
                         target_summary
                     )),
                     disabled: false,
+                    metadata: None
                 }
             })
             .collect();

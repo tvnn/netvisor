@@ -154,9 +154,11 @@ impl Node {
             },
             Some(Http | HttpAlt) => NodeCapability::HttpService {
                 config: CapabilityConfig::from_port(port),
+                path: Some("/".to_string())
             },
             Some(Https | HttpsAlt) => NodeCapability::HttpsService {
                 config: CapabilityConfig::from_port(port),
+                path: Some("/".to_string())
             },
             Some(WireGuard) => NodeCapability::WireGuardService {
                 config: CapabilityConfig::from_port(port),

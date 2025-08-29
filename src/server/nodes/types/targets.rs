@@ -1,25 +1,26 @@
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, Ipv4Addr};
+use std::{fmt::{self, Formatter}, net::{IpAddr, Ipv4Addr}};
 use strum_macros::{EnumIter, EnumDiscriminants, Display};
 
-use crate::server::shared::types::{metadata::TypeMetadataProvider, protocols::ApplicationProtocol};
+use crate::server::shared::types::{metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, EnumIter))]
 #[serde(tag="type", content="config")]
 pub enum NodeTarget {
     IpAddress(IpAddressTargetConfig),
-    Url(UrlTargetConfig)
+    Hostname(HostnameTargetConfig)
 }
 
-impl std::fmt::Display for NodeTarget {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for NodeTarget {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            NodeTarget::IpAddress(config) => write!(f, "{}", config),
-            NodeTarget::Url(config) => write!(f, "{}", config),
+            NodeTarget::Hostname(HostnameTargetConfig{hostname}) => write!(f,"{}", hostname),
+            NodeTarget::IpAddress(IpAddressTargetConfig{ip}) => write!(f,"{}", ip.to_string())
         }
     }
 }
+
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IpAddressTargetConfig {
     pub ip: IpAddr,
@@ -33,34 +34,16 @@ impl Default for IpAddressTargetConfig {
     }
 }
 
-impl std::fmt::Display for IpAddressTargetConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "http://{}", self.ip)
-    }
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-pub struct UrlTargetConfig {
-    pub protocol: ApplicationProtocol,
+pub struct HostnameTargetConfig {
     pub hostname: String,
-    pub path: Option<String>,
 }
 
-impl Default for UrlTargetConfig {
+impl Default for HostnameTargetConfig {
     fn default() -> Self {
         Self {
-            protocol: ApplicationProtocol::Http,
             hostname: "example.com".to_string(),
-            path: Some("/".to_string())
         }
-    }
-}
-
-
-impl std::fmt::Display for UrlTargetConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let path = self.path.as_deref().unwrap_or("");
-        write!(f, "{:?}://{}{}", self.protocol, self.hostname, path)
     }
 }
 
@@ -78,14 +61,14 @@ impl TypeMetadataProvider for NodeTarget {
     fn display_name(&self) -> &str {
         match self {
             NodeTarget::IpAddress(..) => "IP Address",
-            NodeTarget::Url(..) => "URL",
+            NodeTarget::Hostname(..) => "Hostname",
         }
     }
     
     fn description(&self) -> &str {
         match self {
-            NodeTarget::IpAddress(..) => "Direct connection using IP address",
-            NodeTarget::Url(..) => "Connect using a URL",
+            NodeTarget::IpAddress(..) => "Connect using an IP address",
+            NodeTarget::Hostname(..) => "Connect using a hostname",
         }
     }
     
@@ -108,11 +91,9 @@ impl TypeMetadataProvider for NodeTarget {
                     "ip": "127.0.0.1",
                 }
             }),
-            NodeTarget::Url(..) => serde_json::json!({
+            NodeTarget::Hostname(..) => serde_json::json!({
                 "defaultConfig": {
-                    "protocol": ApplicationProtocol::Http,
                     "hostname": "127.0.0.1",
-                    "path": '/'
                 }
             }),
         }

@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::server::nodes::types::capabilities::{NodeCapability, NodeCapabilityDiscriminants};
 use crate::server::nodes::service::NodeService;
-use crate::server::nodes::types::targets::UrlTargetConfig;
+use crate::server::nodes::types::targets::HostnameTargetConfig;
 use crate::server::shared::types::metadata::TypeMetadataProvider;
-use crate::server::tests::field_factory::{generate_capability_selection_field, generate_timeout_field};
+use crate::server::tests::field_factory::{generate_capability_with_http_endpoint_selection_field, generate_capability_with_port_selection_field};
 use crate::server::tests::types::schema::*;
 use crate::server::tests::utilities::dns::DnsServerConfig;
 use crate::server::{
@@ -18,7 +18,7 @@ use crate::server::{
             configs::*, 
             execution::*,
         },
-        field_factory::{generate_dns_resolver_selection_field, generate_domain_to_resolve_field, generate_expected_ip_field}
+        field_factory::{generate_dns_resolver_selection_field, generate_timeout_field, generate_domain_to_resolve_field, generate_expected_ip_field}
     }};
 use strum_macros::{EnumIter, EnumDiscriminants, Display};
 
@@ -137,7 +137,7 @@ impl Test {
                 let has_http_capability = context.capabilities.iter()
                     .any(|cap| matches!(cap, NodeCapability::HttpService{ .. } | NodeCapability::HttpsService{ .. }));
                 
-                let has_url_target = matches!(context.target, NodeTarget::Url { .. });
+                let has_url_target = matches!(context.target, NodeTarget::Hostname { .. });
                 
                 if !has_http_capability {
                     schema.compatibility = CompatibilityStatus::Incompatible;
@@ -149,9 +149,9 @@ impl Test {
                     });
                 } else if !has_url_target {
                     schema.compatibility = CompatibilityStatus::Incompatible;
-                    schema.compatibility_reason = Some("ServiceHealth test requires Service target configuration".to_string());
+                    schema.compatibility_reason = Some("ServiceHealth test requires Hostname target configuration".to_string());
                     schema.errors.push(ValidationMessage {
-                        message: "Configure this node with a Service target (hostname, protocol, path)".to_string(),
+                        message: "Configure this node with a Hostname target".to_string(),
                         field_id: None,
                         severity: MessageSeverity::Error,
                     });
@@ -174,7 +174,7 @@ impl Test {
             
             Test::DnsLookup(_) => {
                 // Requires url-based target
-                let has_url_target = matches!(context.target, NodeTarget::Url { .. });
+                let has_url_target = matches!(context.target, NodeTarget::Hostname { .. });
                 
                 if !has_url_target {
                     schema.compatibility = CompatibilityStatus::Incompatible;
@@ -204,7 +204,7 @@ impl Test {
             
             Test::DnsOverHttps(_) => {
                 let has_dns_capability = context.capabilities.iter().any(|c| matches!(c, NodeCapability::DnsService{ .. }));
-                let has_url_target = matches!(context.target, NodeTarget::Url { .. });
+                let has_url_target = matches!(context.target, NodeTarget::Hostname { .. });
                 
                 if !has_dns_capability {
                     schema.compatibility = CompatibilityStatus::Incompatible;
@@ -254,6 +254,9 @@ impl Test {
         
         match self {
             Test::ServiceHealth(_) => {
+                
+                schema.fields.push(generate_capability_with_http_endpoint_selection_field(&context));
+                
                 schema.fields.push(ConfigField {
                     id: "expected_status_code".to_string(),
                     label: "Expected Status Code".to_string(),
@@ -324,11 +327,11 @@ impl Test {
             },
             
             Test::Connectivity(_) => {                
-                schema.fields.push(generate_capability_selection_field(&context));
+                schema.fields.push(generate_capability_with_port_selection_field(&context));
 
                 let needs_dns_resolution = match &context.target {
                     NodeTarget::IpAddress(IpAddressTargetConfig{ .. }) => false,
-                    NodeTarget::Url(UrlTargetConfig{  .. }) => true,
+                    NodeTarget::Hostname(HostnameTargetConfig{ .. }) => true,
                 };
 
                 if needs_dns_resolution {                
@@ -347,7 +350,7 @@ impl Test {
                 
                 let needs_dns_resolution = match &context.target {
                     NodeTarget::IpAddress(IpAddressTargetConfig{ .. }) => false,
-                    NodeTarget::Url(UrlTargetConfig{  .. }) => true,
+                    NodeTarget::Hostname(HostnameTargetConfig{  .. }) => true,
                 };
 
                 if needs_dns_resolution {                

@@ -1,6 +1,6 @@
 use clap::Parser;
 use netvisor::daemon::{
-        discovery::service::DaemonDiscoveryService, runtime::{service::DaemonRuntimeService, types::base::DaemonState}, shared::{handlers::create_router, storage::{AppConfig, CliArgs, ConfigStore}}
+        discovery::{service::DaemonDiscoveryService, utils::get_local_ip_address}, runtime::{service::DaemonRuntimeService, types::base::DaemonState}, shared::{handlers::create_router, storage::{AppConfig, CliArgs, ConfigStore}}
     };
 use tower::ServiceBuilder;
 use tower_http::{cors::{Any, CorsLayer}, trace::TraceLayer};
@@ -8,7 +8,6 @@ use axum::{http::{Method}, Router};
 use uuid::Uuid;
 use std::{sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use directories_next::ProjectDirs;
 
 #[derive(Parser)]
 #[command(name = "netvisor-daemon")]
@@ -56,42 +55,33 @@ impl From<Cli> for CliArgs {
     }
 }
 
-fn get_runtime_config_path() -> anyhow::Result<std::path::PathBuf> {
-    let proj_dirs = ProjectDirs::from("com", "netvisor", "daemon")
-        .ok_or_else(|| anyhow::anyhow!("Unable to determine config directory"))?;
-    
-    Ok(proj_dirs.data_dir().join("runtime.json"))
-}
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Parse CLI and convert to CliArgs
-    let cli = Cli::parse();
-    let cli_args = CliArgs::from(cli);
-    
-    // Load unified configuration
-    let (config, from_file) = AppConfig::load(cli_args)?;
-    
+    tracing::info!("🤖 NetVisor daemon starting");
     // Initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new("debug"))
         .with(tracing_subscriber::fmt::layer())
         .init();
-
-    if from_file {
-        tracing::info!("🤖 NetVisor daemon starting (config file + overrides)");
-    } else {
-        tracing::info!("🤖 NetVisor daemon starting (CLI/environment only)");
-    }
+    
+    // Parse CLI and convert to CliArgs
+    let cli = Cli::parse();
+    let cli_args = CliArgs::from(cli);
+    
+    // Load unified configuration
+    let config = AppConfig::load(cli_args)?;
+    let (_, path) = AppConfig::get_config_path()?;
     
     // Initialize unified storage with full config
-    // Use separate path for runtime state to avoid conflicts
-    let runtime_path = get_runtime_config_path()?;
-    let storage = Arc::new(ConfigStore::new(runtime_path, config.clone()));
+    let storage = Arc::new(ConfigStore::new(path, config.clone()));
     storage.initialize().await?;
     
     let mut runtime_service = DaemonRuntimeService::new(storage.clone());
     let discovery_service = Arc::new(DaemonDiscoveryService::new(storage.clone()));
+    let own_addr = format!("{}:{}", get_local_ip_address()?, &storage.get_port().await?);
+    let server_addr = &storage.get_server_endpoint().await?;
+
+    tracing::info!("🔗 Server at {}", server_addr);
     
     // Get or register daemon ID
     let daemon_id = if let Some(existing_id) = runtime_service.config_store.get_id().await? {
@@ -141,13 +131,13 @@ async fn main() -> anyhow::Result<()> {
                 ),
         );
 
-    let addr = format!("0.0.0.0:{}", config.port);
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
     
-    tracing::info!("🚀 NetVisor daemon listening on http://{}", addr);
-    tracing::info!("🔧 Health check: http://{}/health", addr);
-    tracing::info!("🔍 Discovery endpoint: http://{}/discover", addr);
-    tracing::info!("🧪 Test execution endpoint: http://{}/execute_test", addr);
+    let listener = tokio::net::TcpListener::bind(&format!("0.0.0.0:{}", config.port)).await?;
+    
+    tracing::info!("🚀 NetVisor daemon listening on http://{}", own_addr);
+    tracing::info!("🔧 Health check: http://{}/health", own_addr);
+    tracing::info!("🔍 Discovery endpoint: http://{}/discover", own_addr);
+    tracing::info!("🧪 Test execution endpoint: http://{}/execute_test", own_addr);
     
     axum::serve(listener, app).await?;
     

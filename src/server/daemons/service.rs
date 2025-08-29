@@ -8,7 +8,7 @@ use crate::server::{daemons::{
                 DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse, DaemonTestRequest, DaemonTestResult
             }, base::Daemon
         }
-    }, nodes::storage::NodeStorage, shared::types::api::ApiResponse};
+    }, nodes::{storage::NodeStorage, types::capabilities::NodeCapabilityDiscriminants}, shared::types::api::ApiResponse};
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
@@ -55,9 +55,16 @@ impl DaemonService {
             Some(node) => node,
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };
+
+        let daemon_capability = match daemon_node.get_capability(NodeCapabilityDiscriminants::DaemonService) {
+            Some(d) => d,
+            None => anyhow::bail!("Daemon capability is not enabled on node {}", daemon_node.id)
+        };
+
+        let daemon_endpoint = daemon_capability.build_http_endpoint(&daemon_node.base.target)?;
         
         let response = self.client
-            .post(format!("{}/api/discovery/initiate", daemon_node.base.target.to_string()))
+            .post(format!("{}/api/discovery/initiate", daemon_endpoint))
             .json(&request)
             .send()
             .await?;
@@ -83,9 +90,16 @@ impl DaemonService {
             Some(node) => node,
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };
+
+        let daemon_capability = match daemon_node.get_capability(NodeCapabilityDiscriminants::DaemonService) {
+            Some(d) => d,
+            None => anyhow::bail!("Daemon capability is not enabled on node {}", daemon_node.id)
+        };
+
+        let daemon_endpoint = daemon_capability.build_http_endpoint(&daemon_node.base.target)?;
         
         let response = self.client
-            .post(format!("{}/api/tests/execute", daemon_node.base.target.to_string()))
+            .post(format!("{}/api/tests/execute", daemon_endpoint))
             .json(&request)
             .send()
             .await?;
@@ -107,8 +121,15 @@ impl DaemonService {
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };
 
+        let daemon_capability = match daemon_node.get_capability(NodeCapabilityDiscriminants::DaemonService) {
+            Some(d) => d,
+            None => anyhow::bail!("Daemon capability is not enabled on node {}", daemon_node.id)
+        };
+
+        let daemon_endpoint = daemon_capability.build_http_endpoint(&daemon_node.base.target)?;
+
         let response = self.client
-            .post(format!("{}/api/discovery/cancel", daemon_node.base.target.to_string()))
+            .post(format!("{:?}/api/discovery/cancel", daemon_endpoint))
             .json(&DaemonDiscoveryCancellationRequest { session_id })
             .send()
             .await?;

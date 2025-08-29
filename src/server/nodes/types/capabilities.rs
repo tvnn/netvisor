@@ -1,9 +1,10 @@
+use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use uuid::Uuid;
 
-use crate::{server::shared::types::metadata::TypeMetadataProvider};
+use crate::server::{nodes::types::targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget}, shared::types::{metadata::TypeMetadataProvider}};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CapabilityConfig {
@@ -68,10 +69,11 @@ pub enum NodeCapability {
     },
     HttpService { 
         config: CapabilityConfig,
-        // Future: authentication, SSL config, etc.
+        path: Option<String>,
     },
     HttpsService { 
         config: CapabilityConfig,
+        path: Option<String>,
         // Future: certificate info, auth config, etc.
     },
     DnsService { 
@@ -113,6 +115,33 @@ pub enum NodeCapability {
 }
 
 impl NodeCapability {
+
+    pub fn build_http_endpoint(&self, target: &NodeTarget) -> Result<String, Error> {
+
+        let port = match self.config().port {
+            Some(p) => p,
+            None => return Err(Error::msg("Selected capability does not have a port"))
+        };
+
+        let target = match target {
+            NodeTarget::Hostname(HostnameTargetConfig{hostname}) => hostname.to_string(),
+            NodeTarget::IpAddress(IpAddressTargetConfig{ip}) => ip.to_string()
+        };
+
+        match self {
+            NodeCapability::HttpsService { path, .. } => {
+                let path_str = path.as_deref().unwrap_or("/");
+                Ok(format!("http://{}:{}{}", target, port, path_str))
+            },
+            NodeCapability::HttpService { path, .. } => {
+                let path_str = path.as_deref().unwrap_or("/");
+                Ok(format!("https://{}:{}{}", target, port, path_str))
+            },
+            NodeCapability::DaemonService { .. } => Ok(format!("https://{}:{}", target, port)),
+            _ => Err(Error::msg("Selected capability does not support http endpoints"))
+        }
+    }
+
     pub fn config(&self) -> &CapabilityConfig {
         match self {
             NodeCapability::SshAccess{ config, .. } => config,
