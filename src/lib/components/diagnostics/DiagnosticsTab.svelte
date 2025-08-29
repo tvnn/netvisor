@@ -26,9 +26,6 @@
       handleDelete,
       deletingId
     });
-    
-    diagnosticsActions.loadExecutions();
-
   });
 
   $: diagnosticsActionsStore.update(current => ({ 

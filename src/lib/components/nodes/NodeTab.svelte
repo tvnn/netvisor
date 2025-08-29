@@ -12,7 +12,7 @@
 	import SummaryStats from '../common/SummaryStats.svelte';
 	import TabHeader from '../common/TabHeader.svelte';
 	import SearchField from '../common/SearchField.svelte';
-	import DiscoveryButton from '../discovery/DiscoveryButton.svelte';
+	import DiscoveryStatus from '../discovery/DiscoveryStatus.svelte';
   
   let searchTerm = '';
   let showNodeEditor = false;
@@ -46,11 +46,6 @@
     }
   );
   }
-  
-  onMount(() => {
-    nodeActions.loadNodes();
-    nodeGroupActions.loadGroups();
-  });
   
   function handleCreateNode() {
     editingNode = null;
@@ -101,18 +96,16 @@
     subtitle="Manage network endpoints and services"
     buttons={[
       {
-        type: "component",
-        component: DiscoveryButton
-      },
-      {
         onClick: handleCreateNode,
         cta: "Add Node"
       }
     ]}
      />
 
+  <DiscoveryStatus />
+
   <!-- Summary stats -->
-  {#if $nodes.length > 0}
+  <!-- {#if $nodes.length > 0}
     <SummaryStats 
       totalStatLabel="Total Nodes"
       totalStatValue={$nodes.length}
@@ -125,7 +118,7 @@
     />
   {/if}
 
-  <SearchField searchTerm={searchTerm} placeholder="Search nodes by name, IP, or domain..." />
+  <SearchField searchTerm={searchTerm} placeholder="Search nodes by name, IP, or domain..." /> -->
 
   <Error error={$error} onClear={nodeActions.clearError}/>
 

@@ -2,7 +2,7 @@
   import { ChevronDown } from 'lucide-svelte';
   
   export let label: string = '';
-  export let selectedValue: string = '';
+  export let selectedValue: string | null = '';
   export let options: RichSelectOption[] = [];
   export let placeholder: string = 'Select an option...';
   export let required: boolean = false;
@@ -17,7 +17,7 @@
   export let getOptionBadgeColor: ((option: RichSelectOption) => string) | null = null;
   export let getOptionTag: ((option: RichSelectOption) => RichSelectTag | null) | null = null;
   export let getOptionStatusText: ((option: RichSelectOption) => string | null) | null = null;
-  export let showDescriptionInTrigger: boolean = false;
+  export let showDescriptionInClosedDropdown: boolean = false;
   
   interface RichSelectOption {
     value: string;
@@ -55,7 +55,7 @@
 
 <svelte:window on:click={handleClickOutside} />
 
-<div class="space-y-2" bind:this={dropdownElement}>
+<div class="" bind:this={dropdownElement}>
   <!-- Label -->
   {#if label}
     <div class="block text-sm font-medium text-gray-300">
@@ -96,7 +96,7 @@
           <!-- Label and description -->
           <div class="flex-1 min-w-0 text-left">
             <span class="block truncate">{selectedOption.label}</span>
-            {#if showDescriptionInTrigger && selectedOption.description}
+            {#if showDescriptionInClosedDropdown && selectedOption.description}
               <span class="block text-xs text-gray-400 truncate">{selectedOption.description}</span>
             {/if}
           </div>
@@ -119,7 +119,7 @@
     </button>
     
     <!-- Description below trigger (optional) -->
-    {#if selectedOption && selectedOption.description && !showDescriptionInTrigger}
+    {#if selectedOption && selectedOption.description && !showDescriptionInClosedDropdown}
       <div class="mt-2">
         <p class="text-sm text-gray-400">
           {selectedOption.description}

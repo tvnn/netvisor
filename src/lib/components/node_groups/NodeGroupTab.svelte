@@ -15,12 +15,7 @@
   
   let showGroupEditor = false;
   let editingGroup: NodeGroup | null = null;
-  
-  onMount(() => {
-    nodeGroupActions.loadGroups();
-    nodeActions.loadNodes()
-  });
-  
+    
   function handleCreateGroup() {
     editingGroup = null;
     showGroupEditor = true;

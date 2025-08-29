@@ -18,6 +18,10 @@ export const COLOR_CONFIG: Record<string, Record<string, string>> = {
     green: {
         bgColor: 'bg-green-900/30',
         textColor: 'text-green-400'
+    },
+    gray: {
+        bgColor: 'bg-gray-900/30',
+        textColor: 'text-gray-400'
     }
 } as const;
 

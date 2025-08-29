@@ -3,12 +3,39 @@
   import Sidebar from '../lib/components/common/Sidebar.svelte';
 	import DiagnosticsTab from '$lib/components/diagnostics/DiagnosticsTab.svelte';
 	import NodeGroupTab from '$lib/components/node_groups/NodeGroupTab.svelte';
+	import { onDestroy, onMount } from 'svelte';
+	import { cleanupNodePolling, nodeActions } from '$lib/components/nodes/store';
+	import { daemonActions } from '$lib/components/daemons/store';
+	import { cleanupDiscoveryPolling, discoveryActions } from '$lib/components/discovery/store';
+	import { nodeGroupActions } from '$lib/components/node_groups/store';
+	import { diagnosticsActions } from '$lib/components/diagnostics/store';
+    import { get } from 'svelte/store';
+  import { session_id, daemonSessions } from '$lib/components/discovery/store';
   
   let activeTab = 'nodes';
   
   function handleTabChange(tab: string) {
     activeTab = tab;
   }
+
+  onMount(async () => {
+    // Load initial data
+    await nodeActions.loadNodes();
+    await daemonActions.loadDaemons();
+    await nodeGroupActions.loadGroups();
+    await diagnosticsActions.loadExecutions();
+    
+    // Start continuous node polling for real-time updates
+    nodeActions.startNodePolling();
+    
+    // Check for any active discovery sessions and resume if found
+    await discoveryActions.checkActiveDiscoverySessions();
+  });
+
+  onDestroy(() => {
+    cleanupNodePolling();
+    cleanupDiscoveryPolling();
+  });
 </script>
 
 <div class="min-h-screen bg-gray-900 text-white flex">

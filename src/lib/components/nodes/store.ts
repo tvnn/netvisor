@@ -1,12 +1,46 @@
 import { writable } from 'svelte/store';
 import type { Node, NodeApi } from "$lib/components/nodes/types";
 import { api } from '../../api/client';
+import { createPoller, type Poller } from '../../utils/polling';
 
 export const nodes = writable<Node[]>([]);
 export const loading = writable(false);
 export const error = writable<string | null>(null);
 
+// Create node polling instance
+let nodePoller: Poller | null = null;
+
 export const nodeActions = {
+  startNodePolling() {
+    // Stop any existing polling
+    this.stopNodePolling();
+    
+    // Create and start new poller
+    nodePoller = createPoller({
+      intervalMs: 30000, // 30 seconds
+      onPoll: async () => {
+        await this.loadNodes();
+      },
+      onError: (error) => {
+        console.error('Failed to poll nodes:', error);
+      },
+      name: 'NodePoller'
+    });
+    
+    nodePoller.start();
+  },
+
+  stopNodePolling() {
+    if (nodePoller) {
+      nodePoller.stop();
+      nodePoller = null;
+    }
+  },
+
+  getNodePollingStatus(): boolean {
+    return nodePoller?.getIsRunning() ?? false;
+  },
+
   async loadNodes() {
     loading.set(true);
     error.set(null);
@@ -114,3 +148,8 @@ export const nodeActions = {
     error.set(null);
   }
 };
+
+// Export cleanup function for app-level cleanup
+export function cleanupNodePolling() {
+  nodeActions.stopNodePolling();
+}
