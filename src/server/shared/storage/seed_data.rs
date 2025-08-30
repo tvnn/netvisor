@@ -1,50 +1,57 @@
 use std::net::{IpAddr, Ipv4Addr};
 use uuid::Uuid;
 use crate::server::{
-    nodes::types::{
-        base::Node, capabilities::{CapabilityConfig, NodeCapability}, criticality::TestCriticality, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget}, tests::AssignedTest, types::NodeType
-    }, tests::types::{
-        base::Test,
-        configs::ConnectivityConfig,
-    }
+    capabilities::types::base::Capability, nodes::types::{
+        base::{Node, NodeBase}, status::NodeStatus, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget}, types::NodeType
+    },
 };
 
 pub fn create_internet_connectivity_node(dns_id: Uuid) -> Node {
 
-    let mut node = Node::from_name("Google.com".to_string());
-
-    let connectivity_capability = NodeCapability::HttpsService{ path: Some("/".to_string()), config: CapabilityConfig::from_port(443) };
+    let base = NodeBase {
+        name: "Google.com".to_string(),
+        node_type: NodeType::WebServer,
+        hostname: None,
+        mac_address: None,
+        description: Some("Google.com for connectivity testing".to_string()),
+        target: NodeTarget::Hostname(HostnameTargetConfig { 
+            hostname: "google.com".to_string(), 
+        }),
+        subnets: Vec::new(),
+        discovery_status: None,
+        capabilities: vec![
+            Capability::from_port(443).expect("HTTPS capability maps to 443")
+        ],
+        dns_resolver_node_id: Some(dns_id),
+        status: NodeStatus::Unknown,
+        monitoring_interval: 0,
+        node_groups: Vec::new(),
+    };
     
-    node.base.description = Some("Google.com for connectivity testing".to_string());
-    node.base.target = NodeTarget::Hostname(HostnameTargetConfig { 
-        hostname: "google.com".to_string(), 
-    });
-    node.base.node_type = NodeType::WebServer;
-    node.base.monitoring_interval = 0;
-    node.base.capabilities = vec![connectivity_capability.clone()];
-    node.base.assigned_tests = vec![
-        AssignedTest {
-            test: Test::Connectivity(ConnectivityConfig { capability: connectivity_capability, timeout_ms: Some(5000), dns_resolver_node: Some(dns_id) }),
-            criticality: TestCriticality::Critical
-        }
-    ];
-
-    node
+    Node::new(base)
 }
 
 pub fn create_public_dns_node() -> Node {
 
-    let mut node = Node::from_name("Cloudflare DNS".to_string());
+    let base = NodeBase {
+        name: "Cloudflare".to_string(),
+        node_type: NodeType::DnsServer,
+        hostname: None,
+        mac_address: None,
+        description: Some("Cloudflare DNS for DNS resolution testing".to_string()),
+        target: NodeTarget::IpAddress(IpAddressTargetConfig { 
+            ip: IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 
+        }),
+        subnets: Vec::new(),
+        discovery_status: None,
+        capabilities: vec![
+            Capability::from_port(53).expect("DNS capability maps to 443")
+        ],
+        dns_resolver_node_id: None,
+        status: NodeStatus::Unknown,
+        monitoring_interval: 0,
+        node_groups: Vec::new(),
+    };
     
-    node.base.description = Some("Cloudflare DNS for DNS resolution testing".to_string());
-    node.base.target = NodeTarget::IpAddress(IpAddressTargetConfig { 
-        ip: IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 
-    }); 
-    node.base.node_type = NodeType::DnsServer;
-    node.base.monitoring_interval = 0;
-    node.base.capabilities = vec![
-        NodeCapability::DnsService{ config: CapabilityConfig::from_port(53) },
-    ];
-
-    node
+    Node::new(base)
 }

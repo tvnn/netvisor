@@ -5,16 +5,19 @@ use local_ip_address::local_ip;
 use tokio::{net::TcpStream, time::timeout};
 use get_if_addrs::get_if_addrs;
 
+use crate::server::capabilities::types::base::Capability;
+
 const PORT_SCAN_TIMEOUT: Duration = Duration::from_millis(2000);
 
 /// Perform concurrent port scan on a specific host
-pub async fn port_scan(ip: IpAddr, ports: &Vec<u16>) -> Result<Vec<u16>> {
+pub async fn port_scan(ip: IpAddr) -> Result<Vec<u16>> {
+    let ports: Vec<u16> = Capability::discovery_ports();
     tracing::debug!("Port scanning {} on {} ports", ip, ports.len());
     let mut open_ports = Vec::new();
     
     // Use futures to scan ports concurrently
     let mut handles = Vec::new();
-    for &port in ports {
+    for port in ports {
         let handle = tokio::spawn(async move {
             match timeout(PORT_SCAN_TIMEOUT, TcpStream::connect((ip, port))).await {
                 Ok(Ok(_)) => Some(port),

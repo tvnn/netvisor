@@ -3,21 +3,15 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use cidr::{IpCidr, Ipv4Cidr};
 
-use crate::server::nodes::types::capabilities::{CapabilityConfig, NodeCapability};
-
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq, Hash)]
 pub struct ConnectivityConfig {
     pub timeout_ms: Option<u32>,
-    pub dns_resolver_node: Option<Uuid>,
-    pub capability: NodeCapability
 }
 
 impl Default for ConnectivityConfig {
     fn default() -> Self {
         Self {
             timeout_ms: Some(30000),
-            dns_resolver_node: Some(Uuid::new_v4()),
-            capability: NodeCapability::HttpsService { path: Some("/".to_string()), config: CapabilityConfig::from_port(443) }
         }
     }
 }
@@ -26,7 +20,6 @@ impl Default for ConnectivityConfig {
 pub struct ServiceHealthConfig {
     pub expected_status_code: u16,
     pub timeout_ms: Option<u32>,
-    pub capability: NodeCapability
 }
 
 impl Default for ServiceHealthConfig {
@@ -34,7 +27,6 @@ impl Default for ServiceHealthConfig {
         Self {
             expected_status_code: 200,
             timeout_ms: Some(30000),
-            capability: NodeCapability::HttpsService { path: Some("/".to_string()), config: CapabilityConfig::from_port(443) }
         }
     }
 }
@@ -77,7 +69,6 @@ impl Default for DnsOverHttpsConfig {
 pub struct DnsLookupConfig {
     pub expected_ip: IpAddr,
     pub timeout_ms: Option<u32>,
-    pub dns_resolver_node: Uuid
 }
 
 impl Default for DnsLookupConfig {
@@ -85,7 +76,6 @@ impl Default for DnsLookupConfig {
         Self {
             expected_ip: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             timeout_ms: Some(30000),
-            dns_resolver_node: Uuid::new_v4()
         }
     }
 }
@@ -94,7 +84,6 @@ impl Default for DnsLookupConfig {
 pub struct ReverseDnsConfig {
     pub expected_domain: String,
     pub timeout_ms: Option<u32>,
-    pub dns_resolver_node: Uuid
 }
 
 impl Default for ReverseDnsConfig {
@@ -102,7 +91,6 @@ impl Default for ReverseDnsConfig {
         Self {
             expected_domain: "example.com".to_string(),
             timeout_ms: Some(30000),
-            dns_resolver_node: Uuid::new_v4()
         }
     }
 }

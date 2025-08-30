@@ -95,9 +95,6 @@ async fn update_node(
     if let Some(monitoring_interval) = request.monitoring_interval {
         node.base.monitoring_interval = monitoring_interval;
     }
-    if let Some(assigned_tests) = request.assigned_tests {
-        node.base.assigned_tests = assigned_tests;
-    }
     
     let updated_node = service.update_node(node).await?;
     

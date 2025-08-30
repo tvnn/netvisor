@@ -1,16 +1,16 @@
 use anyhow::Result;
 use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
-use strum::IntoEnumIterator;
 use hostname::get as get_hostname;
 use mac_address::get_mac_address;
+use crate::server::capabilities::types::base::Capability;
+use crate::server::capabilities::types::configs::{DaemonConfig};
 use crate::server::nodes::types::api::{CreateNodeRequest, NodeResponse};
-use crate::server::nodes::types::capabilities::{CapabilityConfig, NodeCapability};
 use crate::{
     daemon::{discovery::{utils::{get_daemon_subnet, get_local_ip_address, port_scan}}, shared::storage::ConfigStore}, server::{
         daemons::types::api::{
             DaemonRegistrationRequest, DaemonRegistrationResponse, 
-        }, discovery::types::base::DiscoveryPort, nodes::types::{base::{Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType}, shared::types::api::ApiResponse
+        }, nodes::types::{base::{Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType}, shared::types::api::ApiResponse
     }
 };
 
@@ -117,8 +117,7 @@ impl DaemonRuntimeService {
         let local_ip = get_local_ip_address()?;
         
         // Scan own ports to detect capabilities
-        let discovery_ports: Vec<u16> = DiscoveryPort::iter().map(|p| p as u16).collect();
-        let open_ports = port_scan(local_ip, &discovery_ports).await?;
+        let open_ports = port_scan(local_ip).await?;
         
         // Get hostname
         let hostname = get_hostname()
@@ -142,10 +141,10 @@ impl DaemonRuntimeService {
             }),
             mac_address,
             capabilities: vec![], // Will be populated below
+            dns_resolver_node_id: None,
             discovery_status: None,
             subnets: vec![get_daemon_subnet()?],
             status: NodeStatus::Unknown,
-            assigned_tests: vec![],
             monitoring_interval: 10,
             node_groups: vec![],
         };
@@ -154,13 +153,12 @@ impl DaemonRuntimeService {
 
         // Add capabilities from detected ports using existing method
         for port in &open_ports {
-            node.add_capability_from_port(*port);
-        }
+            if let Some(capability) = Capability::from_port(*port) {
+                node.add_capability(capability);
+            }
+        };
 
-        node.base.capabilities.push(NodeCapability::DaemonService { 
-            config: CapabilityConfig::system(Some(own_port), None),
-            daemon_id
-        });
+        node.add_capability(Capability::Daemon(DaemonConfig::new(&node, own_port, daemon_id)));
 
         let server_target = self.config_store.get_server_endpoint().await?;
 

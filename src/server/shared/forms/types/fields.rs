@@ -1,11 +1,5 @@
-use serde::{Deserialize, Serialize};
-use crate::server::nodes::types::capabilities::NodeCapability;
-use crate::server::nodes::types::types::NodeType;
-
+use serde::{Serialize};
 use crate::server::shared::types::metadata::TypeMetadata;
-use crate::server::{
-    nodes::types::{targets::NodeTarget}
-};
 
 #[derive(Serialize, Debug, Clone)]
 pub struct TestConfigSchema {
@@ -79,12 +73,4 @@ pub enum MessageSeverity {
     Error,
     Warning,
     Info,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct NodeContext {
-    pub node_id: Option<String>,
-    pub node_type: NodeType,
-    pub capabilities: Vec<NodeCapability>,
-    pub target: NodeTarget,
 }

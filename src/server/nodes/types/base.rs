@@ -2,11 +2,9 @@ use cidr::{IpCidr};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
-use DiscoveryPort::*;
-use crate::server::{discovery::types::base::DiscoveryPort, nodes::types::{capabilities::{CapabilityConfig, NodeCapability, NodeCapabilityDiscriminants}, criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}, tests::types::{base::Test, configs::ConnectivityConfig, execution::TestResult}};
+use crate::server::{capabilities::types::{base::{Capability, CapabilityDiscriminants}, configs::{NodeConfig}}, nodes::types::{criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}, tests::types::execution::TestResult};
 use super::{
     types::{NodeType},
-    tests::{AssignedTest},
 };
 use uuid::{Uuid};
 
@@ -22,11 +20,11 @@ pub struct NodeBase {
     
     // Discovery & Capability Data
     pub discovery_status: Option<DiscoveryStatus>,
-    pub capabilities: Vec<NodeCapability>,
+    pub capabilities: Vec<Capability>,
+    pub dns_resolver_node_id: Option<Uuid>,
     
     // Monitoring
     pub status: NodeStatus,
-    pub assigned_tests: Vec<AssignedTest>,
     pub monitoring_interval: u16,
     pub node_groups: Vec<Uuid>,
 }
@@ -60,35 +58,39 @@ impl Node {
         }
     }
 
-    pub fn default_tests() -> Vec<AssignedTest> {
-        vec!(
-            AssignedTest {
-                test: Test::Connectivity(ConnectivityConfig::default()),
-                criticality: TestCriticality::Critical,
-            }
-        )
-    }
-    
     // Helper constructor for just a name
     pub fn from_name(name: String) -> Self {
+
         let base = NodeBase {
             name,
             description: None,
             hostname: None,
-            target: NodeTarget::IpAddress(IpAddressTargetConfig::default()),
             node_type: NodeType::UnknownDevice,
             discovery_status: None,
             
             mac_address: None,
             subnets: Vec::new(),
             capabilities: Vec::new(),
+            dns_resolver_node_id: None,
+            target: NodeTarget::IpAddress(IpAddressTargetConfig::default()),
 
             status: NodeStatus::Unknown,
-            assigned_tests: Node::default_tests(),
             monitoring_interval: 5,
             node_groups: Vec::new(),
         };
-        Self::new(base)
+        let mut node = Self::new(base);
+        let node_capability = Capability::Node(NodeConfig::new(&node));
+        node.base.capabilities.push(node_capability);
+        node
+    }
+
+    pub fn as_context(&self) -> NodeContext {
+        NodeContext { 
+            node_id: Some(self.id), 
+            node_type: self.base.node_type.clone(), 
+            capabilities: self.base.capabilities.clone(), 
+            target: self.base.target.clone()
+        }
     }
     
     // Node group management
@@ -136,99 +138,30 @@ impl Node {
         self.base.status = new_status;
     }
 
-    pub fn has_capability(&self, capability_discriminant: NodeCapabilityDiscriminants) -> bool{
+    pub fn has_capability(&self, capability_discriminant: CapabilityDiscriminants) -> bool{
         self.base.capabilities.iter().any(|c| c.discriminant() == capability_discriminant)
     }
 
-    pub fn get_capability(&self, capability_discriminant: NodeCapabilityDiscriminants) -> Option<&NodeCapability>{
+    pub fn get_capability(&self, capability_discriminant: CapabilityDiscriminants) -> Option<&Capability>{
         self.base.capabilities.iter().find(|c| c.discriminant() == capability_discriminant)
     }
 
-    pub fn add_capability_from_port(&mut self, port: u16) {
-        let capability = match DiscoveryPort::try_from(port).ok() {
-            Some(Ssh) => NodeCapability::SshAccess {
-                config: CapabilityConfig::from_port(port),
-            },
-            Some(Dns) => NodeCapability::DnsService {
-                config: CapabilityConfig::from_port(port),
-            },
-            Some(Http | HttpAlt) => NodeCapability::HttpService {
-                config: CapabilityConfig::from_port(port),
-                path: Some("/".to_string())
-            },
-            Some(Https | HttpsAlt) => NodeCapability::HttpsService {
-                config: CapabilityConfig::from_port(port),
-                path: Some("/".to_string())
-            },
-            Some(WireGuard) => NodeCapability::WireGuardService {
-                config: CapabilityConfig::from_port(port),
-            },
-            Some(OpenVpn | Pptp) => NodeCapability::OpenVpnService {
-                config: CapabilityConfig::from_port(port),
-            },
-            Some(IpsecIke | IpsecNat) => NodeCapability::IpsecService {
-                config: CapabilityConfig::from_port(port),
-            },
-            Some(Snmp | SnmpTrap) => NodeCapability::SnmpService {
-                config: CapabilityConfig::from_port(port),
-            },
-            Some(Rdp) => NodeCapability::RdpService {
-                config: CapabilityConfig::from_port(port),
-            },
-            Some(Telnet) => NodeCapability::TelnetService {
-                config: CapabilityConfig::from_port(port),
-            },
-            Some(Dhcp) => NodeCapability::DhcpService {
-                config: CapabilityConfig::from_port(port),
-            },
-            None => return,
-        };
-        
-        // Check if we already have this capability type and update it, or add new
-        if let Some(existing) = self.base.capabilities.iter_mut().find(|cap| {
-            std::mem::discriminant(*cap) == std::mem::discriminant(&capability)
-        }) {
-            existing.config_mut().set_port(port);
-        } else {
-            self.base.capabilities.push(capability);
-        }
+    pub fn add_capability(&mut self, capability: Capability) {        
+        self.base.capabilities.push(capability);
     }
+}
 
-    // pub fn add_capability_from_process(&mut self, process_name: &str) {
-    //     let service_capabilities: Vec<NodeCapability> = match process_name.to_lowercase().as_str() {
-    //         name if name.contains("wg") || name.contains("wireguard") => 
-    //             vec![NodeCapability::WireGuardService {
-    //                 config: CapabilityConfig::from_process(process_name.to_string()),
-    //             }],
-    //         name if name.contains("openvpn") => 
-    //             vec![NodeCapability::OpenVpnService {
-    //                 config: CapabilityConfig::from_process(process_name.to_string()),
-    //             }],
-    //         name if name.contains("nginx") || name.contains("apache") || name.contains("httpd") => 
-    //             vec![
-    //                 NodeCapability::HttpService {
-    //                     config: CapabilityConfig::from_process(process_name.to_string()),
-    //                 },
-    //                 NodeCapability::HttpsService {
-    //                     config: CapabilityConfig::from_process(process_name.to_string()),
-    //                 }
-    //             ],
-    //         name if name.contains("sshd") => 
-    //             vec![NodeCapability::SshAccess {
-    //                 config: CapabilityConfig::from_process(process_name.to_string()),
-    //             }],
-    //         _ => vec![],
-    //     };
-        
-    //     for capability in service_capabilities {
-    //         // Check if we already have this capability type and update it, or add new
-    //         if let Some(existing) = self.base.capabilities.iter_mut().find(|cap| {
-    //             std::mem::discriminant(*cap) == std::mem::discriminant(&capability)
-    //         }) {
-    //             existing.config_mut().set_process(process_name.to_string());
-    //         } else {
-    //             self.base.capabilities.push(capability);
-    //         }
-    //     }
-    // }
+// Used during node form to generate capability form based on provided but unsaved information
+#[derive(Debug, Clone, Deserialize)]
+pub struct NodeContext {
+    pub node_id: Option<Uuid>,
+    pub node_type: NodeType,
+    pub capabilities: Vec<Capability>,
+    pub target: NodeTarget,
+}
+
+impl NodeContext {
+    pub fn has_capability(&self, capability_discriminant: CapabilityDiscriminants) -> bool{
+        self.capabilities.iter().any(|c| c.discriminant() == capability_discriminant)
+    }
 }

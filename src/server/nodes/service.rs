@@ -1,4 +1,5 @@
 use anyhow::Result;
+use futures::future::join_all;
 use uuid::Uuid;
 use std::{sync::Arc};
 use crate::server::{
@@ -69,15 +70,20 @@ impl NodeService {
     }
 
     pub async fn execute_tests(&self, node: &mut Node) -> NodeTestResults {
-        let tests = &node.base.assigned_tests;
-        let mut test_results: Vec<TestResult> = Vec::new();
-
+        
         let timer = Timer::now();
 
-        for assigned in tests{
-            let result = self.test_service.execute_assigned_test(assigned, &node, &self).await;
-            test_results.push(result)
-        };
+        let test_futures: Vec<_> = node.base.capabilities.iter()
+            .flat_map(|capability| 
+                capability.config_base().tests.iter()
+                    .filter(|test| test.enabled)
+                    .map(|test| 
+                        self.test_service.execute_test(test, node, capability, &self)
+                    )
+            )
+            .collect();
+
+        let test_results: Vec<TestResult> = join_all(test_futures).await;
 
         node.update_status_from_tests(&test_results);
 

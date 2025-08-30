@@ -23,7 +23,7 @@ impl fmt::Display for NodeTarget {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct IpAddressTargetConfig {
-    pub ip: IpAddr,
+    pub ip: IpAddr
 }
 
 impl Default for IpAddressTargetConfig {
@@ -36,7 +36,7 @@ impl Default for IpAddressTargetConfig {
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct HostnameTargetConfig {
-    pub hostname: String,
+    pub hostname: String
 }
 
 impl Default for HostnameTargetConfig {

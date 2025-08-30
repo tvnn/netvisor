@@ -71,9 +71,10 @@ async fn main() -> anyhow::Result<()> {
     // Load unified configuration
     let config = AppConfig::load(cli_args)?;
     let (_, path) = AppConfig::get_config_path()?;
+    let path_str = path.to_str().unwrap_or("Config path could not be converted to string");
     
     // Initialize unified storage with full config
-    let storage = Arc::new(ConfigStore::new(path, config.clone()));
+    let storage = Arc::new(ConfigStore::new(path.clone(), config.clone()));
     storage.initialize().await?;
     
     let mut runtime_service = DaemonRuntimeService::new(storage.clone());
@@ -138,6 +139,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("🔧 Health check: http://{}/health", own_addr);
     tracing::info!("🔍 Discovery endpoint: http://{}/discover", own_addr);
     tracing::info!("🧪 Test execution endpoint: http://{}/execute_test", own_addr);
+    tracing::info!("📁 Config file: {:?}", path_str);
     
     axum::serve(listener, app).await?;
     

@@ -1,11 +1,13 @@
+use cidr::IpCidr;
 use serde::{Deserialize, Serialize};
-use crate::server::nodes::{types::capabilities::NodeCapability, types::status::NodeStatus};
+use crate::server::capabilities::types::base::Capability;
+use crate::server::nodes::types::base::DiscoveryStatus;
+use crate::server::nodes::{types::status::NodeStatus};
 use crate::server::nodes::types::targets::NodeTarget;
 
 use super::{
     base::{NodeBase, Node},
     types::{NodeType},
-    tests::{AssignedTest}
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -20,20 +22,17 @@ pub struct UpdateNodeRequest {
     pub node_type: Option<NodeType>,
     pub target: Option<NodeTarget>,
     pub description: Option<Option<String>>,
+    pub subnets: Option<Vec<IpCidr>>,
         
     // Discovery & Capability Data
-    pub open_ports: Option<Vec<u16>>,
-    pub mac_address: Option<Option<String>>,
-    pub capabilities: Option<Vec<NodeCapability>>,
+    pub discovery_status: Option<DiscoveryStatus>,
+    pub capabilities: Option<Vec<Capability>>,
+    pub dns_resolver_node_id: Option<String>,
     
     // Monitoring
-    pub assigned_tests: Option<Vec<AssignedTest>>,
+    pub status: Option<NodeStatus>,
     pub monitoring_interval: Option<u16>,
     pub node_groups: Option<Vec<String>>,
-    
-    // Topology visualization
-    pub current_status: Option<NodeStatus>,
-    pub subnet_membership: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

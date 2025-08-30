@@ -212,27 +212,3 @@ pub async fn execute_reverse_dns_lookup_test(
         criticality: None,
     })
 }
-
-/// Execute DNS over HTTPS test - test DoH capability (placeholder implementation)
-pub async fn execute_dns_over_https_test(
-    config: &DnsOverHttpsConfig,
-    timer: &Timer,
-    node: &Node,
-) -> Result<TestResult> {
-    // This is a more complex test that would require implementing DoH protocol
-    // For now, return a placeholder indicating it needs implementation
-    
-    Ok(TestResult {
-        success: false,
-        message: format!("DNS-over-HTTPS test not yet implemented for domain: {}", config.domain),
-        duration_ms: timer.elapsed_ms(),
-        executed_at: timer.datetime(),
-        details: Some(serde_json::json!({
-            "domain": config.domain,
-            "expected_ip": config.expected_ip,
-            "node_target": node.base.target.to_string(),
-            "implementation_status": "TODO: Implement DoH protocol support"
-        })),
-        criticality: None,
-    })
-}

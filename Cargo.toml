@@ -77,3 +77,5 @@ directories-next = "2.0.0"
 figment = { version = "0.10", features = ["json", "env"] }
 tokio-util = "0.7.16"
 fastrand = "2.3.0"
+url = "2.5.7"
+url-builder = "0.1.1"

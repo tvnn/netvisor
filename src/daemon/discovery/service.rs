@@ -5,16 +5,13 @@ use chrono::{DateTime, Utc};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use futures::stream::{self, StreamExt};
-use strum::IntoEnumIterator;
 use std::result::Result::Ok;
 use crate::{
     daemon::{discovery::{manager::DaemonDiscoverySessionManager, types::base::DiscoveryPhase, utils::{arp_lookup, get_daemon_subnet, get_local_ip_address, port_scan, reverse_dns_lookup}}, shared::storage::ConfigStore},
     server::{
-        daemons::types::api::{DaemonDiscoveryUpdate, DaemonDiscoveryRequest},
-        discovery::types::base::DiscoveryPort,
-        nodes::types::{
+        capabilities::types::base::Capability, daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, nodes::types::{
             api::CreateNodeRequest, base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType
-        },
+        }
     },
 };
 
@@ -60,7 +57,6 @@ impl DaemonDiscoveryService {
         let daemon_subnet = get_daemon_subnet()?;
         tracing::info!("Found daemon subnet {}", daemon_subnet);
         let local_ip = get_local_ip_address()?;
-        let discovery_ports: Vec<u16> = DiscoveryPort::iter().map(|p| p as u16).collect();
 
         let discovery_result = self.scan_and_process_hosts(
                 &daemon_subnet,
@@ -68,7 +64,6 @@ impl DaemonDiscoveryService {
                 daemon_id,
                 started_at,
                 cancel.clone(),
-                &discovery_ports,
                 local_ip,
                 discovered_count.clone()
             ).await;
@@ -132,7 +127,6 @@ impl DaemonDiscoveryService {
         daemon_id: Uuid,
         started_at: DateTime<Utc>,
         cancel: CancellationToken,
-        discovery_ports: &[u16],
         local_ip: IpAddr,
         discovered_count: Arc<std::sync::atomic::AtomicUsize>
     ) -> Result<()> {
@@ -161,13 +155,11 @@ impl DaemonDiscoveryService {
                 let discovered_count = discovered_count.clone();
                 let session_id = session_id;
                 let subnet = *subnet;
-                let discovery_ports = discovery_ports.to_vec();
                 
                 move |ip| {
                     let cancel = cancel.clone();
                     let scanned_count = scanned_count.clone();
                     let discovered_count = discovered_count.clone();
-                    let discovery_ports = discovery_ports.clone();
                     
                     async move {
                         if cancel.is_cancelled() {
@@ -181,7 +173,7 @@ impl DaemonDiscoveryService {
                         }
 
                         // Port scan directly - if ports are open, host is alive
-                        match port_scan(ip, &discovery_ports).await {
+                        match port_scan(ip).await {
                             Ok(open_ports) if !open_ports.is_empty() => {
                                 // Process this host immediately
                                 if let Err(e) = self.process_discovered_host(
@@ -288,14 +280,16 @@ impl DaemonDiscoveryService {
             }),
             subnets: vec![*subnet],
             capabilities: Vec::new(),
+            dns_resolver_node_id: None,
             node_type: NodeType::UnknownDevice,
-            assigned_tests: Vec::new(),
             monitoring_interval: 5,
             node_groups: Vec::new(),
         });
 
         for port in &open_ports {
-            node.add_capability_from_port(*port);
+            if let Some(capability) = Capability::from_port(*port) {
+                node.add_capability(capability);
+            }
         }
         
         self.create_discovered_node(session_id, &node).await?;

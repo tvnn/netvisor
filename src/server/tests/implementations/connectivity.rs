@@ -3,11 +3,10 @@ use anyhow::Error;
 use reqwest::Client;
 use tokio::{net::TcpStream, time::timeout};
 use crate::server::{
-    nodes::{types::{
+    capabilities::types::{base::Capability, configs::{HttpEndpointCompatible}}, nodes::types::{
         base::Node, 
         targets::NodeTarget
-    }}, 
-    tests::{types::{configs::*, execution::*}, utilities::dns::{DnsServerConfig, DnsUtils}}
+    }, tests::{types::{configs::*, execution::*}, utilities::dns::{DnsServerConfig, DnsUtils}}
 };
 
 /// Execute connectivity test - tests TCP connection to node's target
@@ -15,11 +14,12 @@ pub async fn execute_connectivity_test(
     config: &ConnectivityConfig,
     timer: &Timer,
     node: &Node,
-    dns_server: Option<&DnsServerConfig>
+    dns_server: Option<&DnsServerConfig>,
+    capability: &Capability
 ) -> Result<TestResult, Error> {
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
 
-    let port = match config.capability.config().port {
+    let port = match capability.config_base().port {
         Some(p) => p,
         None => return Err(Error::msg("Selected capability does not have a port"))
     };
@@ -99,10 +99,16 @@ pub async fn execute_service_health_test(
     config: &ServiceHealthConfig,
     timer: &Timer,
     node: &Node,
+    capability: &Capability
 ) -> Result<TestResult, Error> {
     let timeout_duration = Duration::from_millis(config.timeout_ms.unwrap_or(30000) as u64);
     
-    let service_url = config.capability.build_http_endpoint(&node.base.target)?;
+    let service_url = match capability {
+        Capability::Daemon(config) => config.as_endpoint(&node.base.target),
+        Capability::Http(config) => config.as_endpoint(&node.base.target),
+        Capability::Https(config) => config.as_endpoint(&node.base.target),
+        _ => Err(Error::msg(format!("Capability {} for node {} doesn't support endpoints", capability.config_base().name, node.id))),
+    }?;
     
     // Create HTTP client with timeout
     let client = Client::builder()

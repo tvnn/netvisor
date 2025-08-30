@@ -1,5 +1,5 @@
 use crate::server::{
-        nodes::{service::NodeService, types::{base::Node, tests::AssignedTest}}, tests::types::execution::{TestResult, Timer}
+        capabilities::types::base::{Capability, CapabilityTest}, nodes::{service::NodeService, types::base::Node}, tests::types::execution::{TestResult, Timer}
     };
 
 pub struct TestService {}
@@ -9,23 +9,13 @@ impl TestService {
         Self {}
     }
 
-    // pub async fn execute_test(&self, test: &Test, node: &Node) -> TestResult {
-    //     let timer = Timer::now();
-    //     let test_result = test.execute(&timer, &node).await;
+    pub async fn execute_test(&self, capability_test: &CapabilityTest, node: &Node, capability: &Capability, node_service: &NodeService) -> TestResult {
 
-    //     match test_result {
-    //         Ok(result) => result,
-    //         Err(e) => TestResult::error_result(e, None, timer)
-    //     }
-    // }
-
-    pub async fn execute_assigned_test(&self, assigned_test: &AssignedTest, node: &Node, node_service: &NodeService) -> TestResult {
-
-        let test = &assigned_test.test;
-        let criticality = &assigned_test.criticality;
+        let test = &capability_test.test;
+        let criticality = &capability_test.criticality;
         let timer = Timer::now();
 
-        let test_result = test.execute(&timer, &node, &node_service).await;
+        let test_result = test.execute(&timer, &node, capability, &node_service).await;
 
         match test_result {
             Ok(mut result) => {

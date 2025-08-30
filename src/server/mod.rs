@@ -6,3 +6,4 @@ pub mod daemons;
 pub mod shared;
 pub mod config;
 pub mod discovery;
+pub mod capabilities;

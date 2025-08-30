@@ -3,7 +3,7 @@ use anyhow::Result;
 use cidr::IpCidr;
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::nodes::types::{base::{DiscoveryStatus, Node, NodeBase}, capabilities::NodeCapability, status::NodeStatus, targets::NodeTarget, tests::AssignedTest, types::NodeType};
+use crate::server::{capabilities::types::base::Capability, nodes::types::{base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::NodeTarget, types::NodeType}};
 
 #[async_trait]
 pub trait NodeStorage: Send + Sync {
@@ -29,7 +29,6 @@ impl SqliteNodeStorage {
 impl NodeStorage for SqliteNodeStorage {
     async fn create(&self, node: &Node) -> Result<()> {
         let capabilities_str = serde_json::to_string(&node.base.capabilities)?;
-        let assigned_tests_str = serde_json::to_string(&node.base.assigned_tests)?;
         let node_groups_str = serde_json::to_string(&node.base.node_groups)?;
         let subnets_str = serde_json::to_string(&node.base.subnets)?;
         let node_type_str = serde_json::to_string(&node.base.node_type)?;
@@ -44,30 +43,30 @@ impl NodeStorage for SqliteNodeStorage {
         sqlx::query(
             r#"
             INSERT INTO nodes (
-                id, name, hostname, target, description,
-                node_type, capabilities, assigned_tests, monitoring_interval,
+                id, name, hostname, dns_resolver_id, target, description,
+                node_type, capabilities, monitoring_interval,
                 node_groups, status, discovery_status, subnets,
                 mac_address, last_seen, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
-        .bind(&node.id)                        // id
-        .bind(&node.base.name)                 // name
-        .bind(&node.base.hostname)             // hostname (plain string)
-        .bind(target_str)                      // target (JSON)
-        .bind(&node.base.description)          // description (plain string)
-        .bind(node_type_str)                   // node_type (JSON)
-        .bind(capabilities_str)                // capabilities (JSON)
-        .bind(assigned_tests_str)              // assigned_tests (JSON)
-        .bind(node.base.monitoring_interval)   // monitoring_interval
-        .bind(node_groups_str)                 // node_groups (JSON)
-        .bind(status_str)                      // status (JSON)
-        .bind(discovery_status_str)            // discovery_status (JSON)
-        .bind(subnets_str)                     // subnets (JSON)
-        .bind(&node.base.mac_address)          // mac_address (plain string)
-        .bind(last_seen_str)                   // last_seen (plain string)
-        .bind(&node.created_at.to_rfc3339())   // created_at
-        .bind(&node.updated_at.to_rfc3339())   // updated_at
+        .bind(&node.id)
+        .bind(&node.base.name)
+        .bind(&node.base.hostname)
+        .bind(&node.base.dns_resolver_node_id)
+        .bind(target_str)
+        .bind(&node.base.description)
+        .bind(node_type_str)
+        .bind(capabilities_str)
+        .bind(node.base.monitoring_interval)
+        .bind(node_groups_str)
+        .bind(status_str)
+        .bind(discovery_status_str)
+        .bind(subnets_str)
+        .bind(&node.base.mac_address)
+        .bind(last_seen_str)
+        .bind(&node.created_at.to_rfc3339())
+        .bind(&node.updated_at.to_rfc3339())
         .execute(&self.pool)
         .await?;
 
@@ -101,7 +100,6 @@ impl NodeStorage for SqliteNodeStorage {
 
     async fn update(&self, node: &Node) -> Result<()> {
         let capabilities_str = serde_json::to_string(&node.base.capabilities)?;
-        let assigned_tests_str = serde_json::to_string(&node.base.assigned_tests)?;
         let node_groups_str = serde_json::to_string(&node.base.node_groups)?;
         let subnets_str = serde_json::to_string(&node.base.subnets)?;
         let node_type_str = serde_json::to_string(&node.base.node_type)?;
@@ -113,9 +111,9 @@ impl NodeStorage for SqliteNodeStorage {
         sqlx::query(
             r#"
             UPDATE nodes SET 
-                name = ?, node_type = ?, hostname = ?, mac_address = ?, description = ?,
+                name = ?, node_type = ?, hostname = ?, dns_resolver_id = ?, mac_address = ?, description = ?,
                 target = ?, subnets = ?, discovery_status = ?, capabilities = ?, 
-                status = ?, assigned_tests = ?, monitoring_interval = ?, node_groups = ?,
+                status = ?, monitoring_interval = ?, node_groups = ?,
                 last_seen = ?, updated_at = ?
             WHERE id = ?
             "#
@@ -123,6 +121,7 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(&node.base.name)
         .bind(node_type_str)
         .bind(&node.base.hostname)
+        .bind(&node.base.dns_resolver_node_id)
         .bind(&node.base.mac_address)
         .bind(&node.base.description)
         .bind(target_str)
@@ -130,7 +129,6 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(discovery_status_str)
         .bind(capabilities_str)
         .bind(status_str)
-        .bind(assigned_tests_str)
         .bind(node.base.monitoring_interval)
         .bind(node_groups_str)
         .bind(last_seen_str)
@@ -168,8 +166,7 @@ impl NodeStorage for SqliteNodeStorage {
 
 fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
     // Parse JSON fields safely
-    let capabilities: Vec<NodeCapability> = serde_json::from_str(&row.get::<String, _>("capabilities"))?;
-    let assigned_tests: Vec<AssignedTest> = serde_json::from_str(&row.get::<String, _>("assigned_tests"))?;
+    let capabilities: Vec<Capability> = serde_json::from_str(&row.get::<String, _>("capabilities"))?;
     let node_groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("node_groups"))?;
     let subnets: Vec<IpCidr> = serde_json::from_str(&row.get::<String, _>("subnets"))?;
     let status: NodeStatus = serde_json::from_str(&row.get::<String, _>("status"))?;
@@ -206,11 +203,11 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
             name: row.get("name"),
             target,
             hostname: row.get("hostname"), // Plain string
+            dns_resolver_node_id: row.get("dns_resolver_id"),
             description: row.get("description"), // Plain string  
             node_type,
             capabilities,
             discovery_status,
-            assigned_tests,
             mac_address: row.get("mac_address"), // Plain string
             monitoring_interval: row.get("monitoring_interval"),
             node_groups,

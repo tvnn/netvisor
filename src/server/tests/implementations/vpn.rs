@@ -3,18 +3,23 @@ use anyhow::{Error, Result};
 use cidr::IpCidr;
 use if_addrs::{get_if_addrs, IfAddr};
 use crate::server::{
-    nodes::types::{base::Node, targets::NodeTarget},
-    tests::{types::{configs::*, execution::*}, utilities::dns::{DnsServerConfig, DnsUtils}}
+    capabilities::types::{base::Capability, configs::HttpEndpointCompatible}, nodes::types::{base::Node, targets::NodeTarget}, tests::{types::{configs::*, execution::*}, utilities::dns::{DnsServerConfig, DnsUtils}}
 };
 
 pub async fn execute_vpn_subnet_access_test(
     config: &VpnSubnetAccessConfig,
     timer: &Timer,
     node: &Node,
-    dns_server: Option<&DnsServerConfig>
+    dns_server: Option<&DnsServerConfig>,
+    capability: &Capability
 ) -> Result<TestResult> {
     let expected_subnet = &config.expected_subnet;
-    let vpn_server_description = node.base.target.to_string();
+    let service_url = match capability {
+        Capability::Daemon(config) => config.as_endpoint(&node.base.target),
+        Capability::Http(config) => config.as_endpoint(&node.base.target),
+        Capability::Https(config) => config.as_endpoint(&node.base.target),
+        _ => Err(Error::msg(format!("Capability {} for node {} doesn't support endpoints", capability.config_base().name, node.id))),
+    }?;
     
     // Extract actual VPN server IP for networking operations, using DNS capability for hostnames
     let vpn_server_ip = match &node.base.target {
@@ -24,7 +29,7 @@ pub async fn execute_vpn_subnet_access_test(
         NodeTarget::Hostname(hostname_config) => {
 
             let Some(dns) = dns_server else {
-                return Err(Error::msg("VPN Subnet test targeting service requires a DNS resolver in test config"))
+                return Err(Error::msg("VPN Subnet test targeting hostname requires a DNS resolver"))
             };
 
             match DnsUtils::resolve_domain(dns, &hostname_config.hostname, config.timeout_ms).await {
@@ -45,7 +50,7 @@ pub async fn execute_vpn_subnet_access_test(
                 true,
                 format!("Subnet {} is accessible via {}", expected_subnet, access_info.method),
                 serde_json::json!({
-                    "vpn_server": vpn_server_description,
+                    "vpn_server": service_url,
                     "vpn_server_ip": vpn_server_ip,
                     "expected_subnet": expected_subnet,
                     "access_method": access_info.method,
@@ -59,7 +64,7 @@ pub async fn execute_vpn_subnet_access_test(
                 false,
                 format!("No access to subnet {} detected", expected_subnet),
                 serde_json::json!({
-                    "vpn_server": vpn_server_description,
+                    "vpn_server": service_url,
                     "vpn_server_ip": vpn_server_ip,
                     "expected_subnet": expected_subnet,
                     "error": "No route or connectivity to expected subnet found",
@@ -72,7 +77,7 @@ pub async fn execute_vpn_subnet_access_test(
                 false,
                 format!("Failed to check subnet accessibility: {}", e),
                 serde_json::json!({
-                    "vpn_server": vpn_server_description,
+                    "vpn_server": service_url,
                     "vpn_server_ip": vpn_server_ip,
                     "expected_subnet": expected_subnet,
                     "error": e.to_string(),

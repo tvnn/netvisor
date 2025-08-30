@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
-use strum_macros::EnumIter;
+use strum_macros::{Display, EnumDiscriminants, EnumIter};
 
 use crate::server::shared::types::metadata::TypeMetadataProvider;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
+#[strum_discriminants(derive(Display, EnumIter))]
 pub enum TestCriticality {
     Critical,        // Failure = NodeStatus::Failed
     Important,       // Failure = NodeStatus::Degraded  
