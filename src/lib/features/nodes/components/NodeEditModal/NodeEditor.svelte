@@ -4,7 +4,7 @@
   import EditModal from '$lib/shared/components/forms/EditModal.svelte';
   import DetailsForm from './Details/DetailsForm.svelte';
   import CapabilitiesForm from './Capabilities/CapabilitiesForm.svelte';
-	import Monitoring from "./Capabilities/Monitoring.svelte";
+	import Monitoring from "./Details/Monitoring.svelte";
   
   export let node: Node | null = null;
   export let isOpen = false;
@@ -181,12 +181,6 @@
       {#if !isEditing}
         <h3 class="text-lg font-medium text-white mb-4">Capabilities & Monitoring</h3>
       {/if}
-      
-      <!-- Monitoring Section at top of capabilities tab -->
-      <div class="mb-6 p-4 bg-gray-800/50 rounded-lg border border-gray-700">
-        <h4 class="text-sm font-medium text-gray-300 mb-4">Monitoring Configuration</h4>
-        <Monitoring bind:formData={formData} />
-      </div>
       
       <!-- Capabilities Section -->
       <div>

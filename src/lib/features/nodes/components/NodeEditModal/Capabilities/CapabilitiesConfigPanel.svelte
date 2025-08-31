@@ -1,9 +1,9 @@
 <script lang="ts">
   import { ChevronDown, ChevronRight, ToggleLeft, ToggleRight } from 'lucide-svelte';
-  import type { Capability } from '$lib/features/capabilities/types/base';
+  import DynamicField from '$lib/shared/components/forms/DynamicField.svelte';
+  import { getCapabilityConfig, getCapabilityType, updateCapabilityConfig, type Capability } from '$lib/features/capabilities/types/base';
   import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
   import { createStyle } from '$lib/shared/utils/styling';
-	import DynamicField from '../../../../../shared/components/forms/DynamicField.svelte';
 
   export let capability: Capability | null = null;
   export let schema: CapabilityConfigForm | null = null;
@@ -15,18 +15,25 @@
 
   // Initialize form data when capability changes
   $: if (capability) {
-    capabilityName = capability.name;
-    capabilityConfig = { ...capability.config };
+    const config = getCapabilityConfig(capability);
+    
+    capabilityName = config.name;
+    capabilityConfig = { ...config };
   }
 
   // Update capability when form data changes
-  $: if (capability && (capabilityName !== capability.name || JSON.stringify(capabilityConfig) !== JSON.stringify(capability.config))) {
-    const updatedCapability: Capability = {
-      ...capability,
-      name: capabilityName,
-      config: capabilityConfig
-    };
-    onChange(updatedCapability);
+  $: if (capability && schema) {
+    const currentConfig = getCapabilityConfig(capability);
+    const hasNameChanged = capabilityName !== currentConfig.name;
+    const hasConfigChanged = JSON.stringify(capabilityConfig) !== JSON.stringify(currentConfig);
+    
+    if (hasNameChanged || hasConfigChanged) {
+      const updatedCapability = updateCapabilityConfig(capability, {
+        ...capabilityConfig,
+        name: capabilityName
+      });
+      onChange(updatedCapability);
+    }
   }
 
   function toggleSection(sectionId: string) {
@@ -41,23 +48,22 @@
   function toggleTest(testIndex: number) {
     if (!capability) return;
     
-    const updatedTests = [...capability.tests];
+    const config = getCapabilityConfig(capability);
+    const updatedTests = [...config.tests];
     updatedTests[testIndex] = {
       ...updatedTests[testIndex],
       enabled: !updatedTests[testIndex].enabled
     };
     
-    const updatedCapability: Capability = {
-      ...capability,
-      tests: updatedTests
-    };
+    const updatedCapability = updateCapabilityConfig(capability, { tests: updatedTests });
     onChange(updatedCapability);
   }
 
   function updateTestConfig(testIndex: number, field: string, value: any) {
     if (!capability) return;
     
-    const updatedTests = [...capability.tests];
+    const config = getCapabilityConfig(capability);
+    const updatedTests = [...config.tests];
     const currentTest = updatedTests[testIndex];
     
     // Type-safe update based on known CapabilityTest fields
@@ -79,10 +85,7 @@
       } as any;
     }
     
-    const updatedCapability: Capability = {
-      ...capability,
-      tests: updatedTests
-    };
+    const updatedCapability = updateCapabilityConfig(capability, { tests: updatedTests });
     onChange(updatedCapability);
   }
 
@@ -107,6 +110,7 @@
     </div>
   </div>
 {:else}
+  {@const config = getCapabilityConfig(capability)}
   <div class="h-full flex flex-col">
     <!-- Header -->
     <div class="border-b border-gray-600 pb-4 mb-6">
@@ -118,7 +122,7 @@
         <h3 class="text-lg font-medium text-white">
           {schema.capability_info.display_name}
         </h3>
-        {#if !capability.removable}
+        {#if !config.removable}
           <span class="text-xs px-2 py-1 bg-orange-900/20 text-orange-400 rounded border border-orange-600">
             System
           </span>
@@ -171,7 +175,7 @@
           <div class="space-y-4">
             {#each schema.test_sections as section, sectionIndex}
               {@const isExpanded = expandedSections.has(section.test_type)}
-              {@const testConfig = capability.tests[sectionIndex]}
+              {@const testConfig = config.tests[sectionIndex]}
               {@const testStyle = createStyle(section.test_info.color, section.test_info.icon)}
               
               <div class="border border-gray-600 rounded-lg overflow-hidden">
@@ -273,10 +277,10 @@
         <div class="text-sm text-gray-400 space-y-1">
           <div>Name: <span class="text-white">{capabilityName || 'Unnamed'}</span></div>
           <div>Type: <span class="text-white">{schema.capability_info.display_name}</span></div>
-          {#if Object.keys(capabilityConfig).length > 0}
+          {#if Object.keys(capabilityConfig).filter(k => k !== 'name' && k !== 'removable' && k !== 'tests' && k !== 'port' && k !== 'process' && k !== 'discovery_ports').length > 0}
             <div>Settings: <span class="text-white">{getConfigSummary(capabilityConfig)}</span></div>
           {/if}
-          <div>Tests: <span class="text-white">{capability.tests.filter(t => t.enabled).length}/{capability.tests.length} enabled</span></div>
+          <div>Tests: <span class="text-white">{config.tests.filter(t => t.enabled).length}/{config.tests.length} enabled</span></div>
         </div>
       </div>
     </div>

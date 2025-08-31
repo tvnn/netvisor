@@ -4,7 +4,7 @@
   import { Plus } from 'lucide-svelte';
   import ListManager from '$lib/shared/components/forms/ListManager.svelte';
   import RichSelect from '$lib/shared/components/forms/RichSelect.svelte';
-  import type { Capability } from '$lib/features/capabilities/types/base';
+  import { createCapability, getCapabilityConfig, type Capability, getCapabilityType, type updateCapabilityConfig } from '$lib/features/capabilities/types/base';
   import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
   import type { NodeContext } from '$lib/features/nodes/types/base';
   import { getCapabilityForms } from '$lib/features/capabilities/store';
@@ -24,10 +24,11 @@
 
   // Computed values
   $: selectedCapability = selectedCapabilityIndex >= 0 ? selectedCapabilities[selectedCapabilityIndex] : null;
-  $: selectedSchema = selectedCapability ? availableSchemas[selectedCapability.capability_type] : null;
+  $: selectedCapabilityType = selectedCapability ? getCapabilityType(selectedCapability) : null;
+  $: selectedSchema = selectedCapabilityType ? availableSchemas[selectedCapabilityType] : null;
   $: availableCapabilityTypes = Object.keys(availableSchemas).filter(type => 
-    !selectedCapabilities.some(cap => cap.capability_type === type) || 
-    selectedCapabilities.filter(cap => cap.capability_type === type).length === 0
+    !selectedCapabilities.some(cap => getCapabilityType(cap) === type) || 
+    selectedCapabilities.filter(cap => getCapabilityType(cap) === type).length === 0
   );
 
   // Load capability schemas on mount and when node context changes
@@ -48,7 +49,7 @@
         node_context: nodeContext
       });
       
-      if (response && response.data) {
+      if (response && response?.data) {
         availableSchemas = response.data;
         
         // Auto-assign capabilities that should be auto-created
@@ -69,7 +70,7 @@
     
     for (const capabilityType of autoAssignTypes) {
       // Only auto-assign if we don't already have this capability type
-      if (!selectedCapabilities.some(cap => cap.capability_type === capabilityType)) {
+      if (!selectedCapabilities.some(cap => getCapabilityType(cap) === capabilityType)) {
         const schema = availableSchemas[capabilityType];
         const newCapability = createCapabilityFromSchema(capabilityType, schema);
         selectedCapabilities = [...selectedCapabilities, newCapability];
@@ -78,30 +79,28 @@
   }
 
   function createCapabilityFromSchema(capabilityType: string, schema: CapabilityConfigForm): Capability {
-    // Initialize config with default values
-    const config: Record<string, any> = {};
+    // Create capability config with all fields flattened
+    const config: any = {
+      name: getDefaultCapabilityName(capabilityType, schema),
+      removable: !schema.auto_assign, // Auto-assigned capabilities are not removable
+      tests: schema.test_sections.map(section => ({
+        test: section.test_type,
+        criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
+        enabled: section.enabled_by_default
+      })),
+      port: undefined,
+      process: undefined,
+      discovery_ports: undefined // Will be None in requests
+    };
+
+    // Add capability-specific default values from schema
     schema.capability_fields.forEach(field => {
       if (field.default_value !== undefined) {
         config[field.id] = field.default_value;
       }
     });
 
-    // Initialize tests with default values
-    const tests = schema.test_sections.map(section => ({
-      test: section.test_type,
-      criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
-      enabled: section.enabled_by_default,
-      monitoring_interval: section.test_fields.find(f => f.id === 'monitoring_interval')?.default_value
-    }));
-
-    return {
-      id: crypto.randomUUID(),
-      name: getDefaultCapabilityName(capabilityType, schema),
-      capability_type: capabilityType,
-      config,
-      tests,
-      removable: !schema.auto_assign // Auto-assigned capabilities are not removable
-    };
+    return createCapability(capabilityType, config);
   }
 
   function getDefaultCapabilityName(capabilityType: string, schema: CapabilityConfigForm): string {
@@ -137,8 +136,9 @@
 
   function handleRemoveCapability(index: number) {
     const capability = selectedCapabilities[index];
-    if (!capability.removable) {
-      console.warn('Attempted to remove non-removable capability:', capability.name);
+    const config = getCapabilityConfig(capability);
+    if (!config.removable) {
+      console.warn('Attempted to remove non-removable capability:', config.name);
       return;
     }
     
@@ -161,38 +161,43 @@
 
   // Display functions for ListManager
   function getDisplayName(capability: Capability): string {
-    return capability.name || 'Unnamed Capability';
+    const config = getCapabilityConfig(capability);
+    return config.name || 'Unnamed Capability';
   }
 
   function getDisplayDetails(capability: Capability): string {
     const parts = [];
+    const type = getCapabilityType(capability);
+    const config = getCapabilityConfig(capability);
     
     // Add capability type
-    parts.push(capability.capability_type);
+    parts.push(type);
     
     // Add key config details
-    if (capability.config.port) parts.push(`Port ${capability.config.port}`);
-    if (capability.config.path && capability.config.path !== '/') parts.push(capability.config.path);
-    if (capability.config.hostname) parts.push(capability.config.hostname);
+    if (config.port) parts.push(`Port ${config.port}`);
+    if (config.path && config.path !== '/') parts.push(config.path);
+    if (config.hostname) parts.push(config.hostname);
     
     return parts.join(' • ');
   }
 
   function getDisplayBadges(capability: Capability) {
     const badges = [];
+    const type = getCapabilityType(capability);
+    const config = getCapabilityConfig(capability);
     
     // Capability type badge
-    const schema = availableSchemas[capability.capability_type];
+    const schema = availableSchemas[type];
     const typeStyle = schema ? createStyle(schema.capability_info.color, null) : createStyle('gray', null);
     badges.push({
-      text: capability.capability_type,
+      text: type,
       color: typeStyle.colors.text,
       bgColor: typeStyle.colors.bg
     });
     
     // Test status badge
-    const enabledTests = capability.tests.filter(t => t.enabled).length;
-    const totalTests = capability.tests.length;
+    const enabledTests = config.tests.filter(t => t.enabled).length;
+    const totalTests = config.tests.length;
     badges.push({
       text: `${enabledTests}/${totalTests} tests`,
       color: enabledTests === totalTests ? 'text-green-400' : 'text-yellow-400',
