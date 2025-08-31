@@ -1,18 +1,16 @@
 <script lang="ts">
     import type { CardAction, CardSection, CardList } from "./types";
 	import Tag from './Tag.svelte';
-	import { createIconComponent } from "$lib/shared/utils/styling";
 
   export let title: string;
   export let subtitle: string = '';
   export let status: string = '';
   export let statusColor: string = 'text-gray-400';
-  export let icon: any = null;
+  export let icon: any = null;  // Expects Svelte component, not string
   export let iconColor: string = 'text-blue-400';
   export let actions: CardAction[] = [];
   export let sections: CardSection[] = [];
   export let lists: CardList[] = [];
-
 </script>
 
 <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-600 transition-colors flex flex-col h-full">
@@ -20,7 +18,7 @@
   <div class="flex justify-between items-start mb-4">
     <div class="flex items-center space-x-3">
       {#if icon}
-        <svelte:component this={createIconComponent(icon)} size={24} class={iconColor} />
+        <svelte:component this={icon} size={24} class={iconColor} />
       {/if}
       <div>
         <h3 class="text-lg font-semibold text-white">{title}</h3>
@@ -73,7 +71,7 @@
                         class="p-1 {action.color || 'text-gray-400'} hover:{action.hoverColor || 'text-white'} {action.bgHover || 'hover:bg-gray-700'} rounded transition-colors disabled:opacity-50"
                         title={action.label}
                       >
-                        <svelte:component this={action.icon} size={16} />
+                        <svelte:component this={action.icon} size={16} animation={action.animation} />
                       </button>
                     {/each}
                   </div>

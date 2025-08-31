@@ -3,11 +3,10 @@ import type { Node } from "./types/base";
 import { api } from '../../shared/utils/api';
 import { createPoller, type Poller } from '../../shared/utils/polling';
 import type { NodeTarget } from './types/targets';
+import { pushError } from '$lib/shared/stores/feedback';
 
 export const nodes = writable<Node[]>([]);
-export const loading = writable(false);
 export const polling = writable(false);
-export const error = writable<string | null>(null);
 
 // Create node polling instance
 let nodePoller: Poller | null = null;
@@ -19,8 +18,7 @@ export function startNodePolling() {
       await getNodes();
     },
     onError: (pollingError) => {
-      error.set('Network error while polling');
-      console.error('Failed to poll discovery status:', pollingError);
+      pushError(`Failed to poll node status: ${pollingError}`);
       stopNodePolling();
     },
     name: 'NodePoller'
@@ -41,10 +39,7 @@ export async function getNodes() {
     '/nodes',
     nodes,
     (nodes) => nodes,
-    error,
-    loading,
     { method: 'GET', },
-    "Failed to get nodes"
   )
 }
 
@@ -53,10 +48,7 @@ export async function createNode(data: Node) {
     '/nodes',
     nodes,
     (node, current) => [...current, node],
-    error,
-    loading,
     { method: 'POST', body: JSON.stringify(data)},
-    "Failed to create node"
   )
 }
 
@@ -65,10 +57,7 @@ export async function updateNode(data: Node) {
     `/nodes/${data.id}`,
     nodes,
     (updatedNode, current) => current.map(n => n.id === data.id ? updatedNode : n),
-    error,
-    loading,
     { method: 'POST', body: JSON.stringify(data)},
-    "Failed to update node"
   )
 }
 
@@ -77,16 +66,10 @@ export async function deleteNode(id: string) {
     `/nodes/${id}`,
     nodes,
     (_, current) => current.filter(g => g.id !== id),
-    error,
-    loading,
     { method: 'DELETE'},
-    "Failed to delete node"
   )
 }
 
-export function clearError() {
-  error.set(null)
-}
 
 export function createEmptyNodeFormData(): Node {
   return {
@@ -94,6 +77,7 @@ export function createEmptyNodeFormData(): Node {
     created_at: '',
     updated_at: '',
     name: '',
+    status: 'Unknown',
     description: '',
     hostname: '',
     target: {
@@ -107,6 +91,9 @@ export function createEmptyNodeFormData(): Node {
     mac_address: '',
     subnets: [],
     monitoring_interval: 10,
+    last_seen: '',
+    node_groups: [],
+    discovery_status: ''
   };
 }
 

@@ -4,7 +4,7 @@
   import SvelteTable from 'svelte-table';
   import DiagnosticDetailsModal from './DiagnosticDetailsModal.svelte';
 	import type { DiagnosticExecution } from '../types/base';
-	import { clearError, deleteDiagnosticExecutions, diagnosticExecutions, diagnosticsTableActionsStore, error, getDiagnosticExecutions, loading } from '../store';
+	import { deleteDiagnosticExecutions, diagnosticExecutions, diagnosticsTableActionsStore, getDiagnosticExecutions } from '../store';
 	import StatusCell from './StatusCell.svelte';
 	import { formatDuration, formatTimestamp } from '$lib/shared/utils/formatting';
 	import ActionCell from './ActionCell.svelte';
@@ -13,6 +13,7 @@
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import ErrorBanner from '$lib/shared/components/feedback/ErrorBanner.svelte';
+	import { loading } from '$lib/shared/stores/feedback';
 
   // Component state
   let selectedExecution: DiagnosticExecution | null = null;
@@ -164,7 +165,7 @@
     />
 
   <!-- Error display -->
-  <ErrorBanner error={$error} onClear={clearError} />
+  <ErrorBanner />
 
   <!-- Loading state -->
   {#if $loading}

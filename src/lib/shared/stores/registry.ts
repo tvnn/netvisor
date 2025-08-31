@@ -24,8 +24,6 @@ export interface TypeRegistry {
 }
 
 export const registry = writable<TypeRegistry>();
-export const loading = writable<boolean>(false);
-export const error = writable<string | null>(null);
 
 function createRegistryHelpers<T extends keyof TypeRegistry>(category: T) {
   const items = derived(registry, $registry => $registry?.[category] || []);
@@ -101,9 +99,6 @@ export async function getRegistry() {
     '/registry',
     registry,
     (registry) => registry,
-    error,
-    loading,
     { method: 'GET', },
-    "Failed to get registry"
   )
 }

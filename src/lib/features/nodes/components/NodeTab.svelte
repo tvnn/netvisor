@@ -1,18 +1,24 @@
 <script lang="ts">
 	import { nodeGroups } from '$lib/features/node_groups/store';
-	import { clearError, createNode, deleteNode, error, getNodeTargetString, loading, nodes, updateNode } from '../store';
+	import { createNode, deleteNode, getNodeTargetString, nodes, updateNode } from '../store';
   import NodeCard from './NodeCard.svelte';
   import NodeEditor from './NodeEditModal/NodeEditor.svelte';
   import type { Node } from '../types/base';
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
-  import DiscoveryStatus from '$lib/features/discovery/DiscoveryStatus.svelte';
 	import ErrorBanner from '$lib/shared/components/feedback/ErrorBanner.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
+	import { clearError, loading } from '$lib/shared/stores/feedback';
+	import { getNodeDaemon } from '$lib/features/daemons/store';
+	import type { Daemon } from '$lib/features/daemons/types/base';
+	import { initiateDiscovery, sessions } from '$lib/features/discovery/store';
+	import { get } from 'svelte/store';
 
   let searchTerm = '';
   let showNodeEditor = false;
   let editingNode: Node | null = null;
+
+  $: discoveryIsRunning = $sessions.keys.length > 0;
   
   $: filteredNodes = $nodes.filter((node: Node) => {
     const searchLower = searchTerm.toLowerCase();
@@ -52,6 +58,10 @@
     editingNode = node;
     showNodeEditor = true;
   }
+
+  function handleRunDiscovery(daemon: Daemon) {
+    initiateDiscovery({daemon_id: daemon.id})
+  }
   
   function handleDeleteNode(node: Node) {
     if (confirm(`Are you sure you want to delete "${node.name}"?`)) {
@@ -79,10 +89,6 @@
     showNodeEditor = false;
     editingNode = null;
   }
-
-  function handleDiscovery() {
-
-  }
 </script>
 
 <div class="space-y-6">
@@ -96,7 +102,6 @@
         cta: "Add Node"
       }
     ]}
-    CenterComponent={DiscoveryStatus}
      />
 
   <!-- Summary stats -->
@@ -115,7 +120,7 @@
 
   <SearchField searchTerm={searchTerm} placeholder="Search nodes by name, IP, or domain..." /> -->
 
-  <ErrorBanner error={$error} onClear={clearError}/>
+  <ErrorBanner/>
 
   <!-- Loading state -->
   {#if $loading}
@@ -139,9 +144,12 @@
       {#each filteredNodes as node (node.id)}
         <NodeCard
           {node}
+          daemon={getNodeDaemon(node.id)}
           groupInfo={node.node_groups ? getGroupInfo(node.node_groups) : []}
+          discoveryIsRunning
           onEdit={handleEditNode}
           onDelete={handleDeleteNode}
+          onDiscovery={handleRunDiscovery}
         />
       {/each}
     </div>

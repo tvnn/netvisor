@@ -1,11 +1,7 @@
 <script lang="ts">
-	import { Plus } from "lucide-svelte";
-	import type { Component } from "svelte";
-
     export let title: string;
     export let subtitle: string;
     export let buttons: any[];
-    export let CenterComponent: Component | null = null
 </script>
 
 <div class="flex items-center justify-between">
@@ -13,16 +9,8 @@
         <h2 class="text-2xl font-bold text-white">{title}</h2>
         <p class="text-gray-400 mt-1">{subtitle}</p>
     </div>
-    {#if CenterComponent}
-        <div class="flex">
-            <svelte:component this={CenterComponent}/>
-        </div>
-    {/if}
     <div class="flex gap-4">
         {#each buttons as button}
-            {#if button.type == 'component'}
-                <svelte:component this={button.component}/>
-            {:else}
             <button
                 on:click={button.onClick}
                 disabled={button.disabled}
@@ -31,7 +19,6 @@
                 <svelte:component this={button.IconComponent} class="w-4 h-4" />
                 {button.cta}
             </button>
-            {/if}
         {/each}
     </div>
 </div>

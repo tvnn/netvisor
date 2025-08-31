@@ -2,7 +2,7 @@
 	import { executeDiagnostics } from '$lib/features/diagnostics/store';
 	import { nodes } from '$lib/features/nodes/store';
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
-	import { clearError, createNodeGroup, deleteNodeGroup, error, loading, nodeGroups, updateNodeGroup } from '../store';
+	import { createNodeGroup, deleteNodeGroup, nodeGroups, updateNodeGroup } from '../store';
 	import type { NodeGroup } from '../types/base';
 	import NodeGroupCard from './NodeGroupCard.svelte';
   	import type { Node } from "$lib/features/nodes/types/base";
@@ -11,6 +11,7 @@
 	import ErrorBanner from '$lib/shared/components/feedback/ErrorBanner.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
+	import { loading } from '$lib/shared/stores/feedback';
   
   let showGroupEditor = false;
   let editingGroup: NodeGroup | null = null;
@@ -86,7 +87,7 @@
     />
   {/if}
 
-  <ErrorBanner error={$error} onClear={clearError}/>
+  <ErrorBanner/>
 
   {#if $loading}
     <Loading/>

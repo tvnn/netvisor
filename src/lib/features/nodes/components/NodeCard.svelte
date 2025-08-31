@@ -1,17 +1,24 @@
 <script lang="ts">
-  import { Edit, Trash2 } from 'lucide-svelte';
+  import { Edit, Radar, Trash2 } from 'lucide-svelte';
 	import { getNodeTargetString } from '../store';
   import type { Node } from '../types/base';
 	import { capabilities, nodeStatuses, nodeTypes } from '$lib/shared/stores/registry';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
+	import type { Daemon } from '$lib/features/daemons/types/base';
+	import { getDaemonDiscoveryState } from '$lib/features/daemons/store';
   
   export let node: Node;
+  export let daemon: Daemon | null;
   export let groupInfo: any[] = [];
   export let onEdit: (node: Node) => void = () => {};
   export let onDelete: (node: Node) => void = () => {};
+  export let onDiscovery: (daemon: Daemon) => void = () => {};
+  export let discoveryIsRunning: boolean;
   
   // Build connection info
   $: connectionInfo = getNodeTargetString(node.target)
+
+  $: nodeIsRunningDiscovery = (discoveryIsRunning && daemon !== null) ? getDaemonDiscoveryState(daemon.id) !== null : false;
   
   // Build card data
   $: cardData = {
@@ -80,6 +87,18 @@
         bgHover: 'hover:bg-red-900/20',
         onClick: () => onDelete(node)
       },
+      ...(daemon !== null
+        ? [{
+            label: 'Run Discovery',
+            icon: Radar,
+            color: nodeIsRunningDiscovery ? 'text-green' : 'text-gray-400',
+            hoverColor: nodeIsRunningDiscovery ? 'text-green' : (discoveryIsRunning ? 'text-gray-400' : 'text-green'),
+            bgHover: nodeIsRunningDiscovery ? 'hover:bg-green-700/50': (discoveryIsRunning ? '' : 'hover:bg-green-700/50'),
+            onClick: nodeIsRunningDiscovery ? () => onDiscovery(daemon) : () => {},
+            animation: nodeIsRunningDiscovery ? 'animate-spin' : ''
+          }]
+        : []
+      ),
       {
         label: 'Edit Node',
         icon: Edit,

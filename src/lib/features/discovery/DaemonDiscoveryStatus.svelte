@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Search, X, Loader2, AlertTriangle, Radar } from 'lucide-svelte';
-	import type { Daemon } from '../types/base';
+	import type { Daemon } from '../daemons/types/base';
     import type { Node } from "$lib/features/nodes/types/base";
 	import { cancelDiscovery, initiateDiscovery } from '$lib/features/discovery/store';
 	import type { DaemonDiscoveryUpdate } from '$lib/features/discovery/types/api';
@@ -8,7 +8,6 @@
   export let daemon: Daemon;
   export let node: Node | null | undefined = undefined;
   export let discoveryData: DaemonDiscoveryUpdate | null = null;
-  export let loading: boolean = false;
   export let showName: boolean = true;
 
   // Helper to get daemon display name (from node since daemon doesn't have name)
@@ -20,7 +19,7 @@
     : 0;
 
   async function handleStartDiscovery() {
-    if (!isActive && !loading) {
+    if (!isActive) {
       await initiateDiscovery({daemon_id: daemon.id});
     }
   }
@@ -70,22 +69,17 @@
         {/if}
     </div>
 
-    <!-- {#if hasError}
+    {#if hasError}
         <div class="mt-1">
         <span class="text-red-600 text-sm">{discoveryData.error}</span>
         </div>
-    {/if} -->
+    {/if}
     <button 
         class="p-2 text-red-400 hover:text-red-300 hover:bg-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         on:click={handleCancelDiscovery}
-        disabled={loading}
         title="Cancel Discovery"
     >
-        {#if loading}
-        <Loader2 class="w-4 h-4 animate-spin" />
-        {:else}
         <X class="w-4 h-4" />
-        {/if}
     </button>
     </div>
 </div>
@@ -95,13 +89,8 @@
     <button 
         class="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         on:click={handleStartDiscovery}
-        disabled={loading}
-    >
-        {#if loading}
-        <Loader2 class="w-4 h-4 animate-spin" />
-        {:else}
+        >
         <Radar class="w-4 h-4" />
-        {/if}
         <span>Discover Nodes</span>
     </button>
     </div>

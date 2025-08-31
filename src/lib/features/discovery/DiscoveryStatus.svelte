@@ -4,15 +4,14 @@
   import { daemons } from '../daemons/store';
   import { nodes } from '../nodes/store';
   import { 
-    error, 
-    getDaemonDiscoveryState, 
-    loading,
 	sessions,
   } from './store';
+  import { getDaemonDiscoveryState } from '../daemons/store';
 	import RichSelect from '$lib/shared/components/forms/RichSelect.svelte';
 	  import { getNodeTargetString } from "../nodes/store";
 	import { nodeStatuses } from '$lib/shared/stores/registry';
-	import DaemonDiscoveryStatus from '../daemons/components/DaemonDiscoveryStatus.svelte';
+	import DaemonDiscoveryStatus from './DaemonDiscoveryStatus.svelte';
+	import { type SelectOption } from '$lib/shared/components/forms/types';
 
   let selectedDaemonId: string | null = null;  
   $: discoveryData = getDaemonDiscoveryState(selectedDaemonId);
@@ -41,12 +40,12 @@
   }
 </script>
 
-<div class="flex items-center">
-    {#if selectedDaemonId == null}
+<div class="flex justify-end items-center">
+    {#if $daemons.length > 0 && selectedDaemonId == null}
         <div class="flex">
             <RichSelect
                 selectedValue={selectedDaemonId}
-                options={$daemons.map(d => {
+                options={$daemons.map((d): SelectOption => {
                     let node = $nodes.find(n => n.id === d.node_id)
                     return {
                         value: d.id,
@@ -75,12 +74,12 @@
           showName={false}
           node={selectedNode}
           discoveryData={discoveryData}
-          loading={$loading}
         />
-      {:else if $daemons.length === 0}
-        <div class="flex items-center justify-center p-6 border border-gray-600 rounded-md bg-gray-800">
-          <p class="text-gray-400">No daemons available for discovery</p>
-        </div>
       {/if}
     </div>
+    {#if $daemons.length == 0}
+        <div class="flex items-center justify-center p-3 border border-gray-600 rounded-md bg-gray-800">
+          <p class="text-gray-400">No daemons available for discovery.</p>
+        </div>
+    {/if}
 </div>

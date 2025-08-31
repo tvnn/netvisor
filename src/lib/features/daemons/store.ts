@@ -1,19 +1,35 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { Daemon } from "./types/base";
+import { sessions } from '../discovery/store';
+import type { DaemonDiscoveryUpdate } from '../discovery/types/api';
+import { nodes } from '../nodes/store';
+import type { Node } from '../nodes/types/base';
 
 export const daemons = writable<Daemon[]>([]);
-export const loading = writable(false);
-export const error = writable<string | null>(null);
 
 export async function getDaemons() {
   return await api.request<Daemon[]>(
     '/daemons',
     daemons,
     (daemons) => daemons,
-    error,
-    loading,
     { method: 'GET' },
-    "Failed to retrieve daemons"
   )
 }
+export function getDaemonDiscoveryState(daemon_id: string | null): DaemonDiscoveryUpdate | null {
+  return get(sessions).values().find(session => session.daemon_id == daemon_id) || null;
+}
+// Helper function to get node name for a daemon
+
+export function getDaemonNode(daemon_id: string): Node | null {
+  const daemon = get(daemons).find(d => d.id === daemon_id);
+  if (!daemon) return null;
+
+  const node = get(nodes).find(n => n.id === daemon.node_id) || null;
+  return node ? node : null;
+}
+
+export function getNodeDaemon(node_id: string): Daemon | null {
+  const daemon = get(daemons).find(d => d.node_id === node_id);
+  return daemon ? daemon :null
+} 

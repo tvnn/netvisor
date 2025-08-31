@@ -9,6 +9,7 @@ export interface CardAction {
   bgHover?: string;
   onClick: () => void;
   disabled?: boolean;
+  animation?: string;
 }
 
 export interface CardSection {

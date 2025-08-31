@@ -1,9 +1,10 @@
 <script lang="ts">
   import { ChevronDown } from 'lucide-svelte';
+	import type { SelectOption, RichSelectTag } from './types';
   
   export let label: string = '';
   export let selectedValue: string | null = '';
-  export let options: RichSelectOption[] = [];
+  export let options: SelectOption[] = [];
   export let placeholder: string = 'Select an option...';
   export let required: boolean = false;
   export let disabled: boolean = false;
@@ -11,28 +12,14 @@
   export let onSelect: (value: string) => void;
   
   // Optional props for customizing how options are rendered
-  export let getOptionIcon: ((option: RichSelectOption) => any) | null = null;
-  export let getOptionIconColor: ((option: RichSelectOption) => string) | null = null;
-  export let getOptionBadge: ((option: RichSelectOption) => string | null) | null = null;
-  export let getOptionBadgeColor: ((option: RichSelectOption) => string) | null = null;
-  export let getOptionTag: ((option: RichSelectOption) => RichSelectTag | null) | null = null;
-  export let getOptionStatusText: ((option: RichSelectOption) => string | null) | null = null;
+  export let getOptionIcon: ((option: SelectOption) => any) | null = null;
+  export let getOptionIconColor: ((option: SelectOption) => string) | null = null;
+  export let getOptionBadge: ((option: SelectOption) => string | null) | null = null;
+  export let getOptionBadgeColor: ((option: SelectOption) => string) | null = null;
+  export let getOptionTag: ((option: SelectOption) => RichSelectTag | null) | null = null;
+  export let getOptionStatusText: ((option: SelectOption) => string | null) | null = null;
   export let showDescriptionInClosedDropdown: boolean = false;
   export let showDescriptionUnderDropdown: boolean = false;
-  
-  interface RichSelectOption {
-    value: string;
-    label: string;
-    description?: string;
-    disabled?: boolean;
-    metadata?: any;
-  }
-  
-  interface RichSelectTag {
-    text: string;
-    textColor: string;
-    bgColor: string;
-  }
   
   let isOpen = false;
   let dropdownElement: HTMLDivElement;

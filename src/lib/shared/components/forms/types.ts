@@ -18,10 +18,14 @@ export interface SelectOption {
   value: string;
   label: string;
   description?: string;
-  disabled: boolean;
-  metadata?: {
-    tag: string;
-  };
+  disabled?: boolean;
+  metadata?: any;
+}
+
+export interface RichSelectTag {
+  text: string;
+  textColor: string;
+  bgColor: string;
 }
 
 export interface ValidationMessage {
