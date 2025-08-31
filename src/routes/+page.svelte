@@ -1,14 +1,15 @@
 <script lang="ts">
-  import NodesTab from '../lib/components/nodes/NodeTab.svelte';
-  import Sidebar from '../lib/components/common/layout/Sidebar.svelte';
-	import DiagnosticsTab from '$lib/components/diagnostics/DiagnosticsTab.svelte';
-	import NodeGroupTab from '$lib/components/node_groups/NodeGroupTab.svelte';
+	import { getDaemons } from '$lib/features/daemons/store';
+	import DiagnosticsTab from '$lib/features/diagnostics/components/DiagnosticsTab.svelte';
+	import { getDiagnosticExecutions } from '$lib/features/diagnostics/store';
+	import { getActiveDiscoverySessions, stopDiscoveryPolling } from '$lib/features/discovery/store';
+	import NodeGroupTab from '$lib/features/node_groups/components/NodeGroupTab.svelte';
+	import { getNodeGroups } from '$lib/features/node_groups/store';
+	import NodeTab from '$lib/features/nodes/components/NodeTab.svelte';
+	import { getNodes, startNodePolling, stopNodePolling } from '$lib/features/nodes/store';
+	import Sidebar from '$lib/shared/components/layout/Sidebar.svelte';
+	import { getRegistry } from '$lib/shared/stores/registry';
 	import { onDestroy, onMount } from 'svelte';
-	import { cleanupNodePolling, nodeActions } from '$lib/components/nodes/store';
-	import { daemonActions } from '$lib/components/daemons/store';
-	import { cleanupDiscoveryPolling, discoveryActions } from '$lib/components/discovery/store';
-	import { nodeGroupActions } from '$lib/components/node_groups/store';
-	import { diagnosticsActions } from '$lib/components/diagnostics/store';
   
   let activeTab = 'nodes';
   
@@ -18,21 +19,22 @@
 
   onMount(async () => {
     // Load initial data
-    await nodeActions.loadNodes(true);
-    await daemonActions.loadDaemons();
-    await nodeGroupActions.loadGroups();
-    await diagnosticsActions.loadExecutions();
+    await getRegistry();
+    await getNodes();
+    await getDaemons();
+    await getNodeGroups();
+    await getDiagnosticExecutions();
     
     // Start continuous node polling for real-time updates
-    nodeActions.startNodePolling();
+    startNodePolling();
     
     // Check for any active discovery sessions and resume if found
-    await discoveryActions.checkActiveDiscoverySessions();
+    await getActiveDiscoverySessions();
   });
 
   onDestroy(() => {
-    cleanupNodePolling();
-    cleanupDiscoveryPolling();
+    stopNodePolling();
+    stopDiscoveryPolling();
   });
 </script>
 
@@ -44,7 +46,7 @@
   <main class="flex-1 overflow-auto">
     <div class="p-8">
       {#if activeTab === 'nodes'}
-        <NodesTab />
+        <NodeTab />
       {:else if activeTab === 'groups'}
         <NodeGroupTab />
       {:else if activeTab === 'diagnostics'}

@@ -1,0 +1,109 @@
+import { writable, derived, get } from 'svelte/store';
+import { browser } from '$app/environment';
+import { api } from '../utils/api';
+import { createColorHelper, createIconComponent, createStyle, type ColorStyle } from '../utils/styling';
+
+export interface TypeMetadata {
+  id: string;
+  display_name: string;
+  description: string;
+  category: string;
+  icon: string;
+  color: string;
+  metadata: Record<string, any>;
+}
+
+export interface TypeRegistry {
+  test_types: TypeMetadata[];
+  node_types: TypeMetadata[];
+  capabilities: TypeMetadata[];
+  criticality_levels: TypeMetadata[];
+  node_statuses: TypeMetadata[];
+  node_targets: TypeMetadata[];
+  diagnostic_statuses: TypeMetadata[];
+}
+
+export const registry = writable<TypeRegistry>();
+export const loading = writable<boolean>(false);
+export const error = writable<string | null>(null);
+
+function createRegistryHelpers<T extends keyof TypeRegistry>(category: T) {
+  const items = derived(registry, $registry => $registry?.[category] || []);
+  
+  const helpers = {
+    getItems: () => {
+      const $registry = get(registry)
+      return $registry?.[category]
+    },
+    
+    getItem: (id: string | null) => {
+      const $registry = get(registry);
+      return $registry?.[category]?.find(item => item.id === id) || null;
+    },
+    
+    getDisplay: (id: string | null) => {
+      const $registry = get(registry);
+      return $registry?.[category]?.find(item => item.id === id)?.display_name || id || "";
+    },
+    
+    getDescription: (id: string | null) => {
+      const $registry = get(registry);
+      return $registry?.[category]?.find(item => item.id === id)?.description || "";
+    },
+    
+    getIcon: (id: string | null) => {
+      const $registry = get(registry);
+      return $registry?.[category]?.find(item => item.id === id)?.icon || 'help-circle';
+    },
+    
+    getColor: (id: string | null): ColorStyle => {
+      const $registry = get(registry);
+      const item = $registry?.[category]?.find(item => item.id === id);
+      const baseColor = item?.color || null;
+      return createColorHelper(baseColor);
+    },
+    
+    getIconComponent: (id: string | null) => {
+      const $registry = get(registry);
+      const item = $registry?.[category]?.find(item => item.id === id);
+      const iconName = item?.icon || null;
+      return createIconComponent(iconName);
+    },
+    
+    getStyle: (id: string | null) => {
+      const $registry = get(registry);
+      const item = $registry?.[category]?.find(item => item.id === id);
+      const color = item?.color || null;
+      const icon = item?.icon || null;
+      return createStyle(color, icon);
+    },
+    
+    getMetadata: (id: string | null) => {
+      const $registry = get(registry);
+      return $registry?.[category]?.find(item => item.id === id)?.metadata || {};
+    }
+  };
+
+  return helpers;
+}
+
+// Create all the helpers
+export const testTypes = createRegistryHelpers('test_types');
+export const nodeTypes = createRegistryHelpers('node_types'); 
+export const capabilities = createRegistryHelpers('capabilities');
+export const criticalityLevels = createRegistryHelpers('criticality_levels');
+export const nodeStatuses = createRegistryHelpers('node_statuses');
+export const nodeTargets = createRegistryHelpers('node_targets');
+export const diagnosticStatuses = createRegistryHelpers('diagnostic_statuses');
+
+export async function getRegistry() {
+  const result = await api.request<TypeRegistry>(
+    '/registry',
+    registry,
+    (registry) => registry,
+    error,
+    loading,
+    { method: 'GET', },
+    "Failed to get registry"
+  )
+}
