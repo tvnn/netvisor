@@ -316,7 +316,7 @@ impl CompatibleTests for WireguardConfig {
     fn compatible_tests(_node_context: Option<&NodeContext>) -> Vec<CapabilityTest> {
         Vec::new()
         // let vpn_subnet_test = vpn_subnet();
-        // Needs subnet support and 
+        // Needs subnet support + udp
     }
 }
 

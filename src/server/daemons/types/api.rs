@@ -10,12 +10,6 @@ pub struct DaemonResponse {
     pub daemon: Daemon
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DaemonListResponse {
-    pub daemons: Vec<Daemon>,
-    pub total: usize
-}
-
 /// Daemon registration request from daemon to server
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonRegistrationRequest {
@@ -72,7 +66,7 @@ impl DaemonDiscoveryUpdate {
         Self {
             session_id,
             daemon_id,
-            phase: DiscoveryPhase::Created,
+            phase: DiscoveryPhase::Initiated,
             completed: 0,
             total: 0,
             discovered_count: 0,

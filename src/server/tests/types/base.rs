@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -75,21 +77,26 @@ impl Test {
 
     pub async fn execute(&self, timer: &Timer, node: &Node, capability: &Capability, node_service: &NodeService) -> Result<TestResult, Error> {
 
+        let uuid = match &node.base.dns_resolver_node_id {
+            Some(id) => Uuid::from_str(&id)?,
+            None => Uuid::new_v4()
+        };
+
         match self {
             Test::Connectivity(config) => {
-                let dns_server = self.resolve_dns_server_config_from_node_uuid(&node.base.dns_resolver_node_id, node_service).await.ok();
+                let dns_server = self.resolve_dns_server_config_from_node_uuid(&Some(uuid), node_service).await.ok();
                 connectivity::execute_connectivity_test(config, &timer, &node, dns_server.as_ref(), capability).await
             },
             Test::DnsLookup(config) => {
-                let dns_server = self.resolve_dns_server_config_from_node_uuid(&node.base.dns_resolver_node_id, node_service).await?;
+                let dns_server = self.resolve_dns_server_config_from_node_uuid(&Some(uuid), node_service).await?;
                 dns::execute_dns_lookup_test(config, &timer, &node, &dns_server).await
             },
             Test::ReverseDns(config) => {
-                let dns_server = self.resolve_dns_server_config_from_node_uuid(&node.base.dns_resolver_node_id, node_service).await?;
+                let dns_server = self.resolve_dns_server_config_from_node_uuid(&Some(uuid), node_service).await?;
                 dns::execute_reverse_dns_lookup_test(config, &timer, &node, &dns_server).await
             },
             Test::VpnSubnetAccess(config) => {
-                let dns_server = self.resolve_dns_server_config_from_node_uuid(&node.base.dns_resolver_node_id, node_service).await.ok();
+                let dns_server = self.resolve_dns_server_config_from_node_uuid(&Some(uuid), node_service).await.ok();
                 vpn::execute_vpn_subnet_access_test(config, &timer, &node, dns_server.as_ref(), capability).await
             },
             Test::DnsResolution(config) => {

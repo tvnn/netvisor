@@ -162,16 +162,3 @@ pub struct ExecuteDiagnosticRequest {
     #[serde(flatten)]
     pub diagnostic: DiagnosticExecutionBase,
 }
-
-/// Response for diagnostic execution
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiagnosticExecutionResponse {
-    pub execution: DiagnosticExecution,
-}
-
-/// Response for listing diagnostic executions
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DiagnosticListResponse {
-    pub executions: Vec<DiagnosticExecution>,
-    pub total: usize,
-}

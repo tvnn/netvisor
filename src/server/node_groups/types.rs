@@ -1,36 +1,12 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
-
-// API Requests and Responses
-#[derive(Debug, Serialize, Deserialize)]
-pub struct CreateNodeGroupRequest {
-    #[serde(flatten)]
-    pub group: NodeGroupBase,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UpdateNodeGroupRequest {
-    pub name: Option<String>,
-    pub description: Option<Option<String>>,
-    pub node_sequence: Option<Vec<Uuid>>,  // Ordered diagnostic sequence
-    pub auto_diagnostic_enabled: Option<bool>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NodeGroupResponse {
-    pub group: NodeGroup,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NodeGroupListResponse {
-    pub groups: Vec<NodeGroup>,
-    pub total: usize,
-}
+use crate::server::shared::types::api::deserialize_empty_string_as_none;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NodeGroupBase {
     pub name: String,
+    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
     pub node_sequence: Vec<Uuid>,  // Ordered diagnostic sequence
     pub auto_diagnostic_enabled: bool, // Default: true

@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS nodes (
     name TEXT NOT NULL,
     node_type TEXT,
     hostname TEXT,
-    dns_resolver_id TEXT,
     mac_address TEXT,
     description TEXT,
     target TEXT NOT NULL,
@@ -11,6 +10,7 @@ CREATE TABLE IF NOT EXISTS nodes (
 
     discovery_status TEXT,
     capabilities TEXT,
+    dns_resolver_id TEXT,
 
     status TEXT,
     monitoring_interval INTEGER,

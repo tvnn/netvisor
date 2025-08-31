@@ -47,7 +47,7 @@ impl NodeStorage for SqliteNodeStorage {
                 node_type, capabilities, monitoring_interval,
                 node_groups, status, discovery_status, subnets,
                 mac_address, last_seen, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&node.id)

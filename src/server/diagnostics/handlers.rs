@@ -27,7 +27,7 @@ async fn execute_group_diagnostic(
     State(state): State<Arc<AppState>>,
     Path(group_id): Path<Uuid>,
     Json(request): Json<ExecuteDiagnosticRequest>,
-) -> ApiResult<Json<ApiResponse<DiagnosticExecutionResponse>>> {
+) -> ApiResult<Json<ApiResponse<DiagnosticExecution>>> {
     let service = DiagnosticService::new(
         state.diagnostic_storage.clone(),
         state.node_storage.clone(),
@@ -36,9 +36,7 @@ async fn execute_group_diagnostic(
 
     let execution = service.execute_group_diagnostic(&group_id, request.diagnostic.trigger_reason).await?;
 
-    Ok(Json(ApiResponse::success(DiagnosticExecutionResponse {
-        execution,
-    })))
+    Ok(Json(ApiResponse::success(execution)))
 }
 
 /// Delete a diagnostic execution
@@ -63,7 +61,7 @@ async fn delete_diagnostic_execution(
 /// Get diagnostic executions with optional filters
 async fn get_diagnostic_executions(
     State(state): State<Arc<AppState>>,
-) -> ApiResult<Json<ApiResponse<DiagnosticListResponse>>> {
+) -> ApiResult<Json<ApiResponse<Vec<DiagnosticExecution>>>> {
     let service = DiagnosticService::new(
         state.diagnostic_storage.clone(),
         state.node_storage.clone(),
@@ -72,10 +70,5 @@ async fn get_diagnostic_executions(
 
     let executions= service.get_all_executions().await?;
 
-    let total = executions.len();
-
-    Ok(Json(ApiResponse::success(DiagnosticListResponse {
-        executions,
-        total,
-    })))
+    Ok(Json(ApiResponse::success(executions)))
 }

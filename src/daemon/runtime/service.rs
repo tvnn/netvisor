@@ -5,7 +5,6 @@ use hostname::get as get_hostname;
 use mac_address::get_mac_address;
 use crate::server::capabilities::types::base::Capability;
 use crate::server::capabilities::types::configs::{DaemonConfig};
-use crate::server::nodes::types::api::{CreateNodeRequest, NodeResponse};
 use crate::{
     daemon::{discovery::{utils::{get_daemon_subnet, get_local_ip_address, port_scan}}, shared::storage::ConfigStore}, server::{
         daemons::types::api::{
@@ -150,6 +149,7 @@ impl DaemonRuntimeService {
         };
 
         let mut node = Node::new(node_base);
+        node.base.capabilities = Vec::new();
 
         // Add capabilities from detected ports using existing method
         for port in &open_ports {
@@ -165,7 +165,7 @@ impl DaemonRuntimeService {
         let response = self
             .client
             .post(format!("{}/api/nodes", server_target.to_string()))
-            .json(&CreateNodeRequest {node: node.base.clone()})
+            .json(&node)
             .send()
             .await?;
 
@@ -173,7 +173,7 @@ impl DaemonRuntimeService {
             anyhow::bail!("Failed to report daemon as node: HTTP {}", response.status());
         }
 
-        let api_response: ApiResponse<NodeResponse> = response.json().await?;
+        let api_response: ApiResponse<Node> = response.json().await?;
 
         if !api_response.success {
             let error_msg = api_response.error.unwrap_or_else(|| "Unknown error".to_string());
@@ -181,8 +181,7 @@ impl DaemonRuntimeService {
         }
 
         let created_node = api_response.data
-            .ok_or_else(|| anyhow::anyhow!("No node data in successful response"))?
-            .node;
+            .ok_or_else(|| anyhow::anyhow!("No node data in successful response"))?;
 
         Ok(created_node)
     }

@@ -11,7 +11,7 @@ use crate::{server::{
     config::AppState, daemons::{
         service::DaemonService, 
         types::api::DaemonDiscoveryRequest
-    }, discovery::types::api::{InitiateDiscoveryRequest, InitiateDiscoveryResponse}, shared::types::api::{ApiError, ApiResponse, ApiResult}
+    }, discovery::types::api::{InitiateDiscoveryRequest}, shared::types::api::{ApiError, ApiResponse, ApiResult}
 }};
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -26,7 +26,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
 async fn initiate_discovery(
     State(state): State<Arc<AppState>>,
     Json(request): Json<InitiateDiscoveryRequest>,
-) -> ApiResult<Json<ApiResponse<InitiateDiscoveryResponse>>> {
+) -> ApiResult<Json<ApiResponse<DaemonDiscoveryUpdate>>> {
     let daemon_service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
     // Get the specified daemon
@@ -50,12 +50,10 @@ async fn initiate_discovery(
     daemon_service.send_discovery_request(&daemon, DaemonDiscoveryRequest { session_id }).await?;    
 
     // Create discovery session
-    state.discovery_manager.create_session(session_id, daemon.id).await
+    let update  = state.discovery_manager.create_session(session_id, daemon.id).await
         .map_err(|e| ApiError::internal_error(&format!("Failed to create discovery session: {}", e)))?;
         
-    Ok(Json(ApiResponse::success(InitiateDiscoveryResponse {
-        session_id
-    })))
+    Ok(Json(ApiResponse::success( update)))
 }
 
 // Get all active discovery sessions
@@ -88,12 +86,6 @@ async fn cancel_discovery(
         None => return Err(ApiError::not_found(&format!("Session '{}' not found", session_id)))
     };
     
-    // .terminate_session(&session_id, DiscoveryPhase::Cancelled).await {
-    //     Ok(daemon_id) => daemon_id,
-    //     Err(e) => return Err(ApiError::not_found(&format!("Failed to cancel session '{}': {}", session_id, e)))
-    // };
-
-    // Send cancellation request to daemon
     let daemon_service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
     if let Some(daemon) = daemon_service.get_daemon(&daemon_id).await? {

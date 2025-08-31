@@ -3,7 +3,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 
 pub type ApiResult<T> = Result<T, ApiError>;
 
@@ -91,4 +91,56 @@ impl From<serde_json::Error> for ApiError {
         tracing::error!("JSON serialization error: {}", err);
         Self::bad_request("Invalid JSON data")
     }
+}
+
+pub trait EmptyToOption<T> {
+    fn empty_to_option(self) -> Option<T>;
+}
+
+// Implement for common types that can be "empty"
+impl EmptyToOption<String> for String {
+    fn empty_to_option(self) -> Option<String> {
+        if self.is_empty() {
+            None
+        } else {
+            Some(self)
+        }
+    }
+}
+
+
+impl EmptyToOption<String> for Option<String> {
+    fn empty_to_option(self) -> Option<String> {
+        match self {
+            Some(s) if s.is_empty() => None,
+            other => other,
+        }
+    }
+}
+
+impl<T> EmptyToOption<Vec<T>> for Vec<T> {
+    fn empty_to_option(self) -> Option<Vec<T>> {
+        if self.is_empty() {
+            None
+        } else {
+            Some(self)
+        }
+    }
+}
+
+pub fn deserialize_empty_string_as_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer)?;
+    Ok(opt.and_then(|s| if s.is_empty() { None } else { Some(s) }))
+}
+
+pub fn deserialize_empty_vec_as_none<'de, D, T>(deserializer: D) -> Result<Option<Vec<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: DeserializeOwned,
+{
+    let opt = Option::<Vec<T>>::deserialize(deserializer)?;
+    Ok(opt.and_then(|vec| if vec.is_empty() { None } else { Some(vec) }))
 }

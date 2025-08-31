@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use strum::{IntoDiscriminant, IntoEnumIterator};
-use crate::server::{capabilities::types::{configs::{CompatibleTests, ConfigBase, DaemonConfig, DhcpConfig, DnsConfig, FromPort, HttpConfig, HttpsConfig, NodeConfig, SshConfig, WireguardConfig}, forms::{CapabilityConfigForm, TestSection}}, nodes::types::{base::{Node, NodeContext}, criticality::TestCriticality}, shared::{forms::field_factory::FieldFactory, types::metadata::TypeMetadataProvider}, tests::types::base::Test};
+use crate::server::{capabilities::types::{configs::{CompatibleTests, ConfigBase, DaemonConfig, DhcpConfig, DnsConfig, FromPort, HttpConfig, HttpsConfig, NodeConfig, SshConfig, WireguardConfig}, forms::{CapabilityConfigForm, TestSection}}, nodes::types::{base::{Node, NodeContext}, criticality::TestCriticality}, shared::{forms::{field_factory::FieldFactory, types::fields::ConfigField}, types::metadata::TypeMetadataProvider}, tests::types::base::Test};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
@@ -20,77 +20,46 @@ pub enum Capability {
     Daemon(DaemonConfig),  // For daemon-based tests
 }
 
-// Unified test structure - eliminate AssignedTest entirely
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub struct CapabilityTest {
-    pub test: Test,           // Reuses existing Test enum
+    pub test: Test,
     pub criticality: TestCriticality,  
     pub enabled: bool,        
 }
 
 impl Capability {
     pub fn generate_form(&self, node_context: &NodeContext, _available_nodes: &[Node]) -> CapabilityConfigForm {
-        let mut form = CapabilityConfigForm {
+        CapabilityConfigForm {
             capability_info: self.to_metadata(),
-            capability_fields: vec![],
-            test_sections: vec![],
+            capability_fields:self.generate_capability_fields(node_context),
+            test_sections: self.generate_test_sections(node_context),
             warnings: vec![],
             errors: vec![],
-        };
-        
-        // Generate capability-specific fields (port, path, etc.)
-        self.generate_capability_fields(&mut form, node_context);
-        
-        // Generate auto-assigned test sections
-        self.generate_test_sections(&mut form, node_context);
-                
-        form
-    }
-
-    fn generate_capability_fields(&self, form: &mut CapabilityConfigForm, _node_context: &NodeContext) {
-        match self {
-            Capability::Http(_) => {
-                form.capability_fields.extend(vec![
-                    FieldFactory::port(),
-                    FieldFactory::path()
-                ]);
-            },
-            Capability::Node(_) => {},
-            Capability::Daemon(_) => {
-                form.capability_fields.extend(vec![
-                    FieldFactory::port()
-                ]);
-            },
-            Capability::Https(_) => {
-                form.capability_fields.extend(vec![
-                    FieldFactory::port(),
-                    FieldFactory::path()
-                ]);
-            },
-            Capability::Dhcp(_) => {
-                form.capability_fields.extend(vec![
-                    FieldFactory::port(),
-                ]);
-            },
-            Capability::Ssh(_) => {
-                form.capability_fields.extend(vec![
-                    FieldFactory::port(),
-                ]);
-            },
-            Capability::Wireguard(_) => {
-                form.capability_fields.extend(vec![
-                    FieldFactory::port(),
-                ]);
-            },
-            Capability::Dns(_) => {
-                form.capability_fields.extend(vec![
-                    FieldFactory::port(),
-                ]);
-            }
+            auto_assign: self.auto_assign(node_context)
         }
     }
 
-    fn generate_test_sections(&self, form: &mut CapabilityConfigForm, node_context: &NodeContext) {
+    fn generate_capability_fields(&self, _node_context: &NodeContext) -> Vec<ConfigField> {
+        match self {
+            Capability::Http(_) => { vec![FieldFactory::port(), FieldFactory::path()] },
+            Capability::Node(_) => { vec![] },
+            Capability::Daemon(_) => { vec![FieldFactory::port()] },
+            Capability::Https(_) => { vec![ FieldFactory::port(), FieldFactory::path() ] },
+            Capability::Dhcp(_) => { vec![FieldFactory::port()] },
+            Capability::Ssh(_) => { vec![FieldFactory::port()] },
+            Capability::Wireguard(_) => { vec![FieldFactory::port()] },
+            Capability::Dns(_) => { vec![FieldFactory::port()] }
+        }
+    }
+
+    fn auto_assign(&self, _node_context: &NodeContext) -> bool{
+        match self {
+            Capability::Node(_) => true,
+            _ => false
+        }
+    }
+
+    fn generate_test_sections(&self, node_context: &NodeContext) -> Vec<TestSection> {
         let compatible_tests = match self {
             Capability::Http(_) => { HttpConfig::compatible_tests(Some(node_context)) },
             Capability::Node(_) => { NodeConfig::compatible_tests(Some(node_context)) },
@@ -102,32 +71,36 @@ impl Capability {
             Capability::Dns(_) => { DnsConfig::compatible_tests(Some(node_context)) }
         };
 
-        compatible_tests.iter().for_each(|capability_test| {
-            form.test_sections.push(TestSection {
-                test_type: capability_test.test.discriminant(),
-                test_info: capability_test.test.to_metadata(),
-                test_fields: Test::generate_fields(&capability_test.test),
+        compatible_tests
+            .iter()
+            .map(|capability_test| {
+                TestSection {
+                    test_type: capability_test.test.discriminant(),
+                    test_info: capability_test.test.to_metadata(),
+                    test_fields: Test::generate_fields(&capability_test.test),
+                }
             })
-        })
+            .collect()
     }
 
     pub fn from_port(port: u16) -> Option<Self> {
         CapabilityDiscriminants::iter()
             .find_map(|variant| {
-                let capability = match variant {
-                    CapabilityDiscriminants::Http => Self::Http(HttpConfig::from_port(Some(port))),
-                    CapabilityDiscriminants::Https => Self::Https(HttpsConfig::from_port(Some(port))),
-                    CapabilityDiscriminants::Ssh => Self::Ssh(SshConfig::from_port(Some(port))),
-                    CapabilityDiscriminants::Dns => Self::Dns(DnsConfig::from_port(Some(port))),
-                    CapabilityDiscriminants::Dhcp => Self::Dhcp(DhcpConfig::from_port(Some(port))),
-                    CapabilityDiscriminants::Wireguard => Self::Wireguard(WireguardConfig::from_port(Some(port))),
-                    CapabilityDiscriminants::Node => Self::Node(NodeConfig::default()),
-                    CapabilityDiscriminants::Daemon => Self::Daemon(DaemonConfig::default()),
-                };
-                
                 let default_capability = Self::default_for_discriminant(variant);
+
                 match &default_capability.config_base().discovery_ports {
-                    Some(discovery_ports) if discovery_ports.contains(&port) => Some(capability),
+                    Some(discovery_ports) if discovery_ports.contains(&port) => Some(
+                        match variant {
+                                CapabilityDiscriminants::Http => Self::Http(HttpConfig::from_port(Some(port))),
+                                CapabilityDiscriminants::Https => Self::Https(HttpsConfig::from_port(Some(port))),
+                                CapabilityDiscriminants::Ssh => Self::Ssh(SshConfig::from_port(Some(port))),
+                                CapabilityDiscriminants::Dns => Self::Dns(DnsConfig::from_port(Some(port))),
+                                CapabilityDiscriminants::Dhcp => Self::Dhcp(DhcpConfig::from_port(Some(port))),
+                                CapabilityDiscriminants::Wireguard => Self::Wireguard(WireguardConfig::from_port(Some(port))),
+                                CapabilityDiscriminants::Node => Self::Node(NodeConfig::default()),
+                                CapabilityDiscriminants::Daemon => Self::Daemon(DaemonConfig::default()),
+                            }
+                    ),
                     _ => None
                 }
             })

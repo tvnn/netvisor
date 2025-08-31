@@ -5,15 +5,11 @@ use crate::server::{shared::{forms::types::fields::*, types::metadata::TypeMetad
 #[derive(Serialize, Debug, Clone)]
 pub struct CapabilityConfigForm {
     pub capability_info: TypeMetadata,
-    
-    // Capability-specific configuration fields (port, path, etc.)
     pub capability_fields: Vec<ConfigField>,
-    
-    // Auto-assigned test sections with their own fields
     pub test_sections: Vec<TestSection>,
-    
     pub warnings: Vec<ValidationMessage>,
     pub errors: Vec<ValidationMessage>,
+    pub auto_assign: bool
 }
 
 #[derive(Serialize, Debug, Clone)]

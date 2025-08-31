@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiscoveryPhase {
-    Created, // Initial state, set by server; all subsequent states until Finished are set by Daemon
+    Initiated, // Initial state, set by server; all subsequent states until Finished are set by Daemon
     Started,
     Scanning,
     Complete,
@@ -14,7 +14,7 @@ pub enum DiscoveryPhase {
 impl std::fmt::Display for DiscoveryPhase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DiscoveryPhase::Created => write!(f, "Session created in server"),
+            DiscoveryPhase::Initiated => write!(f, "Session created in server"),
             DiscoveryPhase::Started => write!(f, "Session started in daemon"),
             DiscoveryPhase::Scanning => write!(f, "Scanning for active hosts"),
             DiscoveryPhase::Complete => write!(f, "Discovery complete"),

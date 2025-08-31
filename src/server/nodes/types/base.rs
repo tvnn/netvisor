@@ -2,18 +2,22 @@ use cidr::{IpCidr};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
-use crate::server::{capabilities::types::{base::{Capability, CapabilityDiscriminants}, configs::{NodeConfig}}, nodes::types::{criticality::TestCriticality, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}}, tests::types::execution::TestResult};
+use crate::server::{capabilities::types::{base::{Capability, CapabilityDiscriminants}, configs::{NodeConfig}}, nodes::types::{criticality::TestCriticality, status::NodeStatus, targets::{NodeTarget}}, tests::types::execution::TestResult};
 use super::{
     types::{NodeType},
 };
 use uuid::{Uuid};
+use crate::server::shared::types::api::deserialize_empty_string_as_none;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct NodeBase {
     pub name: String,
     pub node_type: NodeType,
+    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub hostname: Option<String>,
+    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub mac_address: Option<String>,
+    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
     pub target: NodeTarget,
     pub subnets: Vec<IpCidr>,
@@ -21,7 +25,8 @@ pub struct NodeBase {
     // Discovery & Capability Data
     pub discovery_status: Option<DiscoveryStatus>,
     pub capabilities: Vec<Capability>,
-    pub dns_resolver_node_id: Option<Uuid>,
+    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
+    pub dns_resolver_node_id: Option<String>,
     
     // Monitoring
     pub status: NodeStatus,
@@ -49,38 +54,16 @@ pub struct Node {
 impl Node {
     pub fn new(base: NodeBase) -> Self {
         let now = chrono::Utc::now();
-        Self {
+        let mut node = Self {
             id: uuid::Uuid::new_v4(),
             created_at: now,
             updated_at: now,
             last_seen: None,
             base,
-        }
-    }
-
-    // Helper constructor for just a name
-    pub fn from_name(name: String) -> Self {
-
-        let base = NodeBase {
-            name,
-            description: None,
-            hostname: None,
-            node_type: NodeType::UnknownDevice,
-            discovery_status: None,
-            
-            mac_address: None,
-            subnets: Vec::new(),
-            capabilities: Vec::new(),
-            dns_resolver_node_id: None,
-            target: NodeTarget::IpAddress(IpAddressTargetConfig::default()),
-
-            status: NodeStatus::Unknown,
-            monitoring_interval: 5,
-            node_groups: Vec::new(),
         };
-        let mut node = Self::new(base);
-        let node_capability = Capability::Node(NodeConfig::new(&node));
-        node.base.capabilities.push(node_capability);
+        node.add_capability(
+            Capability::Node(NodeConfig::new(&node))
+        );
         node
     }
 

@@ -10,7 +10,7 @@ use crate::{
     daemon::{discovery::{manager::DaemonDiscoverySessionManager, types::base::DiscoveryPhase, utils::{arp_lookup, get_daemon_subnet, get_local_ip_address, port_scan, reverse_dns_lookup}}, shared::storage::ConfigStore},
     server::{
         capabilities::types::base::Capability, daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, nodes::types::{
-            api::CreateNodeRequest, base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType
+            base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType
         }
     },
 };
@@ -347,7 +347,7 @@ impl DaemonDiscoveryService {
         let response = self
             .client
             .post(format!("{}/api/nodes", server_target.to_string()))
-            .json(&CreateNodeRequest {node: node.base.clone()})
+            .json(node)
             .send()
             .await?;
 

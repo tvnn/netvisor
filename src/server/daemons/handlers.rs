@@ -12,7 +12,7 @@ use crate::{server::{
         service::DaemonService, 
         types::{
             api::{
-                DaemonDiscoveryUpdate, DaemonListResponse, DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse, DaemonTestResult
+                DaemonDiscoveryUpdate, DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse, DaemonTestResult
             }, 
             base::{Daemon, DaemonBase}
         }
@@ -73,15 +73,13 @@ async fn receive_heartbeat(
 /// Get all registered daemons
 async fn get_all_daemons(
     State(state): State<Arc<AppState>>,
-) -> ApiResult<Json<ApiResponse<DaemonListResponse>>> {
+) -> ApiResult<Json<ApiResponse<Vec<Daemon>>>> {
     let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
     
     let daemons = service.get_all_daemons().await
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemons: {}", e)))?;
-
-    let total = daemons.len();
     
-    Ok(Json(ApiResponse::success(DaemonListResponse { daemons, total })))
+    Ok(Json(ApiResponse::success( daemons )))
 }
 
 /// Get specific daemon by ID

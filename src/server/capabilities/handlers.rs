@@ -2,7 +2,7 @@ use axum::{extract::State, routing::post, Json, Router};
 use std::{sync::Arc, collections::HashMap};
 use strum::IntoEnumIterator;
 use crate::server::{
-        capabilities::types::{api::{FormRequest, FormResponse}, base::{Capability, CapabilityDiscriminants}}, config::AppState, nodes::service::NodeService, shared::types::api::{ApiError, ApiResponse, ApiResult}
+        capabilities::types::{api::CapabilityFormRequest, base::{Capability, CapabilityDiscriminants}, forms::CapabilityConfigForm}, config::AppState, nodes::service::NodeService, shared::types::api::{ApiError, ApiResponse, ApiResult}
     };
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -12,8 +12,8 @@ pub fn create_router() -> Router<Arc<AppState>> {
 
 pub async fn get_capability_form(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<FormRequest>,
-) -> ApiResult<Json<ApiResponse<FormResponse>>> {
+    Json(request): Json<CapabilityFormRequest>,
+) -> ApiResult<Json<ApiResponse<HashMap<CapabilityDiscriminants, CapabilityConfigForm>>>> {
     
     let node_service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     let available_nodes = node_service.get_all_nodes().await
@@ -33,5 +33,5 @@ pub async fn get_capability_form(
         forms.insert(discriminant, schema);
     }
     
-    Ok(Json(ApiResponse::success(FormResponse { forms })))
+    Ok(Json(ApiResponse::success( forms)))
 }

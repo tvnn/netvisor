@@ -21,7 +21,7 @@ impl DiscoverySessionManager {
     }
 
     /// Create a new discovery session
-    pub async fn create_session(&self, session_id: Uuid, daemon_id: Uuid) -> Result<(), anyhow::Error> {
+    pub async fn create_session(&self, session_id: Uuid, daemon_id: Uuid) -> Result<DaemonDiscoveryUpdate, anyhow::Error> {
         // Check if daemon is already running discovery
         if self.daemon_sessions.read().await.contains_key(&daemon_id) {
             return Err(anyhow::anyhow!("Daemon is already running discovery"));
@@ -29,11 +29,11 @@ impl DiscoverySessionManager {
 
         let session_state = DaemonDiscoveryUpdate::new(session_id, daemon_id);
 
-        self.sessions.write().await.insert(session_id, session_state);
+        self.sessions.write().await.insert(session_id, session_state.clone());
         self.daemon_sessions.write().await.insert(daemon_id, session_id);
 
         tracing::info!("Created discovery session {} for daemon {}", session_id, daemon_id);
-        Ok(())
+        Ok(session_state)
     }
 
     /// Get session state

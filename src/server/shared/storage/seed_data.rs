@@ -22,7 +22,7 @@ pub fn create_internet_connectivity_node(dns_id: Uuid) -> Node {
         capabilities: vec![
             Capability::from_port(443).expect("HTTPS capability maps to 443")
         ],
-        dns_resolver_node_id: Some(dns_id),
+        dns_resolver_node_id: Some(dns_id.to_string()),
         status: NodeStatus::Unknown,
         monitoring_interval: 0,
         node_groups: Vec::new(),
