@@ -7,7 +7,7 @@ export interface CapabilityConfigForm {
   test_sections: TestSection[];
   warnings: ValidationMessage[];
   errors: ValidationMessage[];
-  auto_assign: boolean;
+  system_assigned: boolean;
 }
 
 export interface TestSection {

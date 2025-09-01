@@ -1,5 +1,9 @@
 
-// Components
+export interface TagProps {
+  label: string,
+  textColor: string,
+  bgColor: string
+}
 
 export interface CardAction {
   label: string;

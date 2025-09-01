@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { createColorHelper } from "$lib/shared/utils/styling";
 	import { Circle } from "lucide-svelte";
-	import type { Component } from "svelte";
 
     export let icon = Circle;
     export let enableIcon = false

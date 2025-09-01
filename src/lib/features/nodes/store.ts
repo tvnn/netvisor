@@ -40,6 +40,7 @@ export async function getNodes() {
     nodes,
     (nodes) => nodes,
     { method: 'GET', },
+    true
   )
 }
 

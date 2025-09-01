@@ -15,11 +15,12 @@ class ApiClient {
     dataStore: Writable<TStoreData> | null,
     storeAction: ((data: TResponseData, current: TStoreData) => TStoreData) | null,
     options: RequestInit = {},
+    isBackgroundRequest: boolean = false
   ): Promise<ApiResponse<TResponseData> | null> {
     const url = `${API_BASE}${endpoint}`;
     const baseErrorMessage = `Failed to ${options.method || 'load'} from ${endpoint}`;
     
-    loading.set(true);
+    if (!isBackgroundRequest) loading.set(true);
     
     try {
       const response = await fetch(url, {
@@ -57,7 +58,7 @@ class ApiClient {
       pushError(`${baseErrorMessage}: ${err}`);
       return null;
     } finally {
-      loading.set(false);
+      if (!isBackgroundRequest) loading.set(false);
     }
   }
 }

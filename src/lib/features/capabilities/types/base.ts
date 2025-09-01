@@ -14,11 +14,11 @@ export interface CapabilityConfig extends CapabilityConfigBase {
 
 export interface CapabilityConfigBase {
   name: string;  // "API Server", "Node-Level Tests", "Daemon Service"
-  removable: boolean;  // false for Node and DaemonService capabilities
   tests: CapabilityTest[];
   port?: number;
   process?: string;
   discovery_ports?: number[];
+  system_assigned?: boolean;
 }
 
 // Helper functions to work with the generic structure

@@ -1,15 +1,16 @@
-<!-- src/lib/features/nodes/components/NodeEditModal/Capabilities/CapabilitiesForm.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Plus } from 'lucide-svelte';
   import ListManager from '$lib/shared/components/forms/ListManager.svelte';
-  import RichSelect from '$lib/shared/components/forms/RichSelect.svelte';
-  import { createCapability, getCapabilityConfig, type Capability, getCapabilityType, type updateCapabilityConfig } from '$lib/features/capabilities/types/base';
+  import { createCapability, getCapabilityConfig, type Capability, getCapabilityType, type CapabilityConfigBase, type CapabilityConfig } from '$lib/features/capabilities/types/base';
   import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
   import type { NodeContext } from '$lib/features/nodes/types/base';
   import { getCapabilityForms } from '$lib/features/capabilities/store';
   import { createStyle } from '$lib/shared/utils/styling';
 	import CapabilitiesConfigPanel from './CapabilitiesConfigPanel.svelte';
+	import { loading, pushError } from '$lib/shared/stores/feedback';
+	import { capabilities } from '$lib/shared/stores/registry';
+	import Tag from '$lib/shared/components/data/Tag.svelte';
+	import type { TagProps } from '$lib/shared/components/data/types';
 
   export let selectedCapabilities: Capability[] = [];
   export let nodeContext: NodeContext;
@@ -17,19 +18,16 @@
   // Component state
   let availableSchemas: Record<string, CapabilityConfigForm> = {};
   let selectedCapabilityIndex = -1;
-  let showAddDropdown = false;
-  let addingCapabilityType = '';
-  let loading = true;
-  let error: string | null = null;
 
   // Computed values
   $: selectedCapability = selectedCapabilityIndex >= 0 ? selectedCapabilities[selectedCapabilityIndex] : null;
   $: selectedCapabilityType = selectedCapability ? getCapabilityType(selectedCapability) : null;
   $: selectedSchema = selectedCapabilityType ? availableSchemas[selectedCapabilityType] : null;
-  $: availableCapabilityTypes = Object.keys(availableSchemas).filter(type => 
-    !selectedCapabilities.some(cap => getCapabilityType(cap) === type) || 
-    selectedCapabilities.filter(cap => getCapabilityType(cap) === type).length === 0
-  );
+
+  // Available capability types for dropdown
+  $: selectOptions = Object.keys(availableSchemas)
+    .filter(type => !availableSchemas[type].system_assigned)
+    .map(type => capabilityFromType(type))
 
   // Load capability schemas on mount and when node context changes
   $: if (nodeContext) {
@@ -37,61 +35,37 @@
   }
 
   async function loadCapabilitySchemas() {
-    try {
-      loading = true;
-      error = null;
-      
-      // Get all available capability types for this node context
-      const allCapabilityTypes = ['Http', 'Https', 'Ssh', 'Node', 'Daemon']; // This would come from registry
-      
+    try {            
       const response = await getCapabilityForms({
-        capability_types: allCapabilityTypes,
         node_context: nodeContext
       });
       
       if (response && response?.data) {
         availableSchemas = response.data;
-        
-        // Auto-assign capabilities that should be auto-created
-        autoAssignCapabilities();
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load capability schemas';
-      console.error('Failed to load capability schemas:', err);
-    } finally {
-      loading = false;
+      pushError(err instanceof Error ? err.message : 'Failed to load capability schemas')
     }
   }
 
-  function autoAssignCapabilities() {
-    const autoAssignTypes = Object.entries(availableSchemas)
-      .filter(([_, schema]) => schema.auto_assign)
-      .map(([type, _]) => type);
-    
-    for (const capabilityType of autoAssignTypes) {
-      // Only auto-assign if we don't already have this capability type
-      if (!selectedCapabilities.some(cap => getCapabilityType(cap) === capabilityType)) {
-        const schema = availableSchemas[capabilityType];
-        const newCapability = createCapabilityFromSchema(capabilityType, schema);
-        selectedCapabilities = [...selectedCapabilities, newCapability];
-      }
-    }
+  function handleEditCapability(_: any, index: number) {
+    selectedCapabilityIndex = index;
   }
 
-  function createCapabilityFromSchema(capabilityType: string, schema: CapabilityConfigForm): Capability {
-    // Create capability config with all fields flattened
-    const config: any = {
-      name: getDefaultCapabilityName(capabilityType, schema),
-      removable: !schema.auto_assign, // Auto-assigned capabilities are not removable
+  function capabilityFromType(capabilityType: string) {
+    const schema = availableSchemas[capabilityType]
+    const baseConfig: CapabilityConfigBase = {
+      name: capabilities.getDisplay(capabilityType),
       tests: schema.test_sections.map(section => ({
         test: section.test_type,
-        criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
+        criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value,
         enabled: section.enabled_by_default
       })),
-      port: undefined,
-      process: undefined,
-      discovery_ports: undefined // Will be None in requests
     };
+
+    let config: CapabilityConfig = {
+      ...baseConfig
+    }
 
     // Add capability-specific default values from schema
     schema.capability_fields.forEach(field => {
@@ -100,47 +74,17 @@
       }
     });
 
-    return createCapability(capabilityType, config);
+    return createCapability(capabilityType, config)
   }
 
-  function getDefaultCapabilityName(capabilityType: string, schema: CapabilityConfigForm): string {
-    // Generate a default name based on capability type
-    const typeMap: Record<string, string> = {
-      'Node': 'Node-Level Tests',
-      'Http': 'HTTP Service',
-      'Https': 'HTTPS Service', 
-      'Ssh': 'SSH Access',
-      'Daemon': 'Daemon Service'
-    };
-    
-    return typeMap[capabilityType] || schema.capability_info.display_name || capabilityType;
-  }
-
-  function handleAddCapability() {
-    if (!addingCapabilityType || !availableSchemas[addingCapabilityType]) return;
-    
-    const schema = availableSchemas[addingCapabilityType];
-    const newCapability = createCapabilityFromSchema(addingCapabilityType, schema);
-    
-    selectedCapabilities = [...selectedCapabilities, newCapability];
+  function handleAddCapability(capabilityType: string) {  
+    selectedCapabilities = [...selectedCapabilities, capabilityFromType(capabilityType)];
     selectedCapabilityIndex = selectedCapabilities.length - 1;
-    
-    // Reset add state
-    addingCapabilityType = '';
-    showAddDropdown = false;
-  }
-
-  function handleEditCapability(capability: Capability, index: number) {
-    selectedCapabilityIndex = index;
   }
 
   function handleRemoveCapability(index: number) {
     const capability = selectedCapabilities[index];
     const config = getCapabilityConfig(capability);
-    if (!config.removable) {
-      console.warn('Attempted to remove non-removable capability:', config.name);
-      return;
-    }
     
     selectedCapabilities = selectedCapabilities.filter((_, i) => i !== index);
     
@@ -159,13 +103,28 @@
     selectedCapabilities = selectedCapabilities; // Trigger reactivity
   }
 
+  function getItemId(capability: Capability): string {
+    return getCapabilityType(capability)
+  }
+
   // Display functions for ListManager
-  function getDisplayName(capability: Capability): string {
+
+  // Options
+  function getOptionLabel(capability: Capability): string {
+    return capabilities.getDisplay( getCapabilityType(capability) );
+  }
+
+  function getOptionDescription(capability: Capability) {
+    return capabilities.getDescription( getCapabilityType(capability) );
+  }
+
+  // Items
+  function getItemLabel(capability: Capability): string {
     const config = getCapabilityConfig(capability);
     return config.name || 'Unnamed Capability';
   }
 
-  function getDisplayDetails(capability: Capability): string {
+  function getItemDescription(capability: Capability): string {
     const parts = [];
     const type = getCapabilityType(capability);
     const config = getCapabilityConfig(capability);
@@ -181,42 +140,43 @@
     return parts.join(' • ');
   }
 
-  function getDisplayBadges(capability: Capability) {
-    const badges = [];
+  function getItemTags(capability: Capability): TagProps[] {
+    const tags = [];
     const type = getCapabilityType(capability);
     const config = getCapabilityConfig(capability);
     
-    // Capability type badge
+    // Capability type tag
     const schema = availableSchemas[type];
     const typeStyle = schema ? createStyle(schema.capability_info.color, null) : createStyle('gray', null);
-    badges.push({
-      text: type,
-      color: typeStyle.colors.text,
+    tags.push({
+      label: type,
+      textColor: typeStyle.colors.text,
       bgColor: typeStyle.colors.bg
     });
     
-    // Test status badge
+    // Test status tag
     const enabledTests = config.tests.filter(t => t.enabled).length;
     const totalTests = config.tests.length;
-    badges.push({
-      text: `${enabledTests}/${totalTests} tests`,
-      color: enabledTests === totalTests ? 'text-green-400' : 'text-yellow-400',
-      bgColor: enabledTests === totalTests ? 'bg-green-900/20' : 'bg-yellow-900/20'
-    });
+    if (totalTests > 0) {
+      tags.push({
+        label: `${enabledTests}/${totalTests} tests`,
+        textColor: enabledTests === totalTests ? 'text-green-400' : 'text-yellow-400',
+        bgColor: enabledTests === totalTests ? 'bg-green-900/20' : 'bg-yellow-900/20'
+      });
+    }
     
-    return badges;
+    return tags;
   }
 
-  // Available capability types for dropdown
-  $: capabilityTypeOptions = availableCapabilityTypes.map(type => {
-    const schema = availableSchemas[type];
-    return {
-      value: type,
-      label: schema.capability_info.display_name,
-      description: schema.capability_info.description,
-      metadata: schema.capability_info
-    };
-  });
+  function getItemIcon(capability: Capability) {
+    let iconName = capabilities.getIcon( getCapabilityType(capability) );
+    return createStyle(null, iconName).IconComponent;
+  }
+
+  function getItemIconColor(capability: Capability) {
+    let colorStyle = capabilities.getColor( getCapabilityType(capability) );
+    return colorStyle.icon;
+  }
 
   onMount(() => {
     // Auto-expand first section on mount
@@ -226,103 +186,52 @@
   });
 </script>
 
-{#if loading}
-  <div class="h-96 flex items-center justify-center">
+{#if $loading}
+  <div class="h-full flex items-center justify-center">
     <div class="flex items-center gap-3 text-gray-400">
       <div class="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
       Loading capability configurations...
     </div>
   </div>
-{:else if error}
-  <div class="h-96 flex items-center justify-center">
-    <div class="text-center">
-      <div class="text-red-400 mb-2">Failed to load capabilities</div>
-      <div class="text-sm text-gray-400">{error}</div>
-      <button 
-        on:click={loadCapabilitySchemas}
-        class="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-      >
-        Retry
-      </button>
-    </div>
-  </div>
 {:else}
-  <div class="h-96 flex gap-6">
+  <div class="h-full flex gap-6">
     <!-- Left Panel - Capability List -->
-    <div class="w-1/2 flex flex-col">
+    <div class="w-2/5 flex flex-col">
       <!-- Add New Capability -->
-      <div class="mb-4">
-        {#if showAddDropdown}
-          <div class="flex gap-2">
-            <div class="flex-1">
-              <RichSelect
-                label=""
-                selectedValue={addingCapabilityType}
-                options={capabilityTypeOptions}
-                placeholder="Select capability type..."
-                onSelect={(value) => addingCapabilityType = value}
-                getOptionIcon={(opt) => createStyle(opt.metadata.color, opt.metadata.icon).IconComponent}
-                getOptionIconColor={(opt) => createStyle(opt.metadata.color, opt.metadata.icon).colors.icon}
-              />
-            </div>
-            <button
-              type="button"
-              on:click={handleAddCapability}
-              disabled={!addingCapabilityType}
-              class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Add
-            </button>
-            <button
-              type="button"
-              on:click={() => { showAddDropdown = false; addingCapabilityType = ''; }}
-              class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-            >
-              Cancel
-            </button>
-          </div>
-        {:else}
-          <button
-            type="button"
-            on:click={() => showAddDropdown = true}
-            disabled={availableCapabilityTypes.length === 0}
-            class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed w-full justify-center"
-          >
-            <Plus size={16} />
-            Add Capability
-          </button>
-        {/if}
-        
-        {#if availableCapabilityTypes.length === 0}
-          <p class="text-xs text-gray-400 mt-2 text-center">
-            All available capability types have been added
-          </p>
-        {/if}
-      </div>
-
-      <!-- Capability List -->
-      <div class="flex-1">
+      <div class="flex-1 min-h-0">
         <ListManager
           label="Capabilities"
           helpText="Configure services and their monitoring tests"
           bind:items={selectedCapabilities}
-          availableOptions={[]}
+          options={selectOptions}
           allowReorder={false}
-          allowEdit={true}
-          allowDirectAdd={false}
-          {getDisplayName}
-          {getDisplayDetails}
-          {getDisplayBadges}
+          allowItemRemove={(selected: Capability) => !selected.system_assigned}
+          allowDirectAdd={true}
+          placeholder="Select capability type..."
           onEdit={handleEditCapability}
           onRemove={handleRemoveCapability}
+          onAdd={handleAddCapability}
           highlightedIndex={selectedCapabilityIndex}
           emptyMessage="No capabilities configured. Add one to get started."
+          
+          getOptionId={getItemId}
+          getOptionIcon={getItemIcon}
+          getOptionIconColor={getItemIconColor}
+          {getOptionLabel}
+          {getOptionDescription}
+
+          {getItemId}
+          {getItemIcon}
+          {getItemIconColor}
+          {getItemLabel}
+          {getItemDescription}
+          {getItemTags}
         />
       </div>
     </div>
 
     <!-- Right Panel - Capability Configuration -->
-    <div class="w-1/2 border-l border-gray-600 pl-6">
+    <div class="w-3/5 border-l border-gray-600 pl-6">
       <CapabilitiesConfigPanel
         capability={selectedCapability}
         schema={selectedSchema}

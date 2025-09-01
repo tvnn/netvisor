@@ -4,6 +4,8 @@
   import { getCapabilityConfig, getCapabilityType, updateCapabilityConfig, type Capability } from '$lib/features/capabilities/types/base';
   import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
   import { createStyle } from '$lib/shared/utils/styling';
+	import { criticalityLevels } from '$lib/shared/stores/registry';
+	import Tag from '$lib/shared/components/data/Tag.svelte';
 
   export let capability: Capability | null = null;
   export let schema: CapabilityConfigForm | null = null;
@@ -88,18 +90,6 @@
     const updatedCapability = updateCapabilityConfig(capability, { tests: updatedTests });
     onChange(updatedCapability);
   }
-
-  function getConfigSummary(config: Record<string, any>): string {
-    const keys = Object.keys(config);
-    if (keys.length === 0) return '';
-    
-    const parts = [];
-    if (config.port) parts.push(`Port ${config.port}`);
-    if (config.path) parts.push(config.path);
-    if (config.hostname) parts.push(config.hostname);
-    
-    return parts.join(' • ') || `${keys.length} settings`;
-  }
 </script>
 
 {#if !capability || !schema}
@@ -122,11 +112,6 @@
         <h3 class="text-lg font-medium text-white">
           {schema.capability_info.display_name}
         </h3>
-        {#if !config.removable}
-          <span class="text-xs px-2 py-1 bg-orange-900/20 text-orange-400 rounded border border-orange-600">
-            System
-          </span>
-        {/if}
       </div>
       {#if schema.capability_info.description}
         <p class="text-sm text-gray-400">{schema.capability_info.description}</p>
@@ -155,7 +140,7 @@
       <!-- Capability Configuration Fields -->
       {#if schema.capability_fields.length > 0}
         <div>
-          <h4 class="text-sm font-medium text-gray-300 mb-4">Service Configuration</h4>
+          <h4 class="text-sm font-medium text-gray-300 mb-4">Configuration</h4>
           <div class="space-y-4">
             {#each schema.capability_fields as field}
               <DynamicField
@@ -168,10 +153,10 @@
         </div>
       {/if}
 
-      <!-- Auto-Assigned Tests -->
+      <!-- Tests -->
       {#if schema.test_sections.length > 0}
         <div>
-          <h4 class="text-sm font-medium text-gray-300 mb-4">Auto-Assigned Tests</h4>
+          <h4 class="text-sm font-medium text-gray-300 mb-4">Tests</h4>
           <div class="space-y-4">
             {#each schema.test_sections as section, sectionIndex}
               {@const isExpanded = expandedSections.has(section.test_type)}
@@ -191,9 +176,9 @@
                         title={testConfig?.enabled ? 'Disable test' : 'Enable test'}
                       >
                         {#if testConfig?.enabled}
-                          <ToggleRight class="w-6 h-6 text-blue-400" />
+                          <ToggleRight class="w-8 h-8 text-green-400" />
                         {:else}
-                          <ToggleLeft class="w-6 h-6 text-gray-500" />
+                          <ToggleLeft class="w-8 h-8 text-gray-500" />
                         {/if}
                       </button>
 
@@ -201,9 +186,10 @@
                       <div class="flex items-center gap-2">
                         <svelte:component this={testStyle.IconComponent} class="w-5 h-5 {testStyle.colors.icon}" />
                         <span class="font-medium text-white">{section.test_info.display_name}</span>
-                        <span class="text-xs px-2 py-1 bg-gray-800 text-gray-300 rounded">
-                          {testConfig?.criticality || 'Not configured'}
-                        </span>
+                        <Tag 
+                          bgColor={criticalityLevels.getColor(testConfig.criticality).bg}
+                          textColor={criticalityLevels.getColor(testConfig.criticality).text}
+                          label={testConfig?.criticality} />
                       </div>
                     </div>
 
@@ -270,19 +256,6 @@
           </div>
         </div>
       {/if}
-
-      <!-- Configuration Summary -->
-      <div class="rounded-lg bg-gray-700/50 p-4">
-        <h5 class="text-sm font-medium text-gray-300 mb-2">Configuration Summary</h5>
-        <div class="text-sm text-gray-400 space-y-1">
-          <div>Name: <span class="text-white">{capabilityName || 'Unnamed'}</span></div>
-          <div>Type: <span class="text-white">{schema.capability_info.display_name}</span></div>
-          {#if Object.keys(capabilityConfig).filter(k => k !== 'name' && k !== 'removable' && k !== 'tests' && k !== 'port' && k !== 'process' && k !== 'discovery_ports').length > 0}
-            <div>Settings: <span class="text-white">{getConfigSummary(capabilityConfig)}</span></div>
-          {/if}
-          <div>Tests: <span class="text-white">{config.tests.filter(t => t.enabled).length}/{config.tests.length} enabled</span></div>
-        </div>
-      </div>
     </div>
   </div>
 {/if}
