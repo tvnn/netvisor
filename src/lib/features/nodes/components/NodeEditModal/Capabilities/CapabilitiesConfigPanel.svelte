@@ -93,7 +93,7 @@
 </script>
 
 {#if !capability || !schema}
-  <div class="h-full flex items-center justify-center text-gray-400">
+  <div class="flex-1 min-h-0 flex items-center justify-center text-gray-400">
     <div class="text-center">
       <div class="text-lg mb-2">No capability selected</div>
       <div class="text-sm">Select a capability from the list to configure it</div>
@@ -101,7 +101,7 @@
   </div>
 {:else}
   {@const config = getCapabilityConfig(capability)}
-  <div class="h-full flex flex-col">
+  <div class="h-full flex flex-col min-h-0">
     <!-- Header -->
     <div class="border-b border-gray-600 pb-4 mb-6">
       <div class="flex items-center gap-3 mb-2">
@@ -119,8 +119,9 @@
     </div>
 
     <!-- Scrollable Content -->
-    <div class="flex-1 overflow-auto space-y-6">
+    <div class="flex-1 overflow-auto space-y-6 min-h-0">
       <!-- Capability Name -->
+      {#if !getCapabilityConfig(capability).system_assigned}
       <div>
         <div class="block text-sm font-medium text-gray-300 mb-2">
           Name
@@ -136,6 +137,7 @@
           Give this capability a meaningful name like "API Server" or "Admin Panel"
         </p>
       </div>
+      {/if}
 
       <!-- Capability Configuration Fields -->
       {#if schema.capability_fields.length > 0}
@@ -183,14 +185,20 @@
                       </button>
 
                       <!-- Test Info -->
-                      <div class="flex items-center gap-2">
-                        <svelte:component this={testStyle.IconComponent} class="w-5 h-5 {testStyle.colors.icon}" />
-                        <span class="font-medium text-white">{section.test_info.display_name}</span>
-                        <Tag 
-                          bgColor={criticalityLevels.getColor(testConfig.criticality).bg}
-                          textColor={criticalityLevels.getColor(testConfig.criticality).text}
-                          label={testConfig?.criticality} />
-                      </div>
+                        <div class="flex items-center gap-3">
+                          <svelte:component this={testStyle.IconComponent} class="w-8 h-8 {testStyle.colors.icon}" />
+                          <div class="flex-col">
+                            <div class="flex items-center gap-2">
+                              <span class="font-medium text-white">{section.test_info.display_name}</span>
+                              <Tag 
+                                bgColor={criticalityLevels.getColor(testConfig.criticality).bg}
+                                textColor={criticalityLevels.getColor(testConfig.criticality).text}
+                                label={testConfig?.criticality} />
+                            </div>
+                            <span class="text-sm text-gray-400">{section.test_info.description}</span>
+                          </div>
+                        </div>
+                        
                     </div>
 
                     <!-- Expand/Collapse Button -->

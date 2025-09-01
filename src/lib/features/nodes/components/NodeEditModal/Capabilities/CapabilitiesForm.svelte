@@ -9,7 +9,6 @@
 	import CapabilitiesConfigPanel from './CapabilitiesConfigPanel.svelte';
 	import { loading, pushError } from '$lib/shared/stores/feedback';
 	import { capabilities } from '$lib/shared/stores/registry';
-	import Tag from '$lib/shared/components/data/Tag.svelte';
 	import type { TagProps } from '$lib/shared/components/data/types';
 
   export let selectedCapabilities: Capability[] = [];
@@ -26,13 +25,8 @@
 
   // Available capability types for dropdown
   $: selectOptions = Object.keys(availableSchemas)
-    .filter(type => !availableSchemas[type].system_assigned)
-    .map(type => capabilityFromType(type))
-
-  // Load capability schemas on mount and when node context changes
-  $: if (nodeContext) {
-    loadCapabilitySchemas();
-  }
+    .map(type => capabilityFromType(type))  
+    .filter(type => !getCapabilityConfig(type).system_assigned)
 
   async function loadCapabilitySchemas() {
     try {            
@@ -61,6 +55,10 @@
         criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value,
         enabled: section.enabled_by_default
       })),
+      system_assigned: schema.system_assigned,
+      port: undefined,
+      process: undefined,
+      discovery_ports: undefined
     };
 
     let config: CapabilityConfig = {
@@ -84,9 +82,9 @@
 
   function handleRemoveCapability(index: number) {
     const capability = selectedCapabilities[index];
-    const config = getCapabilityConfig(capability);
+    // const config = getCapabilityConfig(capability);
     
-    selectedCapabilities = selectedCapabilities.filter((_, i) => i !== index);
+    // selectedCapabilities = selectedCapabilities.filter((_, i) => i !== index);
     
     // Update selected index
     if (selectedCapabilityIndex === index) {
@@ -142,24 +140,14 @@
 
   function getItemTags(capability: Capability): TagProps[] {
     const tags = [];
-    const type = getCapabilityType(capability);
     const config = getCapabilityConfig(capability);
-    
-    // Capability type tag
-    const schema = availableSchemas[type];
-    const typeStyle = schema ? createStyle(schema.capability_info.color, null) : createStyle('gray', null);
-    tags.push({
-      label: type,
-      textColor: typeStyle.colors.text,
-      bgColor: typeStyle.colors.bg
-    });
-    
+        
     // Test status tag
     const enabledTests = config.tests.filter(t => t.enabled).length;
     const totalTests = config.tests.length;
     if (totalTests > 0) {
       tags.push({
-        label: `${enabledTests}/${totalTests} tests`,
+        label: `${enabledTests}/${totalTests} tests enabled`,
         textColor: enabledTests === totalTests ? 'text-green-400' : 'text-yellow-400',
         bgColor: enabledTests === totalTests ? 'bg-green-900/20' : 'bg-yellow-900/20'
       });
@@ -180,6 +168,7 @@
 
   onMount(() => {
     // Auto-expand first section on mount
+    loadCapabilitySchemas();
     if (selectedCapabilities.length > 0 && selectedCapabilityIndex === -1) {
       selectedCapabilityIndex = 0;
     }
@@ -194,9 +183,9 @@
     </div>
   </div>
 {:else}
-  <div class="h-full flex gap-6">
+  <div class="h-full flex gap-6 min-h-0">
     <!-- Left Panel - Capability List -->
-    <div class="w-2/5 flex flex-col">
+    <div class="w-2/5 flex flex-col min-h-0">
       <!-- Add New Capability -->
       <div class="flex-1 min-h-0">
         <ListManager
@@ -204,8 +193,9 @@
           helpText="Configure services and their monitoring tests"
           bind:items={selectedCapabilities}
           options={selectOptions}
+          allowDuplicates={true}
           allowReorder={false}
-          allowItemRemove={(selected: Capability) => !selected.system_assigned}
+          allowItemRemove={(selected: Capability) => !getCapabilityConfig(selected).system_assigned}
           allowDirectAdd={true}
           placeholder="Select capability type..."
           onEdit={handleEditCapability}
@@ -231,7 +221,7 @@
     </div>
 
     <!-- Right Panel - Capability Configuration -->
-    <div class="w-3/5 border-l border-gray-600 pl-6">
+    <div class="w-3/5 border-l border-gray-600 pl-6 min-h-0">
       <CapabilitiesConfigPanel
         capability={selectedCapability}
         schema={selectedSchema}

@@ -58,7 +58,7 @@ export async function updateNode(data: Node) {
     `/nodes/${data.id}`,
     nodes,
     (updatedNode, current) => current.map(n => n.id === data.id ? updatedNode : n),
-    { method: 'POST', body: JSON.stringify(data)},
+    { method: 'PUT', body: JSON.stringify(data)},
   )
 }
 

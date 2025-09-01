@@ -27,7 +27,7 @@ export async function updateNodeGroup(data: NodeGroup) {
     `/groups/${data.id}`,
     nodeGroups,
     (updatedGroup, current) => current.map(g => g.id === data.id ? updatedGroup : g),
-    { method: 'POST', body: JSON.stringify(data)},
+    { method: 'PUT', body: JSON.stringify(data)},
   )
 }
 

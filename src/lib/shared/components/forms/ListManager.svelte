@@ -34,6 +34,7 @@
   export let getItemId: (item: any) => string;
 
   // Item interaction
+  export let allowDuplicates: boolean = false;
   export let allowItemEdit: ((item: any) => boolean) = (item) => true;
   export let allowItemRemove: ((item: any) => boolean) = (item) => true;
 
@@ -57,11 +58,21 @@
   $: computedEmptyMessage = emptyMessage || `No ${label.toLowerCase()} added yet`;
   
   function addItem() {
-    if (selectedOptionId && !items.some(item => {
-      const itemId = getItemId(item)
-      return itemId === selectedOptionId;
-    })) {
-      items = [...items, selectedOptionId];
+    if (selectedOptionId) {
+      // Check for duplicates only if allowDuplicates is false
+      if (!allowDuplicates) {
+        const isDuplicate = items.some(item => {
+          const itemId = getItemId(item);
+          return itemId === selectedOptionId;
+        });
+        
+        if (isDuplicate) {
+          return; // Don't add duplicates
+        }
+      }
+      
+      // Call the parent's onAdd callback with the option ID
+      onAdd(selectedOptionId);
       selectedOptionId = '';
     }
   }
@@ -123,7 +134,7 @@
   </div>
   
   <!-- Add Item Section with RichSelect -->
-  {#if allowDirectAdd && items.length > 0}
+  {#if allowDirectAdd}
     <div class="mb-3 mt-4">
       <div class="flex gap-2">
         <!-- RichSelect Component -->
@@ -154,9 +165,12 @@
         
         <!-- svelte-ignore a11y-no-noninteractive-tabindex -->
         <div 
-          class="flex items-center gap-3 p-3 rounded-lg border transition-all {allowItemEdit(item) ?
-            'cursor-pointer hover:bg-gray-700/30 hover:border-gray-500' : ''} {
-            isHighlighted ? 'bg-blue-900/20 border-blue-500' : 'bg-gray-700/20 border-gray-600'
+          class="flex items-center gap-3 p-3 rounded-lg border transition-all {
+            allowItemEdit(item) ? 'cursor-pointer' : ''
+          } {
+            isHighlighted 
+              ? 'bg-blue-900/20 border-blue-500 hover:bg-blue-900/30 hover:border-blue-400' 
+              : 'bg-gray-700/20 border-gray-600 hover:bg-gray-700/30 hover:border-gray-500'
           }"
           on:click={() => allowItemEdit(item) && onEdit(item, index)}
           tabindex={allowItemEdit(item) ? 0 : -1}
