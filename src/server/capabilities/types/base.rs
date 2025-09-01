@@ -35,27 +35,24 @@ impl Capability {
             test_sections: self.generate_test_sections(node_context),
             warnings: vec![],
             errors: vec![],
-            auto_assign: self.auto_assign(node_context)
+            system_assigned: self.is_system_assigned()
         }
+    }
+
+    fn is_system_assigned(&self) -> bool {
+        self.config_base().system_assigned
     }
 
     fn generate_capability_fields(&self, _node_context: &NodeContext) -> Vec<ConfigField> {
         match self {
-            Capability::Http(_) => { vec![FieldFactory::port(), FieldFactory::path()] },
+            Capability::Http(config) => { vec![FieldFactory::port(config.base.port), FieldFactory::path()] },
             Capability::Node(_) => { vec![] },
-            Capability::Daemon(_) => { vec![FieldFactory::port()] },
-            Capability::Https(_) => { vec![ FieldFactory::port(), FieldFactory::path() ] },
-            Capability::Dhcp(_) => { vec![FieldFactory::port()] },
-            Capability::Ssh(_) => { vec![FieldFactory::port()] },
-            Capability::Wireguard(_) => { vec![FieldFactory::port()] },
-            Capability::Dns(_) => { vec![FieldFactory::port()] }
-        }
-    }
-
-    fn auto_assign(&self, _node_context: &NodeContext) -> bool{
-        match self {
-            Capability::Node(_) => true,
-            _ => false
+            Capability::Daemon(config) => { vec![FieldFactory::port(config.base.port)] },
+            Capability::Https(config) => { vec![ FieldFactory::port(config.base.port), FieldFactory::path() ] },
+            Capability::Dhcp(config) => { vec![FieldFactory::port(config.base.port)] },
+            Capability::Ssh(config) => { vec![FieldFactory::port(config.base.port)] },
+            Capability::Wireguard(config) => { vec![FieldFactory::port(config.base.port)] },
+            Capability::Dns(config) => { vec![FieldFactory::port(config.base.port)] }
         }
     }
 
@@ -160,14 +157,14 @@ impl TypeMetadataProvider for Capability {
 
     fn display_name(&self) -> &str {
         match self {
-            Capability::Ssh{ .. } => "SSH Access",
-            Capability::Http{ .. } => "HTTP Service",
-            Capability::Https{ .. } => "HTTPS Service",
-            Capability::Wireguard{ .. } => "Wireguard VPN Service",
-            Capability::Daemon{ .. } => "NetVisor Daemon Service",
-            Capability::Dns{ .. } => "DNS Service",
-            Capability::Dhcp{ .. } => "DHCP Service",
-            Capability::Node{ .. } => "Node"
+            Capability::Ssh{ .. } => "SSH",
+            Capability::Http{ .. } => "HTTP",
+            Capability::Https{ .. } => "HTTPS",
+            Capability::Wireguard{ .. } => "Wireguard VPN",
+            Capability::Daemon{ .. } => "NetVisor Daemon",
+            Capability::Dns{ .. } => "DNS",
+            Capability::Dhcp{ .. } => "DHCP",
+            Capability::Node{ .. } => "Basic Tests"
         }
     }
     
@@ -179,7 +176,7 @@ impl TypeMetadataProvider for Capability {
             Capability::Dns { .. } => "Domain name resolution service",
             Capability::Wireguard { .. } => "Modern VPN service using WireGuard protocol",
             Capability::Daemon { .. } => "NetVisor daemon for enhanced network diagnostics",
-            Capability::Dhcp{ .. } => "Dynamic host Cconfiguration protocol service",
+            Capability::Dhcp{ .. } => "Dynamic host configuration protocol service",
             Capability::Node{ .. } => "NetVisor node"
         }
     }

@@ -9,7 +9,7 @@ pub struct CapabilityConfigForm {
     pub test_sections: Vec<TestSection>,
     pub warnings: Vec<ValidationMessage>,
     pub errors: Vec<ValidationMessage>,
-    pub auto_assign: bool
+    pub system_assigned: bool
 }
 
 #[derive(Serialize, Debug, Clone)]

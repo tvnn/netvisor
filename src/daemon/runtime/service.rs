@@ -149,7 +149,8 @@ impl DaemonRuntimeService {
         };
 
         let mut node = Node::new(node_base);
-        node.base.capabilities = Vec::new();
+
+        node.add_capability(Capability::Daemon(DaemonConfig::new(&node, own_port, daemon_id)));
 
         // Add capabilities from detected ports using existing method
         for port in &open_ports {
@@ -157,8 +158,6 @@ impl DaemonRuntimeService {
                 node.add_capability(capability);
             }
         };
-
-        node.add_capability(Capability::Daemon(DaemonConfig::new(&node, own_port, daemon_id)));
 
         let server_target = self.config_store.get_server_endpoint().await?;
 

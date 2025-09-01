@@ -10,11 +10,11 @@ use crate::server::{capabilities::types::base::{CapabilityTest}, nodes::types::{
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
 pub struct ConfigBase {
     pub name: String,  // "API Server", "Node-Level Tests", "Daemon Service"
-    removable: bool,  // false for Node and DaemonService capabilities
     pub tests: Vec<CapabilityTest>,
     pub port: Option<u16>,
     pub process: Option<String>,
-    pub discovery_ports: Option<Vec<u16>>
+    pub discovery_ports: Option<Vec<u16>>,
+    pub system_assigned: bool
 }
 
 pub trait HttpEndpointCompatible {
@@ -41,11 +41,11 @@ impl Default for NodeConfig {
         Self {
             base: ConfigBase { 
                 name: "Node".to_string(), 
-                removable: false, 
                 tests: Vec::new(), 
                 port: None, 
                 process: None,
-                discovery_ports: None
+                discovery_ports: None,
+                system_assigned: true
             }
         }
     }
@@ -70,11 +70,11 @@ impl NodeConfig {
         Self {
             base: ConfigBase { 
                 name: "Node".to_string(), 
-                removable: false, 
                 tests, 
                 port: None, 
                 process: None,
-                discovery_ports: None
+                discovery_ports: None,
+                system_assigned: true
             }
         }
     }
@@ -92,11 +92,11 @@ impl Default for HttpConfig {
         Self {
             base: ConfigBase { 
                 name: "HTTP".to_string(), 
-                removable: true, 
                 tests: Vec::new(),
                 port: Some(80), 
                 process: None,
-                discovery_ports: Some(vec!(80, 8080))
+                discovery_ports: Some(vec!(80, 8080)),
+                system_assigned: false
             },
             path: Some("/".to_string())
         }
@@ -114,11 +114,11 @@ impl FromPort for HttpConfig {
         Self {
             base: ConfigBase {
                 name: "HTTP".to_string(),
-                removable: true,
                 tests: HttpConfig::compatible_tests(None),
                 port,
                 process: None,
-                discovery_ports: None
+                discovery_ports: None,
+                system_assigned: false
             },
             path: Some("/".to_string())
         }
@@ -155,11 +155,11 @@ impl Default for HttpsConfig {
         Self {
             base: ConfigBase { 
                 name: "HTTPS".to_string(), 
-                removable: true, 
                 tests: Vec::new(), 
                 port: Some(443), 
                 process: None,
-                discovery_ports: Some(vec!(443, 8443))
+                discovery_ports: Some(vec!(443, 8443)),
+                system_assigned: false
             },
             path: Some("/".to_string())
         }
@@ -177,11 +177,11 @@ impl FromPort for HttpsConfig {
         Self {
             base: ConfigBase {
                 name: "HTTPS".to_string(),
-                removable: true,
                 tests: HttpsConfig::compatible_tests(None),
                 port,
                 process: None,
-                discovery_ports: None
+                discovery_ports: None,
+                system_assigned: false
             },
             path: Some("/".to_string())
         }
@@ -216,11 +216,11 @@ impl Default for SshConfig {
         Self {
             base: ConfigBase { 
                 name: "SSH".to_string(), 
-                removable: true, 
                 tests: Vec::new(), 
                 port: Some(22), 
                 process: None,
-                discovery_ports: Some(vec!(22))
+                discovery_ports: Some(vec!(22)),
+                system_assigned: false
             }
         }
     }
@@ -237,11 +237,11 @@ impl FromPort for SshConfig {
         Self {
             base: ConfigBase {
                 name: "SSH".to_string(),
-                removable: true,
                 tests: SshConfig::compatible_tests(None),
                 port,
                 process: None,
-                discovery_ports: None
+                discovery_ports: None,
+                system_assigned: false
             },
         }
     }
@@ -258,11 +258,11 @@ impl Default for DnsConfig {
         Self {
             base: ConfigBase { 
                 name: "DNS".to_string(), 
-                removable: true, 
                 tests: Vec::new(), 
                 port: Some(53), 
                 process: None,
-                discovery_ports: Some(vec!(53))
+                discovery_ports: Some(vec!(53)),
+                system_assigned: false
             }
         }
     }
@@ -279,11 +279,11 @@ impl FromPort for DnsConfig {
         Self {
             base: ConfigBase {
                 name: "DNS".to_string(),
-                removable: true,
                 tests: DnsConfig::compatible_tests(None),
                 port,
                 process: None,
-                discovery_ports: None
+                discovery_ports: None,
+                system_assigned: false
             },
         }
     }
@@ -301,11 +301,11 @@ impl Default for WireguardConfig {
         Self {
             base: ConfigBase { 
                 name: "Wireguard".to_string(), 
-                removable: true, 
                 tests: Vec::new(), 
                 port: Some(51820), 
                 process: None,
-                discovery_ports: Some(vec!(51820))
+                discovery_ports: Some(vec!(51820)),
+                system_assigned: false
             },
             // subnets: Vec::new()
         }
@@ -325,11 +325,11 @@ impl FromPort for WireguardConfig {
         Self {
             base: ConfigBase {
                 name: "Wireguard".to_string(),
-                removable: true,
                 tests: WireguardConfig::compatible_tests(None),
                 port,
                 process: None,
-                discovery_ports: None
+                discovery_ports: None,
+                system_assigned: false
             },
         }
     }
@@ -346,11 +346,11 @@ impl Default for DhcpConfig {
         Self {
             base: ConfigBase { 
                 name: "DHCP".to_string(), 
-                removable: true, 
                 tests: Vec::new(), 
                 port: Some(67), 
                 process: None,
-                discovery_ports: Some(vec!(67))
+                discovery_ports: Some(vec!(67)),
+                system_assigned: false
             }
         }
     }
@@ -367,11 +367,11 @@ impl FromPort for DhcpConfig {
         Self {
             base: ConfigBase {
                 name: "DHCP".to_string(),
-                removable: true,
                 tests: DhcpConfig::compatible_tests(None),
                 port,
                 process: None,
-                discovery_ports: None
+                discovery_ports: None,
+                system_assigned: false
             },
         }
     }
@@ -389,11 +389,11 @@ impl Default for DaemonConfig {
         Self {
             base: ConfigBase { 
                 name: "NetVisor Daemon".to_string(), 
-                removable: false, 
                 tests: Vec::new(), 
                 port: Some(5621), 
                 process: None,
-                discovery_ports: None
+                discovery_ports: None,
+                system_assigned: true
             },
             daemon_id: Uuid::nil()
         }
@@ -411,11 +411,11 @@ impl DaemonConfig {
         Self {
             base: ConfigBase {
                 name: "NetVisor Daemon".to_string(),
-                removable: false,
                 tests: DaemonConfig::compatible_tests(None),
                 port: Some(port),
                 process: None,
-                discovery_ports: None
+                discovery_ports: None,
+                system_assigned: true
             },
             daemon_id
         }

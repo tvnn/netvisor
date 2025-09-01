@@ -61,9 +61,12 @@ impl Node {
             last_seen: None,
             base,
         };
-        node.add_capability(
-            Capability::Node(NodeConfig::new(&node))
-        );
+        if !node.has_capability(CapabilityDiscriminants::Node){
+            node.add_capability(
+                Capability::Node(NodeConfig::new(&node))
+            );
+        }
+
         node
     }
 

@@ -7,7 +7,7 @@ use crate::server::shared::types::metadata::TypeMetadataProvider;
 pub struct FieldFactory {}
 
 impl FieldFactory {
-    pub fn port() -> ConfigField {
+    pub fn port(value: Option<u16>) -> ConfigField {
         ConfigField {
             id: "port".to_string(),
             label: "Port".to_string(),
@@ -17,8 +17,8 @@ impl FieldFactory {
                 options: None,
             },
             required: true,
-            default_value: Some(json!(80)),
-            help_text: Some("Port where HTTP service is running".to_string()),
+            default_value: Some(json!(value.unwrap_or(80))),
+            help_text: Some("Port where service is running".to_string()),
             placeholder: Some("80".to_string()),
             advanced: false,
         }
