@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import ListManager from '$lib/shared/components/forms/ListManager.svelte';
-  import { createCapability, getCapabilityConfig, type Capability, getCapabilityType, type CapabilityConfigBase, type CapabilityConfig } from '$lib/features/capabilities/types/base';
+  import { createCapability, getCapabilityConfig, type Capability, getCapabilityType, type CapabilityConfigBase, type CapabilityConfig, getTestConfigFromSchema } from '$lib/features/capabilities/types/base';
   import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
   import type { NodeContext } from '$lib/features/nodes/types/base';
   import { getCapabilityForms } from '$lib/features/capabilities/store';
@@ -51,11 +51,14 @@
     const baseConfig: CapabilityConfigBase = {
       name: capabilities.getDisplay(capabilityType),
       tests: schema.test_sections.map(section => ({
-        test: section.test_type,
+        test: {
+          type: section.test_type,
+          config: getTestConfigFromSchema(section)
+        },
         criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value,
-        enabled: section.enabled_by_default
+        enabled: section.enabled_by_default ?? false
       })),
-      system_assigned: schema.system_assigned,
+      system_assigned: schema.system_assigned ?? false,
       port: undefined,
       process: undefined,
       discovery_ports: undefined

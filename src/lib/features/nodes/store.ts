@@ -3,7 +3,8 @@ import type { Node } from "./types/base";
 import { api } from '../../shared/utils/api';
 import { createPoller, type Poller } from '../../shared/utils/polling';
 import type { NodeTarget } from './types/targets';
-import { pushError } from '$lib/shared/stores/feedback';
+import { pushError, pushWarning } from '$lib/shared/stores/feedback';
+import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
 export const nodes = writable<Node[]>([]);
 export const polling = writable(false);
@@ -53,11 +54,32 @@ export async function createNode(data: Node) {
   )
 }
 
+interface UpdateNodeResponse {
+  node: Node,
+  capability_test_changes: Record<string, UpdateNodeCapabilityTestChange>
+}
+
+interface UpdateNodeCapabilityTestChange {
+    newly_compatible: string[], 
+    incompatible: string[]
+}
+
 export async function updateNode(data: Node) {
-  return await api.request<Node, Node[]>(
+  return await api.request<UpdateNodeResponse, Node[]>(
     `/nodes/${data.id}`,
     nodes,
-    (updatedNode, current) => current.map(n => n.id === data.id ? updatedNode : n),
+    (updatedNodeResponse, current) => {
+      const updatedNode = updatedNodeResponse.node;
+
+      Object.keys(updatedNodeResponse.capability_test_changes).forEach(cap => {
+        let incompatible = updatedNodeResponse.capability_test_changes[cap].incompatible
+        let newly_compatible = updatedNodeResponse.capability_test_changes[cap].newly_compatible
+        incompatible.length > 0 ? pushWarning(`The following tests are no longer compatible with the node ${updateNode.name} and have been removed: ${incompatible.join(", ")}`) : null
+        newly_compatible.length > 0 ? pushWarning(`The following tests are now compatible with the node ${updateNode.name} and have been added: ${newly_compatible.join(", ")}`) : null
+      })
+
+      return current.map(n => n.id === data.id ? updatedNode : n)
+    },
     { method: 'PUT', body: JSON.stringify(data)},
   )
 }
@@ -74,9 +96,9 @@ export async function deleteNode(id: string) {
 
 export function createEmptyNodeFormData(): Node {
   return {
-    id: '',
-    created_at: '',
-    updated_at: '',
+    id: uuidv4Sentinel,
+    created_at: utcTimeZoneSentinel,
+    updated_at: utcTimeZoneSentinel,
     name: '',
     status: 'Unknown',
     description: '',
@@ -92,9 +114,10 @@ export function createEmptyNodeFormData(): Node {
     mac_address: '',
     subnets: [],
     monitoring_interval: 10,
-    last_seen: '',
+    last_seen: utcTimeZoneSentinel,
     node_groups: [],
-    discovery_status: ''
+    discovery_status: 'Manual',
+    dns_resolver_node_id: uuidv4Sentinel
   };
 }
 

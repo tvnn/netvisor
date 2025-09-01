@@ -1,5 +1,10 @@
+import type { TestSection } from "./forms";
+
 export interface CapabilityTest {
-  test: string;  // Test enum as string
+  test: {
+    type: string,
+    config: Record<string, any>
+  };  // Test enum as string
   criticality: string;  // TestCriticality enum as string
   enabled: boolean;
 }
@@ -49,4 +54,16 @@ export function updateCapabilityConfig(capability: Capability, updates: Partial<
       ...updates
     }
   };
+}
+
+export function getTestConfigFromSchema(section: TestSection): Record<string, any> {
+  const config: Record<string, any> = {};
+  
+  section.test_fields.forEach(field => {
+    if (field.default_value !== undefined && field.id !== 'criticality') {
+      config[field.id] = field.default_value;
+    }
+  });
+  
+  return config;
 }

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { ChevronDown, ChevronRight, ToggleLeft, ToggleRight } from 'lucide-svelte';
   import DynamicField from '$lib/shared/components/forms/DynamicField.svelte';
-  import { getCapabilityConfig, getCapabilityType, updateCapabilityConfig, type Capability } from '$lib/features/capabilities/types/base';
-  import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
+  import { getCapabilityConfig, getCapabilityType, getTestConfigFromSchema, updateCapabilityConfig, type Capability } from '$lib/features/capabilities/types/base';
+  import type { CapabilityConfigForm, TestSection } from '$lib/features/capabilities/types/forms';
   import { createStyle } from '$lib/shared/utils/styling';
 	import { criticalityLevels } from '$lib/shared/stores/registry';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
@@ -47,48 +47,73 @@
     expandedSections = expandedSections; // Trigger reactivity
   }
 
-  function toggleTest(testIndex: number) {
-    if (!capability) return;
+  function updateTest(sectionIndex: number, updates: Partial<{
+    enabled: boolean;
+    criticality: string;
+    config: Record<string, any>;
+  }>) {
+    if (!capability || !schema) return;
     
-    const config = getCapabilityConfig(capability);
-    const updatedTests = [...config.tests];
-    updatedTests[testIndex] = {
-      ...updatedTests[testIndex],
-      enabled: !updatedTests[testIndex].enabled
-    };
+    const capabilityConfig = getCapabilityConfig(capability);
+    const updatedTests = [...capabilityConfig.tests];
+    const section = schema.test_sections[sectionIndex];
     
-    const updatedCapability = updateCapabilityConfig(capability, { tests: updatedTests });
+    // Ensure test exists with proper structure
+    if (!updatedTests[sectionIndex]) {
+      updatedTests[sectionIndex] = {
+        test: {
+          type: section.test_type,
+          config: getTestConfigFromSchema(section)
+        },
+        criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
+        enabled: section.enabled_by_default
+      };
+    }
+    
+    // Apply updates
+    if (updates.enabled !== undefined) {
+      updatedTests[sectionIndex].enabled = updates.enabled;
+    }
+    
+    if (updates.criticality !== undefined) {
+      updatedTests[sectionIndex].criticality = updates.criticality;
+    }
+    
+    if (updates.config) {
+      updatedTests[sectionIndex].test.config = {
+        ...updatedTests[sectionIndex].test.config,
+        ...updates.config
+      };
+    }
+    
+    // Update the capability
+    const updatedCapability = updateCapabilityConfig(capability, {
+      ...capabilityConfig,
+      tests: updatedTests
+    });
+    
     onChange(updatedCapability);
   }
 
-  function updateTestConfig(testIndex: number, field: string, value: any) {
-    if (!capability) return;
-    
+  function toggleTest(sectionIndex: number) {
+    if (!capability || !schema) return;
     const config = getCapabilityConfig(capability);
-    const updatedTests = [...config.tests];
-    const currentTest = updatedTests[testIndex];
+    const currentTest = config.tests[sectionIndex];
+    const newEnabledState = currentTest ? !currentTest.enabled : true;
     
-    // Type-safe update based on known CapabilityTest fields
-    if (field === 'test' || field === 'criticality') {
-      updatedTests[testIndex] = {
-        ...currentTest,
-        [field]: value as string
-      };
-    } else if (field === 'enabled') {
-      updatedTests[testIndex] = {
-        ...currentTest,
-        enabled: value as boolean
-      };
+    updateTest(sectionIndex, { enabled: newEnabledState });
+  }
+
+
+  function updateTestConfig(sectionIndex: number, fieldId: string, value: any) {
+    if (fieldId === 'criticality') {
+      updateTest(sectionIndex, { criticality: value });
     } else {
-      // For any other fields, create a new object with the field
-      updatedTests[testIndex] = {
-        ...currentTest,
-        [field]: value
-      } as any;
+      // This is a test config field
+      updateTest(sectionIndex, { 
+        config: { [fieldId]: value } 
+      });
     }
-    
-    const updatedCapability = updateCapabilityConfig(capability, { tests: updatedTests });
-    onChange(updatedCapability);
   }
 </script>
 

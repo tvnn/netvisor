@@ -24,6 +24,7 @@ export interface Node {
   node_groups: string[];
   discovery_status: string;
   status: string;
+  dns_resolver_node_id: string;
 }
 
 export type NodeCapability = {

@@ -5,7 +5,6 @@
   import NodeEditor from './NodeEditModal/NodeEditor.svelte';
   import type { Node } from '../types/base';
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
-	import ErrorBanner from '$lib/shared/components/feedback/ErrorBanner.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import { clearError, loading } from '$lib/shared/stores/feedback';
@@ -119,8 +118,6 @@
   {/if}
 
   <SearchField searchTerm={searchTerm} placeholder="Search nodes by name, IP, or domain..." /> -->
-
-  <ErrorBanner/>
 
   <!-- Loading state -->
   {#if $loading}

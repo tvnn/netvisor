@@ -8,7 +8,6 @@
   	import type { Node } from "$lib/features/nodes/types/base";
 	import NodeGroupEditModal from './NodeGroupEditModal.svelte';
 	import SummaryStats from '$lib/shared/components/layout/SummaryStats.svelte';
-	import ErrorBanner from '$lib/shared/components/feedback/ErrorBanner.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import { loading } from '$lib/shared/stores/feedback';
@@ -86,8 +85,6 @@
       goodStatValue={$nodeGroups.filter(g => g.auto_diagnostic_enabled).length}
     />
   {/if}
-
-  <ErrorBanner/>
 
   {#if $loading}
     <Loading/>
