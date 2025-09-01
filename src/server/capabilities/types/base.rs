@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use strum::{IntoDiscriminant, IntoEnumIterator};
-use crate::server::{capabilities::types::{configs::{CompatibleTests, ConfigBase, DaemonConfig, DhcpConfig, DnsConfig, FromPort, HttpConfig, HttpsConfig, NodeConfig, SshConfig, WireguardConfig}, forms::{CapabilityConfigForm, TestSection}}, nodes::types::{base::{Node, NodeContext}, criticality::TestCriticality}, shared::{forms::{field_factory::FieldFactory, types::fields::ConfigField}, types::metadata::TypeMetadataProvider}, tests::types::base::Test};
+use crate::server::{capabilities::types::{configs::{CompatibleTests, ConfigBase, DaemonConfig, DhcpConfig, DnsConfig, FromPort, HttpConfig, HttpsConfig, NodeConfig, SshConfig, WireguardConfig}, forms::{CapabilityConfigForm, TestSection}}, nodes::types::{base::{Node, NodeContext}, criticality::TestCriticality}, shared::{forms::{field_factory::FieldFactory, types::fields::ConfigField}, types::metadata::TypeMetadataProvider}, tests::types::base::{Test, TestDiscriminants}};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
@@ -56,8 +56,8 @@ impl Capability {
         }
     }
 
-    fn generate_test_sections(&self, node_context: &NodeContext) -> Vec<TestSection> {
-        let compatible_tests = match self {
+    fn get_compatible_tests(&self, node_context: &NodeContext) -> Vec<CapabilityTest> {
+        match self {
             Capability::Http(_) => { HttpConfig::compatible_tests(Some(node_context)) },
             Capability::Node(_) => { NodeConfig::compatible_tests(Some(node_context)) },
             Capability::Daemon(_) => { DaemonConfig::compatible_tests(Some(node_context)) },
@@ -66,7 +66,11 @@ impl Capability {
             Capability::Ssh(_) => { SshConfig::compatible_tests(Some(node_context)) },
             Capability::Wireguard(_) => { WireguardConfig::compatible_tests(Some(node_context)) },
             Capability::Dns(_) => { DnsConfig::compatible_tests(Some(node_context)) }
-        };
+        }
+    }
+
+    fn generate_test_sections(&self, node_context: &NodeContext) -> Vec<TestSection> {
+        let compatible_tests = self.get_compatible_tests(node_context);
 
         compatible_tests
             .iter()
@@ -78,6 +82,50 @@ impl Capability {
                 }
             })
             .collect()
+    }
+
+    pub fn validate_node_capability_test_compatibility(&self, node_context: &NodeContext) -> (Vec<CapabilityTest>, Vec<TestDiscriminants>) {
+        
+        let compatible_test_discriminants: Vec<TestDiscriminants> = self.get_compatible_tests(node_context)
+            .iter()
+            .map(|ct| ct.test.discriminant())
+            .collect();
+
+        // Get currently existing compatible tests from node_context
+        let existing_compatible_tests: Vec<TestDiscriminants> = node_context.capabilities
+            .iter()
+            .filter(|cap| cap.discriminant() == self.discriminant()) // Same capability type
+            .flat_map(|cap| cap.config_base().tests.iter())
+            .filter_map(|test| {
+                if compatible_test_discriminants.contains(&test.test.discriminant()) {
+                    Some(test.test.discriminant())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let (compatible, incompatible): (Vec<&CapabilityTest>, Vec<&CapabilityTest>) = self.config_base().tests
+            .iter()
+            .partition(|cap_test| compatible_test_discriminants.contains(&cap_test.test.discriminant()));
+
+        // For compatible: only return newly compatible tests (not in existing)
+        let newly_compatible: Vec<CapabilityTest> = compatible
+            .into_iter()
+            .filter(|ct| !existing_compatible_tests.contains(&ct.test.discriminant()))
+            .cloned()
+            .collect();
+
+        // For incompatible: return all incompatible tests
+        let incompatible: Vec<TestDiscriminants> = incompatible
+            .iter()
+            .map(|ct| ct.test.discriminant())
+            .collect();
+
+        (
+            newly_compatible,
+            incompatible
+        )
     }
 
     pub fn from_port(port: u16) -> Option<Self> {
@@ -145,6 +193,19 @@ impl Capability {
             Capability::Dns(config) => &config.base,
             Capability::Dhcp(config) => &config.base,
             Capability::Node(config) => &config.base,
+        }
+    }
+
+    pub fn config_base_mut(&mut self) -> &mut ConfigBase {
+        match self {
+            Capability::Ssh(config) => &mut config.base,
+            Capability::Http(config) => &mut config.base,
+            Capability::Https(config) => &mut config.base,
+            Capability::Wireguard(config) => &mut config.base,
+            Capability::Daemon(config) => &mut config.base,
+            Capability::Dns(config) => &mut config.base,
+            Capability::Dhcp(config) => &mut config.base,
+            Capability::Node(config) => &mut config.base,
         }
     }
     

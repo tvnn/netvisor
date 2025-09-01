@@ -4,14 +4,14 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
+use serde::{Serialize};
+use strum::IntoDiscriminant;
 use uuid::Uuid;
-use std::{sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 use crate::server::{
-        config::AppState, nodes::{
-            service::NodeService, types::{
-                base::{Node}
-            }
-        }, shared::types::api::{ApiError, ApiResponse, ApiResult}
+        capabilities::types::base::CapabilityDiscriminants, config::AppState, nodes::{
+            service::NodeService, types::base::Node
+        }, shared::types::api::{ApiError, ApiResponse, ApiResult}, tests::types::base::TestDiscriminants
     };
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -46,20 +46,51 @@ async fn get_all_nodes(
     Ok(Json(ApiResponse::success(nodes)))
 }
 
+#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
+struct UpdateNodeResponse {
+    node: Node,
+    capability_test_changes: HashMap<CapabilityDiscriminants, UpdateNodeCapabilityTestChange>
+}
+
+#[derive(Debug, Clone, Serialize, Eq, PartialEq, Hash)]
+struct UpdateNodeCapabilityTestChange {
+    newly_compatible: Vec<TestDiscriminants>, 
+    incompatible: Vec<TestDiscriminants>
+}
+
 async fn update_node(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Json(request): Json<Node>,
-) -> ApiResult<Json<ApiResponse<Node>>> {
+) -> ApiResult<Json<ApiResponse<UpdateNodeResponse>>> {
     let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
     
     let mut node = service.get_node(&id).await?
         .ok_or_else(|| ApiError::not_found(&format!("Node '{}' not found", &id)))?;
 
+    let node_context = node.clone().as_context();
+
+    let mut capability_test_changes: HashMap<CapabilityDiscriminants, UpdateNodeCapabilityTestChange> = HashMap::new();
+
+    for capability in node.base.capabilities.iter_mut() {
+        let (newly_compatible, incompatible) = capability.validate_node_capability_test_compatibility(&node_context);
+
+        capability.config_base_mut().remove_tests(incompatible.clone());
+        capability.config_base_mut().add_tests(newly_compatible.clone());
+
+        capability_test_changes.insert(capability.discriminant(), UpdateNodeCapabilityTestChange {
+            newly_compatible: newly_compatible.iter().map(|ct| ct.test.discriminant()).collect(),
+            incompatible
+        });
+    }
+
     node.base = request.base;    
     let updated_node = service.update_node(node).await?;
     
-    Ok(Json(ApiResponse::success(updated_node)))
+    Ok(Json(ApiResponse::success(UpdateNodeResponse {
+        node: updated_node,
+        capability_test_changes
+    })))
 }
 
 async fn delete_node(

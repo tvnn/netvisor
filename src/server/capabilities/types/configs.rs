@@ -1,10 +1,12 @@
 use anyhow::Error;
 use serde::{Deserialize, Serialize};
+use strum::IntoDiscriminant;
 use uuid::Uuid;
 
 use crate::server::capabilities::test_factory::CapabilityTestFactory;
 use crate::server::nodes::types::base::{Node, NodeContext};
 use crate::server::nodes::types::targets::{HostnameTargetConfig, IpAddressTargetConfig};
+use crate::server::tests::types::base::TestDiscriminants;
 use crate::server::{capabilities::types::base::{CapabilityTest}, nodes::types::{targets::{NodeTarget}}};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
@@ -15,6 +17,16 @@ pub struct ConfigBase {
     pub process: Option<String>,
     pub discovery_ports: Option<Vec<u16>>,
     pub system_assigned: bool
+}
+
+impl ConfigBase {
+    pub fn add_tests(&mut self, tests: Vec<CapabilityTest>) {
+        self.tests.extend(tests.into_iter());
+    }
+
+    pub fn remove_tests(&mut self, remove_test_discriminants: Vec<TestDiscriminants>) {
+        self.tests = self.tests.iter().filter(|ct| !remove_test_discriminants.contains(&ct.test.discriminant()) ).cloned().collect();
+    }
 }
 
 pub trait HttpEndpointCompatible {
