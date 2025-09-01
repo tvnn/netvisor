@@ -56,7 +56,7 @@ impl Capability {
         }
     }
 
-    fn get_compatible_tests(&self, node_context: &NodeContext) -> Vec<CapabilityTest> {
+    pub fn get_compatible_tests(&self, node_context: &NodeContext) -> Vec<CapabilityTest> {
         match self {
             Capability::Http(_) => { HttpConfig::compatible_tests(Some(node_context)) },
             Capability::Node(_) => { NodeConfig::compatible_tests(Some(node_context)) },
@@ -84,6 +84,7 @@ impl Capability {
             .collect()
     }
 
+
     pub fn validate_node_capability_test_compatibility(&self, node_context: &NodeContext) -> (Vec<CapabilityTest>, Vec<TestDiscriminants>) {
         
         let compatible_test_discriminants: Vec<TestDiscriminants> = self.get_compatible_tests(node_context)
@@ -91,34 +92,19 @@ impl Capability {
             .map(|ct| ct.test.discriminant())
             .collect();
 
-        // Get currently existing compatible tests from node_context
-        let existing_compatible_tests: Vec<TestDiscriminants> = node_context.capabilities
+        let existing_tests: Vec<TestDiscriminants> = self.config_base().tests
             .iter()
-            .filter(|cap| cap.discriminant() == self.discriminant()) // Same capability type
-            .flat_map(|cap| cap.config_base().tests.iter())
-            .filter_map(|test| {
-                if compatible_test_discriminants.contains(&test.test.discriminant()) {
-                    Some(test.test.discriminant())
-                } else {
-                    None
-                }
-            })
+            .map(|test| test.test.discriminant())
             .collect();
 
-        let (compatible, incompatible): (Vec<&CapabilityTest>, Vec<&CapabilityTest>) = self.config_base().tests
-            .iter()
-            .partition(|cap_test| compatible_test_discriminants.contains(&cap_test.test.discriminant()));
-
-        // For compatible: only return newly compatible tests (not in existing)
-        let newly_compatible: Vec<CapabilityTest> = compatible
+        let newly_compatible: Vec<CapabilityTest> = self.get_compatible_tests(node_context)
             .into_iter()
-            .filter(|ct| !existing_compatible_tests.contains(&ct.test.discriminant()))
-            .cloned()
+            .filter(|ct| !existing_tests.contains(&ct.test.discriminant()))
             .collect();
 
-        // For incompatible: return all incompatible tests
-        let incompatible: Vec<TestDiscriminants> = incompatible
+        let incompatible: Vec<TestDiscriminants> = self.config_base().tests
             .iter()
+            .filter(|cap_test| !compatible_test_discriminants.contains(&cap_test.test.discriminant()))
             .map(|ct| ct.test.discriminant())
             .collect();
 

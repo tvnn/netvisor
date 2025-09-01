@@ -67,8 +67,8 @@ impl CompatibleTests for NodeConfig {
     fn compatible_tests(node_context: Option<&NodeContext>) -> Vec<CapabilityTest> {
         if let Some(context) = node_context {
             return match context.target {
-                NodeTarget::Hostname(..) => vec!(CapabilityTestFactory::reverse_dns()),
-                NodeTarget::IpAddress(..) => vec!(CapabilityTestFactory::dns_lookup())
+                NodeTarget::Hostname(..) => vec!(CapabilityTestFactory::dns_lookup()),
+                NodeTarget::IpAddress(..) => vec!(CapabilityTestFactory::reverse_dns())
             }
         }
         Vec::new()

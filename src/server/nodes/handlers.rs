@@ -9,7 +9,7 @@ use strum::IntoDiscriminant;
 use uuid::Uuid;
 use std::{collections::HashMap, sync::Arc};
 use crate::server::{
-        capabilities::types::base::CapabilityDiscriminants, config::AppState, nodes::{
+        capabilities::types::{base::CapabilityDiscriminants}, config::AppState, nodes::{
             service::NodeService, types::base::Node
         }, shared::types::api::{ApiError, ApiResponse, ApiResult}, tests::types::base::TestDiscriminants
     };
@@ -68,13 +68,13 @@ async fn update_node(
     let mut node = service.get_node(&id).await?
         .ok_or_else(|| ApiError::not_found(&format!("Node '{}' not found", &id)))?;
 
-    let node_context = node.clone().as_context();
-
+    let validation_context = request.as_context();
     let mut capability_test_changes: HashMap<CapabilityDiscriminants, UpdateNodeCapabilityTestChange> = HashMap::new();
 
-    for capability in node.base.capabilities.iter_mut() {
-        let (newly_compatible, incompatible) = capability.validate_node_capability_test_compatibility(&node_context);
-
+    let validated_capabilities = node.base.capabilities.iter().map(|cap| {
+        let (newly_compatible, incompatible) = cap.validate_node_capability_test_compatibility(&validation_context);
+        
+        let mut capability = cap.clone();
         capability.config_base_mut().remove_tests(incompatible.clone());
         capability.config_base_mut().add_tests(newly_compatible.clone());
 
@@ -82,9 +82,13 @@ async fn update_node(
             newly_compatible: newly_compatible.iter().map(|ct| ct.test.discriminant()).collect(),
             incompatible
         });
-    }
 
-    node.base = request.base;    
+        capability
+    }).collect();
+
+    node.base = request.base;
+    node.base.capabilities = validated_capabilities;
+
     let updated_node = service.update_node(node).await?;
     
     Ok(Json(ApiResponse::success(UpdateNodeResponse {
