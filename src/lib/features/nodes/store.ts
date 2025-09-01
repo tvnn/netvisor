@@ -3,8 +3,9 @@ import type { Node } from "./types/base";
 import { api } from '../../shared/utils/api';
 import { createPoller, type Poller } from '../../shared/utils/polling';
 import type { NodeTarget } from './types/targets';
-import { pushError, pushWarning } from '$lib/shared/stores/feedback';
+import { pushError, pushInfo, pushWarning } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
+import { testTypes } from '$lib/shared/stores/registry';
 
 export const nodes = writable<Node[]>([]);
 export const polling = writable(false);
@@ -72,10 +73,10 @@ export async function updateNode(data: Node) {
       const updatedNode = updatedNodeResponse.node;
 
       Object.keys(updatedNodeResponse.capability_test_changes).forEach(cap => {
-        let incompatible = updatedNodeResponse.capability_test_changes[cap].incompatible
-        let newly_compatible = updatedNodeResponse.capability_test_changes[cap].newly_compatible
-        incompatible.length > 0 ? pushWarning(`The following tests are no longer compatible with the node ${updateNode.name} and have been removed: ${incompatible.join(", ")}`) : null
-        newly_compatible.length > 0 ? pushWarning(`The following tests are now compatible with the node ${updateNode.name} and have been added: ${newly_compatible.join(", ")}`) : null
+        let incompatible = updatedNodeResponse.capability_test_changes[cap].incompatible.map(i => testTypes.getDisplay(i))
+        let newly_compatible = updatedNodeResponse.capability_test_changes[cap].newly_compatible.map(n => testTypes.getDisplay(n))
+        incompatible.length > 0 ? pushWarning(`The following tests are no longer compatible with the node "${updatedNode.name}" and have been removed: ${incompatible.join(", ")}`) : null
+        newly_compatible.length > 0 ? pushInfo(`The following tests are now compatible with the node "${updatedNode.name}" and have been added: ${newly_compatible.join(", ")}`) : null
       })
 
       return current.map(n => n.id === data.id ? updatedNode : n)

@@ -46,7 +46,7 @@ function addToast(toast: Omit<Toast, 'id'>): string {
   return id;
 }
 
-export function pushError(message: string, timeout: number = 5000): string {
+export function pushError(message: string, timeout: number = 10000): string {
   console.error(message);
   return addToast({
     type: 'error',
@@ -55,7 +55,7 @@ export function pushError(message: string, timeout: number = 5000): string {
   });
 }
 
-export function pushWarning(message: string, timeout: number = 4000): string {
+export function pushWarning(message: string, timeout: number = 10000): string {
   console.warn(message);
   return addToast({
     type: 'warning',
@@ -64,7 +64,7 @@ export function pushWarning(message: string, timeout: number = 4000): string {
   });
 }
 
-export function pushInfo(message: string, timeout: number = 3000): string {
+export function pushInfo(message: string, timeout: number = 10000): string {
   console.info(message);
   return addToast({
     type: 'info',
@@ -73,7 +73,7 @@ export function pushInfo(message: string, timeout: number = 3000): string {
   });
 }
 
-export function pushSuccess(message: string, timeout: number = 3000): string {
+export function pushSuccess(message: string, timeout: number = 10000): string {
   return addToast({
     type: 'success',
     message,
