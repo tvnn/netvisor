@@ -2,7 +2,16 @@ use axum::{routing::get, Json, Router};
 use strum::IntoEnumIterator;
 use std::{sync::Arc};
 use crate::server::{
-        capabilities::{handlers as capability_handlers, types::base::Capability}, config::AppState, daemons::handlers as daemon_handlers, diagnostics::{handlers as diagnostic_handlers, types::DiagnosticStatus}, discovery::handlers as discovery_handlers, node_groups::handlers as group_handlers, nodes::{handlers as node_handlers, types::{criticality::TestCriticality, status::NodeStatus, targets::NodeTarget, types::NodeType}}, shared::types::{api::ApiResponse, metadata::{TypeMetadataProvider, TypeRegistry}}, tests::types::base::Test
+        capabilities::{handlers as capability_handlers, types::base::Capability}, 
+        config::AppState, 
+        daemons::handlers as daemon_handlers, 
+        diagnostics::{handlers as diagnostic_handlers, types::DiagnosticStatus}, 
+        discovery::handlers as discovery_handlers, 
+        subnets::handlers as subnet_handlers,
+        node_groups::handlers as group_handlers, 
+        nodes::{handlers as node_handlers, types::{criticality::TestCriticality, status::NodeStatus, targets::NodeTarget, types::NodeType}}, 
+        shared::types::{api::ApiResponse, metadata::{TypeMetadataProvider, TypeRegistry}}, 
+        tests::types::base::Test
     };
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -14,6 +23,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .nest("/api/diagnostics", diagnostic_handlers::create_router())
         .nest("/api/daemons", daemon_handlers::create_router())
         .nest("/api/discovery", discovery_handlers::create_router())
+        .nest("/api/subnets", subnet_handlers::create_router())
 }
 
 async fn get_type_registry() -> Json<ApiResponse<TypeRegistry>> {

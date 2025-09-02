@@ -69,6 +69,7 @@ async fn main() -> anyhow::Result<()> {
         node_group_storage: storage.node_groups,
         diagnostic_storage: storage.diagnostics,
         daemon_storage: storage.daemons,
+        subnet_storage: storage.subnets,
         discovery_manager: DiscoverySessionManager::new()
     });
 

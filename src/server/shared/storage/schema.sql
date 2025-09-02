@@ -3,7 +3,6 @@ CREATE TABLE IF NOT EXISTS nodes (
     name TEXT NOT NULL,
     node_type TEXT,
     hostname TEXT,
-    mac_address TEXT,
     description TEXT,
     target TEXT NOT NULL,
     subnets TEXT,
@@ -48,6 +47,17 @@ CREATE TABLE IF NOT EXISTS daemons (
     node_id TEXT NOT NULL,
     registered_at TEXT NOT NULL,
     last_seen TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS subnets (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    cidr TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    dns_resolvers TEXT NOT NULL,
+    gateways TEXT NOT NULL,
 );
 
 CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(node_type);

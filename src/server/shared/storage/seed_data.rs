@@ -12,7 +12,6 @@ pub fn create_internet_connectivity_node(dns_id: Uuid) -> Node {
         name: "Google.com".to_string(),
         node_type: NodeType::WebServer,
         hostname: None,
-        mac_address: None,
         description: Some("Google.com for connectivity testing".to_string()),
         target: NodeTarget::Hostname(HostnameTargetConfig { 
             hostname: "google.com".to_string(), 
@@ -37,7 +36,6 @@ pub fn create_public_dns_node() -> Node {
         name: "Cloudflare".to_string(),
         node_type: NodeType::DnsServer,
         hostname: None,
-        mac_address: None,
         description: Some("Cloudflare DNS for DNS resolution testing".to_string()),
         target: NodeTarget::IpAddress(IpAddressTargetConfig { 
             ip: IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 

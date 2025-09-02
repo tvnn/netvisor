@@ -1,8 +1,10 @@
-use cidr::{IpCidr};
+use std::net::{IpAddr, Ipv4Addr};
+
+use mac_address::{MacAddress};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
-use crate::server::{capabilities::types::{base::{Capability, CapabilityDiscriminants}, configs::{NodeConfig}}, nodes::types::{criticality::TestCriticality, status::NodeStatus, targets::{NodeTarget}}, tests::types::execution::TestResult};
+use crate::server::{capabilities::types::{base::{Capability, CapabilityDiscriminants}, configs::NodeConfig}, nodes::types::{criticality::TestCriticality, status::NodeStatus, targets::NodeTarget}, subnets::types::base::{NodeSubnetMembership, Subnet}, tests::types::execution::TestResult};
 use super::{
     types::{NodeType},
 };
@@ -16,11 +18,9 @@ pub struct NodeBase {
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub hostname: Option<String>,
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
-    pub mac_address: Option<String>,
-    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
     pub target: NodeTarget,
-    pub subnets: Vec<IpCidr>,
+    pub subnets: Vec<NodeSubnetMembership>,
     
     // Discovery & Capability Data
     pub discovery_status: Option<DiscoveryStatus>,
@@ -41,7 +41,7 @@ pub enum DiscoveryStatus {
     Manual,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]
 pub struct Node {
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
@@ -49,6 +49,33 @@ pub struct Node {
     pub last_seen: Option<DateTime<Utc>>,
     #[serde(flatten)]
     pub base: NodeBase,
+}
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        
+        let host_match = match (&self.base.hostname, &other.base.hostname) {
+            (Some(host_a), Some(host_b)) => !vec!("localhost".to_string()).contains(&host_a) && host_a == host_b,
+            (_, _) => false
+        };
+
+        let macs_a: Vec<Option<MacAddress>> = self.base.subnets.iter().map(|s| s.mac_address).collect();
+        let macs_b: Vec<Option<MacAddress>> = other.base.subnets.iter().map(|s| s.mac_address).collect();
+
+        let mac_match = macs_a.iter().any(|mac_a| {
+            macs_b.iter().any(|mac_b| {
+                match (mac_a, mac_b) {
+                    (Some(a), Some(b)) => !vec!(
+                        MacAddress::new([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+                        MacAddress::new([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]),
+                    ).contains(&a) && a == b,
+                    (_, _) => false
+                }
+            })
+        });
+
+        return mac_match && host_match
+    }
 }
 
 impl Node {
@@ -68,6 +95,10 @@ impl Node {
         }
 
         node
+    }
+
+    pub fn default_subnet(&self) -> &NodeSubnetMembership {
+        &self.base.subnets[0]
     }
 
     pub fn as_context(&self) -> NodeContext {
@@ -134,6 +165,20 @@ impl Node {
 
     pub fn add_capability(&mut self, capability: Capability) {        
         self.base.capabilities.push(capability);
+    }
+
+    pub fn is_gateway_for_subnet(&self, subnet: &mut Subnet) -> bool {
+        self.base.subnets.iter().any(|subnet_membership| {
+            if subnet_membership.subnet_id == subnet.id {
+                 let ip_octets = match subnet_membership.ip_address.to_canonical() {
+                    IpAddr::V4(ip) => ip.octets(),
+                    IpAddr::V6(ip ) => ip.to_ipv4().unwrap_or(Ipv4Addr::LOCALHOST).octets()
+                 };
+
+                 return ip_octets.last() == Some(&u8::from(1)) || ip_octets.last() == Some(&u8::from(254))
+            }
+            return false
+        })
     }
 }
 

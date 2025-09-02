@@ -1,9 +1,8 @@
 use async_trait::async_trait;
 use anyhow::Result;
-use cidr::IpCidr;
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::{capabilities::types::base::Capability, nodes::types::{base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::NodeTarget, types::NodeType}};
+use crate::server::{capabilities::types::base::Capability, nodes::types::{base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::NodeTarget, types::NodeType}, subnets::types::base::NodeSubnetMembership};
 
 #[async_trait]
 pub trait NodeStorage: Send + Sync {
@@ -12,7 +11,6 @@ pub trait NodeStorage: Send + Sync {
     async fn get_all(&self) -> Result<Vec<Node>>;
     async fn update(&self, node: &Node) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
-    async fn get_by_group(&self, group_id: &Uuid) -> Result<Vec<Node>>;
 }
 
 pub struct SqliteNodeStorage {
@@ -46,7 +44,7 @@ impl NodeStorage for SqliteNodeStorage {
                 id, name, hostname, dns_resolver_id, target, description,
                 node_type, capabilities, monitoring_interval,
                 node_groups, status, discovery_status, subnets,
-                mac_address, last_seen, created_at, updated_at
+                last_seen, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
@@ -63,7 +61,6 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(status_str)
         .bind(discovery_status_str)
         .bind(subnets_str)
-        .bind(&node.base.mac_address)
         .bind(last_seen_str)
         .bind(&node.created_at.to_rfc3339())
         .bind(&node.updated_at.to_rfc3339())
@@ -111,7 +108,7 @@ impl NodeStorage for SqliteNodeStorage {
         sqlx::query(
             r#"
             UPDATE nodes SET 
-                name = ?, node_type = ?, hostname = ?, dns_resolver_id = ?, mac_address = ?, description = ?,
+                name = ?, node_type = ?, hostname = ?, dns_resolver_id = ?, description = ?,
                 target = ?, subnets = ?, discovery_status = ?, capabilities = ?, 
                 status = ?, monitoring_interval = ?, node_groups = ?,
                 last_seen = ?, updated_at = ?
@@ -122,7 +119,6 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(node_type_str)
         .bind(&node.base.hostname)
         .bind(&node.base.dns_resolver_node_id)
-        .bind(&node.base.mac_address)
         .bind(&node.base.description)
         .bind(target_str)
         .bind(subnets_str)
@@ -148,27 +144,13 @@ impl NodeStorage for SqliteNodeStorage {
 
         Ok(())
     }
-
-    async fn get_by_group(&self, group_id: &Uuid) -> Result<Vec<Node>> {
-        let rows = sqlx::query("SELECT * FROM nodes WHERE JSON_EXTRACT(node_groups, '$') LIKE ?")
-            .bind(format!("%\"{}\"$", group_id))
-            .fetch_all(&self.pool)
-            .await?;
-
-        let mut nodes = Vec::new();
-        for row in rows {
-            nodes.push(row_to_node(row)?);
-        }
-
-        Ok(nodes)
-    }
 }
 
 fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
     // Parse JSON fields safely
     let capabilities: Vec<Capability> = serde_json::from_str(&row.get::<String, _>("capabilities"))?;
     let node_groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("node_groups"))?;
-    let subnets: Vec<IpCidr> = serde_json::from_str(&row.get::<String, _>("subnets"))?;
+    let subnets: Vec<NodeSubnetMembership> = serde_json::from_str(&row.get::<String, _>("subnets"))?;
     let status: NodeStatus = serde_json::from_str(&row.get::<String, _>("status"))?;
     let target: NodeTarget = serde_json::from_str(&row.get::<String, _>("target"))?;
     let node_type: NodeType = serde_json::from_str(&row.get::<String, _>("node_type"))?;
@@ -208,7 +190,6 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
             node_type,
             capabilities,
             discovery_status,
-            mac_address: row.get("mac_address"), // Plain string
             monitoring_interval: row.get("monitoring_interval"),
             node_groups,
             status,

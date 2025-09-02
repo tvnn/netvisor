@@ -7,6 +7,7 @@ use crate::server::diagnostics::storage::DiagnosticStorage;
 use crate::server::discovery::manager::DiscoverySessionManager;
 use crate::server::node_groups::storage::NodeGroupStorage;
 use crate::server::nodes::storage::NodeStorage;
+use crate::server::subnets::storage::SubnetStorage;
 
 pub struct AppState {
     pub config: ServerConfig,
@@ -14,6 +15,7 @@ pub struct AppState {
     pub node_group_storage: Arc<dyn NodeGroupStorage>,
     pub diagnostic_storage: Arc<dyn DiagnosticStorage>,
     pub daemon_storage: Arc<dyn DaemonStorage>,
+    pub subnet_storage: Arc<dyn SubnetStorage>,
     pub discovery_manager: DiscoverySessionManager
 }
 

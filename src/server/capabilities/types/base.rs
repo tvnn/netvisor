@@ -211,7 +211,7 @@ impl TypeMetadataProvider for Capability {
             Capability::Daemon{ .. } => "NetVisor Daemon",
             Capability::Dns{ .. } => "DNS",
             Capability::Dhcp{ .. } => "DHCP",
-            Capability::Node{ .. } => "Basic Tests"
+            Capability::Node{ .. } => "Node"
         }
     }
     
@@ -224,7 +224,7 @@ impl TypeMetadataProvider for Capability {
             Capability::Wireguard { .. } => "Modern VPN service using WireGuard protocol",
             Capability::Daemon { .. } => "NetVisor daemon for enhanced network diagnostics",
             Capability::Dhcp{ .. } => "Dynamic host configuration protocol service",
-            Capability::Node{ .. } => "NetVisor node"
+            Capability::Node{ .. } => "Tests and settings which apply to the node as a whole, rather than any particular capability"
         }
     }
     

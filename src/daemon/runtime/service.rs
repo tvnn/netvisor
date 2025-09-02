@@ -1,12 +1,12 @@
 use anyhow::Result;
 use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
-use hostname::get as get_hostname;
-use mac_address::get_mac_address;
+use crate::daemon::utils::base::{create_system_utils, PlatformSystemUtils, SystemUtils};
 use crate::server::capabilities::types::base::Capability;
 use crate::server::capabilities::types::configs::{DaemonConfig};
+use crate::server::subnets::types::base::{NodeSubnetMembership};
 use crate::{
-    daemon::{discovery::{utils::{get_daemon_subnet, get_local_ip_address, port_scan}}, shared::storage::ConfigStore}, server::{
+    daemon::{shared::storage::ConfigStore}, server::{
         daemons::types::api::{
             DaemonRegistrationRequest, DaemonRegistrationResponse, 
         }, nodes::types::{base::{Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType}, shared::types::api::ApiResponse
@@ -16,6 +16,7 @@ use crate::{
 pub struct DaemonRuntimeService {
     pub config_store: Arc<ConfigStore>,
     pub client: reqwest::Client,
+    pub utils: PlatformSystemUtils
 }
 
 impl DaemonRuntimeService {
@@ -23,6 +24,7 @@ impl DaemonRuntimeService {
         Self {
             config_store,
             client: reqwest::Client::new(),
+            utils: create_system_utils()
         }
     }
 
@@ -107,27 +109,14 @@ impl DaemonRuntimeService {
         Ok(())
     }
 
-    pub async fn create_self_as_node(&self, daemon_id: Uuid) -> Result<Node> {        
+    pub async fn create_self_as_node(&self, daemon_id: Uuid, node_subnet_memberships: Vec<NodeSubnetMembership>) -> Result<Node> {        
         // Get daemon configuration
         let config = &self.config_store;
         let own_port = config.get_port().await?;
 
-        // Get local IP address using proper method
-        let local_ip = get_local_ip_address()?;
-        
-        // Scan own ports to detect capabilities
-        let open_ports = port_scan(local_ip).await?;
-        
-        // Get hostname
-        let hostname = get_hostname()
-            .ok()
-            .map(|os_str| os_str.to_string_lossy().into_owned());
-
-        // Get mac address
-        let mac_address = match get_mac_address()? {
-            Some(mac) => Some(mac.to_string()),
-            None => None
-        };
+        let local_ip = self.utils.get_own_ip_address()?;
+        let open_ports = self.utils.scan_own_tcp_ports().await?;
+        let hostname = self.utils.get_own_hostname();
         
         // Create node base
         let node_base = NodeBase {
@@ -138,11 +127,10 @@ impl DaemonRuntimeService {
             target: NodeTarget::IpAddress(IpAddressTargetConfig {
                 ip: local_ip,
             }),
-            mac_address,
             capabilities: vec![], // Will be populated below
             dns_resolver_node_id: None,
             discovery_status: None,
-            subnets: vec![get_daemon_subnet()?],
+            subnets: node_subnet_memberships,
             status: NodeStatus::Unknown,
             monitoring_interval: 10,
             node_groups: vec![],

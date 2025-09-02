@@ -1,6 +1,6 @@
 use clap::Parser;
 use netvisor::daemon::{
-        discovery::{service::DaemonDiscoveryService, utils::get_local_ip_address}, runtime::{service::DaemonRuntimeService, types::base::DaemonState}, shared::{handlers::create_router, storage::{AppConfig, CliArgs, ConfigStore}}
+        discovery::service::DaemonDiscoveryService, runtime::{service::DaemonRuntimeService, types::base::DaemonState}, shared::{handlers::create_router, storage::{AppConfig, CliArgs, ConfigStore}}, subnets::service::DaemonSubnetService, utils::base::{PlatformSystemUtils, SystemUtils}
     };
 use tower::ServiceBuilder;
 use tower_http::{cors::{Any, CorsLayer}, trace::TraceLayer};
@@ -75,11 +75,13 @@ async fn main() -> anyhow::Result<()> {
     
     // Initialize unified storage with full config
     let storage = Arc::new(ConfigStore::new(path.clone(), config.clone()));
+    let utils = PlatformSystemUtils::new();
     storage.initialize().await?;
     
     let mut runtime_service = DaemonRuntimeService::new(storage.clone());
     let discovery_service = Arc::new(DaemonDiscoveryService::new(storage.clone()));
-    let own_addr = format!("{}:{}", get_local_ip_address()?, &storage.get_port().await?);
+    let subnet_service = DaemonSubnetService::new(storage.clone());
+    let own_addr = format!("{}:{}", utils.get_own_ip_address()?, &storage.get_port().await?);
     let server_addr = &storage.get_server_endpoint().await?;
 
     tracing::info!("🔗 Server at {}", server_addr);
@@ -94,7 +96,8 @@ async fn main() -> anyhow::Result<()> {
         let daemon_id = Uuid::new_v4();
 
         // Create self as node, register with server, and save daemon ID
-        let node = runtime_service.create_self_as_node(daemon_id).await?;
+        let (_, node_subnet_memberships) = subnet_service.scan_and_create_subnets().await?;
+        let node = runtime_service.create_self_as_node(daemon_id, node_subnet_memberships).await?;
         tracing::info!("🌐 Local IP: {}, Hostname: {:?}", node.base.target.to_string(), node.base.hostname);
 
         runtime_service.register_with_server(node, daemon_id).await?;
@@ -113,7 +116,8 @@ async fn main() -> anyhow::Result<()> {
 
     let state = Arc::new(DaemonState {
         config: storage,
-        discovery_service
+        discovery_service,
+        subnet_service
     });
     
     // Create HTTP server with config values

@@ -4,14 +4,15 @@ use std::sync::Arc;
 
 
 use crate::server::{
-    daemons::storage::{DaemonStorage, SqliteDaemonStorage}, diagnostics::storage::{DiagnosticStorage, SqliteDiagnosticStorage}, node_groups::storage::{NodeGroupStorage, SqliteNodeGroupStorage}, nodes::storage::{NodeStorage, SqliteNodeStorage}, shared::storage::DatabaseMigrations
+    daemons::storage::{DaemonStorage, SqliteDaemonStorage}, diagnostics::storage::{DiagnosticStorage, SqliteDiagnosticStorage}, node_groups::storage::{NodeGroupStorage, SqliteNodeGroupStorage}, nodes::storage::{NodeStorage, SqliteNodeStorage}, shared::storage::DatabaseMigrations, subnets::storage::{SqliteSubnetStorage, SubnetStorage}
 };
 
 pub struct StorageFactory {
     pub nodes: Arc<dyn NodeStorage>,
     pub node_groups: Arc<dyn NodeGroupStorage>,
     pub diagnostics: Arc<dyn DiagnosticStorage>,
-    pub daemons: Arc<dyn DaemonStorage>
+    pub daemons: Arc<dyn DaemonStorage>,
+    pub subnets: Arc<dyn SubnetStorage>
 }
 
 impl StorageFactory {
@@ -25,7 +26,8 @@ impl StorageFactory {
             nodes: Arc::new(SqliteNodeStorage::new(pool.clone())),
             node_groups: Arc::new(SqliteNodeGroupStorage::new(pool.clone())),
             diagnostics: Arc::new(SqliteDiagnosticStorage::new(pool.clone())),
-            daemons: Arc::new(SqliteDaemonStorage::new(pool.clone()))
+            daemons: Arc::new(SqliteDaemonStorage::new(pool.clone())),
+            subnets: Arc::new(SqliteSubnetStorage::new(pool.clone()))
         })
     }
 }

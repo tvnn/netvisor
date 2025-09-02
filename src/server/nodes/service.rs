@@ -28,15 +28,19 @@ impl NodeService {
     }
 
     /// Create a new node
-    pub async fn create_node(&self, mut node: Node) -> Result<Node> {
-        // Generate ID and timestamps
-        node.id = uuid::Uuid::new_v4();
-        let now = chrono::Utc::now();
-        node.created_at = now.clone();
-        node.updated_at = now;
+    pub async fn create_node(&self, node: Node) -> Result<Node> {
+        
+        let all_nodes = self.storage.get_all().await?;
 
-        self.storage.create(&node).await?;
-        Ok(node)
+        match all_nodes.iter().find(|n| node.eq(n)) {
+            Some(existing_node) => {
+                Ok(existing_node.clone())
+            }
+            None => {
+                self.storage.create(&node).await?;
+                Ok(node)
+            }
+        }
     }
 
     pub async fn get_node(&self, id: &Uuid) -> Result<Option<Node>> {

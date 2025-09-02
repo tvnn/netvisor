@@ -4,14 +4,14 @@ use cidr::{IpCidr};
 use chrono::{DateTime, Utc};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-use futures::stream::{self, StreamExt};
+use futures::{future::{try_join_all}, stream::{self, StreamExt}};
 use std::result::Result::Ok;
 use crate::{
-    daemon::{discovery::{manager::DaemonDiscoverySessionManager, types::base::DiscoveryPhase, utils::{arp_lookup, get_daemon_subnet, get_local_ip_address, port_scan, reverse_dns_lookup}}, shared::storage::ConfigStore},
+    daemon::{discovery::{manager::DaemonDiscoverySessionManager, types::base::DiscoveryPhase}, shared::storage::ConfigStore, utils::base::{create_system_utils, PlatformSystemUtils, SystemUtils}},
     server::{
         capabilities::types::base::Capability, daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, nodes::types::{
             base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType
-        }
+        }, subnets::types::base::{NodeSubnetMembership, Subnet}
     },
 };
 
@@ -21,6 +21,7 @@ pub struct DaemonDiscoveryService {
     pub config_store: Arc<ConfigStore>,
     pub client: reqwest::Client,
     pub discovery_manager: Arc<DaemonDiscoverySessionManager>,
+    pub utils: PlatformSystemUtils
 }
 
 impl DaemonDiscoveryService {
@@ -31,22 +32,27 @@ impl DaemonDiscoveryService {
             config_store,
             client: reqwest::Client::new(),
             discovery_manager,
+            utils: create_system_utils()
         }
     }
 
     /// Main discovery session - discovers self and scans local subnet
-    pub async fn run_discovery_session(&self, request: DaemonDiscoveryRequest, cancel: CancellationToken) -> Result<(), Error> {
+    pub async fn run_discovery_session(&self, request: DaemonDiscoveryRequest, cancel: CancellationToken, subnets: Vec<Subnet>) -> Result<(), Error> {
         let daemon_id = self.config_store.get_id().await?.expect("By the time discovery is running, ID will be assigned");
         let session_id = request.session_id;
         let discovered_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let started_at = Utc::now();
         tracing::info!("Starting discovery session {}", session_id);
 
+        let total_subnets = subnets.len();
+
         self.report_discovery_update(session_id, &DaemonDiscoveryUpdate {
             session_id,
             phase: DiscoveryPhase::Started,
             completed: 0,
             total: 0,
+            subnet: 0,
+            total_subnets,
             error: None,
             discovered_count: 0,
             daemon_id,
@@ -54,30 +60,38 @@ impl DaemonDiscoveryService {
             finished_at: None
         }).await?;
 
-        let daemon_subnet = get_daemon_subnet()?;
-        tracing::info!("Found daemon subnet {}", daemon_subnet);
-        let local_ip = get_local_ip_address()?;
+        let local_ip = self.utils.get_own_ip_address()?;
 
-        let discovery_result = self.scan_and_process_hosts(
-                &daemon_subnet,
-                session_id,
-                daemon_id,
-                started_at,
-                cancel.clone(),
-                local_ip,
-                discovered_count.clone()
-            ).await;
+        let discovery_futures = subnets.iter()
+            .enumerate()
+            .map(|(index, subnet )| {
+                self.scan_and_process_hosts(
+                    subnet,
+                    session_id,
+                    daemon_id,
+                    started_at,
+                    cancel.clone(),
+                    local_ip,
+                    discovered_count.clone(),
+                    index,
+                    total_subnets.clone()
+                )
+            });
+
+        let discovery_result = try_join_all(discovery_futures).await;
 
         let final_discovered_count = discovered_count.load(std::sync::atomic::Ordering::Relaxed);
 
         match discovery_result {
-            Ok(()) => {
+            Ok(_) => {
                 tracing::info!("Discovery session {} completed successfully", session_id);
                 self.report_discovery_update(session_id, &DaemonDiscoveryUpdate {
                     session_id,
                     phase: DiscoveryPhase::Complete,
                     completed: final_discovered_count,
                     total: final_discovered_count,
+                    total_subnets,
+                    subnet: total_subnets,
                     error: None,
                     discovered_count: final_discovered_count,
                     daemon_id,
@@ -92,6 +106,8 @@ impl DaemonDiscoveryService {
                     phase: DiscoveryPhase::Cancelled,
                     completed: final_discovered_count,
                     total: final_discovered_count,
+                    total_subnets,
+                    subnet: total_subnets,
                     error: None,
                     discovered_count: final_discovered_count,
                     daemon_id,
@@ -106,6 +122,8 @@ impl DaemonDiscoveryService {
                     phase: DiscoveryPhase::Failed,
                     completed: final_discovered_count,
                     total: final_discovered_count,
+                    total_subnets,
+                    subnet: total_subnets,
                     error: Some(e.to_string()),
                     discovered_count: final_discovered_count,
                     daemon_id,
@@ -122,16 +140,18 @@ impl DaemonDiscoveryService {
     /// Scan subnet concurrently and process hosts immediately as they're discovered
     async fn scan_and_process_hosts(
         &self,
-        subnet: &IpCidr,
+        subnet: &Subnet,
         session_id: Uuid,
         daemon_id: Uuid,
         started_at: DateTime<Utc>,
         cancel: CancellationToken,
         local_ip: IpAddr,
-        discovered_count: Arc<std::sync::atomic::AtomicUsize>
+        discovered_count: Arc<std::sync::atomic::AtomicUsize>,
+        subnet_index: usize,
+        total_subnets: usize
     ) -> Result<()> {
-        tracing::info!("Scanning subnet {} concurrently for hosts with open ports", subnet);
-        let subnet_size = subnet.iter().count();
+        tracing::info!("Scanning subnet {} concurrently for hosts with open ports", subnet.base.cidr);
+        let subnet_size = subnet.base.cidr.iter().count();
         let scanned_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
         // Report initial progress
@@ -139,6 +159,8 @@ impl DaemonDiscoveryService {
             session_id,
             phase: DiscoveryPhase::Scanning,
             completed: 0,
+            total_subnets,
+            subnet: subnet_index,
             total: subnet_size,
             error: None,
             discovered_count: 0,
@@ -148,18 +170,18 @@ impl DaemonDiscoveryService {
         }).await?;
 
         // Process all IPs concurrently, combining discovery and processing
-        let results = stream::iter(self.determine_scan_order(subnet))
+        let results = stream::iter(self.determine_scan_order(&subnet.base.cidr))
             .map({
                 let cancel = cancel.clone();
                 let scanned_count = scanned_count.clone();
                 let discovered_count = discovered_count.clone();
                 let session_id = session_id;
-                let subnet = *subnet;
                 
                 move |ip| {
                     let cancel = cancel.clone();
                     let scanned_count = scanned_count.clone();
                     let discovered_count = discovered_count.clone();
+                    let subnet = subnet.clone();
                     
                     async move {
                         if cancel.is_cancelled() {
@@ -172,8 +194,10 @@ impl DaemonDiscoveryService {
                             return Ok(());
                         }
 
+                        
+
                         // Port scan directly - if ports are open, host is alive
-                        match port_scan(ip).await {
+                        match self.utils.scan_tcp_ports(ip).await {
                             Ok(open_ports) if !open_ports.is_empty() => {
                                 // Process this host immediately
                                 if let Err(e) = self.process_discovered_host(
@@ -228,6 +252,8 @@ impl DaemonDiscoveryService {
                     phase: DiscoveryPhase::Scanning,
                     completed: current_scanned,
                     total: subnet_size,
+                    total_subnets,
+                    subnet: subnet_index,
                     error: None,
                     discovered_count: current_discovered,
                     daemon_id,
@@ -249,26 +275,22 @@ impl DaemonDiscoveryService {
         host_ip: IpAddr,
         open_ports: Vec<u16>,
         session_id: Uuid,
-        subnet: &IpCidr,
+        subnet: &Subnet,
         discovered_count: Arc<std::sync::atomic::AtomicUsize>
     ) -> Result<()> {
-        // Port scan
-        // let discovery_ports: Vec<u16> = DiscoveryPort::iter().map(|p| p as u16).collect();
-        // let open_ports = port_scan(host_ip, &discovery_ports.to_vec()).await?;
         
         if open_ports.is_empty() {
             return Ok(()); // Skip hosts with no interesting services
         }
 
         // Gather host information
-        let hostname = reverse_dns_lookup(host_ip).await.ok();
-        let mac_address = arp_lookup(host_ip).await.ok();
+        let hostname = self.utils.get_hostname_for_ip(host_ip).await?;
+        let mac_address = self.utils.get_mac_address_for_ip(host_ip).await?;
 
         // Create node
         let mut node = Node::new(NodeBase {
             name: hostname.clone().unwrap_or_else(|| format!("Device-{}", host_ip)),
             hostname,
-            mac_address,
             status: NodeStatus::Unknown,
             target: NodeTarget::IpAddress(IpAddressTargetConfig {
                 ip: host_ip,
@@ -278,7 +300,11 @@ impl DaemonDiscoveryService {
                 session_id,
                 discovered_at: Utc::now(),
             }),
-            subnets: vec![*subnet],
+            subnets: vec!(NodeSubnetMembership {
+                subnet_id: subnet.id,
+                ip_address: host_ip,
+                mac_address
+            }),
             capabilities: Vec::new(),
             dns_resolver_node_id: None,
             node_type: NodeType::UnknownDevice,

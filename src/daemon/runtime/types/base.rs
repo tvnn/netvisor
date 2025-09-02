@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use crate::daemon::{discovery::service::DaemonDiscoveryService, shared::storage::ConfigStore};
+use crate::daemon::{discovery::service::DaemonDiscoveryService, shared::storage::ConfigStore, subnets::service::DaemonSubnetService};
 
 pub struct DaemonState {
     pub config: Arc<ConfigStore>,
-    pub discovery_service: Arc<DaemonDiscoveryService>
+    pub discovery_service: Arc<DaemonDiscoveryService>,
+    pub subnet_service: DaemonSubnetService
 }
