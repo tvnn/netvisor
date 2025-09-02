@@ -1,17 +1,44 @@
-<!-- src/lib/shared/components/forms/DynamicField.svelte (Updated version) -->
+<!-- src/lib/shared/components/forms/DynamicFieldSvelteForms.svelte -->
 <script lang="ts">
-  import { AlertCircle, Server } from 'lucide-svelte';
-  import type { ConfigField } from "$lib/shared/components/forms/types";
+  import { onMount } from 'svelte';
+  import { AlertCircle } from 'lucide-svelte';
+  import { field as svelteFormsField } from 'svelte-forms';
+  import { required } from 'svelte-forms/validators';
+  import type { ConfigField } from './types';
   import { createStyle } from '$lib/shared/utils/styling';
-	import RichSelect from '$lib/shared/components/forms/RichSelect.svelte';
+  import RichSelect from '$lib/shared/components/forms/RichSelect.svelte';
+  import { maxLength, portRange } from './validators';
   
+  export let form: any;
   export let field: ConfigField;
+  export let fieldId: string;
   export let value: any;
-  export let error: string | null = null;
   export let onUpdate: (value: any) => void;
-  export let disabled: boolean = false;  // NEW: disabled support
+  export let disabled: boolean = false;
   
-  // Use default value if no value is provided
+  let formField: any;
+  
+  // Create form field with appropriate validators
+  function createFormField() {
+    const validators = [];
+    
+    // Add required validator if needed
+    if (field.required) {
+      validators.push(required());
+    }
+    
+    // Add type-specific validators
+    if (field.field_type.base_type === 'string' && field.field_type.constraints?.maxLength) {
+      validators.push(maxLength(field.field_type.constraints.maxLength));
+    }
+    
+    if (field.field_type.base_type === 'integer') {
+      validators.push(portRange()); // Assuming integer fields are ports, customize as needed
+    }
+    
+    return svelteFormsField(fieldId, getInitialValue(), validators);
+  }
+  
   function getInitialValue() {
     // If a value is explicitly provided, use it
     if (value !== undefined && value !== null && value !== '') {
@@ -28,7 +55,7 @@
       case 'boolean':
         return false;
       case 'integer':
-        return 0;
+        return '';
       case 'select':
       case 'rich_select':
         return '';
@@ -37,60 +64,52 @@
     }
   }
   
-  // Initialize with the determined initial value
-  let inputValue = getInitialValue();
-  
-  // Update internal value when prop changes, but preserve defaults
-  $: {
-    const newInitialValue = getInitialValue();
-    if (newInitialValue !== inputValue) {
-      inputValue = newInitialValue;
-      // Notify parent of the default value if it wasn't already set
-      if ((value === undefined || value === null || value === '') && 
-          field.default_value !== undefined && field.default_value !== null) {
-        onUpdate(field.default_value);
-      }
+  // Initialize form field
+  onMount(() => {
+    formField = createFormField();
+    if (form) {
+      form[fieldId] = formField
     }
-  }
+  });
   
-  function handleInput(event: Event) {
-    if (disabled) return; // Prevent input when disabled
-    
-    const target = event.target as HTMLInputElement | HTMLSelectElement;
-    let newValue: any = target.value;
+  // Update parent when field value changes
+  $: if (formField && $formField) {
+    let processedValue = $formField.value;
     
     // Type conversion based on field type
     if (field.field_type.base_type === 'integer') {
-      newValue = parseInt(newValue) || 0;
+      if (processedValue === '') {
+        processedValue = '';
+      } else {
+        const parsed = parseInt(processedValue);
+        processedValue = isNaN(parsed) ? '' : parsed;
+      }
     } else if (field.field_type.base_type === 'boolean') {
-      newValue = (target as HTMLInputElement).checked;
+      processedValue = Boolean(processedValue);
     }
     
-    // Update internal value immediately
-    inputValue = newValue;
-    
-    // Call parent update
-    onUpdate(newValue);
+    onUpdate(processedValue);
   }
   
-  function handleRichSelectChange(value: any) {
-    if (disabled) return; // Prevent input when disabled
-    
-    // Update internal value immediately
-    inputValue = value;
-    
-    // Call parent update
-    onUpdate(value);
+  // Update field when external value changes
+  $: if (formField && value !== $formField.value && value !== undefined) {
+    formField.set(value);
+  }
+  
+  function handleRichSelectChange(newValue: any) {
+    if (disabled || !formField) return;
+    formField.set(newValue);
   }
 
   // Disabled styling classes
   $: disabledClass = disabled ? 'opacity-50 cursor-not-allowed' : '';
   $: inputDisabledClass = disabled ? 'bg-gray-800 cursor-not-allowed' : 'bg-gray-700';
+  $: errorClass = formField && $formField.errors.length > 0 ? 'border-red-500' : 'border-gray-600';
 </script>
 
-{#key field.id}
+{#if formField}
   <div class="space-y-2 {disabledClass}">
-    <label for={field.id} class="block text-sm font-medium text-gray-300">
+    <label for={fieldId} class="block text-sm font-medium text-gray-300">
       {field.label}
       {#if field.required}
         <span class="text-red-400 ml-1">*</span>
@@ -99,43 +118,38 @@
     
     {#if field.field_type.base_type === 'string'}
       <input
-        id={field.id}
+        id={fieldId}
         type="text"
-        value={inputValue}
+        bind:value={$formField.value}
         placeholder={field.placeholder}
         {disabled}
-        on:input={handleInput}
-        class="w-full px-3 py-2 {inputDisabledClass} border border-gray-600 rounded-md text-white 
+        class="w-full px-3 py-2 {inputDisabledClass} border {errorClass} rounded-md text-white 
                focus:outline-none focus:ring-2 focus:ring-blue-500 
-               {error ? 'border-red-500' : ''}
                {disabled ? 'text-gray-400' : ''}"
       />
       
     {:else if field.field_type.base_type === 'integer'}
       <input
-        id={field.id}
+        id={fieldId}
         type="number"
-        value={inputValue}
+        bind:value={$formField.value}
         placeholder={field.placeholder}
         min={field.field_type.constraints?.min}
         max={field.field_type.constraints?.max}
         step={field.field_type.constraints?.step || 1}
         {disabled}
-        on:input={handleInput}
-        class="w-full px-3 py-2 {inputDisabledClass} border border-gray-600 rounded-md text-white 
+        class="w-full px-3 py-2 {inputDisabledClass} border {errorClass} rounded-md text-white 
                focus:outline-none focus:ring-2 focus:ring-blue-500
-               {error ? 'border-red-500' : ''}
                {disabled ? 'text-gray-400' : ''}"
       />
       
     {:else if field.field_type.base_type === 'boolean'}
       <label class="flex items-center gap-3 cursor-pointer {disabled ? 'cursor-not-allowed' : ''}">
         <input
-          id={field.id}
+          id={fieldId}
           type="checkbox"
-          checked={!!inputValue}
+          bind:checked={$formField.value}
           {disabled}
-          on:change={handleInput}
           class="rounded {inputDisabledClass} border-gray-600 text-blue-600 focus:ring-blue-500
                  {disabled ? 'cursor-not-allowed' : ''}"
         />
@@ -146,13 +160,11 @@
       
     {:else if field.field_type.base_type === 'select'}
       <select
-        id={field.id}
-        value={inputValue}
+        id={fieldId}
+        bind:value={$formField.value}
         {disabled}
-        on:change={handleInput}
-        class="w-full px-3 py-2 {inputDisabledClass} border border-gray-600 rounded-md text-white 
+        class="w-full px-3 py-2 {inputDisabledClass} border {errorClass} rounded-md text-white 
                focus:outline-none focus:ring-2 focus:ring-blue-500
-               {error ? 'border-red-500' : ''}
                {disabled ? 'text-gray-400 cursor-not-allowed' : ''}"
       >
         <option value="">{field.placeholder || 'Select an option...'}</option>
@@ -165,7 +177,7 @@
       
     {:else if field.field_type.base_type === 'rich_select'}
       <RichSelect
-        selectedValue={inputValue}
+        selectedValue={$formField.value}
         options={field.field_type.options?.map(opt => ({
           value: opt.value,
           label: opt.label,
@@ -193,15 +205,13 @@
     {:else}
       <!-- Fallback for unknown field types -->
       <input
-        id={field.id}
+        id={fieldId}
         type="text"
-        value={inputValue}
+        bind:value={$formField.value}
         placeholder={field.placeholder}
         {disabled}
-        on:input={handleInput}
-        class="w-full px-3 py-2 {inputDisabledClass} border border-gray-600 rounded-md text-white 
+        class="w-full px-3 py-2 {inputDisabledClass} border {errorClass} rounded-md text-white 
                focus:outline-none focus:ring-2 focus:ring-blue-500
-               {error ? 'border-red-500' : ''}
                {disabled ? 'text-gray-400' : ''}"
       />
     {/if}
@@ -214,11 +224,11 @@
     {/if}
     
     <!-- Error message -->
-    {#if error}
+    {#if $formField.errors.length > 0}
       <div class="flex items-center gap-2 text-red-400">
         <AlertCircle size={16} />
-        <p class="text-xs">{error}</p>
+        <p class="text-xs">{$formField.errors[0]}</p>
       </div>
     {/if}
   </div>
-{/key}
+{/if}

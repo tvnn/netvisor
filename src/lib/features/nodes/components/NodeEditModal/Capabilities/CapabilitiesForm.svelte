@@ -1,23 +1,27 @@
+<!-- src/lib/features/nodes/components/NodeEditModal/Capabilities/CapabilitiesForm.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import ListManager from '$lib/shared/components/forms/ListManager.svelte';
-  import { createCapability, getCapabilityConfig, type Capability, getCapabilityType, type CapabilityConfigBase, type CapabilityConfig, getTestConfigFromSchema } from '$lib/features/capabilities/types/base';
-  import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
+  import { Shield, Plus } from 'lucide-svelte';
+  import type { Capability, CapabilityConfig } from '$lib/features/capabilities/types/base';
   import type { NodeContext } from '$lib/features/nodes/types/base';
-  import { getCapabilityForms } from '$lib/features/capabilities/store';
+  import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
+  import { getCapabilityConfig, getCapabilityType, createCapability, getTestConfigFromSchema } from '$lib/features/capabilities/types/base';
+  import CapabilitiesConfigPanel from './CapabilitiesConfigPanel.svelte';
+  import { capabilities } from '$lib/shared/stores/registry';
   import { createStyle } from '$lib/shared/utils/styling';
-	import CapabilitiesConfigPanel from './CapabilitiesConfigPanel.svelte';
-	import { loading, pushError } from '$lib/shared/stores/feedback';
-	import { capabilities } from '$lib/shared/stores/registry';
+  import { getCapabilityForms } from '$lib/features/capabilities/store';
+  import { loading, pushError } from '$lib/shared/stores/feedback';
+	import ListManager from '$lib/shared/components/forms/ListManager.svelte';
 	import type { TagProps } from '$lib/shared/components/data/types';
-
+  
+  export let form: any;
   export let selectedCapabilities: Capability[] = [];
   export let nodeContext: NodeContext;
-
+  
   // Component state
   let availableSchemas: Record<string, CapabilityConfigForm> = {};
   let selectedCapabilityIndex = -1;
-
+  
   // Computed values
   $: selectedCapability = selectedCapabilityIndex >= 0 ? selectedCapabilities[selectedCapabilityIndex] : null;
   $: selectedCapabilityType = selectedCapability ? getCapabilityType(selectedCapability) : null;
@@ -26,7 +30,7 @@
   // Available capability types for dropdown
   $: selectOptions = Object.keys(availableSchemas)
     .map(type => capabilityFromType(type))  
-    .filter(type => !getCapabilityConfig(type).system_assigned)
+    .filter(type => !getCapabilityConfig(type).system_assigned);
 
   async function loadCapabilitySchemas() {
     try {            
@@ -48,34 +52,32 @@
 
   function capabilityFromType(capabilityType: string) {
     const schema = availableSchemas[capabilityType]
-    const baseConfig: CapabilityConfigBase = {
+    const baseConfig = {
       name: capabilities.getDisplay(capabilityType),
-      tests: schema.test_sections.map(section => ({
+      tests: schema?.test_sections?.map(section => ({
         test: {
           type: section.test_type,
           config: getTestConfigFromSchema(section)
         },
-        criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value,
+        criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
         enabled: section.enabled_by_default ?? false
-      })),
-      system_assigned: schema.system_assigned ?? false,
+      })) || [],
+      system_assigned: schema?.system_assigned ?? false,
       port: undefined,
       process: undefined,
       discovery_ports: undefined
     };
 
-    let config: CapabilityConfig = {
-      ...baseConfig
-    }
+    let config: CapabilityConfig = { ...baseConfig };
 
     // Add capability-specific default values from schema
-    schema.capability_fields.forEach(field => {
+    schema?.capability_fields?.forEach(field => {
       if (field.default_value !== undefined) {
         config[field.id] = field.default_value;
       }
     });
 
-    return createCapability(capabilityType, config)
+    return createCapability(capabilityType, config);
   }
 
   function handleAddCapability(capabilityType: string) {  
@@ -84,10 +86,7 @@
   }
 
   function handleRemoveCapability(index: number) {
-    const capability = selectedCapabilities[index];
-    // const config = getCapabilityConfig(capability);
-    
-    // selectedCapabilities = selectedCapabilities.filter((_, i) => i !== index);
+    selectedCapabilities = selectedCapabilities.filter((_, i) => i !== index);
     
     // Update selected index
     if (selectedCapabilityIndex === index) {
@@ -105,21 +104,18 @@
   }
 
   function getItemId(capability: Capability): string {
-    return getCapabilityType(capability)
+    return getCapabilityType(capability);
   }
 
   // Display functions for ListManager
-
-  // Options
   function getOptionLabel(capability: Capability): string {
-    return capabilities.getDisplay( getCapabilityType(capability) );
+    return capabilities.getDisplay(getCapabilityType(capability));
   }
 
   function getOptionDescription(capability: Capability) {
-    return capabilities.getDescription( getCapabilityType(capability) );
+    return capabilities.getDescription(getCapabilityType(capability));
   }
 
-  // Items
   function getItemLabel(capability: Capability): string {
     const config = getCapabilityConfig(capability);
     return config.name || 'Unnamed Capability';
@@ -142,7 +138,7 @@
   }
 
   function getItemTags(capability: Capability): TagProps[] {
-    const tags = [];
+    const tags: TagProps[] = [];
     const config = getCapabilityConfig(capability);
         
     // Test status tag
@@ -160,17 +156,16 @@
   }
 
   function getItemIcon(capability: Capability) {
-    let iconName = capabilities.getIcon( getCapabilityType(capability) );
+    let iconName = capabilities.getIcon(getCapabilityType(capability));
     return createStyle(null, iconName).IconComponent;
   }
 
   function getItemIconColor(capability: Capability) {
-    let colorStyle = capabilities.getColor( getCapabilityType(capability) );
+    let colorStyle = capabilities.getColor(getCapabilityType(capability));
     return colorStyle.icon;
   }
 
   onMount(() => {
-    // Auto-expand first section on mount
     loadCapabilitySchemas();
     if (selectedCapabilities.length > 0 && selectedCapabilityIndex === -1) {
       selectedCapabilityIndex = 0;
@@ -186,10 +181,9 @@
     </div>
   </div>
 {:else}
-  <div class="h-full flex gap-6 min-h-0">
+  <div class="h-full flex gap-6 min-h-0 p-6">
     <!-- Left Panel - Capability List -->
     <div class="w-2/5 flex flex-col min-h-0">
-      <!-- Add New Capability -->
       <div class="flex-1 min-h-0">
         <ListManager
           label="Capabilities"
@@ -210,8 +204,8 @@
           getOptionId={getItemId}
           getOptionIcon={getItemIcon}
           getOptionIconColor={getItemIconColor}
-          {getOptionLabel}
-          {getOptionDescription}
+          getOptionLabel={getOptionLabel}
+          getOptionDescription={getOptionDescription}
 
           {getItemId}
           {getItemIcon}
@@ -226,6 +220,7 @@
     <!-- Right Panel - Capability Configuration -->
     <div class="w-3/5 border-l border-gray-600 pl-6 min-h-0">
       <CapabilitiesConfigPanel
+        {form}
         capability={selectedCapability}
         schema={selectedSchema}
         onChange={handleCapabilityChange}

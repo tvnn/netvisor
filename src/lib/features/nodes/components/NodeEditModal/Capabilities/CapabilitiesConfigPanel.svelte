@@ -1,38 +1,61 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, ToggleLeft, ToggleRight } from 'lucide-svelte';
-  import DynamicField from '$lib/shared/components/forms/DynamicField.svelte';
+  import { ChevronDown, ChevronRight, ToggleLeft, ToggleRight, AlertCircle } from 'lucide-svelte';
+  import { field } from 'svelte-forms';
   import { getCapabilityConfig, getCapabilityType, getTestConfigFromSchema, updateCapabilityConfig, type Capability } from '$lib/features/capabilities/types/base';
-  import type { CapabilityConfigForm, TestSection } from '$lib/features/capabilities/types/forms';
+  import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
   import { createStyle } from '$lib/shared/utils/styling';
-	import { criticalityLevels } from '$lib/shared/stores/registry';
-	import Tag from '$lib/shared/components/data/Tag.svelte';
+  import { criticalityLevels } from '$lib/shared/stores/registry';
+  import Tag from '$lib/shared/components/data/Tag.svelte';
+  import { capabilityName } from '$lib/shared/components/forms/validators';
+	import DynamicField from '$lib/shared/components/forms/DynamicField.svelte';
 
+  export let form: any;
   export let capability: Capability | null = null;
   export let schema: CapabilityConfigForm | null = null;
   export let onChange: (updatedCapability: Capability) => void = () => {};
 
   let expandedSections: Set<string> = new Set();
-  let capabilityName = '';
+  let capabilityNameField: any;
   let capabilityConfig: Record<string, any> = {};
+
+  // Initialize form fields for capability name
+  $: if (capability && schema && !capabilityNameField) {
+    const config = getCapabilityConfig(capability);
+    const isSystemAssigned = config.system_assigned;
+    
+    capabilityNameField = field(
+      `capability_name_${getCapabilityType(capability)}`, 
+      config.name, 
+      [capabilityName(isSystemAssigned)]
+    );
+    
+    if (form && !isSystemAssigned) {
+      form[`capability_name_${getCapabilityType(capability)}`] = capabilityNameField
+    }
+  }
 
   // Initialize form data when capability changes
   $: if (capability) {
     const config = getCapabilityConfig(capability);
-    
-    capabilityName = config.name;
     capabilityConfig = { ...config };
+    
+    // Update capability name field value if it exists
+    if (capabilityNameField && $capabilityNameField.value !== config.name) {
+      capabilityNameField.set(config.name);
+    }
   }
 
   // Update capability when form data changes
   $: if (capability && schema) {
     const currentConfig = getCapabilityConfig(capability);
-    const hasNameChanged = capabilityName !== currentConfig.name;
+    const newName = capabilityNameField ? $capabilityNameField.value : currentConfig.name;
+    const hasNameChanged = newName !== currentConfig.name;
     const hasConfigChanged = JSON.stringify(capabilityConfig) !== JSON.stringify(currentConfig);
     
     if (hasNameChanged || hasConfigChanged) {
       const updatedCapability = updateCapabilityConfig(capability, {
         ...capabilityConfig,
-        name: capabilityName
+        name: newName
       });
       onChange(updatedCapability);
     }
@@ -104,7 +127,6 @@
     updateTest(sectionIndex, { enabled: newEnabledState });
   }
 
-
   function updateTestConfig(sectionIndex: number, fieldId: string, value: any) {
     if (fieldId === 'criticality') {
       updateTest(sectionIndex, { criticality: value });
@@ -146,22 +168,29 @@
     <!-- Scrollable Content -->
     <div class="flex-1 overflow-auto space-y-6 min-h-0">
       <!-- Capability Name -->
-      {#if !getCapabilityConfig(capability).system_assigned}
-      <div>
-        <div class="block text-sm font-medium text-gray-300 mb-2">
-          Name
-          <span class="text-red-400 ml-1">*</span>
+      {#if !getCapabilityConfig(capability).system_assigned && capabilityNameField}
+        <div class="space-y-2">
+          <label for="capability_name" class="block text-sm font-medium text-gray-300">
+            Name <span class="text-red-400 ml-1">*</span>
+          </label>
+          <input
+            id="capability_name"
+            type="text"
+            bind:value={$capabilityNameField.value}
+            class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500
+                   {$capabilityNameField.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
+            placeholder="Enter a descriptive name..."
+          />
+          {#if $capabilityNameField.errors.length > 0}
+            <div class="flex items-center gap-2 text-red-400">
+              <AlertCircle size={16} />
+              <p class="text-xs">{$capabilityNameField.errors[0]}</p>
+            </div>
+          {/if}
+          <p class="text-xs text-gray-400">
+            Give this capability a meaningful name like "API Server" or "Admin Panel"
+          </p>
         </div>
-        <input
-          type="text"
-          bind:value={capabilityName}
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Enter a descriptive name..."
-        />
-        <p class="text-xs text-gray-400 mt-1">
-          Give this capability a meaningful name like "API Server" or "Admin Panel"
-        </p>
-      </div>
       {/if}
 
       <!-- Capability Configuration Fields -->
@@ -171,9 +200,11 @@
           <div class="space-y-4">
             {#each schema.capability_fields as field}
               <DynamicField
+                {form}
                 {field}
+                fieldId={`${getCapabilityType(capability)}_${field.id}`}
                 value={capabilityConfig[field.id]}
-                onUpdate={(value) => capabilityConfig[field.id] = value}
+                onUpdate={(value: any) => capabilityConfig[field.id] = value}
               />
             {/each}
           </div>
@@ -210,20 +241,19 @@
                       </button>
 
                       <!-- Test Info -->
-                        <div class="flex items-center gap-3">
-                          <svelte:component this={testStyle.IconComponent} class="w-8 h-8 {testStyle.colors.icon}" />
-                          <div class="flex-col">
-                            <div class="flex items-center gap-2">
-                              <span class="font-medium text-white">{section.test_info.display_name}</span>
-                              <Tag 
-                                bgColor={criticalityLevels.getColor(testConfig.criticality).bg}
-                                textColor={criticalityLevels.getColor(testConfig.criticality).text}
-                                label={testConfig?.criticality} />
-                            </div>
-                            <span class="text-sm text-gray-400">{section.test_info.description}</span>
+                      <div class="flex items-center gap-3">
+                        <svelte:component this={testStyle.IconComponent} class="w-8 h-8 {testStyle.colors.icon}" />
+                        <div class="flex-col">
+                          <div class="flex items-center gap-2">
+                            <span class="font-medium text-white">{section.test_info.display_name}</span>
+                            <Tag 
+                              bgColor={criticalityLevels.getColor(testConfig?.criticality || 'Important').bg}
+                              textColor={criticalityLevels.getColor(testConfig?.criticality || 'Important').text}
+                              label={testConfig?.criticality || 'Important'} />
                           </div>
+                          <span class="text-sm text-gray-400">{section.test_info.description}</span>
                         </div>
-                        
+                      </div>
                     </div>
 
                     <!-- Expand/Collapse Button -->
@@ -252,9 +282,11 @@
                     <div class="space-y-4">
                       {#each section.test_fields as field}
                         <DynamicField
+                          {form}
                           {field}
+                          fieldId={`${getCapabilityType(capability)}_${section.test_type}_${field.id}`}
                           value={testConfig?.[field.id as keyof typeof testConfig]}
-                          onUpdate={(value) => updateTestConfig(sectionIndex, field.id, value)}
+                          onUpdate={(value: any) => updateTestConfig(sectionIndex, field.id, value)}
                           disabled={!testConfig?.enabled}
                         />
                       {/each}

@@ -12,6 +12,8 @@ export interface DaemonDiscoveryUpdate {
     phase?: string,
     completed?: number,
     total?: number,
+    total_subnets: number,
+    subnet: number,
     discovered_count?: number,
     error?: string,
     started_at?: string,
