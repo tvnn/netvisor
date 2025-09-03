@@ -7,29 +7,28 @@ use super::{
 };
 use crate::{server::{
     node_groups::{
-        service::NodeGroupService,
-        storage::NodeGroupStorage
+        service::NodeGroupService
     }, nodes::{
-        service::NodeService, storage::NodeStorage
+        service::NodeService
     },
 }};
 
 pub struct DiagnosticService {
     diagnostic_storage: Arc<dyn DiagnosticStorage>,
-    node_service: NodeService,
-    node_group_service: NodeGroupService,
+    node_service: Arc<NodeService>,
+    node_group_service: Arc<NodeGroupService>,
 }
 
 impl DiagnosticService {
     pub fn new(
         diagnostic_storage: Arc<dyn DiagnosticStorage>,
-        node_storage: Arc<dyn NodeStorage>,
-        node_group_storage: Arc<dyn NodeGroupStorage>,
+        node_service: Arc<NodeService>,
+        node_group_service: Arc<NodeGroupService>,
     ) -> Self {
         Self {
             diagnostic_storage,
-            node_service: NodeService::new(node_storage.clone(), node_group_storage.clone()),
-            node_group_service: NodeGroupService::new(node_group_storage, node_storage.clone()),
+            node_service,
+            node_group_service,
         }
     }
 

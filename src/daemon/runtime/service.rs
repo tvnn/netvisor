@@ -4,7 +4,6 @@ use uuid::Uuid;
 use crate::daemon::utils::base::{create_system_utils, PlatformSystemUtils, SystemUtils};
 use crate::server::capabilities::types::base::Capability;
 use crate::server::capabilities::types::configs::{DaemonConfig};
-use crate::server::subnets::types::base::{NodeSubnetMembership};
 use crate::{
     daemon::{shared::storage::ConfigStore}, server::{
         daemons::types::api::{
@@ -29,7 +28,7 @@ impl DaemonRuntimeService {
     }
 
     /// Register daemon with server and return assigned ID
-    pub async fn register_with_server(&mut self, node: Node, daemon_id: Uuid) -> Result<()> {
+    pub async fn register_with_server(&self, node: Node, daemon_id: Uuid) -> Result<()> {
         tracing::info!("Registering daemon with ID: {}, Node ID: {:?}", daemon_id, node.id);
         let registration_request = DaemonRegistrationRequest {daemon_id, node};
 
@@ -109,7 +108,7 @@ impl DaemonRuntimeService {
         Ok(())
     }
 
-    pub async fn create_self_as_node(&self, daemon_id: Uuid, node_subnet_memberships: Vec<NodeSubnetMembership>) -> Result<Node> {        
+    pub async fn create_self_as_node(&self, daemon_id: Uuid) -> Result<Node> {        
         // Get daemon configuration
         let config = &self.config_store;
         let own_port = config.get_port().await?;
@@ -130,7 +129,7 @@ impl DaemonRuntimeService {
             capabilities: vec![], // Will be populated below
             dns_resolver_node_id: None,
             discovery_status: None,
-            subnets: node_subnet_memberships,
+            subnets: Vec::new(),
             status: NodeStatus::Unknown,
             monitoring_interval: 10,
             node_groups: vec![],

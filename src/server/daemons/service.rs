@@ -8,19 +8,19 @@ use crate::server::{capabilities::types::{base::{Capability, CapabilityDiscrimin
                 DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse, DaemonTestRequest, DaemonTestResult
             }, base::Daemon
         }
-    }, nodes::storage::NodeStorage, shared::types::api::ApiResponse};
+    }, nodes::{service::NodeService}, shared::types::api::ApiResponse};
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
-    node_storage: Arc<dyn NodeStorage>,
+    node_service: Arc<NodeService>,
     client: reqwest::Client,
 }
 
 impl DaemonService {
-    pub fn new(daemon_storage: Arc<dyn DaemonStorage>, node_storage: Arc<dyn NodeStorage>,) -> Self {
+    pub fn new(daemon_storage: Arc<dyn DaemonStorage>, node_service: Arc<NodeService>) -> Self {
         Self {
             daemon_storage,
-            node_storage,
+            node_service,
             client: reqwest::Client::new(),
         }
     }
@@ -51,7 +51,7 @@ impl DaemonService {
     /// Send discovery request to daemon
     pub async fn send_discovery_request(&self, daemon: &Daemon, request: DaemonDiscoveryRequest) -> Result<(), Error> {        
         
-        let daemon_node = match self.node_storage.get_by_id(&daemon.base.node_id).await? {
+        let daemon_node = match self.node_service.get_node(&daemon.base.node_id).await? {
             Some(node) => node,
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };
@@ -87,7 +87,7 @@ impl DaemonService {
     /// Send test execution request to daemon
     pub async fn send_test_request(&self, daemon: &Daemon, request: DaemonTestRequest) -> Result<()> {        
         
-        let daemon_node = match self.node_storage.get_by_id(&daemon.base.node_id).await? {
+        let daemon_node = match self.node_service.get_node(&daemon.base.node_id).await? {
             Some(node) => node,
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };
@@ -118,7 +118,7 @@ impl DaemonService {
 
     pub async fn send_discovery_cancellation(&self, daemon: &Daemon, session_id: Uuid) -> Result<(), anyhow::Error> {
 
-        let daemon_node = match self.node_storage.get_by_id(&daemon.base.node_id).await? {
+        let daemon_node = match self.node_service.get_node(&daemon.base.node_id).await? {
             Some(node) => node,
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };

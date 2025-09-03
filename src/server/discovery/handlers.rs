@@ -9,7 +9,6 @@ use std::sync::Arc;
 use crate::{server::daemons::types::api::DaemonDiscoveryUpdate};
 use crate::{server::{
     config::AppState, daemons::{
-        service::DaemonService, 
         types::api::DaemonDiscoveryRequest
     }, discovery::types::api::{InitiateDiscoveryRequest}, shared::types::api::{ApiError, ApiResponse, ApiResult}
 }};
@@ -27,7 +26,7 @@ async fn initiate_discovery(
     State(state): State<Arc<AppState>>,
     Json(request): Json<InitiateDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonDiscoveryUpdate>>> {
-    let daemon_service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
+    let daemon_service = &state.services.daemon_service;
     
     // Get the specified daemon
     let daemon = match daemon_service.get_daemon(&request.daemon_id).await? {
@@ -86,7 +85,7 @@ async fn cancel_discovery(
         None => return Err(ApiError::not_found(&format!("Session '{}' not found", session_id)))
     };
     
-    let daemon_service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
+    let daemon_service = &state.services.daemon_service;
     
     if let Some(daemon) = daemon_service.get_daemon(&daemon_id).await? {
         if let Err(e) = daemon_service.send_discovery_cancellation(&daemon, session_id).await {

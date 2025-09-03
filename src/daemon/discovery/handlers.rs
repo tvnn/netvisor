@@ -2,7 +2,7 @@ use std::sync::Arc;
 use axum::{
     extract::State, response::Json, routing::post, Router
 };
-use crate::daemon::runtime::types::base::DaemonState;
+use crate::daemon::runtime::types::DaemonAppState;
 use crate::server::daemons::types::api::{DaemonDiscoveryCancellationRequest, DaemonDiscoveryCancellationResponse};
 use crate::{
     server::{
@@ -13,28 +13,28 @@ use crate::{
     },
 };
 
-pub fn create_router() -> Router<Arc<DaemonState>> {
+pub fn create_router() -> Router<Arc<DaemonAppState>> {
     Router::new()
         .route("/initiate", post(handle_discovery_request))
         .route("/cancel", post(handle_cancel_request))
 }
 
 async fn handle_discovery_request(
-    State(state): State<Arc<DaemonState>>,
+    State(state): State<Arc<DaemonAppState>>,
     Json(request): Json<DaemonDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonDiscoveryResponse>>> {
     let session_id = request.session_id.clone();
     tracing::info!("Received discovery request for session {}", session_id);
 
-    let discovery_service = state.discovery_service.clone();
-    let subnet_service = &state.subnet_service;
+    let discovery_service = state.services.discovery_service.clone();
+    let subnet_service = &state.services.subnet_service;
     let manager = discovery_service.discovery_manager.clone();
 
     if manager.is_discovery_running().await {
         return Err(ApiError::conflict(&"Discovery session already running"));
     } else {
 
-        let (subnets, _) = subnet_service.scan_and_create_subnets().await?;
+        let subnets = subnet_service.scan_subnets().await?;
         
         let cancel_token = manager.start_new_session().await;
 
@@ -58,13 +58,13 @@ async fn handle_discovery_request(
 }
 
 async fn handle_cancel_request(
-    State(state): State<Arc<DaemonState>>,
+    State(state): State<Arc<DaemonAppState>>,
     Json(request): Json<DaemonDiscoveryCancellationRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonDiscoveryCancellationResponse>>> {
     let session_id = request.session_id.clone();
     tracing::info!("Received discovery cancellation request for session {}", session_id);
 
-    let discovery_service = &state.discovery_service;
+    let discovery_service = state.services.discovery_service.clone();
     let manager = discovery_service.discovery_manager.clone();
 
     if manager.is_discovery_running().await {

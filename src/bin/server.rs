@@ -3,8 +3,7 @@ use axum::{
     Router,
 };
 use clap::Parser;
-use netvisor::server::{config::ServerConfig, discovery::manager::DiscoverySessionManager, shared::{handlers::create_router, types::storage::StorageFactory}};
-use std::sync::Arc;
+use netvisor::server::{config::{AppState, ServerConfig}, discovery::manager::DiscoverySessionManager, shared::{handlers::create_router}};
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer},
@@ -52,26 +51,17 @@ async fn main() -> anyhow::Result<()> {
     if let Some(log_level) = cli.log_level {
         config.server.log_level = log_level;
     }
+
+    let listen_addr = format!("{}:{}", &config.server.host, &config.server.port);
     
     // Initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new("debug"))
         .with(tracing_subscriber::fmt::layer())
         .init();
-    
-    // Initialize storage
-    let storage = StorageFactory::new_sqlite(&config.database_url()).await?;
-    
+        
     // Create app state
-    let state = Arc::new(netvisor::server::config::AppState {
-        config: config.clone(),
-        node_storage: storage.nodes,
-        node_group_storage: storage.node_groups,
-        diagnostic_storage: storage.diagnostics,
-        daemon_storage: storage.daemons,
-        subnet_storage: storage.subnets,
-        discovery_manager: DiscoverySessionManager::new()
-    });
+    let state = AppState::new(config, DiscoverySessionManager::new()).await?;
 
     // Create discovery cleanup task
     let cleanup_state = state.clone();
@@ -105,12 +95,11 @@ async fn main() -> anyhow::Result<()> {
                 ),
         );
     
-    let addr = format!("{}:{}", config.server.host, config.server.port);
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
+    let listener = tokio::net::TcpListener::bind(&listen_addr).await?;
     
-    tracing::info!("🚀 NetVisor server starting on http://{}", addr);
-    tracing::info!("📊 Web UI available at http://{}", addr);
-    tracing::info!("🔧 API available at http://{}/api", addr);
+    tracing::info!("🚀 NetVisor server starting on http://{}", listen_addr);
+    tracing::info!("📊 Web UI available at http://{}", listen_addr);
+    tracing::info!("🔧 API available at http://{}/api", listen_addr);
     
     axum::serve(listener, app).await?;
     

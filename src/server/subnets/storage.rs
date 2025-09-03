@@ -7,7 +7,7 @@ use crate::server::{subnets::types::base::{Subnet, SubnetBase}};
 
 #[async_trait]
 pub trait SubnetStorage: Send + Sync {
-    async fn create(&self, node: &Subnet) -> Result<()>;
+    async fn create(&self, subnet: &Subnet) -> Result<Subnet>;
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Subnet>>;
     async fn get_by_ids(&self, ids: Vec<Uuid>) -> Result<Vec<Subnet>>;
     async fn get_all(&self) -> Result<Vec<Subnet>>;
@@ -27,31 +27,39 @@ impl SqliteSubnetStorage {
 
 #[async_trait]
 impl SubnetStorage for SqliteSubnetStorage {
-    async fn create(&self, subnet: &Subnet) -> Result<()> {
-        let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
-        let dns_resolvers_str = serde_json::to_string(&subnet.base.dns_resolvers)?;
-        let gateways_str = serde_json::to_string(&subnet.base.gateways)?;
 
+    async fn create(&self, subnet: &Subnet) -> Result<Subnet> {
+        let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
+        let gateways_str = serde_json::to_string(&subnet.base.gateways)?;
+        let dns_resolvers_str = serde_json::to_string(&subnet.base.dns_resolvers)?;
+
+        // Try to insert, ignore if constraint sviolation
         sqlx::query(
             r#"
-            INSERT INTO nodes (
-                id, name, description, cidr, dns_resolvers, gateways
-                created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            INSERT OR IGNORE INTO subnets (
+                id, name, description, cidr, dns_resolvers, gateways, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&subnet.id)
         .bind(&subnet.base.name)
         .bind(&subnet.base.description)
-        .bind(cidr_str)
+        .bind(&cidr_str)
         .bind(dns_resolvers_str)
-        .bind(gateways_str)
+        .bind(&gateways_str)
         .bind(&subnet.created_at.to_rfc3339())
         .bind(&subnet.updated_at.to_rfc3339())
         .execute(&self.pool)
         .await?;
 
-        Ok(())
+        // Always query for the actual record (either just inserted or existing)
+        let existing = sqlx::query("SELECT * FROM subnets WHERE cidr = ? AND gateways = ?")
+            .bind(&cidr_str)
+            .bind(&gateways_str)
+            .fetch_one(&self.pool)
+            .await?;
+
+        Ok(row_to_subnet(existing)?)
     }
 
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Subnet>> {
@@ -91,12 +99,12 @@ impl SubnetStorage for SqliteSubnetStorage {
             .fetch_all(&self.pool)
             .await?;
 
-        let mut nodes = Vec::new();
+        let mut subnets = Vec::new();
         for row in rows {
-            nodes.push(row_to_subnet(row)?);
+            subnets.push(row_to_subnet(row)?);
         }
 
-        Ok(nodes)
+        Ok(subnets)
     }
 
     async fn update(&self, subnet: &Subnet) -> Result<()> {
@@ -106,8 +114,8 @@ impl SubnetStorage for SqliteSubnetStorage {
 
         sqlx::query(
             r#"
-            UPDATE nodes SET 
-                name = ?, description = ?, cidr = ?, dns_resolvers = ?, gateways = ?
+            UPDATE subnets SET 
+                name = ?, description = ?, cidr = ?, dns_resolvers = ?, gateways = ?,
                 updated_at = ?
             WHERE id = ?
             "#
@@ -126,7 +134,7 @@ impl SubnetStorage for SqliteSubnetStorage {
     }
 
     async fn delete(&self, id: &Uuid) -> Result<()> {
-        sqlx::query("DELETE FROM nodes WHERE id = ?")
+        sqlx::query("DELETE FROM subnets WHERE id = ?")
             .bind(id)
             .execute(&self.pool)
             .await?;
@@ -152,7 +160,7 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet> {
         updated_at,
         base: SubnetBase {
             name: row.get("name"),
-            description: row.get("description"), // Plain string  
+            description: row.get("description"),
             cidr,
             dns_resolvers,
             gateways

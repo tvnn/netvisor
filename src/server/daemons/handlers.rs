@@ -9,7 +9,6 @@ use std::sync::Arc;
 use crate::{server::{
     config::AppState, 
     daemons::{
-        service::DaemonService, 
         types::{
             api::{
                 DaemonDiscoveryUpdate, DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse, DaemonTestResult
@@ -37,7 +36,7 @@ async fn register_daemon(
     Json(request): Json<DaemonRegistrationRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonRegistrationResponse>>> {
 
-    let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
+    let service = &state.services.daemon_service;
 
     let daemon = Daemon::new(request.daemon_id, DaemonBase {
         node_id: request.node.id
@@ -58,7 +57,7 @@ async fn receive_heartbeat(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
+    let service = &state.services.daemon_service;
 
     let daemon = service.get_daemon(&id).await
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemon: {}", e)))?
@@ -74,7 +73,7 @@ async fn receive_heartbeat(
 async fn get_all_daemons(
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<ApiResponse<Vec<Daemon>>>> {
-    let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
+    let service = &state.services.daemon_service;
     
     let daemons = service.get_all_daemons().await
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemons: {}", e)))?;
@@ -87,7 +86,7 @@ async fn get_daemon(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<DaemonResponse>>> {
-    let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
+    let service = &state.services.daemon_service;
     
     let daemon = service.get_daemon(&id).await
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemon: {}", e)))?
@@ -112,7 +111,7 @@ async fn receive_test_result(
     State(state): State<Arc<AppState>>,
     Json(test_result): Json<DaemonTestResult>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = DaemonService::new(state.daemon_storage.clone(), state.node_storage.clone());
+    let service = &state.services.daemon_service;
     
     service.process_test_result(test_result).await
         .map_err(|e| ApiError::internal_error(&format!("Failed to process test result: {}", e)))?;

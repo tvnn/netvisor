@@ -9,7 +9,6 @@ use std::sync::Arc;
 use crate::{
     server::shared::types::api::{ApiResponse, ApiResult},
     server::diagnostics::{
-        service::DiagnosticService,
         types::*,
     },
     server::config::AppState,
@@ -28,11 +27,7 @@ async fn execute_group_diagnostic(
     Path(group_id): Path<Uuid>,
     Json(request): Json<ExecuteDiagnosticRequest>,
 ) -> ApiResult<Json<ApiResponse<DiagnosticExecution>>> {
-    let service = DiagnosticService::new(
-        state.diagnostic_storage.clone(),
-        state.node_storage.clone(),
-        state.node_group_storage.clone(),
-    );
+    let service = &state.services.diagnostic_service;
 
     let execution = service.execute_group_diagnostic(&group_id, request.diagnostic.trigger_reason).await?;
 
@@ -44,11 +39,7 @@ async fn delete_diagnostic_execution(
     State(state): State<Arc<AppState>>,
     Path(execution_id): Path<String>,
 ) -> ApiResult<Json<ApiResponse<String>>> {
-    let service = DiagnosticService::new(
-        state.diagnostic_storage.clone(),
-        state.node_storage.clone(),
-        state.node_group_storage.clone(),
-    );
+    let service = &state.services.diagnostic_service;
 
     service.delete_execution(&execution_id).await?;
 
@@ -62,11 +53,7 @@ async fn delete_diagnostic_execution(
 async fn get_diagnostic_executions(
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<ApiResponse<Vec<DiagnosticExecution>>>> {
-    let service = DiagnosticService::new(
-        state.diagnostic_storage.clone(),
-        state.node_storage.clone(),
-        state.node_group_storage.clone(),
-    );
+    let service = &state.services.diagnostic_service;
 
     let executions= service.get_all_executions().await?;
 

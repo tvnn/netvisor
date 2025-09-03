@@ -1,16 +1,12 @@
 use anyhow::{Error, Result};
 use cidr::{IpCidr, Ipv4Cidr, Ipv6Cidr};
-use futures::future::join_all;
 use anyhow::anyhow;
 use get_if_addrs::{get_if_addrs, Interface};
-use unzip3::Unzip3;
 use std::{sync::Arc};
-use crate::daemon::utils::base::{create_system_utils, PlatformSystemUtils, SystemUtils};
-use crate::server::subnets::types::base::{NodeSubnetMembership, Subnet, SubnetBase};
+use crate::daemon::utils::base::{create_system_utils, PlatformSystemUtils};
+use crate::server::subnets::types::base::{Subnet, SubnetBase};
 use crate::{
-    daemon::{shared::storage::ConfigStore}, server::{
-        shared::types::api::ApiResponse
-    }
+    daemon::{shared::storage::ConfigStore}
 };
 
 pub struct DaemonSubnetService {
@@ -28,16 +24,21 @@ impl DaemonSubnetService {
         }
     }
 
-    pub async fn scan_and_create_subnets(&self) -> Result<(Vec<Subnet>, Vec<NodeSubnetMembership>)> {
+    pub async fn scan_subnets(&self) -> Result<Vec<Subnet>> {
 
         let interfaces = get_if_addrs().map_err(|e| anyhow!("Failed to get network interfaces: {}", e))?;
 
         tracing::debug!("Found {} network interfaces", interfaces.len());
 
-        let (subnet_futures, mac_futures, interfaces): (Vec<_>, Vec<_>, Vec<Interface>) = interfaces.into_iter()
-            .filter(|interface| !self.should_skip_interface(&interface))
+        let subnets: Vec<Subnet> = interfaces.into_iter()
+            .filter(|interface| !should_skip_interface(&interface))
             .filter_map(|interface| {
                 if let Ok(cidr) = self.calculate_subnet_from_interface(&interface) {
+
+                    if cidr.is_ipv6() {
+                        return None
+                    }
+
                     let subnet = Subnet::new(SubnetBase {
                         cidr,
                         name: self.generate_subnet_name(&interface),
@@ -48,68 +49,14 @@ impl DaemonSubnetService {
 
                     tracing::debug!("Creating subnet {} for NIC {}", subnet.base.cidr, interface.name);
 
-                    let subnet_future = self.create_discovered_subnet(subnet);
-                    let mac_future = self.utils.get_mac_address_for_ip(interface.ip());
-
-                    return Some((subnet_future, mac_future, interface));
+                    return Some(subnet);
                 }
                 tracing::debug!("Could not determine subnet for NIC {}", interface.name);
                 None
             })
-            .unzip3();
+            .collect();
 
-        let (subnets, mac_addresses) = tokio::join!(
-            join_all(subnet_futures),
-            join_all(mac_futures)
-        );
-
-        let (subnets, node_subnet_membership): 
-            (Vec<Subnet>, Vec<NodeSubnetMembership>) = subnets.into_iter()
-                .zip(mac_addresses)
-                .zip(interfaces)
-                .filter_map(|((subnet, mac_address), interface)| {
-
-                    if let Ok(sub) = subnet {
-                        let node_subnet_membership = NodeSubnetMembership {
-                            subnet_id: sub.id,
-                            ip_address: interface.ip(),
-                            mac_address: mac_address.unwrap_or(None)
-                        };
-
-                        return Some((sub, node_subnet_membership))
-                    }
-                    return None
-                })
-                .collect();
-
-        Ok((subnets, node_subnet_membership))
-    }
-
-    async fn create_discovered_subnet(&self, subnet: Subnet) -> Result<Subnet> {
-        let server_target = self.config_store.get_server_endpoint().await?;
-
-        let response = self
-            .client
-            .post(format!("{}/api/subnets", server_target.to_string()))
-            .json(&subnet)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Failed to report discovered subnet: HTTP {}", response.status());
-        }
-
-        let api_response: ApiResponse<Subnet> = response.json().await?;
-
-        if !api_response.success {
-            let error_msg = api_response.error.unwrap_or_else(|| "Unknown error".to_string());
-            anyhow::bail!("Failed to create subnet: {}", error_msg);
-        }
-
-        let created_subnet = api_response.data
-            .ok_or_else(|| anyhow::anyhow!("No subnet data in successful response"))?;
-
-        Ok(created_subnet)
+        Ok(subnets)
     }
 
     fn calculate_subnet_from_interface(&self, interface: &Interface) -> Result<IpCidr, Error> {
@@ -145,12 +92,6 @@ impl DaemonSubnetService {
         }
     }
 
-    fn should_skip_interface(&self, interface: &Interface) -> bool {
-        // Skip loopback, docker bridges, etc.
-        let skip_patterns = ["lo", "lo0", "docker", "br-"];
-        skip_patterns.iter().any(|pattern| interface.name.starts_with(pattern)) || interface.is_loopback()
-    }
-
     fn generate_subnet_name(&self, interface: &Interface) -> String {
         if self.is_vpn_interface(&interface.name) {
             format!("VPN Network ({})", interface.name)
@@ -164,4 +105,10 @@ impl DaemonSubnetService {
             .iter()
             .any(|pattern| name.to_lowercase().starts_with(pattern))
     }
+}
+
+pub fn should_skip_interface(interface: &Interface) -> bool {
+    // Skip loopback, docker bridges, etc.
+    let skip_patterns = ["lo", "lo0", "docker", "br-"];
+    skip_patterns.iter().any(|pattern| interface.name.starts_with(pattern)) || interface.is_loopback()
 }

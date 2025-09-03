@@ -57,10 +57,7 @@ CREATE TABLE IF NOT EXISTS subnets (
     name TEXT NOT NULL,
     description TEXT,
     dns_resolvers TEXT NOT NULL,
-    gateways TEXT NOT NULL,
+    gateways TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(node_type);
-CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_group ON diagnostic_executions(group_id);
-CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_status ON diagnostic_executions(status);
-CREATE INDEX IF NOT EXISTS idx_diagnostic_executions_created ON diagnostic_executions(started_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subnets_unique_cidr_gateways ON subnets(cidr, gateways);

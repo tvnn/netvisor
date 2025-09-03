@@ -7,7 +7,7 @@ use axum::{
 use uuid::Uuid;
 use std::{sync::Arc};
 use crate::server::{
-        config::AppState, shared::types::api::{ApiError, ApiResponse, ApiResult}, subnets::{service::SubnetService, types::base::Subnet}
+        config::AppState, shared::types::api::{ApiError, ApiResponse, ApiResult}, subnets::{types::base::Subnet}
     };
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -24,7 +24,7 @@ async fn create_subnet(
     Json(request): Json<Subnet>,
 ) -> ApiResult<Json<ApiResponse<Subnet>>> {
 
-    let service = SubnetService::new(state.subnet_storage.clone());
+    let service = &state.services.subnet_service;
     let subnet = Subnet::new(request.base);
     let created_subnet = service.create_subnet(subnet).await?;
     
@@ -34,7 +34,7 @@ async fn create_subnet(
 async fn get_all_subnets(
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<ApiResponse<Vec<Subnet>>>> {
-    let service = SubnetService::new(state.subnet_storage.clone());
+    let service = &state.services.subnet_service;
     
     let subnets = service.get_all_subnets().await?;
     
@@ -46,7 +46,7 @@ async fn update_subnet(
     Path(id): Path<Uuid>,
     Json(request): Json<Subnet>,
 ) -> ApiResult<Json<ApiResponse<Subnet>>> {
-    let service = SubnetService::new(state.subnet_storage.clone());
+    let service = &state.services.subnet_service;
     
     let mut subnet = service.get_subnet(&id).await?
         .ok_or_else(|| ApiError::not_found(&format!("Subnet '{}' not found", &id)))?;
@@ -62,7 +62,7 @@ async fn delete_subnet(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = SubnetService::new(state.subnet_storage.clone());
+    let service = &state.services.subnet_service;
     
     // Check if node exists
     if service.get_subnet(&id).await?.is_none() {

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use strum::{IntoDiscriminant, IntoEnumIterator};
-use crate::server::{capabilities::types::{configs::{CompatibleTests, ConfigBase, DaemonConfig, DhcpConfig, DnsConfig, FromPort, HttpConfig, HttpsConfig, NodeConfig, SshConfig, WireguardConfig}, forms::{CapabilityConfigForm, TestSection}}, nodes::types::{base::{Node, NodeContext}, criticality::TestCriticality}, shared::{forms::{field_factory::FieldFactory, types::fields::ConfigField}, types::metadata::TypeMetadataProvider}, tests::types::base::{Test, TestDiscriminants}};
+use crate::server::{capabilities::types::{configs::{CompatibleTests, ConfigBase, DaemonConfig, DhcpConfig, DnsConfig, FromPort, HttpConfig, HttpsConfig, NodeConfig, SshConfig, WireguardConfig}, forms::{CapabilityConfigForm, TestSection}}, nodes::types::{base::{NodeContext}, criticality::TestCriticality}, shared::{forms::{field_factory::FieldFactory, types::fields::ConfigField}, types::metadata::TypeMetadataProvider}, tests::types::base::{Test, TestDiscriminants}};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
@@ -28,10 +28,10 @@ pub struct CapabilityTest {
 }
 
 impl Capability {
-    pub fn generate_form(&self, node_context: &NodeContext, _available_nodes: &[Node]) -> CapabilityConfigForm {
+    pub fn generate_form(&self, node_context: &NodeContext) -> CapabilityConfigForm {
         CapabilityConfigForm {
             capability_info: self.to_metadata(),
-            capability_fields:self.generate_capability_fields(node_context),
+            capability_fields:self.generate_capability_fields(),
             test_sections: self.generate_test_sections(node_context),
             warnings: vec![],
             errors: vec![],
@@ -43,7 +43,7 @@ impl Capability {
         self.config_base().system_assigned
     }
 
-    fn generate_capability_fields(&self, _node_context: &NodeContext) -> Vec<ConfigField> {
+    fn generate_capability_fields(&self) -> Vec<ConfigField> {
         match self {
             Capability::Http(config) => { vec![FieldFactory::port(config.base.port), FieldFactory::path()] },
             Capability::Node(_) => { vec![] },
@@ -70,7 +70,7 @@ impl Capability {
     }
 
     fn generate_test_sections(&self, node_context: &NodeContext) -> Vec<TestSection> {
-        let compatible_tests = self.get_compatible_tests(node_context);
+        let compatible_tests = self.get_compatible_tests(&node_context);
 
         compatible_tests
             .iter()
@@ -85,9 +85,9 @@ impl Capability {
     }
 
 
-    pub fn validate_node_capability_test_compatibility(&self, node_context: &NodeContext) -> (Vec<CapabilityTest>, Vec<TestDiscriminants>) {
+    pub fn validate_node_capability_test_compatibility(&self, node_context: NodeContext) -> (Vec<CapabilityTest>, Vec<TestDiscriminants>) {
         
-        let compatible_test_discriminants: Vec<TestDiscriminants> = self.get_compatible_tests(node_context)
+        let compatible_test_discriminants: Vec<TestDiscriminants> = self.get_compatible_tests(&node_context)
             .iter()
             .map(|ct| ct.test.discriminant())
             .collect();
@@ -97,7 +97,7 @@ impl Capability {
             .map(|test| test.test.discriminant())
             .collect();
 
-        let newly_compatible: Vec<CapabilityTest> = self.get_compatible_tests(node_context)
+        let newly_compatible: Vec<CapabilityTest> = self.get_compatible_tests(&node_context)
             .into_iter()
             .filter(|ct| !existing_tests.contains(&ct.test.discriminant()))
             .collect();

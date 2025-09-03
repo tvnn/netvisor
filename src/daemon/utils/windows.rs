@@ -11,7 +11,7 @@ impl WindowsSystemUtils {
 #[cfg(target_family = "windows")]
 #[async_trait]
 impl SystemUtils for WindowsSystemUtils {
-    async fn get_arp_entry_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>> {
+    async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>> {
         use windows::Win32::NetworkManagement::IpHelper::{GetIpNetTable, MIB_IPNETTABLE};
         
         let ipv4_addr = match ip {

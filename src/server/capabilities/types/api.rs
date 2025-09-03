@@ -1,5 +1,5 @@
 use serde::{Deserialize};
-use crate::server::{capabilities::types::{base::CapabilityDiscriminants}, nodes::types::base::NodeContext};
+use crate::server::{capabilities::types::base::CapabilityDiscriminants, nodes::types::{base::NodeContext}};
 
 #[derive(Deserialize)]
 pub struct CapabilityFormRequest {

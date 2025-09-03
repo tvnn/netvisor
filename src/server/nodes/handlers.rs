@@ -4,14 +4,12 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
-use serde::{Serialize};
-use strum::IntoDiscriminant;
 use uuid::Uuid;
-use std::{collections::HashMap, sync::Arc};
+use std::{sync::Arc};
 use crate::server::{
-        capabilities::types::base::CapabilityDiscriminants, config::AppState, nodes::{
-            service::NodeService, types::base::Node
-        }, shared::types::api::{ApiError, ApiResponse, ApiResult}, subnets::{service::SubnetService, types::base::Subnet}, tests::types::base::TestDiscriminants
+        config::AppState, nodes::{
+            types::{api::{NodeUpdateRequest, UpdateNodeResponse}, base::{Node}}
+        }, shared::types::api::{ApiError, ApiResponse, ApiResult}
     };
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -27,14 +25,8 @@ async fn create_node(
     State(state): State<Arc<AppState>>,
     Json(request): Json<Node>,
 ) -> ApiResult<Json<ApiResponse<Node>>> {
-    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
-    let subnet_service = SubnetService::new(state.subnet_storage.clone());
-    
-    let node = Node::new(request.base);
-    
-    let created_node = service.create_node(node).await?;
-
-    subnet_service.update_subnet_node_relationships(&created_node).await;
+    let service = &state.services.node_service;
+    let created_node = service.create_node(request.base).await?;
     
     Ok(Json(ApiResponse::success(created_node)))
 }
@@ -42,69 +34,24 @@ async fn create_node(
 async fn get_all_nodes(
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<ApiResponse<Vec<Node>>>> {
-    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
-    
+    let service = &state.services.node_service;
     let nodes = service.get_all_nodes().await?;
     
     Ok(Json(ApiResponse::success(nodes)))
 }
 
-#[derive(Debug, Clone, Serialize, Eq, PartialEq)]
-struct UpdateNodeResponse {
-    node: Node,
-    capability_test_changes: HashMap<CapabilityDiscriminants, NodeCapabilityTestChange>,
-    subnet_changes: NodeSubnetRelationshipChange
-}
-
-#[derive(Debug, Clone, Serialize, Eq, PartialEq, Hash)]
-struct NodeCapabilityTestChange {
-    newly_compatible: Vec<TestDiscriminants>, 
-    incompatible: Vec<TestDiscriminants>
-}
-
-#[derive(Debug, Clone, Serialize, Eq, PartialEq, Hash)]
-pub struct NodeSubnetRelationshipChange {
-    pub new_gateway: Vec<Subnet>,
-    pub no_longer_gateway: Vec<Subnet>,
-    pub new_dns_resolver: Vec<Subnet>,
-    pub no_longer_dns_resolver: Vec<Subnet>
-}
-
 async fn update_node(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    Json(request): Json<Node>,
+    Json(request): Json<NodeUpdateRequest>,
 ) -> ApiResult<Json<ApiResponse<UpdateNodeResponse>>> {
-    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
-    let subnet_service = SubnetService::new(state.subnet_storage.clone());
-    
-    let mut node = service.get_node(&id).await?
-        .ok_or_else(|| ApiError::not_found(&format!("Node '{}' not found", &id)))?;
 
-    let validation_context = request.as_context();
-    let mut capability_test_changes: HashMap<CapabilityDiscriminants, NodeCapabilityTestChange> = HashMap::new();
+    let service = &state.services.node_service;
 
-    let validated_capabilities = node.base.capabilities.iter().map(|cap| {
-        let (newly_compatible, incompatible) = cap.validate_node_capability_test_compatibility(&validation_context);
-        
-        let mut capability = cap.clone();
-        capability.config_base_mut().remove_tests(incompatible.clone());
-        capability.config_base_mut().add_tests(newly_compatible.clone());
-
-        capability_test_changes.insert(capability.discriminant(), NodeCapabilityTestChange {
-            newly_compatible: newly_compatible.iter().map(|ct| ct.test.discriminant()).collect(),
-            incompatible
-        });
-
-        capability
-    }).collect();
-
-    node.base = request.base;
-    node.base.capabilities = validated_capabilities;
-
-    let subnet_relationship_changes = subnet_service.update_subnet_node_relationships(&node).await;
-
-    let updated_node = service.update_node(node).await?;
+    let (updated_node, capability_test_changes, subnet_relationship_changes) = service.update_node(
+        &id, 
+        request, 
+        ).await?;
     
     Ok(Json(ApiResponse::success(UpdateNodeResponse {
         node: updated_node,
@@ -117,7 +64,7 @@ async fn delete_node(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = NodeService::new(state.node_storage.clone(), state.node_group_storage.clone());
+    let service = &state.services.node_service;
     
     // Check if node exists
     if service.get_node(&id).await?.is_none() {

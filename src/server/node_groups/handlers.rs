@@ -6,7 +6,7 @@ use axum::{
 };
 use uuid::Uuid;
 use std::sync::Arc;
-use crate::server::{config::AppState, node_groups::{service::NodeGroupService, types::{NodeGroup}}, shared::types::api::{ApiError, ApiResponse, ApiResult}};
+use crate::server::{config::AppState, node_groups::{types::{NodeGroup}}, shared::types::api::{ApiError, ApiResponse, ApiResult}};
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
@@ -20,10 +20,7 @@ async fn create_node_group(
     State(state): State<Arc<AppState>>,
     Json(request): Json<NodeGroup>,
 ) -> ApiResult<Json<ApiResponse<NodeGroup>>> {
-    let service = NodeGroupService::new(
-        state.node_group_storage.clone(),
-        state.node_storage.clone(),
-    );
+    let service = &state.services.node_group_service;
     
     let group = NodeGroup::new(request.base);
     
@@ -35,10 +32,7 @@ async fn create_node_group(
 async fn get_all_node_groups(
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<ApiResponse<Vec<NodeGroup>>>> {
-    let service = NodeGroupService::new(
-        state.node_group_storage.clone(),
-        state.node_storage.clone(),
-    );
+    let service = &state.services.node_group_service;
     
     let groups = service.get_all_groups().await?;
     
@@ -50,10 +44,7 @@ async fn update_node_group(
     Path(id): Path<Uuid>,
     Json(request): Json<NodeGroup>,
 ) -> ApiResult<Json<ApiResponse<NodeGroup>>> {
-    let service = NodeGroupService::new(
-        state.node_group_storage.clone(),
-        state.node_storage.clone(),
-    );
+    let service = &state.services.node_group_service;
     
     let mut group = service.get_group(&id).await?
         .ok_or_else(|| ApiError::not_found(&format!("Node group '{}' not found", &id)))?;
@@ -68,10 +59,7 @@ async fn delete_node_group(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = NodeGroupService::new(
-        state.node_group_storage.clone(),
-        state.node_storage.clone(),
-    );
+    let service = &state.services.node_group_service;
     
     service.delete_group(&id).await?;
     Ok(Json(ApiResponse::success(())))

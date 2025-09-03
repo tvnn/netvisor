@@ -37,32 +37,59 @@ use crate::daemon::utils::base::SystemUtils;
 impl SystemUtils for MacOsSystemUtils {
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>, Error> {
         use tokio::process::Command;
-        
+
+        tracing::debug!("Attempting to get MAC address for IP: {}", ip);
+
         let output = Command::new("arp")
             .args(&["-n", &ip.to_string()])
             .output()
             .await?;
-            
+
+        tracing::debug!("arp command executed with status: {}", output.status);
+        tracing::debug!("arp stdout: {}", String::from_utf8_lossy(&output.stdout));
+        tracing::debug!("arp stderr: {}", String::from_utf8_lossy(&output.stderr));
+
         if output.status.success() {
             let output_str = String::from_utf8_lossy(&output.stdout);
-            
+
             // Parse macOS arp output: "? (192.168.1.1) at 0:22:7:4a:21:d5 on en0 ifscope [ethernet]"
             for line in output_str.lines() {
+                tracing::debug!("Processing arp output line: {}", line);
                 if line.contains(&ip.to_string()) {
+                    tracing::debug!("Line contains IP: {}", ip);
                     // Look for "at MAC_ADDRESS" pattern
                     if let Some(at_pos) = line.find(" at ") {
                         let after_at = &line[at_pos + 4..];
                         if let Some(space_pos) = after_at.find(' ') {
                             let mac_str = &after_at[..space_pos];
+                            tracing::debug!("Found MAC string candidate: {}", mac_str);
                             if mac_str.contains(':') && mac_str.matches(':').count() == 5 {
-                                return Ok(Some(self.parse_macos_mac_address(mac_str)?));
+                                match self.parse_macos_mac_address(mac_str) {
+                                    Ok(mac) => {
+                                        tracing::debug!("Parsed MAC address: {}", mac);
+                                        return Ok(Some(mac));
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!("Failed to parse MAC address '{}': {:?}", mac_str, e);
+                                        return Err(e);
+                                    }
+                                }
+                            } else {
+                                tracing::debug!("MAC string does not have expected format: {}", mac_str);
                             }
+                        } else {
+                            tracing::debug!("No space found after MAC string in line: {}", line);
                         }
+                    } else {
+                        tracing::debug!("No ' at ' found in line: {}", line);
                     }
                 }
             }
+            tracing::debug!("No matching MAC address found for IP: {}", ip);
+        } else {
+            tracing::warn!("arp command failed with status: {}", output.status);
         }
-        
+
         Ok(None)
     }
 

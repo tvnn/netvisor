@@ -1,4 +1,4 @@
-use std::net::{IpAddr, Ipv4Addr};
+use std::{net::{IpAddr, Ipv4Addr}};
 
 use mac_address::{MacAddress};
 use serde::{Deserialize, Serialize};
@@ -9,15 +9,12 @@ use super::{
     types::{NodeType},
 };
 use uuid::{Uuid};
-use crate::server::shared::types::api::deserialize_empty_string_as_none;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct NodeBase {
     pub name: String,
     pub node_type: NodeType,
-    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub hostname: Option<String>,
-    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
     pub target: NodeTarget,
     pub subnets: Vec<NodeSubnetMembership>,
@@ -25,7 +22,6 @@ pub struct NodeBase {
     // Discovery & Capability Data
     pub discovery_status: Option<DiscoveryStatus>,
     pub capabilities: Vec<Capability>,
-    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub dns_resolver_node_id: Option<String>,
     
     // Monitoring
@@ -33,6 +29,8 @@ pub struct NodeBase {
     pub monitoring_interval: u16,
     pub node_groups: Vec<Uuid>,
 }
+
+// Make any changes to NodeBody to NodeUpdate in types/api.rs
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum DiscoveryStatus {
@@ -54,15 +52,10 @@ pub struct Node {
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
         
-        let host_match = match (&self.base.hostname, &other.base.hostname) {
-            (Some(host_a), Some(host_b)) => !vec!("localhost".to_string()).contains(&host_a) && host_a == host_b,
-            (_, _) => false
-        };
-
         let macs_a: Vec<Option<MacAddress>> = self.base.subnets.iter().map(|s| s.mac_address).collect();
         let macs_b: Vec<Option<MacAddress>> = other.base.subnets.iter().map(|s| s.mac_address).collect();
 
-        let mac_match = macs_a.iter().any(|mac_a| {
+        macs_a.iter().any(|mac_a| {
             macs_b.iter().any(|mac_b| {
                 match (mac_a, mac_b) {
                     (Some(a), Some(b)) => !vec!(
@@ -72,9 +65,7 @@ impl PartialEq for Node {
                     (_, _) => false
                 }
             })
-        });
-
-        return mac_match && host_match
+        })
     }
 }
 
@@ -111,11 +102,12 @@ impl Node {
     }
     
     // Node group management
-    pub fn add_to_group(&mut self, group_id: Uuid) {
+    pub fn add_to_group(&mut self, group_id: Uuid) -> Self {
         if !self.base.node_groups.contains(&group_id) {
             self.base.node_groups.push(group_id);
             self.updated_at = chrono::Utc::now();
         }
+        self.clone()
     }
     
     pub fn remove_from_group(&mut self, group_id: &Uuid) {
@@ -167,7 +159,7 @@ impl Node {
         self.base.capabilities.push(capability);
     }
 
-    pub fn is_gateway_for_subnet(&self, subnet: &mut Subnet) -> bool {
+    pub fn is_gateway_for_subnet(&self, subnet: &Subnet) -> bool {
         self.base.subnets.iter().any(|subnet_membership| {
             if subnet_membership.subnet_id == subnet.id {
                  let ip_octets = match subnet_membership.ip_address.to_canonical() {

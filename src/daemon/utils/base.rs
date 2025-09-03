@@ -3,6 +3,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use anyhow::Error;
 use async_trait::async_trait;
+use get_if_addrs::{get_if_addrs};
 use local_ip_address::local_ip;
 use mac_address::MacAddress;
 use tokio::net::TcpStream;
@@ -22,10 +23,25 @@ pub trait SystemUtils {
     /// Get list of UDP ports that are being listened on locally  
     async fn scan_own_udp_ports(&self) -> Result<Vec<u16>, Error>;
 
+    fn get_own_mac_address(&self) -> Result<Option<MacAddress>, Error> {
+        mac_address::get_mac_address().map_err(|e| anyhow!("Failed to get own MAC address: {}", e))
+    }
+
     fn get_own_hostname(&self) -> Option<String> {
         hostname::get()
             .ok()
             .map(|os_str| os_str.to_string_lossy().into_owned())
+    }
+
+    fn get_own_interface_ip_addresses(&self) -> Result<Vec<IpAddr>, Error> {
+        let interfaces = get_if_addrs().map_err(|e| anyhow!("Failed to get network interfaces: {}", e))?;
+
+        Ok(
+            interfaces.into_iter()
+                .filter(|interface| !should_skip_interface(&interface))
+                .map(|interface| interface.ip())
+                .collect::<Vec<IpAddr>>()
+        )
     }
 
     fn get_own_ip_address(&self) -> Result<IpAddr, Error> {
@@ -72,6 +88,7 @@ pub trait SystemUtils {
 #[cfg(target_os = "linux")]
 pub type PlatformSystemUtils = LinuxSystemUtils;
 
+use crate::daemon::subnets::service::should_skip_interface;
 #[cfg(target_os = "macos")] 
 use crate::daemon::utils::macos::MacOsSystemUtils;
 pub type PlatformSystemUtils = MacOsSystemUtils;

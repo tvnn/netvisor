@@ -1,22 +1,26 @@
+use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::server::daemons::storage::DaemonStorage;
-use crate::server::diagnostics::storage::DiagnosticStorage;
 use crate::server::discovery::manager::DiscoverySessionManager;
-use crate::server::node_groups::storage::NodeGroupStorage;
-use crate::server::nodes::storage::NodeStorage;
-use crate::server::subnets::storage::SubnetStorage;
+use crate::server::shared::services::ServiceFactory;
+use crate::server::shared::types::storage::StorageFactory;
 
 pub struct AppState {
     pub config: ServerConfig,
-    pub node_storage: Arc<dyn NodeStorage>,
-    pub node_group_storage: Arc<dyn NodeGroupStorage>,
-    pub diagnostic_storage: Arc<dyn DiagnosticStorage>,
-    pub daemon_storage: Arc<dyn DaemonStorage>,
-    pub subnet_storage: Arc<dyn SubnetStorage>,
+    pub storage: StorageFactory,
+    pub services: ServiceFactory,
     pub discovery_manager: DiscoverySessionManager
+}
+
+impl AppState {
+    pub async fn new(config: ServerConfig, discovery_manager: DiscoverySessionManager) -> Result<Arc<Self>, Error> {
+        let storage = StorageFactory::new_sqlite(&config.database_url()).await?;
+        let services = ServiceFactory::new(&storage).await?;
+        
+        Ok(Arc::new(Self { config, storage, services, discovery_manager }))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
