@@ -5,21 +5,13 @@ export interface ConfigField {
   field_type: {
     base_type: string;
     constraints: Record<string, any>;
-    options?: SelectOption[];
+    options?: any[];
   };
   required: boolean;
   default_value?: any;
   help_text?: string;
   placeholder?: string;
   advanced: boolean;
-}
-
-export interface SelectOption {
-  value: string;
-  label: string;
-  description?: string;
-  disabled?: boolean;
-  metadata?: any;
 }
 
 export interface RichSelectTag {

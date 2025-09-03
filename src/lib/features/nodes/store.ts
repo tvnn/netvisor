@@ -57,12 +57,20 @@ export async function createNode(data: Node) {
 
 interface UpdateNodeResponse {
   node: Node,
-  capability_test_changes: Record<string, UpdateNodeCapabilityTestChange>
+  capability_test_changes: Record<string, NodeCapabilityTestChange>,
+  subnet_changes: NodeSubnetRelationshipChange
 }
 
-interface UpdateNodeCapabilityTestChange {
+interface NodeCapabilityTestChange {
     newly_compatible: string[], 
     incompatible: string[]
+}
+
+interface NodeSubnetRelationshipChange {
+  new_gateway: Subnet[],
+  no_longer_gateway: Subnet[],
+  new_dns_resolver: Subnet[],
+  no_longer_dns_resolver: Subnet[]
 }
 
 export async function updateNode(data: Node) {
@@ -75,9 +83,25 @@ export async function updateNode(data: Node) {
       Object.keys(updatedNodeResponse.capability_test_changes).forEach(cap => {
         let incompatible = updatedNodeResponse.capability_test_changes[cap].incompatible.map(i => testTypes.getDisplay(i))
         let newly_compatible = updatedNodeResponse.capability_test_changes[cap].newly_compatible.map(n => testTypes.getDisplay(n))
-        incompatible.length > 0 ? pushWarning(`The following tests are no longer compatible with the node "${updatedNode.name}" and have been removed: ${incompatible.join(", ")}`) : null
-        newly_compatible.length > 0 ? pushInfo(`The following tests are now compatible with the node "${updatedNode.name}" and have been added: ${newly_compatible.join(", ")}`) : null
+        incompatible.length > 0 ? pushWarning(`The following tests are no longer compatible with node "${updatedNode.name}" and have been removed: ${incompatible.join(", ")}`) : null
+        newly_compatible.length > 0 ? pushInfo(`The following tests are now compatible with node "${updatedNode.name}" and have been added: ${newly_compatible.join(", ")}`) : null
       })
+
+      pushInfo(`The following subnets now have node "${updatedNode.name}" set as a DNS resolver: ${
+        updatedNodeResponse.subnet_changes.new_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
+      }`)
+
+      pushInfo(`The following subnets now have node "${updatedNode.name}" set as a gateway: ${
+        updatedNodeResponse.subnet_changes.new_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
+      }`)
+
+      pushWarning(`The following subnets no longer have node "${updatedNode.name}" set as a gateway: ${
+        updatedNodeResponse.subnet_changes.no_longer_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
+      }`)
+
+      pushWarning(`The following subnets no longer have node "${updatedNode.name}" set as a gateway: ${
+        updatedNodeResponse.subnet_changes.no_longer_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
+      }`)
 
       return current.map(n => n.id === data.id ? updatedNode : n)
     },

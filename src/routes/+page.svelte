@@ -7,6 +7,7 @@
 	import { getNodeGroups } from '$lib/features/node_groups/store';
 	import NodeTab from '$lib/features/nodes/components/NodeTab.svelte';
 	import { getNodes, startNodePolling, stopNodePolling } from '$lib/features/nodes/store';
+	import { getSubnets } from '$lib/features/subnets/store';
 	import Toast from '$lib/shared/components/feedback/Toast.svelte';
 	import Sidebar from '$lib/shared/components/layout/Sidebar.svelte';
 	import { getRegistry } from '$lib/shared/stores/registry';
@@ -25,6 +26,7 @@
     await getDaemons();
     await getNodeGroups();
     await getDiagnosticExecutions();
+    await getSubnets();
     
     // Start continuous node polling for real-time updates
     startNodePolling();

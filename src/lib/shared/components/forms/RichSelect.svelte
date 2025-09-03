@@ -30,7 +30,7 @@
   
   function handleSelect(value: string) {
     const item = options.find(i => getOptionId(i) === value);
-    if (item && !item.disabled) {
+    if (item && !getOptionIsDisabled(item)) {
       onSelect(value);
       isOpen = false;
     }
@@ -61,11 +61,11 @@
     <!-- Dropdown Trigger -->
     <button
       type="button"
-      on:click={() => !getOptionIsDisabled(disabled) && (isOpen = !isOpen)}
+      on:click={() => disabled && (isOpen = !isOpen)}
       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
              focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between
              {error ? 'border-red-500' : ''}
-             {getOptionIsDisabled(disabled) ? 'opacity-50 cursor-not-allowed' : ''}"
+             {disabled ? 'opacity-50 cursor-not-allowed' : ''}"
       {disabled}
     >
       <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -86,10 +86,10 @@
     </button>
     
     <!-- Description below trigger (optional) -->
-    {#if selectedItem && selectedItem.description && showDescriptionUnderDropdown}
+    {#if selectedItem && getOptionDescription(selectedItem) && showDescriptionUnderDropdown}
       <div class="mt-2">
         <p class="text-sm text-gray-400">
-          {selectedItem.description}
+          {getOptionDescription(selectedItem)}
         </p>
       </div>
     {/if}

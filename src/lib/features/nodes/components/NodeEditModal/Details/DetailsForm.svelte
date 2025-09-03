@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Globe, Server, FileText, Tag as TagIcon, AlertCircle } from 'lucide-svelte';
+  import { Globe, Server, FileText, Tag as TagIcon, AlertCircle, TargetIcon } from 'lucide-svelte';
   import { field } from 'svelte-forms';
   import { required } from 'svelte-forms/validators';
   import type { Node } from '$lib/features/nodes/types/base';
   import type { NodeTarget } from '$lib/features/nodes/types/targets';
   import { maxLength, validNodeType } from '$lib/shared/components/forms/validators';
   import TargetConfigForm from './TargetConfigForm.svelte';
-	import { nodeTypes } from '$lib/shared/stores/registry';
+	import { nodeTargets, nodeTypes } from '$lib/shared/stores/registry';
+	import ListManager from '$lib/shared/components/forms/ListManager.svelte';
   
   export let form: any;
   export let formData: Node;
@@ -18,7 +19,6 @@
   const description = field('description', formData.description || '', [maxLength(500)]);
   const nodeType = field('node_type', formData.node_type, [validNodeType(isEditing)]);
   const hostname = field('hostname', formData.hostname || '');
-  const macAddress = field('mac_address', formData.mac_address || '');
   
   // Add fields to form
   onMount(() => {
@@ -26,7 +26,6 @@
     form.description = description
     form.nodeType = nodeType
     form.hostname = hostname
-    form.macAddress = macAddress
   });
   
   // Update formData when field values change
@@ -34,25 +33,9 @@
   $: formData.description = $description.value;
   $: formData.node_type = $nodeType.value;
   $: formData.hostname = $hostname.value;
-  $: formData.mac_address = $macAddress.value;
 
   $: nodeTypeOptions = nodeTypes.getItems().map(t => {return {value:t.id, label: t.display_name}});
-  
-  // Target type options
-  const targetTypes = [
-    {
-      value: 'IpAddress',
-      label: 'IP Address',
-      description: 'Connect directly to an IP address',
-      icon: Server
-    },
-    {
-      value: 'Hostname',
-      label: 'Hostname/Domain',
-      description: 'Connect using a hostname or domain name', 
-      icon: Globe
-    }
-  ];
+  $: targetTypeOptions = nodeTargets.getItems().map(t => {return {value:t.id, label: t.display_name, description: t.description, icon: t.icon}});
   
   // Initialize target if needed
   $: if (!formData.target) {
@@ -85,13 +68,12 @@
 
 <div class="space-y-8">
   <!-- Basic Information -->
-  <div>
     <h4 class="text-md font-medium text-white mb-4 flex items-center gap-2">
       <FileText class="w-5 h-5" />
       Basic Information
     </h4>
     
-    <div class="grid grid-cols-1 gap-6">
+    <div class="grid grid-cols-2 gap-6">
       <!-- Node Name -->
       <div class="space-y-2">
         <label for="node_name" class="block text-sm font-medium text-gray-300">
@@ -117,92 +99,7 @@
           A meaningful name like "API Server", "Database", or "Load Balancer"
         </p>
       </div>
-      
-      <!-- Description -->
-      <div class="space-y-2">
-        <label for="node_description" class="block text-sm font-medium text-gray-300">
-          Description
-        </label>
-        <textarea
-          id="node_description"
-          bind:value={$description.value}
-          rows="3"
-          class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
-                 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical
-                 {$description.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
-          placeholder="Optional description of this node's role or purpose..."
-        ></textarea>
-        {#if $description.errors.length > 0}
-          <div class="flex items-center gap-2 text-red-400">
-            <AlertCircle size={16} />
-            <p class="text-xs">{$description.errors[0]}</p>
-          </div>
-        {/if}
-        <p class="text-xs text-gray-400">
-          Describe what this node does or its role in your infrastructure
-        </p>
-      </div>
-    </div>
-  </div>
-  
-  <!-- Connection Target -->
-  <div>
-    <h4 class="text-md font-medium text-white mb-4 flex items-center gap-2">
-      <TagIcon class="w-5 h-5" />
-      Connection Target
-    </h4>
-    
-    <div class="space-y-6">
-      <!-- Target Type Selection -->
-      <div class="space-y-2">
-        <label for="target_type" class="block text-sm font-medium text-gray-300">
-          Target Type
-          <span class="text-red-400 ml-1">*</span>
-        </label>
-        <select
-          id="target_type"
-          value={formData.target?.type || 'IpAddress'}
-          on:change={handleTargetTypeChange}
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
-                 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {#each targetTypes as targetType}
-            <option value={targetType.value}>{targetType.label}</option>
-          {/each}
-        </select>
-        <p class="text-xs text-gray-400">
-          How should NetVisor connect to this node?
-        </p>
-      </div>
-      
-      <!-- Target Type Description -->
-      {#each targetTypes as targetType}
-        {#if targetType.value === formData.target?.type}
-          <div class="flex items-start gap-3 p-4 bg-blue-900/20 border border-blue-600/30 rounded-lg">
-            <svelte:component this={targetType.icon} class="w-5 h-5 text-blue-400 mt-0.5" />
-            <div>
-              <h5 class="text-sm font-medium text-blue-300">{targetType.label}</h5>
-              <p class="text-sm text-blue-200/80">{targetType.description}</p>
-            </div>
-          </div>
-        {/if}
-      {/each}
-      
-      <!-- Target Configuration -->
-      {#if formData.target}
-        <TargetConfigForm {form} bind:target={formData.target} />
-      {/if}
-    </div>
-  </div>
-  
-  <!-- Metadata -->
-  <div>
-    <h4 class="text-md font-medium text-white mb-4 flex items-center gap-2">
-      <Server class="w-5 h-5" />
-      Metadata
-    </h4>
-    
-    <div class="grid grid-cols-2 gap-6">
+
       <!-- Node Type -->
       <div class="space-y-2">
         <label for="node_type" class="block text-sm font-medium text-gray-300">
@@ -232,7 +129,7 @@
           Classification for this node type
         </p>
       </div>
-      
+
       <!-- Hostname -->
       <div class="space-y-2">
         <label for="node_domain" class="block text-sm font-medium text-gray-300">
@@ -250,24 +147,32 @@
           Environment or domain this node belongs to
         </p>
       </div>
-
-      <!-- Mac Address -->
-      <div class="space-y-2">
-        <label for="mac_address" class="block text-sm font-medium text-gray-300">
-          MAC Address
-        </label>
-        <input
-          id="mac_address"
-          type="text"
-          bind:value={$macAddress.value}
-          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
-                 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder=""
-        />
-        <p class="text-xs text-gray-400">
-          Physical hardware identifier of this device
-        </p>
-      </div>
     </div>
-  </div>
+    
+    <!-- Description -->
+    <div class="space-y-2">
+      <label for="node_description" class="block text-sm font-medium text-gray-300">
+        Description
+      </label>
+      <textarea
+        id="node_description"
+        bind:value={$description.value}
+        rows="3"
+        class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
+                focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical
+                {$description.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
+        placeholder="Optional description of this node's role or purpose..."
+      ></textarea>
+      {#if $description.errors.length > 0}
+        <div class="flex items-center gap-2 text-red-400">
+          <AlertCircle size={16} />
+          <p class="text-xs">{$description.errors[0]}</p>
+        </div>
+      {/if}
+      <p class="text-xs text-gray-400">
+        Describe what this node does or its role in your infrastructure
+      </p>
+    </div>
+
+  <!-- Subnets -->
 </div>

@@ -138,7 +138,7 @@
   onSave={handleFormSubmit}
   onCancel={showCancel ? handleFormCancel : null}
   onDelete={isEditing ? handleDelete : null}
-  size="xl"
+  size="full"
   let:form
 >
   <!-- Header icon -->
@@ -182,29 +182,31 @@
     {/if}
     
     <!-- Tab content -->
-    <div class="flex-1 overflow-hidden">
+    <div class="flex-1 overflow-hidden min-h-0">
       {#if activeTab === 'details'}
-        <div class="h-full p-6">
-          {#if !isEditing}
-            <div class="mb-6">
-              <h3 class="text-lg font-medium text-white mb-2">Node Details</h3>
-              <p class="text-sm text-gray-400">
-                Configure basic information about this node including its connection details and metadata.
-              </p>
-            </div>
-          {/if}
-          
-          <DetailsForm 
-            {form}
-            bind:formData={formData}
-            {isEditing}
-          />
+        <div class="h-full overflow-auto">
+          <div class="p-6">
+            {#if !isEditing}
+              <div class="mb-6">
+                <h3 class="text-lg font-medium text-white mb-2">Node Details</h3>
+                <p class="text-sm text-gray-400">
+                  Configure basic information about this node including its connection details and metadata.
+                </p>
+              </div>
+            {/if}
+            
+            <DetailsForm 
+              {form}
+              bind:formData={formData}
+              {isEditing}
+            />
+          </div>
         </div>
         
       {:else if activeTab === 'capabilities'}
-        <div class="h-full">
+        <div class="h-full overflow-hidden">
           {#if !isEditing}
-            <div class="p-6 pb-4 border-b border-gray-700">
+            <div class="p-6 pb-4 border-b border-gray-700 flex-shrink-0">
               <h3 class="text-lg font-medium text-white mb-2">Capabilities & Monitoring</h3>
               <p class="text-sm text-gray-400">
                 Define what services this node provides and configure monitoring tests for each capability.
@@ -212,7 +214,7 @@
             </div>
           {/if}
           
-          <div class="flex-1 overflow-hidden">
+          <div class="flex-1 overflow-hidden min-h-0">
             <CapabilitiesForm 
               {form}
               bind:selectedCapabilities={formData.capabilities}
@@ -222,17 +224,5 @@
         </div>
       {/if}
     </div>
-    
-    <!-- Tab-specific help text or status (only for editing) -->
-    {#if isEditing}
-      <div class="px-6 py-3 bg-gray-800/50 border-t border-gray-700">
-        <div class="flex items-center gap-2 text-xs text-gray-400">
-          <Settings class="w-4 h-4" />
-          <span>
-            {tabs.find(t => t.id === activeTab)?.description}
-          </span>
-        </div>
-      </div>
-    {/if}
   </div>
 </EditModal>

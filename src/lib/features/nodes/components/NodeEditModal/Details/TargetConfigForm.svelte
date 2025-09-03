@@ -1,17 +1,60 @@
 <!-- src/lib/features/nodes/components/NodeEditModal/Details/TargetConfigForm.svelte -->
 <script lang="ts">
-  import { AlertCircle } from 'lucide-svelte';
+  import { AlertCircle, Globe, Server, TargetIcon } from 'lucide-svelte';
   import { field } from 'svelte-forms';
   import { required } from 'svelte-forms/validators';
   import type { NodeTarget } from "$lib/features/nodes/types/targets";
   import { ipAddress, hostname } from '$lib/shared/components/forms/validators';
+  import type { Node } from '$lib/features/nodes/types/base';
 
   export let form: any;
+  export let formData: Node;
   export let target: NodeTarget;
 
   // Create form fields based on target type
   let ipField: any;
   let hostnameField: any;
+
+const targetTypes = [
+  {
+    value: 'IpAddress',
+    label: 'IP Address',
+    description: 'Connect directly to an IP address',
+    icon: Server
+  },
+  {
+    value: 'Hostname',
+    label: 'Hostname/Domain',
+    description: 'Connect using a hostname or domain name', 
+    icon: Globe
+  }
+];
+
+$: if (!formData.target) {
+  formData.target = {
+    type: 'IpAddress',
+    config: { ip: '' }
+  };
+}
+
+// Handle target type changes
+function handleTargetTypeChange(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  const newType = target.value as 'IpAddress' | 'Hostname';
+  
+  // Reset target config when type changes
+  if (newType === 'IpAddress') {
+    formData.target = {
+      type: 'IpAddress',
+      config: { ip: '' }
+    };
+  } else if (newType === 'Hostname') {
+    formData.target = {
+      type: 'Hostname', 
+      config: { hostname: '' }
+    };
+  }
+}
 
   // Initialize fields based on target type
   $: if (target.type === 'IpAddress') {
@@ -52,6 +95,33 @@
   }
 </script>
 
+<h4 class="text-md font-medium text-white mb-4 flex items-center gap-2">
+  <TargetIcon class="w-5 h-5" />
+  Connection Target
+</h4>
+<div class="flex gap-6 items-start">
+<div class="flex flex-col space-y-2 w-1/5">
+    <label for="target_type" class="block text-sm font-medium text-gray-300">
+      Target Type
+      <span class="text-red-400 ml-1">*</span>
+    </label>
+    <select
+      id="target_type"
+      value={formData.target?.type || 'IpAddress'}
+      on:change={handleTargetTypeChange}
+      class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
+              focus:outline-none focus:ring-2 focus:ring-blue-500"
+    >
+      {#each targetTypes as targetType}
+        <option value={targetType.value}>{targetType.label}</option>
+      {/each}
+    </select>
+    <p class="text-xs text-gray-400">
+      How should NetVisor connect to this node?
+    </p>
+  </div>
+<div class="flex flex-col flex-grow">
+{#if formData.target}
 <div class="space-y-4">
   {#if target.type === 'IpAddress'}
     <!-- IP Address Configuration -->
@@ -119,4 +189,7 @@
       </div>
     </div>
   {/if}
+</div>
+{/if}
+</div>
 </div>

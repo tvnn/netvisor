@@ -6,6 +6,8 @@
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
 	import { getDaemonDiscoveryState } from '$lib/features/daemons/store';
+  import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
+	import { sessions } from '$lib/features/discovery/store';
   
   export let node: Node;
   export let daemon: Daemon | null;
@@ -18,7 +20,12 @@
   // Build connection info
   $: connectionInfo = getNodeTargetString(node.target)
 
-  $: nodeIsRunningDiscovery = (discoveryIsRunning && daemon !== null) ? getDaemonDiscoveryState(daemon.id) !== null : false;
+  $: nodeIsRunningDiscovery = (discoveryIsRunning && daemon !== null) ? getDaemonDiscoveryState(daemon.id, $sessions) !== null : false;
+  $: discoveryData = nodeIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;
+
+  
+  console.log(`Discovery is running: ${discoveryIsRunning}`);
+  console.log(`Discovery data for node ${node.name}:`, discoveryData);
   
   // Build card data
   $: cardData = {
@@ -38,9 +45,7 @@
       {
         label: 'Capabilities',
         items: node.capabilities.map(cap => {
-
           const [capId, capInfo] = Object.entries(cap)[0];
-
           return ({
             id: capId,
             label: capabilities.getDisplay(capId),
@@ -50,22 +55,7 @@
         }),
         emptyText: 'No capabilities assigned'
       },
-      // {
-      //   label: 'Tests',
-      //   items: node.assigned_tests.map((assigned,i) => {
-      //     return {
-      //       id: assigned.test.type,
-      //       label: `${i + 1}. ${$getTestDisplay(assigned.test.type)}`,
-      //       disabled: (node.monitoring_interval == 0),
-      //       bgColor:  getBgColor( $getCriticalityColor(assigned.criticality) ),
-      //       color: getTextColor( $getCriticalityColor(assigned.criticality) ),
-      //       badgeColor: 'text-gray-500',
-      //       metadata: assigned
-      //     };
-      //   }),
-      //   emptyText: 'No tests assigned'
-      // },
-            {
+      {
         label: 'Diagnostic Groups',
         items: groupInfo.map((group, i) => ({
           id: node?.node_groups ? node.node_groups[i] : group.name,
@@ -91,11 +81,12 @@
         ? [{
             label: 'Run Discovery',
             icon: Radar,
-            color: nodeIsRunningDiscovery ? 'text-green' : 'text-gray-400',
-            hoverColor: nodeIsRunningDiscovery ? 'text-green' : (discoveryIsRunning ? 'text-gray-400' : 'text-green'),
+            color: nodeIsRunningDiscovery ? 'text-green-400' : 'text-gray-400',
+            hoverColor: nodeIsRunningDiscovery ? 'text-green-400' : (discoveryIsRunning ? 'text-gray-400' : 'text-green-400'),
             bgHover: nodeIsRunningDiscovery ? 'hover:bg-green-700/50': (discoveryIsRunning ? '' : 'hover:bg-green-700/50'),
-            onClick: nodeIsRunningDiscovery ? () => onDiscovery(daemon) : () => {},
-            animation: nodeIsRunningDiscovery ? 'animate-spin' : ''
+            onClick: !nodeIsRunningDiscovery ? () => onDiscovery(daemon) : () => {},
+            animation: nodeIsRunningDiscovery ? 'animate-spin' : '',
+            disabled: nodeIsRunningDiscovery
           }]
         : []
       ),
@@ -107,7 +98,14 @@
         bgHover: 'hover:bg-gray-700',
         onClick: () => onEdit(node)
       }
-    ]
+    ],
+    
+    // Add footer when discovery is running
+    footerComponent: nodeIsRunningDiscovery && daemon ? DaemonDiscoveryStatus : null,
+    footerProps: nodeIsRunningDiscovery && daemon ? {
+      daemon,
+      discoveryData
+    } : {}
   };
 </script>
 

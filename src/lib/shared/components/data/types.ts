@@ -1,4 +1,3 @@
-
 export interface TagProps {
   label: string,
   textColor: string,

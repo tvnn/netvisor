@@ -18,8 +18,8 @@ export interface Node {
   target: NodeTarget;
   node_type: string;
   capabilities: Capability[];
-  mac_address: string;
-  subnets: string[]; // CIDR blocks
+
+  subnets: NodeSubnetMembership[];
   monitoring_interval: number;
   node_groups: string[];
   discovery_status: string;

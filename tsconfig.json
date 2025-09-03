@@ -11,6 +11,9 @@
     "strict": true,
     "moduleResolution": "bundler"
   },
+  "svelteCompilerOptions": {
+    "version": "5"
+  },
   "exclude": [
     "node_modules/**/*",
     ".svelte-kit/**/*"

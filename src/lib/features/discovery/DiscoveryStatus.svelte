@@ -11,7 +11,7 @@
 	  import { getNodeTargetString } from "../nodes/store";
 	import { nodeStatuses } from '$lib/shared/stores/registry';
 	import DaemonDiscoveryStatus from './DaemonDiscoveryStatus.svelte';
-	import { type SelectOption } from '$lib/shared/components/forms/types';
+	import { type TagProps } from '$lib/shared/components/data/types';
 
   let selectedDaemonId: string | null = null;  
   $: discoveryData = getDaemonDiscoveryState(selectedDaemonId);
@@ -45,23 +45,22 @@
         <div class="flex">
             <RichSelect
                 selectedValue={selectedDaemonId}
-                options={$daemons.map((d): SelectOption => {
+                options={$daemons.map((d) => {
                     let node = $nodes.find(n => n.id === d.node_id)
                     return {
                         value: d.id,
                         label: node?.name || `Daemon ${d.id.substring(0, 8)}`,
                         description: node ? `on ${getNodeTargetString(node?.target)}` : `Daemon ${d.id.substring(0, 8)}`,
-                        metadata: {
-                            status: node?.status
-                        }
+                        status: node?.status
                     }
                 })}
-                getOptionTag={(option) => {
-                    return {
-                        text: option.metadata.status,
+                getOptionId={(option) => option.value}
+                getOptionTags={(option): TagProps[] => {
+                    return [{
+                        label: option.status,
                         bgColor: nodeStyle.bg,
                         textColor: nodeStyle.text
-                    }
+                    }]
                 }}
                 onSelect={handleDaemonSelect} />
         </div>

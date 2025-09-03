@@ -7,17 +7,16 @@
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
-	import { clearError, loading } from '$lib/shared/stores/feedback';
+	import { loading } from '$lib/shared/stores/feedback';
 	import { getNodeDaemon } from '$lib/features/daemons/store';
 	import type { Daemon } from '$lib/features/daemons/types/base';
 	import { initiateDiscovery, sessions } from '$lib/features/discovery/store';
-	import { get } from 'svelte/store';
 
   let searchTerm = '';
   let showNodeEditor = false;
   let editingNode: Node | null = null;
 
-  $: discoveryIsRunning = $sessions.keys.length > 0;
+  $: discoveryIsRunning = $sessions.size > 0;
   
   $: filteredNodes = $nodes.filter((node: Node) => {
     const searchLower = searchTerm.toLowerCase();
@@ -143,7 +142,7 @@
           {node}
           daemon={getNodeDaemon(node.id)}
           groupInfo={node.node_groups ? getGroupInfo(node.node_groups) : []}
-          discoveryIsRunning
+          discoveryIsRunning={discoveryIsRunning}
           onEdit={handleEditNode}
           onDelete={handleDeleteNode}
           onDiscovery={handleRunDiscovery}

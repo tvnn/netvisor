@@ -28,7 +28,7 @@
   $: selectedSchema = selectedCapabilityType ? availableSchemas[selectedCapabilityType] : null;
 
   // Available capability types for dropdown
-  $: selectOptions = Object.keys(availableSchemas)
+  $: capabilitySelectOptions = Object.keys(availableSchemas)
     .map(type => capabilityFromType(type))  
     .filter(type => !getCapabilityConfig(type).system_assigned);
 
@@ -103,7 +103,7 @@
     selectedCapabilities = selectedCapabilities; // Trigger reactivity
   }
 
-  function getItemId(capability: Capability): string {
+  function getOptionId(capability: Capability): string {
     return getCapabilityType(capability);
   }
 
@@ -114,6 +114,24 @@
 
   function getOptionDescription(capability: Capability) {
     return capabilities.getDescription(getCapabilityType(capability));
+  }
+    
+function getOptionTags(capability: Capability): TagProps[] {
+    const tags: TagProps[] = [];
+    const config = getCapabilityConfig(capability);
+        
+    // Test status tag
+    const enabledTests = config.tests.filter(t => t.enabled).length;
+    const totalTests = config.tests.length;
+    if (totalTests > 0) {
+      tags.push({
+        label: `${enabledTests}/${totalTests} tests enabled`,
+        textColor: enabledTests === totalTests ? 'text-green-400' : 'text-yellow-400',
+        bgColor: enabledTests === totalTests ? 'bg-green-900/20' : 'bg-yellow-900/20'
+      });
+    }
+    
+    return tags;
   }
 
   function getItemLabel(capability: Capability): string {
@@ -137,30 +155,12 @@
     return parts.join(' • ');
   }
 
-  function getItemTags(capability: Capability): TagProps[] {
-    const tags: TagProps[] = [];
-    const config = getCapabilityConfig(capability);
-        
-    // Test status tag
-    const enabledTests = config.tests.filter(t => t.enabled).length;
-    const totalTests = config.tests.length;
-    if (totalTests > 0) {
-      tags.push({
-        label: `${enabledTests}/${totalTests} tests enabled`,
-        textColor: enabledTests === totalTests ? 'text-green-400' : 'text-yellow-400',
-        bgColor: enabledTests === totalTests ? 'bg-green-900/20' : 'bg-yellow-900/20'
-      });
-    }
-    
-    return tags;
-  }
-
-  function getItemIcon(capability: Capability) {
+  function getOptionIcon(capability: Capability) {
     let iconName = capabilities.getIcon(getCapabilityType(capability));
     return createStyle(null, iconName).IconComponent;
   }
 
-  function getItemIconColor(capability: Capability) {
+  function getOptionIconColor(capability: Capability) {
     let colorStyle = capabilities.getColor(getCapabilityType(capability));
     return colorStyle.icon;
   }
@@ -181,15 +181,15 @@
     </div>
   </div>
 {:else}
-  <div class="h-full flex gap-6 min-h-0 p-6">
+  <div class="h-full flex gap-6 min-h-0">
     <!-- Left Panel - Capability List -->
-    <div class="w-2/5 flex flex-col min-h-0">
-      <div class="flex-1 min-h-0">
+    <div class="w-2/5 flex flex-col min-h-0 overflow-hidden">
+      <div class="flex-1 min-h-0 overflow-auto p-6">
         <ListManager
           label="Capabilities"
           helpText="Configure services and their monitoring tests"
           bind:items={selectedCapabilities}
-          options={selectOptions}
+          options={capabilitySelectOptions}
           allowDuplicates={true}
           allowReorder={false}
           allowItemRemove={(selected: Capability) => !getCapabilityConfig(selected).system_assigned}
@@ -201,24 +201,22 @@
           highlightedIndex={selectedCapabilityIndex}
           emptyMessage="No capabilities configured. Add one to get started."
           
-          getOptionId={getItemId}
-          getOptionIcon={getItemIcon}
-          getOptionIconColor={getItemIconColor}
-          getOptionLabel={getOptionLabel}
-          getOptionDescription={getOptionDescription}
+          {getOptionId}
+          {getOptionIcon}
+          {getOptionIconColor}
+          {getOptionLabel}
+          {getOptionDescription}
+          {getOptionTags}
 
-          {getItemId}
-          {getItemIcon}
-          {getItemIconColor}
           {getItemLabel}
           {getItemDescription}
-          {getItemTags}
+          
         />
       </div>
     </div>
 
     <!-- Right Panel - Capability Configuration -->
-    <div class="w-3/5 border-l border-gray-600 pl-6 min-h-0">
+    <div class="w-3/5 border-l border-gray-600 pl-6 min-h-0 overflow-hidden">
       <CapabilitiesConfigPanel
         {form}
         capability={selectedCapability}

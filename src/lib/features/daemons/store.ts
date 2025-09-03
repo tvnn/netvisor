@@ -16,8 +16,10 @@ export async function getDaemons() {
     { method: 'GET' },
   )
 }
-export function getDaemonDiscoveryState(daemon_id: string | null): DaemonDiscoveryUpdate | null {
-  return get(sessions).values().find(session => session.daemon_id == daemon_id) || null;
+
+export function getDaemonDiscoveryState(daemon_id: string | null, sessionsMap: Map<string, DaemonDiscoveryUpdate>): DaemonDiscoveryUpdate | null {
+  if (!daemon_id) return null;
+  return sessionsMap.get(daemon_id) || null;
 }
 // Helper function to get node name for a daemon
 

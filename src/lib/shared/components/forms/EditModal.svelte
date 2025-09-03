@@ -1,6 +1,7 @@
 <script lang="ts">
   import { X, AlertCircle } from 'lucide-svelte';
   import { form as createForm } from 'svelte-forms';
+  import { browser } from '$app/environment';
   
   export let title: string = 'Edit';
   export let isOpen: boolean = false;
@@ -17,6 +18,21 @@
   
   // Create form instance
   const form = createForm();
+
+  $: if (browser && isOpen) {
+    document.body.style.overflow = 'hidden';
+  } else if (browser) {
+    document.body.style.overflow = '';
+  }
+  
+  // Also add cleanup in case the component is destroyed while modal is open
+  import { onDestroy } from 'svelte';
+  
+  onDestroy(() => {
+    if (browser) {
+      document.body.style.overflow = '';
+    }
+  });
   
   // Size classes
   const sizeClasses = {
@@ -66,7 +82,7 @@
 {#if isOpen}
   <!-- Modal backdrop -->
   <div 
-    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overscroll-contain"
     on:click={handleBackdropClick}
     role="dialog"
     aria-modal="true"
@@ -75,7 +91,7 @@
     tabindex="-1"
   >
     <!-- Modal content -->
-    <div class="bg-gray-900 rounded-lg shadow-2xl border border-gray-700 w-full {sizeClasses[size]} max-h-[90vh] flex flex-col">
+    <div class="bg-gray-900 rounded-lg shadow-2xl border border-gray-700 w-full {sizeClasses[size]} h-[95vh] flex flex-col">
       <form on:submit|preventDefault={handleFormSubmit} class="h-full flex flex-col">
         <!-- Header -->
         <div class="flex items-center justify-between p-6 border-b border-gray-700">

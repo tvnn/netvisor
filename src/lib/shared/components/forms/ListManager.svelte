@@ -1,9 +1,10 @@
-<script lang="ts">
+<script lang="ts" generics="T">
   import { ArrowUp, ArrowDown, Trash2, Plus, Edit } from 'lucide-svelte';
   import RichSelect from './RichSelect.svelte';
 	import Tag from '../data/Tag.svelte';
 	import ListSelectItem from './ListSelectItem.svelte';
 	import type { TagProps } from '../data/types';
+	import { get } from 'svelte/store';
   
 
   // Global
@@ -18,20 +19,20 @@
   export let error: string = '';
 
   // Options (dropdown)
-  export let options: any[] = [];
-  export let getOptionId: (item: any) => string;
+  export let options: T[] = [];
+  export let getOptionId: (item: T) => string;
 
   // Options display
-  export let getOptionIcon: (item: any) => any | null = (item) => null;
-  export let getOptionIconColor: (item: any) => string | null = (item) => null;
-  export let getOptionTags: (item: any) => TagProps[] = (item) => [];
-  export let getOptionLabel: (item: any) => string | null = (item) => null
-  export let getOptionDescription: (item: any) => string | null = (item) => null
-  export let getOptionIsDisabled: (item: any) => boolean = (item) => false
+  export let getOptionIcon: (item: T) => any | null = (item) => null;
+  export let getOptionIconColor: (item: T) => string | null = (item) => null;
+  export let getOptionTags: (item: T) => TagProps[] = (item) => [];
+  export let getOptionLabel: (item: T) => string | null = (item) => null
+  export let getOptionDescription: (item: T) => string | null = (item) => null
+  export let getOptionIsDisabled: (item: T) => boolean = (item) => false
 
   // Items
   export let items: any[] = [];
-  export let getItemId: (item: any) => string;
+  export let getItemId: (item: T) => string = getOptionId;
 
   // Item interaction
   export let allowDuplicates: boolean = false;
@@ -39,14 +40,14 @@
   export let allowItemRemove: ((item: any) => boolean) = (item) => true;
 
   // Item display
-  export let getItemIcon: (item: any) => any | null = (item) => null;
-  export let getItemIconColor: (item: any) => string | null = (item) => null;
-  export let getItemTags: (item: any) => TagProps[] = (item) => [];
-  export let getItemLabel: (item: any) => string | null = (item) => null
-  export let getItemDescription: (item: any) => string | null = (item) => null
+  export let getItemIcon: (item: T) => any | null = getOptionIcon;
+  export let getItemIconColor: (item: T) => string | null = getOptionIconColor;
+  export let getItemTags: (item: T) => TagProps[] = getOptionTags;
+  export let getItemLabel: (item: T) => string | null = getOptionLabel;
+  export let getItemDescription: (item: T) => string | null = getOptionDescription;
   
   // Interaction handlers
-  export let onEdit: (item: any, index: number) => void = () => {};
+  export let onEdit: (item: T, index: number) => void = () => {};
   export let onAdd: (selectOptionId: string) => void = () => {};
   export let onMoveUp: (fromIndex: number, toIndex: number) => void = () => {};
   export let onMoveDown: (fromIndex: number, toIndex: number) => void = () => {};

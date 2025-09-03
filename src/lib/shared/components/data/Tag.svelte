@@ -25,7 +25,7 @@
 
 <div class="items-center space-x-2">
 
-{#if enableIcon}
+{#if enableIcon }
     <svelte:component this={icon} size={16} class={textColor} />
 {/if}
 

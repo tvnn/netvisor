@@ -11,6 +11,8 @@
   export let actions: CardAction[] = [];
   export let sections: CardSection[] = [];
   export let lists: CardList[] = [];
+  export let footerComponent: any = null; // Optional footer component
+  export let footerProps: any = {}; // Props to pass to footer component
 </script>
 
 <div class="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-600 transition-colors flex flex-col h-full">
@@ -71,7 +73,7 @@
                         class="p-1 {action.color || 'text-gray-400'} hover:{action.hoverColor || 'text-white'} {action.bgHover || 'hover:bg-gray-700'} rounded transition-colors disabled:opacity-50"
                         title={action.label}
                       >
-                        <svelte:component this={action.icon} size={16} animation={action.animation} />
+                        <svelte:component this={action.icon} size={16} class="{action.animation || ''}" />
                       </button>
                     {/each}
                   </div>
@@ -86,6 +88,13 @@
     {/each}
   </div>
   
+  <!-- Footer Component -->
+  {#if footerComponent}
+    <div class="mt-4 pt-4 border-t border-gray-700">
+      <svelte:component this={footerComponent} {...footerProps} />
+    </div>
+  {/if}
+  
   <!-- Action Buttons -->
   {#if actions.length > 0}
     <div class="flex justify-between items-center pt-4 mt-4 border-t border-gray-700">
@@ -96,7 +105,7 @@
           class="p-2 {action.color || 'text-gray-400'} hover:{action.hoverColor || 'text-white'} {action.bgHover || 'hover:bg-gray-700'} rounded transition-colors disabled:opacity-50"
           title={action.label}
         >
-          <svelte:component this={action.icon} size={16} />
+          <svelte:component this={action.icon} size={16} class="{action.animation || ''}" />
         </button>
       {/each}
     </div>
