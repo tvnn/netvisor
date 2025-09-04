@@ -13,7 +13,7 @@ use crate::{
     server::{
         capabilities::types::base::Capability, daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, nodes::types::{
             api::NodeUpdateRequest, base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType
-        }, shared::types::api::ApiResponse, subnets::types::base::{NodeSubnetMembership, Subnet}
+        }, shared::types::api::ApiResponse, subnets::types::base::{NodeSubnetMembership, Subnet, SubnetType}
     },
 };
 
@@ -309,7 +309,10 @@ impl DaemonDiscoveryService {
 
         // Gather host information
         let hostname = self.utils.get_hostname_for_ip(host_ip).await?;
-        let mac_address = self.utils.get_mac_address_for_ip(host_ip).await?;
+        let mac_address = match subnet.base.subnet_type {
+            SubnetType::VpnTunnel => None, // ARP doesn't work through VPN tunnels
+            _ => self.utils.get_mac_address_for_ip(host_ip).await?
+        };
 
         // Create node
         let mut node = Node::new(NodeBase {

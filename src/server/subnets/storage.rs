@@ -3,7 +3,7 @@ use anyhow::Result;
 use cidr::IpCidr;
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::{subnets::types::base::{Subnet, SubnetBase}};
+use crate::server::subnets::types::base::{Subnet, SubnetBase, SubnetType};
 
 #[async_trait]
 pub trait SubnetStorage: Send + Sync {
@@ -32,13 +32,14 @@ impl SubnetStorage for SqliteSubnetStorage {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
         let gateways_str = serde_json::to_string(&subnet.base.gateways)?;
         let dns_resolvers_str = serde_json::to_string(&subnet.base.dns_resolvers)?;
+        let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
 
         // Try to insert, ignore if constraint sviolation
         sqlx::query(
             r#"
             INSERT OR IGNORE INTO subnets (
-                id, name, description, cidr, dns_resolvers, gateways, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                id, name, description, cidr, dns_resolvers, gateways, subnet_type, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&subnet.id)
@@ -47,6 +48,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(&cidr_str)
         .bind(dns_resolvers_str)
         .bind(&gateways_str)
+        .bind(subnet_type_str)
         .bind(&subnet.created_at.to_rfc3339())
         .bind(&subnet.updated_at.to_rfc3339())
         .execute(&self.pool)
@@ -111,11 +113,12 @@ impl SubnetStorage for SqliteSubnetStorage {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
         let dns_resolvers_str = serde_json::to_string(&subnet.base.dns_resolvers)?;
         let gateways_str = serde_json::to_string(&subnet.base.gateways)?;
+        let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
 
         sqlx::query(
             r#"
             UPDATE subnets SET 
-                name = ?, description = ?, cidr = ?, dns_resolvers = ?, gateways = ?,
+                name = ?, description = ?, cidr = ?, dns_resolvers = ?, gateways = ?, subnet_type = ?,
                 updated_at = ?
             WHERE id = ?
             "#
@@ -125,6 +128,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(cidr_str)
         .bind(dns_resolvers_str)
         .bind(gateways_str)
+        .bind(subnet_type_str)
         .bind(&subnet.updated_at.to_rfc3339())
         .bind(&subnet.id)
         .execute(&self.pool)
@@ -148,6 +152,7 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet> {
     let cidr: IpCidr = serde_json::from_str(&row.get::<String, _>("cidr"))?;
     let dns_resolvers: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("dns_resolvers"))?;
     let gateways: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("gateways"))?;
+    let subnet_type: SubnetType = serde_json::from_str(&row.get::<String, _>("subnet_type"))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -163,7 +168,8 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet> {
             description: row.get("description"),
             cidr,
             dns_resolvers,
-            gateways
+            gateways,
+            subnet_type
         }        
     })
 }

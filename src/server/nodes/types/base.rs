@@ -55,7 +55,7 @@ impl PartialEq for Node {
         let macs_a: Vec<Option<MacAddress>> = self.base.subnets.iter().map(|s| s.mac_address).collect();
         let macs_b: Vec<Option<MacAddress>> = other.base.subnets.iter().map(|s| s.mac_address).collect();
 
-        macs_a.iter().any(|mac_a| {
+        let mac_match = macs_a.iter().any(|mac_a| {
             macs_b.iter().any(|mac_b| {
                 match (mac_a, mac_b) {
                     (Some(a), Some(b)) => !vec!(
@@ -65,7 +65,15 @@ impl PartialEq for Node {
                     (_, _) => false
                 }
             })
-        })
+        });
+
+        let subnet_ip_match = self.base.subnets.iter().any(|subnet_a| {
+            other.base.subnets.iter().any(|subnet_b| {
+                subnet_a.subnet_id == subnet_b.subnet_id && subnet_a.ip_address == subnet_b.ip_address
+            })
+        });
+
+        mac_match || subnet_ip_match
     }
 }
 
