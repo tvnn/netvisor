@@ -9,6 +9,7 @@
   import TargetConfigForm from './TargetConfigForm.svelte';
 	import { nodeTargets, nodeTypes } from '$lib/shared/stores/registry';
 	import ListManager from '$lib/shared/components/forms/ListManager.svelte';
+	import SubnetsManager from './SubnetsManager.svelte';
   
   export let form: any;
   export let formData: Node;
@@ -174,5 +175,8 @@
       </p>
     </div>
 
-  <!-- Subnets -->
+    <!-- Subnets -->
+    <div class="space-y-2">
+      <SubnetsManager bind:formData={formData} />
+    </div>
 </div>

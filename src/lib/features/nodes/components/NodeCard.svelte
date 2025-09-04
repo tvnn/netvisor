@@ -22,10 +22,6 @@
 
   $: nodeIsRunningDiscovery = (discoveryIsRunning && daemon !== null) ? getDaemonDiscoveryState(daemon.id, $sessions) !== null : false;
   $: discoveryData = nodeIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;
-
-  
-  console.log(`Discovery is running: ${discoveryIsRunning}`);
-  console.log(`Discovery data for node ${node.name}:`, discoveryData);
   
   // Build card data
   $: cardData = {

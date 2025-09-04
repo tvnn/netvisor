@@ -1,7 +1,6 @@
 <!-- src/lib/features/nodes/components/NodeEditModal/Capabilities/CapabilitiesForm.svelte -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Shield, Plus } from 'lucide-svelte';
   import type { Capability, CapabilityConfig } from '$lib/features/capabilities/types/base';
   import type { NodeContext } from '$lib/features/nodes/types/base';
   import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
@@ -12,25 +11,27 @@
   import { getCapabilityForms } from '$lib/features/capabilities/store';
   import { loading, pushError } from '$lib/shared/stores/feedback';
 	import ListManager from '$lib/shared/components/forms/ListManager.svelte';
-	import type { TagProps } from '$lib/shared/components/data/types';
   
   export let form: any;
   export let selectedCapabilities: Capability[] = [];
   export let nodeContext: NodeContext;
   
-  // Component state
   let availableSchemas: Record<string, CapabilityConfigForm> = {};
   let selectedCapabilityIndex = -1;
   
-  // Computed values
-  $: selectedCapability = selectedCapabilityIndex >= 0 ? selectedCapabilities[selectedCapabilityIndex] : null;
-  $: selectedCapabilityType = selectedCapability ? getCapabilityType(selectedCapability) : null;
-  $: selectedSchema = selectedCapabilityType ? availableSchemas[selectedCapabilityType] : null;
+$: selectedCapability = selectedCapabilityIndex >= 0 ? selectedCapabilities[selectedCapabilityIndex] : null;
+$: selectedCapabilityType = selectedCapability ? getCapabilityType(selectedCapability) : null;
+$: selectedSchema = selectedCapabilityType ? availableSchemas[selectedCapabilityType] || null : null;
 
-  // Available capability types for dropdown
-  $: capabilitySelectOptions = Object.keys(availableSchemas)
-    .map(type => capabilityFromType(type))  
-    .filter(type => !getCapabilityConfig(type).system_assigned);
+// Available capability types for dropdown
+let capabilitySelectOptions: string[] = [];
+
+  $: if (availableSchemas && Object.keys(availableSchemas).length > 0 && capabilitySelectOptions.length === 0) {
+    // Only compute once when schemas are loaded
+    capabilitySelectOptions = Object.keys(availableSchemas)
+      .filter(type => !availableSchemas[type]?.system_assigned)
+      .map(type => type); // Just strings, not full objects
+  }
 
   async function loadCapabilitySchemas() {
     try {            
@@ -46,27 +47,27 @@
     }
   }
 
-  function handleEditCapability(_: any, index: number) {
-    selectedCapabilityIndex = index;
-  }
+function handleEditCapability(_: any, index: number) {
+  selectedCapabilityIndex = index;
+}
 
-  function capabilityFromType(capabilityType: string) {
-    const schema = availableSchemas[capabilityType]
-    const baseConfig = {
-      name: capabilities.getDisplay(capabilityType),
-      tests: schema?.test_sections?.map(section => ({
-        test: {
-          type: section.test_type,
-          config: getTestConfigFromSchema(section)
-        },
-        criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
-        enabled: section.enabled_by_default ?? false
-      })) || [],
-      system_assigned: schema?.system_assigned ?? false,
-      port: undefined,
-      process: undefined,
-      discovery_ports: undefined
-    };
+function capabilityFromType(capabilityType: string) {
+  const schema = availableSchemas[capabilityType]
+  const baseConfig = {
+    name: capabilities.getDisplay(capabilityType),
+    tests: schema?.test_sections?.map(section => ({
+      test: {
+        type: section.test_type,
+        config: getTestConfigFromSchema(section)
+      },
+      criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
+      enabled: section.enabled_by_default ?? false
+    })) || [],
+    system_assigned: schema?.system_assigned ?? false,
+    port: undefined,
+    process: undefined,
+    discovery_ports: undefined
+  };
 
     let config: CapabilityConfig = { ...baseConfig };
 
@@ -80,10 +81,11 @@
     return createCapability(capabilityType, config);
   }
 
-  function handleAddCapability(capabilityType: string) {  
-    selectedCapabilities = [...selectedCapabilities, capabilityFromType(capabilityType)];
-    selectedCapabilityIndex = selectedCapabilities.length - 1;
-  }
+function handleAddCapability(capabilityType: string) {  
+  const newCapability = capabilityFromType(capabilityType);
+  selectedCapabilities = [...selectedCapabilities, newCapability];
+  selectedCapabilityIndex = selectedCapabilities.length - 1;
+}
 
   function handleRemoveCapability(index: number) {
     selectedCapabilities = selectedCapabilities.filter((_, i) => i !== index);
@@ -98,40 +100,34 @@
 
   function handleCapabilityChange(updatedCapability: Capability) {
     if (selectedCapabilityIndex < 0) return;
-    
-    selectedCapabilities[selectedCapabilityIndex] = updatedCapability;
+    if (selectedCapabilities[selectedCapabilityIndex] == updatedCapability) return;
+
+    selectedCapabilities[selectedCapabilityIndex] == updatedCapability
     selectedCapabilities = selectedCapabilities; // Trigger reactivity
   }
 
-  function getOptionId(capability: Capability): string {
+  function getOptionId(capabilityType: string): string {
+    return capabilityType;
+  }
+
+  function getOptionLabel(capabilityType: string): string {
+    return capabilities.getDisplay(capabilityType);
+  }
+
+  function getOptionDescription(capabilityType: string): string {
+    return capabilities.getDescription(capabilityType);
+  }
+
+  function getOptionIcon(capabilityType: string) {
+    return createStyle(null, capabilities.getIcon(capabilityType)).IconComponent;
+  }
+
+  function getOptionIconColor(capabilityType: string) {
+    return capabilities.getColor(capabilityType).icon;
+  }
+
+  function getItemId(capability: Capability): string {
     return getCapabilityType(capability);
-  }
-
-  // Display functions for ListManager
-  function getOptionLabel(capability: Capability): string {
-    return capabilities.getDisplay(getCapabilityType(capability));
-  }
-
-  function getOptionDescription(capability: Capability) {
-    return capabilities.getDescription(getCapabilityType(capability));
-  }
-    
-function getOptionTags(capability: Capability): TagProps[] {
-    const tags: TagProps[] = [];
-    const config = getCapabilityConfig(capability);
-        
-    // Test status tag
-    const enabledTests = config.tests.filter(t => t.enabled).length;
-    const totalTests = config.tests.length;
-    if (totalTests > 0) {
-      tags.push({
-        label: `${enabledTests}/${totalTests} tests enabled`,
-        textColor: enabledTests === totalTests ? 'text-green-400' : 'text-yellow-400',
-        bgColor: enabledTests === totalTests ? 'bg-green-900/20' : 'bg-yellow-900/20'
-      });
-    }
-    
-    return tags;
   }
 
   function getItemLabel(capability: Capability): string {
@@ -155,12 +151,12 @@ function getOptionTags(capability: Capability): TagProps[] {
     return parts.join(' • ');
   }
 
-  function getOptionIcon(capability: Capability) {
+  function getItemIcon(capability: Capability) {
     let iconName = capabilities.getIcon(getCapabilityType(capability));
     return createStyle(null, iconName).IconComponent;
   }
 
-  function getOptionIconColor(capability: Capability) {
+  function getItemIconColor(capability: Capability) {
     let colorStyle = capabilities.getColor(getCapabilityType(capability));
     return colorStyle.icon;
   }
@@ -188,7 +184,7 @@ function getOptionTags(capability: Capability): TagProps[] {
         <ListManager
           label="Capabilities"
           helpText="Configure services and their monitoring tests"
-          bind:items={selectedCapabilities}
+          items={selectedCapabilities}
           options={capabilitySelectOptions}
           allowDuplicates={true}
           allowReorder={false}
@@ -202,12 +198,14 @@ function getOptionTags(capability: Capability): TagProps[] {
           emptyMessage="No capabilities configured. Add one to get started."
           
           {getOptionId}
-          {getOptionIcon}
-          {getOptionIconColor}
           {getOptionLabel}
           {getOptionDescription}
-          {getOptionTags}
+          {getOptionIcon}
+          {getOptionIconColor}
 
+          {getItemId}
+          {getItemIcon}
+          {getItemIconColor}
           {getItemLabel}
           {getItemDescription}
           
@@ -216,7 +214,7 @@ function getOptionTags(capability: Capability): TagProps[] {
     </div>
 
     <!-- Right Panel - Capability Configuration -->
-    <div class="w-3/5 border-l border-gray-600 pl-6 min-h-0 overflow-hidden">
+    <div class="w-3/5 border-l border-gray-600 p-6 min-h-0 overflow-hidden">
       <CapabilitiesConfigPanel
         {form}
         capability={selectedCapability}

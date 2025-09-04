@@ -29,9 +29,14 @@
   $: selectedItem = options.find(i => getOptionId(i) === selectedValue);
   
   function handleSelect(value: string) {
-    const item = options.find(i => getOptionId(i) === value);
-    if (item && !getOptionIsDisabled(item)) {
-      onSelect(value);
+    try {
+      const item = options.find(i => getOptionId(i) === value);
+      if (item && !getOptionIsDisabled(item)) {
+        isOpen = false;  // Close dropdown first
+        onSelect(value); // Then call the handler
+      }
+    } catch (e) {
+      console.warn('Error in handleSelect:', e);
       isOpen = false;
     }
   }
@@ -61,7 +66,13 @@
     <!-- Dropdown Trigger -->
     <button
       type="button"
-      on:click={() => disabled && (isOpen = !isOpen)}
+      on:click={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!disabled) {
+          isOpen = !isOpen;
+        }
+      }}
       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
              focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between
              {error ? 'border-red-500' : ''}
@@ -107,7 +118,13 @@
         {#each options as option}          
           <button
             type="button"
-            on:click={() => handleSelect(getOptionId(option))}
+            on:click={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!getOptionIsDisabled(option)) {
+                handleSelect(getOptionId(option));
+              }
+            }}
             class="w-full px-3 py-3 text-left transition-colors border-b border-gray-600 last:border-b-0
                    {getOptionIsDisabled(option) ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-600'}"
             disabled={getOptionIsDisabled(option)}

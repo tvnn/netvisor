@@ -1,7 +1,8 @@
 export interface TagProps {
   label: string,
-  textColor: string,
-  bgColor: string
+  textColor?: string,
+  bgColor?: string
+  color?: string
 }
 
 export interface CardAction {

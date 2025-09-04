@@ -19,7 +19,7 @@
   let capabilityConfig: Record<string, any> = {};
 
   // Initialize form fields for capability name
-  $: if (capability && schema && !capabilityNameField) {
+  $: if (capability && schema) {
     const config = getCapabilityConfig(capability);
     const isSystemAssigned = config.system_assigned;
     

@@ -52,7 +52,7 @@ export async function initiateDiscovery(data: InitiateDiscoveryRequest) {
 
 export async function cancelDiscovery(id: string) {
   const result = await api.request<void, Map<string, DaemonDiscoveryUpdate>>(
-    `/discovery/cancel/${id}`,
+    `/discovery/${id}/cancel`,
     null,
     null,
     { method: 'POST' },
@@ -63,10 +63,33 @@ export async function getActiveDiscoverySessions() {
   const result = await api.request<DaemonDiscoveryUpdate[], Map<string, DaemonDiscoveryUpdate>>(
     '/discovery/active',
     sessions,
-    (actives, current) => actives.reduce((map,session) => {
-      map.set(session.daemon_id, session);
-      return map;
-    }, new Map<string, DaemonDiscoveryUpdate>()),
+    (actives, current) => {
+      // Only update if there are actual changes
+      const newMap = actives.reduce((map, session) => {
+        map.set(session.daemon_id, session);
+        return map;
+      }, new Map<string, DaemonDiscoveryUpdate>());
+      
+      // Compare with current state - only return new map if different
+      if (current.size !== newMap.size) {
+        return newMap;
+      }
+      
+      // Check for actual content changes
+      for (const [daemonId, session] of newMap) {
+        const currentSession = current.get(daemonId);
+        if (!currentSession || 
+            currentSession.completed !== session.completed ||
+            currentSession.phase !== session.phase ||
+            currentSession.discovered_count !== session.discovered_count ||
+            currentSession.error !== session.error) {
+          return newMap;
+        }
+      }
+      
+      // No changes - return current to prevent reactive updates
+      return current;
+    },
     { method: 'GET' },
   )
 
