@@ -5,8 +5,8 @@ use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-use unzip3::Unzip3;
-use futures::{future::{join_all, try_join_all}, stream::{self, StreamExt}};
+use anyhow::anyhow;
+use futures::{future::{try_join_all}, stream::{self, StreamExt}};
 use std::result::Result::Ok;
 use crate::{
     daemon::{discovery::{manager::DaemonDiscoverySessionManager, types::base::DiscoveryPhase}, shared::storage::ConfigStore, utils::base::{create_system_utils, PlatformSystemUtils, SystemUtils}},
@@ -48,7 +48,7 @@ impl DaemonDiscoveryService {
 
         let total_subnets = subnets.len();
 
-        self.update_daemon_subnet_membership(daemon_id, &subnets).await.unwrap_or_else(|e| {
+        self.update_daemon_subnet_membership(&subnets).await.unwrap_or_else(|e| {
             tracing::warn!("Failed to update daemon subnet membership: {}", e);
         });
 
@@ -352,45 +352,46 @@ impl DaemonDiscoveryService {
         Ok(Some(created_node))
     }
 
-    async fn update_daemon_subnet_membership(&self, daemon_id: Uuid, subnets: &Vec<Subnet>) -> Result<(), Error> {
+    async fn update_daemon_subnet_membership(&self, subnets: &Vec<Subnet>) -> Result<(), Error> {
         
-        let (subnet_ids, subnet_ips, mac_address_futures): (Vec<Uuid>, Vec<IpAddr>, Vec<_>) = subnets.iter()
-            .filter_map(|subnet: &Subnet| {
-                let subnet_ip = self.utils.get_own_interface_ip_addresses().ok()
-                    .and_then(|ips: Vec<IpAddr>| ips.into_iter().find(|ip: &IpAddr| subnet.base.cidr.contains(ip)));
+        let node_id = match self.config_store.get_node_id().await? {
+            Some(id) => id,
+            None => return Err(anyhow!("Daemon node_id is not set in config store"))
+        };
 
-                match subnet_ip {
-                    Some(ip) => {
-                        return Some((
-                            subnet.id,
-                            ip,
-                            self.utils.get_mac_address_for_ip(ip)
-                        ))
-                    },
-                    _ => None
-                }
-            })
-            .unzip3();
+        let interfaces = self.utils.get_own_interfaces();
 
-        let mac_addresses: Vec<Result<Option<MacAddress>>> = join_all(mac_address_futures).await;
-
-        let subnet_node_relationships = subnet_ids.into_iter()
-            .zip(subnet_ips.iter())
-            .zip(mac_addresses.iter())
-            .filter_map(|((subnet_id, ip), mac_res)| {
-                match mac_res {
-                    Ok(mac) => Some(NodeSubnetMembership {
-                        subnet_id: subnet_id,
-                        ip_address: *ip,
-                        mac_address: mac.clone()
-                    }),
-                    Err(e) => {
-                        tracing::warn!("Failed to get MAC address for subnet {}: {}", subnet_id, e);
-                        None
-                    }
-                }
+        let subnet_node_relationships: Vec<NodeSubnetMembership> = subnets.iter()
+            .flat_map(|subnet: &Subnet| {
+                interfaces.iter().flat_map(|interface| {
+                    interface.ips.iter().filter_map(|ip| {
+                        if subnet.base.cidr.contains(&ip.ip()) {
+                            let mac_address = interface.mac.map(|mac| MacAddress::new(mac.into()));
+                            tracing::debug!("Found mac address {:?} for interface {}, {}", mac_address, interface.name, ip.ip());
+                            if mac_address == Some(MacAddress::new([0,0,0,0,0,0])) {
+                                Some(NodeSubnetMembership {
+                                    subnet_id: subnet.id,
+                                    ip_address: ip.ip(),
+                                    mac_address: None
+                                })
+                            } else {
+                                Some(NodeSubnetMembership {
+                                    subnet_id: subnet.id,
+                                    ip_address: ip.ip(),
+                                    mac_address
+                                })
+                            }
+                            
+                        } else {
+                            tracing::debug!("Could not find mac address for interface {}, {}", interface.name, ip.ip());
+                            None
+                        }
+                    })
+                })
             })
             .collect();
+
+        tracing::debug!("Found node subnet relations: {:?}", subnet_node_relationships);
 
         let daemon_subnet_update = NodeUpdateRequest {
             subnets: Some(subnet_node_relationships),
@@ -407,7 +408,7 @@ impl DaemonDiscoveryService {
             node_groups: None,
         };
 
-        self.update_node(daemon_id, &daemon_subnet_update).await
+        self.update_node(node_id, &daemon_subnet_update).await
 
     }
 
@@ -494,6 +495,8 @@ impl DaemonDiscoveryService {
         if !response.status().is_success() {
             anyhow::bail!("Failed to update node: HTTP {}", response.status());
         }
+
+        tracing::debug!("Updated node");
 
         Ok(())
     }

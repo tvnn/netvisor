@@ -1,10 +1,8 @@
-use std::net::{IpAddr, Ipv4Addr};
-
-use anyhow::Error;
+use std::net::{IpAddr};
 use chrono::{DateTime, Utc};
-use cidr::{IpCidr, Ipv4Cidr, Ipv6Cidr};
-use get_if_addrs::Interface;
+use cidr::{IpCidr, Ipv4Cidr};
 use mac_address::MacAddress;
+use pnet::{ipnetwork::IpNetwork};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use uuid::Uuid;
@@ -41,72 +39,37 @@ impl Subnet {
         }
     }
 
-    pub fn from_interface(interface: &Interface) -> Option<Self> {
-        if let Ok(calculated_cidr) = Subnet::calculate_cidr_from_interface(interface) {
+    pub fn from_interface(interface_name: &String, ip_network: &IpNetwork) -> Option<Self> {
 
-            let subnet_type = SubnetType::from_interface_name(&interface.name);
+        let subnet_type = SubnetType::from_interface_name(&interface_name);
 
-            match calculated_cidr {
-                IpCidr::V6(_) => return None,
-                IpCidr::V4(ipv4_cidr) => {
+        match ip_network {
+            IpNetwork::V6(_) => return None,
+            IpNetwork::V4(ipv4_network) => {
+                
+                let (network_addr, prefix_len) = if subnet_type == SubnetType::VpnTunnel && ipv4_network.prefix() == 32 {
+                    // For VPN tunnels with /32, assume /24 network from the interface IP
+                    let ip_octets = ipv4_network.ip().octets();
+                    let network_addr = std::net::Ipv4Addr::new(ip_octets[0], ip_octets[1], ip_octets[2], 0);
+                    (network_addr, 24)
+                } 
+                else { (ipv4_network.network(), ipv4_network.prefix()) };
 
-                    let mut cidr = calculated_cidr;
-                    
-                    if subnet_type == SubnetType::VpnTunnel && ipv4_cidr.network_length() == 32 {
-                        let octets = ipv4_cidr.first().address().octets();
-                        cidr = IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(octets[0], octets[1], octets[2], 0), 24).ok()?);
-                    }
-
-                    return Some(Subnet::new(SubnetBase {
-                        cidr,
-                        description: None,
-                        name: interface.name.clone(),
-                        subnet_type,
-                        dns_resolvers: Vec::new(),
-                        gateways: Vec::new(),
-                    }))
-                }
+                return Some(Subnet::new(SubnetBase {
+                    cidr: IpCidr::V4(Ipv4Cidr::new(network_addr, prefix_len).ok()?),
+                    description: None,
+                    name: interface_name.clone(),
+                    subnet_type,
+                    dns_resolvers: Vec::new(),
+                    gateways: Vec::new(),
+                }))
             }
-        };
-        return None
+        }
     }
     
     pub fn update_node_relationships(&mut self, node: &Node)  {
         if node.has_capability(CapabilityDiscriminants::Dns) { self.base.dns_resolvers.push(node.id) }
         if node.is_gateway_for_subnet(&self) { self.base.gateways.push(node.id) }
-    }
-
-    fn calculate_cidr_from_interface(interface: &Interface) -> Result<IpCidr, Error> {
-        match &interface.addr {
-            get_if_addrs::IfAddr::V4(v4_addr) => {
-                let netmask = v4_addr.netmask;
-                let prefix_len = netmask.octets().iter()
-                    .map(|&octet| octet.count_ones())
-                    .sum::<u32>() as u8;
-
-                let network = std::net::Ipv4Addr::from(
-                    u32::from(v4_addr.ip) & u32::from(netmask)
-                );
-
-                return Ok(IpCidr::V4(Ipv4Cidr::new(network, prefix_len)?));
-            }
-            get_if_addrs::IfAddr::V6(v6_addr) => {
-                let netmask = v6_addr.netmask;
-                let prefix_len = netmask.octets().iter()
-                    .map(|&octet| octet.count_ones())
-                    .sum::<u32>() as u8;
-
-                let ip_bytes = v6_addr.ip.octets();
-                let mask_bytes = netmask.octets();
-                let mut network_bytes = [0u8; 16];
-                for i in 0..16 {
-                    network_bytes[i] = ip_bytes[i] & mask_bytes[i];
-                }
-                let network = std::net::Ipv6Addr::from(network_bytes);
-
-                return Ok(IpCidr::V6(Ipv6Cidr::new(network, prefix_len)?));
-            }
-        }
     }
 }
 
@@ -141,7 +104,7 @@ impl SubnetType {
             return SubnetType::DockerBridge;
         }
 
-        if Self::match_interface_names(&["tun", "wg", "tap", "ppp", "vpn"], interface_name){
+        if Self::match_interface_names(&["tun", "utun", "wg", "tap", "ppp", "vpn"], interface_name){
             return SubnetType::VpnTunnel;
         }
 

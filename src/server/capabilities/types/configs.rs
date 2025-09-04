@@ -402,7 +402,7 @@ impl Default for DaemonConfig {
             base: ConfigBase { 
                 name: "NetVisor Daemon".to_string(), 
                 tests: Vec::new(), 
-                port: Some(5621), 
+                port: Some(3001), 
                 process: None,
                 discovery_ports: None,
                 system_assigned: true

@@ -98,6 +98,7 @@ async fn main() -> anyhow::Result<()> {
         let node = runtime_service.create_self_as_node(daemon_id).await?;
         tracing::info!("🌐 Local IP: {}, Hostname: {:?}", node.base.target.to_string(), node.base.hostname);
 
+        runtime_service.config_store.set_node_id(node.id).await?;
         runtime_service.register_with_server(node, daemon_id).await?;
         runtime_service.config_store.set_id(daemon_id).await?;
         

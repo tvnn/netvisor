@@ -81,6 +81,9 @@ url = "2.5.7"
 url-builder = "0.1.1"
 dns-lookup = "3.0.0"
 unzip3 = "1.0.0"
+network-interface = "2.0.3"
+getifaddrs = "0.5.0"
+pnet = "0.35.0"
 
 # Linux/Unix dependencies  
 [target.'cfg(target_os = "linux")'.dependencies]

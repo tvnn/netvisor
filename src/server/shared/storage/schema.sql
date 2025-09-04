@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS subnets (
     description TEXT,
     dns_resolvers TEXT NOT NULL,
     gateways TEXT NOT NULL,
-    type TEXT NOT NULL
+    subnet_type TEXT NOT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subnets_unique_cidr_gateways ON subnets(cidr, gateways);

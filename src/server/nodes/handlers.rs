@@ -46,7 +46,7 @@ async fn update_node(
     Json(request): Json<NodeUpdateRequest>,
 ) -> ApiResult<Json<ApiResponse<UpdateNodeResponse>>> {
 
-    let service = &state.services.node_service;
+    let service: &Arc<super::service::NodeService> = &state.services.node_service;
 
     let (updated_node, capability_test_changes, subnet_relationship_changes) = service.update_node(
         &id, 
