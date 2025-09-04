@@ -41,9 +41,7 @@ impl Subnet {
     }
     
     pub fn update_node_relationships(&mut self, node: &Node)  {
-        let node_has_dns_capability = node.has_capability(CapabilityDiscriminants::Dns);
-
-        if node_has_dns_capability { self.base.dns_resolvers.push(node.id) }
+        if node.has_capability(CapabilityDiscriminants::Dns) { self.base.dns_resolvers.push(node.id) }
         if node.is_gateway_for_subnet(&self) { self.base.gateways.push(node.id) }
     }
 }

@@ -25,8 +25,7 @@ async fn create_subnet(
 ) -> ApiResult<Json<ApiResponse<Subnet>>> {
 
     let service = &state.services.subnet_service;
-    let subnet = Subnet::new(request.base);
-    let created_subnet = service.create_subnet(subnet).await?;
+    let created_subnet = service.create_subnet(request).await?;
     
     Ok(Json(ApiResponse::success(created_subnet)))
 }
