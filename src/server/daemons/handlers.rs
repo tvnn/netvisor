@@ -11,7 +11,7 @@ use crate::{server::{
     daemons::{
         types::{
             api::{
-                DaemonDiscoveryUpdate, DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse, DaemonTestResult
+                DaemonDiscoveryUpdate, DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse
             }, 
             base::{Daemon, DaemonBase}
         }
@@ -27,7 +27,6 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/:id", get(get_daemon))
         // Routes for receiving reports from daemons
         .route("/discovery_update", post(receive_discovery_update))
-        .route("/test_result", post(receive_test_result))
 }
 
 /// Register a new daemon
@@ -102,19 +101,6 @@ async fn receive_discovery_update(
 ) -> ApiResult<Json<ApiResponse<()>>> {
     
     state.discovery_manager.update_session(update).await?;
-    
-    Ok(Json(ApiResponse::success(())))
-}
-
-/// Receive test result from daemon
-async fn receive_test_result(
-    State(state): State<Arc<AppState>>,
-    Json(test_result): Json<DaemonTestResult>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = &state.services.daemon_service;
-    
-    service.process_test_result(test_result).await
-        .map_err(|e| ApiError::internal_error(&format!("Failed to process test result: {}", e)))?;
     
     Ok(Json(ApiResponse::success(())))
 }

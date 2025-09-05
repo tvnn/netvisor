@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::{daemon::discovery::types::base::DiscoveryPhase, server::{
-    daemons::types::base::Daemon, nodes::types::base::Node, tests::types::execution::TestResult
+    daemons::types::base::Daemon, nodes::types::base::Node
 }};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,28 +79,4 @@ impl DaemonDiscoveryUpdate {
             finished_at: None
         }
     }
-}
-
-
-
-
-
-/// Test execution request from server to daemon
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DaemonTestRequest {
-    pub session_id: Uuid,
-    pub node: Node,
-}
-
-/// Test execution response from daemon to server
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DaemonTestResponse {
-    pub session_id: Uuid,
-}
-
-/// Test result report from daemon to server
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DaemonTestResult {
-    pub session_id: Uuid,
-    pub result: TestResult,
 }

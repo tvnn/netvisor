@@ -1,11 +1,11 @@
 use anyhow::{Error, Result};
 use uuid::Uuid;
 use std::sync::Arc;
-use crate::server::{capabilities::types::{base::{Capability, CapabilityDiscriminants}, configs::HttpEndpointCompatible}, daemons::{
+use crate::server::{capabilities::types::{base::{CapabilityDiscriminants}}, daemons::{
         storage::DaemonStorage, 
         types::{
             api::{
-                DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse, DaemonTestRequest, DaemonTestResult
+                DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse
             }, base::Daemon
         }
     }, nodes::{service::NodeService}, shared::types::api::ApiResponse};
@@ -56,19 +56,19 @@ impl DaemonService {
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };
 
-        let daemon_capability = match daemon_node.get_capability(CapabilityDiscriminants::Daemon) {
-            Some(Capability::Daemon(config)) => config,
-            Some(_) => anyhow::bail!("Got a capability other than Daemon capability on node {}", daemon_node.id),
-            None => anyhow::bail!("Daemon capability is not enabled on node {}", daemon_node.id),
+        let response = match daemon_node.get_capability(CapabilityDiscriminants::Daemon) {
+            Some(capability) => {
+                let endpoint = capability.as_endpoint(&daemon_node.base.target)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get endpoint for daemon node {}", daemon_node.id))?;
+                
+                self.client
+                    .post(format!("{}/api/discovery/initiate", endpoint))
+                    .json(&request)
+                    .send()
+                    .await?
+            },
+            _ => anyhow::bail!("Daemon capability is not enabled on node {}", daemon_node.id)
         };
-
-        let daemon_endpoint = daemon_capability.as_endpoint(&daemon_node.base.target)?;
-        
-        let response = self.client
-            .post(format!("{}/api/discovery/initiate", daemon_endpoint))
-            .json(&request)
-            .send()
-            .await?;
 
         if !response.status().is_success() {
             anyhow::bail!("Failed to send discovery request: HTTP {}", response.status());
@@ -84,38 +84,6 @@ impl DaemonService {
         Ok(())
     }
 
-    /// Send test execution request to daemon
-    pub async fn send_test_request(&self, daemon: &Daemon, request: DaemonTestRequest) -> Result<()> {        
-        
-        let daemon_node = match self.node_service.get_node(&daemon.base.node_id).await? {
-            Some(node) => node,
-            None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
-        };
-
-        let daemon_capability = match daemon_node.get_capability(CapabilityDiscriminants::Daemon) {
-            Some(Capability::Daemon(config)) => config,
-            Some(_) => anyhow::bail!("Got a capability other than Daemon capability on node {}", daemon_node.id),
-            None => anyhow::bail!("Daemon capability is not enabled on node {}", daemon_node.id),
-        };
-
-        let daemon_endpoint = daemon_capability.as_endpoint(&daemon_node.base.target)?;
-        
-        let response = self.client
-            .post(format!("{}/api/tests/execute", daemon_endpoint))
-            .json(&request)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Failed to send test request to daemon {}: HTTP {}", 
-                         daemon.id, response.status());
-        }
-
-        tracing::info!("Test request sent to daemon {} for session {}", 
-                      daemon.id, request.session_id);
-        Ok(())
-    }
-
     pub async fn send_discovery_cancellation(&self, daemon: &Daemon, session_id: Uuid) -> Result<(), anyhow::Error> {
 
         let daemon_node = match self.node_service.get_node(&daemon.base.node_id).await? {
@@ -123,43 +91,24 @@ impl DaemonService {
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };
 
-        let daemon_capability = match daemon_node.get_capability(CapabilityDiscriminants::Daemon) {
-            Some(Capability::Daemon(config)) => config,
-            Some(_) => anyhow::bail!("Got a capability other than Daemon capability on node {}", daemon_node.id),
-            None => anyhow::bail!("Daemon capability is not enabled on node {}", daemon_node.id),
+        let response = match daemon_node.get_capability(CapabilityDiscriminants::Daemon) {
+            Some(capability) => {
+                let endpoint = capability.as_endpoint(&daemon_node.base.target)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to get endpoint for daemon node {}", daemon_node.id))?;
+                
+                self.client
+                    .post(format!("{}/api/discovery/cancel", endpoint))
+                    .json(&DaemonDiscoveryCancellationRequest { session_id })
+                    .send()
+                    .await?
+            },
+            _ => anyhow::bail!("Daemon capability is not enabled on node {}", daemon_node.id)
         };
-
-        let daemon_endpoint = daemon_capability.as_endpoint(&daemon_node.base.target)?;
-
-        let response = self.client
-            .post(format!("{:?}/api/discovery/cancel", daemon_endpoint))
-            .json(&DaemonDiscoveryCancellationRequest { session_id })
-            .send()
-            .await?;
 
         if !response.status().is_success() {
             anyhow::bail!("Failed to send discovery cancellation to daemon {}: HTTP {}", 
                          daemon.id, response.status());
         }
-
-        Ok(())
-    }
-
-    /// Process test result from daemon
-    pub async fn process_test_result(&self, test_result: DaemonTestResult) -> Result<()> {
-        tracing::info!(
-            "Test result from session {}: {} - {}", 
-            test_result.session_id,
-            test_result.result.success,
-            test_result.result.message
-        );
-
-        // TODO: Implement actual result processing
-        // This could:
-        // 1. Update node status based on result
-        // 2. Store in diagnostic execution results
-        // 3. Trigger follow-up actions based on result
-        // 4. Update monitoring dashboards
 
         Ok(())
     }

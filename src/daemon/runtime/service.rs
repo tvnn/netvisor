@@ -2,8 +2,8 @@ use anyhow::Result;
 use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
 use crate::daemon::utils::base::{create_system_utils, PlatformSystemUtils, SystemUtils};
-use crate::server::capabilities::types::base::Capability;
-use crate::server::capabilities::types::configs::{DaemonConfig};
+use crate::server::capabilities::types::base::{Capability, CapabilityDiscriminants};
+use crate::server::shared::types::metadata::TypeMetadataProvider;
 use crate::{
     daemon::{shared::storage::ConfigStore}, server::{
         daemons::types::api::{
@@ -137,11 +137,11 @@ impl DaemonRuntimeService {
 
         let mut node = Node::new(node_base);
 
-        node.add_capability(Capability::Daemon(DaemonConfig::new(&node, own_port, daemon_id)));
+        node.add_capability(Capability::Daemon{port: Some(own_port), daemon_id, name: CapabilityDiscriminants::Daemon.display_name().to_string()});
 
         // Add capabilities from detected ports using existing method
         for port in &open_ports {
-            if let Some(capability) = Capability::from_port(*port) {
+            if let Some(capability) = Capability::from_port(Some(*port)) {
                 node.add_capability(capability);
             }
         };

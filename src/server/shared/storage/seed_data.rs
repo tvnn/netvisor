@@ -19,7 +19,7 @@ pub fn create_internet_connectivity_node(dns_id: Uuid) -> Node {
         subnets: Vec::new(),
         discovery_status: None,
         capabilities: vec![
-            Capability::from_port(443).expect("HTTPS capability maps to 443")
+            Capability::from_port(Some(443)).expect("HTTPS capability maps to 443")
         ],
         dns_resolver_node_id: Some(dns_id.to_string()),
         status: NodeStatus::Unknown,
@@ -43,7 +43,7 @@ pub fn create_public_dns_node() -> Node {
         subnets: Vec::new(),
         discovery_status: None,
         capabilities: vec![
-            Capability::from_port(53).expect("DNS capability maps to 443")
+            Capability::from_port(Some(53)).expect("DNS capability maps to 443")
         ],
         dns_resolver_node_id: None,
         status: NodeStatus::Unknown,

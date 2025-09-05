@@ -30,18 +30,6 @@ CREATE TABLE IF NOT EXISTS node_groups (
     updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS diagnostic_executions (
-    id TEXT PRIMARY KEY,
-    group_id TEXT NOT NULL,
-    trigger_reason TEXT NOT NULL,
-    node_results TEXT NOT NULL,
-    status TEXT NOT NULL,
-    generated_remediation_id TEXT,
-    started_at TEXT NOT NULL,
-    updated_at TEXT,
-    completed_at TEXT
-);
-
 CREATE TABLE IF NOT EXISTS daemons (
     id TEXT PRIMARY KEY,
     node_id TEXT NOT NULL,

@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::server::{capabilities::types::base::{Capability, CapabilityDiscriminants}, nodes::types::{base::{DiscoveryStatus, Node}, status::NodeStatus, targets::NodeTarget, types::NodeType}, subnets::types::base::{NodeSubnetMembership, Subnet}, tests::types::base::TestDiscriminants};
+use crate::server::{capabilities::types::base::{Capability}, nodes::types::{base::{DiscoveryStatus, Node}, status::NodeStatus, targets::NodeTarget, types::NodeType}, subnets::types::base::{NodeSubnetMembership, Subnet}};
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
 pub struct NodeUpdateRequest {
@@ -48,14 +46,7 @@ impl NodeUpdateRequest {
 #[derive(Debug, Clone, Serialize, Eq, PartialEq)]
 pub struct UpdateNodeResponse {
     pub node: Node,
-    pub capability_test_changes: HashMap<CapabilityDiscriminants, NodeCapabilityTestChange>,
     pub subnet_changes: NodeSubnetRelationshipChange
-}
-
-#[derive(Debug, Clone, Serialize, Eq, PartialEq, Hash)]
-pub struct NodeCapabilityTestChange {
-    pub newly_compatible: Vec<TestDiscriminants>, 
-    pub incompatible: Vec<TestDiscriminants>
 }
 
 #[derive(Debug, Clone, Serialize, Eq, PartialEq, Hash)]

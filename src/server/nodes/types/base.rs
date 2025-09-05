@@ -4,7 +4,7 @@ use mac_address::{MacAddress};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
-use crate::server::{capabilities::types::{base::{Capability, CapabilityDiscriminants}, configs::NodeConfig}, nodes::types::{criticality::TestCriticality, status::NodeStatus, targets::NodeTarget}, subnets::types::base::{NodeSubnetMembership, Subnet}, tests::types::execution::TestResult};
+use crate::server::{capabilities::types::{base::{Capability, CapabilityDiscriminants}}, nodes::types::{status::NodeStatus, targets::NodeTarget}, subnets::types::base::{NodeSubnetMembership, Subnet}};
 use super::{
     types::{NodeType},
 };
@@ -80,20 +80,13 @@ impl PartialEq for Node {
 impl Node {
     pub fn new(base: NodeBase) -> Self {
         let now = chrono::Utc::now();
-        let mut node = Self {
+        Self {
             id: uuid::Uuid::new_v4(),
             created_at: now,
             updated_at: now,
             last_seen: None,
             base,
-        };
-        if !node.has_capability(CapabilityDiscriminants::Node){
-            node.add_capability(
-                Capability::Node(NodeConfig::new(&node))
-            );
         }
-
-        node
     }
 
     pub fn default_subnet(&self) -> &NodeSubnetMembership {
@@ -121,38 +114,6 @@ impl Node {
     pub fn remove_from_group(&mut self, group_id: &Uuid) {
         self.base.node_groups.retain(|id| id != group_id);
         self.updated_at = chrono::Utc::now();
-    }
-
-    /// Compute and update node status based on test results
-    pub fn update_status_from_tests(&mut self, test_results: &[TestResult]) {        
-        
-        if test_results.is_empty() {
-            self.base.status = NodeStatus::Unknown;
-        }
-        
-        let mut has_critical_failure = false;
-        let mut has_important_failure = false;
-        
-        for result in test_results {
-            if !result.success {
-                match result.criticality {
-                    Some(TestCriticality::Critical) => has_critical_failure = true,
-                    Some(TestCriticality::Important) => has_important_failure = true,
-                    Some(TestCriticality::Informational) => {}, // Doesn't affect status
-                    None => {}
-                }   
-            }
-        }
-        
-        let new_status = if has_critical_failure {
-            NodeStatus::Failed
-        } else if has_important_failure {
-            NodeStatus::Degraded
-        } else {
-            NodeStatus::Healthy
-        };
-        
-        self.base.status = new_status;
     }
 
     pub fn has_capability(&self, capability_discriminant: CapabilityDiscriminants) -> bool{

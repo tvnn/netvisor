@@ -1,22 +1,19 @@
 use anyhow::{Error, Result};
-use futures::future::join_all;
 use uuid::Uuid;
-use std::{collections::HashMap, sync::Arc};
-use strum::IntoDiscriminant;
+use std::{sync::Arc};
 use crate::server::{
-    capabilities::types::base::CapabilityDiscriminants, node_groups::storage::NodeGroupStorage, nodes::{
+    node_groups::storage::NodeGroupStorage, nodes::{
         storage::NodeStorage,
         types::{
-            api::{NodeCapabilityTestChange, NodeSubnetRelationshipChange, NodeUpdateRequest}, base::{Node, NodeBase}, tests::NodeTestResults
+            api::{NodeSubnetRelationshipChange, NodeUpdateRequest}, base::{Node, NodeBase}
         }
-    }, subnets::{storage::SubnetStorage, types::base::Subnet}, tests::{service::TestService, types::execution::{TestResult, Timer}}
+    }, subnets::{storage::SubnetStorage, types::base::Subnet}
 };
 
 pub struct NodeService {
     storage: Arc<dyn NodeStorage>,
     group_storage: Arc<dyn NodeGroupStorage>,
     subnet_storage: Arc<dyn SubnetStorage>,
-    test_service: TestService,
 }
 
 impl NodeService {
@@ -25,7 +22,6 @@ impl NodeService {
             storage,
             group_storage,
             subnet_storage,
-            test_service: TestService::new(),
         }
     }
 
@@ -57,7 +53,7 @@ impl NodeService {
         self.storage.get_all().await
     }
 
-    pub async fn update_node(&self, id: &Uuid, updates: NodeUpdateRequest) -> Result<(Node, HashMap<CapabilityDiscriminants, NodeCapabilityTestChange>, NodeSubnetRelationshipChange), Error> {
+    pub async fn update_node(&self, id: &Uuid, updates: NodeUpdateRequest) -> Result<(Node, NodeSubnetRelationshipChange), Error> {
         
         let mut node = match self.get_node(&id).await? {
             Some(n) => n,
@@ -66,8 +62,6 @@ impl NodeService {
                 return Err(Error::msg(msg));
             },
         };
-
-        let mut capability_test_changes: HashMap<CapabilityDiscriminants, NodeCapabilityTestChange> = HashMap::new();
 
         if let Some(name) = updates.name {
             node.base.name = name;
@@ -99,29 +93,19 @@ impl NodeService {
         if let Some(hostname) = updates.hostname {
             node.base.hostname = hostname;
         }  
+        if let Some(subnets) = updates.subnets {
+            node.base.subnets = subnets;
+        }
 
-        let validated_capabilities = node.base.capabilities.iter().map(|cap| {
-            let (newly_compatible, incompatible) = cap.validate_node_capability_test_compatibility(node.as_context());
-            
-            let mut capability = cap.clone();
-            capability.config_base_mut().remove_tests(incompatible.clone());
-            capability.config_base_mut().add_tests(newly_compatible.clone());
-
-            capability_test_changes.insert(capability.discriminant(), NodeCapabilityTestChange {
-                newly_compatible: newly_compatible.iter().map(|ct| ct.test.discriminant()).collect(),
-                incompatible
-            });
-
-            capability
-        }).collect();
-
-        node.base.capabilities = validated_capabilities;
+        if let Some(capabilities) = updates.capabilities {
+            node.base.capabilities = capabilities;
+        }
 
         let subnet_relationship_changes = self.update_subnet_node_relationships(&node).await;
         
         node.updated_at = chrono::Utc::now();
         self.storage.update(&node).await?;
-        Ok((node, capability_test_changes, subnet_relationship_changes))
+        Ok((node, subnet_relationship_changes))
     }
 
     pub async fn update_subnet_node_relationships(&self, node: &Node) -> NodeSubnetRelationshipChange {
@@ -176,32 +160,5 @@ impl NodeService {
         }
 
         self.storage.delete(id).await
-    }
-
-    pub async fn execute_tests(&self, node: &mut Node) -> NodeTestResults {
-        
-        let timer = Timer::now();
-
-        let test_futures: Vec<_> = node.base.capabilities.iter()
-            .flat_map(|capability| 
-                capability.config_base().tests.iter()
-                    .filter(|test| test.enabled)
-                    .map(|test| 
-                        self.test_service.execute_test(test, node, capability, &self)
-                    )
-            )
-            .collect();
-
-        let test_results: Vec<TestResult> = join_all(test_futures).await;
-
-        node.update_status_from_tests(&test_results);
-
-        NodeTestResults {
-            test_results,
-            node_id: node.id,
-            node_status: node.base.status.clone(),
-            duration_ms: timer.elapsed_ms(),
-            executed_at: timer.datetime(),
-        }
     }
 }

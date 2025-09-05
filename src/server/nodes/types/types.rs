@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumIter;
-use crate::server::{capabilities::types::{base::Capability, configs::{DnsConfig, HttpConfig, HttpsConfig, SshConfig, WireguardConfig}}, shared::types::metadata::TypeMetadataProvider};
+use crate::server::{shared::types::metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter)]
 pub enum NodeType {
@@ -23,68 +23,6 @@ pub enum NodeType {
     
     // Generic
     UnknownDevice,  // Cannot determine primary function
-}
-
-impl NodeType {
-    /// Get typical capabilities for this node type (for auto-assignment)
-    pub fn typical_capabilities(&self) -> Vec<Capability> {
-        match self {
-            NodeType::VpnServer => vec![
-                Capability::Wireguard(WireguardConfig::default()),
-                Capability::Ssh(SshConfig::default()),
-                Capability::Http(HttpConfig::default()),
-            ],
-            NodeType::Router => vec![
-                Capability::Http(HttpConfig::default()),
-                Capability::Ssh(SshConfig::default()),
-            ],
-            NodeType::Switch => vec![
-                Capability::Http(HttpConfig::default()),
-                Capability::Ssh(SshConfig::default()),
-            ],
-            NodeType::AccessPoint => vec![
-                Capability::Http(HttpConfig::default()),
-                Capability::Ssh(SshConfig::default()),
-            ],
-            NodeType::Firewall => vec![
-                Capability::Http(HttpConfig::default()),
-                Capability::Ssh(SshConfig::default()),
-            ],
-            NodeType::DnsServer => vec![
-                Capability::Dns(DnsConfig::default()),
-                Capability::Ssh(SshConfig::default()),
-            ],
-            NodeType::WebServer => vec![
-                Capability::Http(HttpConfig::default()),
-                Capability::Https(HttpsConfig::default()),
-                Capability::Ssh(SshConfig::default()),
-            ],
-            NodeType::DatabaseServer => vec![
-                Capability::Ssh(SshConfig::default()),
-            ],
-            NodeType::MediaServer => vec![
-                Capability::Http(HttpConfig::default()),
-                Capability::Ssh(SshConfig::default()),
-            ],
-            NodeType::NasDevice => vec![
-                Capability::Ssh(SshConfig::default()),
-                Capability::Http(HttpConfig::default()),
-            ],
-            NodeType::Workstation => vec![
-                Capability::Ssh(SshConfig::default()),
-            ],
-            NodeType::IotDevice => vec![
-                Capability::Http(HttpConfig::default()),
-            ],
-            NodeType::Printer => vec![
-                Capability::Http(HttpConfig::default()),
-            ],
-            NodeType::Camera => vec![
-                Capability::Http(HttpConfig::default()),
-            ],
-            NodeType::UnknownDevice => vec![],
-        }
-    }
 }
 
 impl TypeMetadataProvider for NodeType {
@@ -178,8 +116,6 @@ impl TypeMetadataProvider for NodeType {
     }
     
     fn metadata(&self) -> serde_json::Value {
-        serde_json::json!({
-            "typical_capabilities": self.typical_capabilities(),
-        })
+        serde_json::json!({})
     }
 }

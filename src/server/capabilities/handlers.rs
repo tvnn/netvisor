@@ -23,9 +23,12 @@ pub async fn get_capability_form(
     };
     
     for discriminant in capability_types {
-        let capability = Capability::default_for_discriminant(discriminant);
-        let schema = capability.generate_form(&request.node_context);
-        forms.insert(discriminant, schema);
+        let ports = discriminant.discovery_ports();
+        let port = if ports.len() > 0 {Some(ports[0])} else {None};
+        if let Some(capability) = Capability::from_port(port) {
+            let schema = capability.generate_form();
+            forms.insert(discriminant, schema);
+        }
     }
     
     Ok(Json(ApiResponse::success( forms)))

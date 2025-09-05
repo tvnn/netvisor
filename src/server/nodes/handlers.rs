@@ -48,14 +48,13 @@ async fn update_node(
 
     let service: &Arc<super::service::NodeService> = &state.services.node_service;
 
-    let (updated_node, capability_test_changes, subnet_relationship_changes) = service.update_node(
+    let (updated_node, subnet_relationship_changes) = service.update_node(
         &id, 
         request, 
         ).await?;
     
     Ok(Json(ApiResponse::success(UpdateNodeResponse {
         node: updated_node,
-        capability_test_changes,
         subnet_changes: subnet_relationship_changes
     })))
 }

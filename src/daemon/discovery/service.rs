@@ -340,7 +340,7 @@ impl DaemonDiscoveryService {
         });
 
         for port in &open_ports {
-            if let Some(capability) = Capability::from_port(*port) {
+            if let Some(capability) = Capability::from_port(Some(*port)) {
                 node.add_capability(capability);
             }
         }
@@ -367,7 +367,6 @@ impl DaemonDiscoveryService {
                     interface.ips.iter().filter_map(|ip| {
                         if subnet.base.cidr.contains(&ip.ip()) {
                             let mac_address = interface.mac.map(|mac| MacAddress::new(mac.into()));
-                            tracing::debug!("Found mac address {:?} for interface {}, {}", mac_address, interface.name, ip.ip());
                             if mac_address == Some(MacAddress::new([0,0,0,0,0,0])) {
                                 Some(NodeSubnetMembership {
                                     subnet_id: subnet.id,
@@ -383,7 +382,6 @@ impl DaemonDiscoveryService {
                             }
                             
                         } else {
-                            tracing::debug!("Could not find mac address for interface {}, {}", interface.name, ip.ip());
                             None
                         }
                     })
