@@ -1,6 +1,5 @@
-<!-- src/lib/shared/components/forms/DynamicFieldSvelteForms.svelte -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { AlertCircle } from 'lucide-svelte';
   import { field as svelteFormsField } from 'svelte-forms';
   import { required } from 'svelte-forms/validators';
@@ -17,6 +16,7 @@
   export let disabled: boolean = false;
   
   let formField: any;
+  let previousFieldId: string;
   
   // Create form field with appropriate validators
   function createFormField() {
@@ -64,11 +64,40 @@
     }
   }
   
-  // Initialize form field
-  onMount(() => {
+  // Clean up old form field and create new one
+  function initializeFormField() {
+    // Clean up old form field if it exists
+    if (formField && form && previousFieldId) {
+      delete form[previousFieldId];
+    }
+    
+    // Create new form field
     formField = createFormField();
+    
+    // Register with parent form
     if (form) {
-      form[fieldId] = formField
+      form[fieldId] = formField;
+    }
+    
+    previousFieldId = fieldId;
+  }
+  
+  // Initialize form field when component mounts or fieldId changes
+  $: if (fieldId !== previousFieldId) {
+    initializeFormField();
+  }
+  
+  // Initialize on mount
+  onMount(() => {
+    if (!formField) {
+      initializeFormField();
+    }
+  });
+  
+  // Clean up on destroy
+  onDestroy(() => {
+    if (formField && form && fieldId) {
+      delete form[fieldId];
     }
   });
   

@@ -4,12 +4,8 @@
   import { field } from 'svelte-forms';
   import { required } from 'svelte-forms/validators';
   import type { Node } from '$lib/features/nodes/types/base';
-  import type { NodeTarget } from '$lib/features/nodes/types/targets';
   import { maxLength, validNodeType } from '$lib/shared/components/forms/validators';
-  import TargetConfigForm from './TargetConfigForm.svelte';
 	import { nodeTargets, nodeTypes } from '$lib/shared/stores/registry';
-	import ListManager from '$lib/shared/components/forms/ListManager.svelte';
-	import SubnetsManager from './SubnetsManager.svelte';
   
   export let form: any;
   export let formData: Node;
@@ -67,13 +63,7 @@
 
 </script>
 
-<div class="space-y-8">
-  <!-- Basic Information -->
-    <h4 class="text-md font-medium text-white mb-4 flex items-center gap-2">
-      <FileText class="w-5 h-5" />
-      Basic Information
-    </h4>
-    
+<div class="space-y-8">    
     <div class="grid grid-cols-2 gap-6">
       <!-- Node Name -->
       <div class="space-y-2">
@@ -173,10 +163,5 @@
       <p class="text-xs text-gray-400">
         Describe what this node does or its role in your infrastructure
       </p>
-    </div>
-
-    <!-- Subnets -->
-    <div class="space-y-2">
-      <SubnetsManager bind:formData={formData} />
     </div>
 </div>

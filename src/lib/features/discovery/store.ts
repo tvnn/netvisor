@@ -2,7 +2,9 @@ import { writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { createPoller, Poller } from '../../shared/utils/polling';
 import type { DaemonDiscoveryUpdate, InitiateDiscoveryRequest } from './types/api';
-import { pushError } from '$lib/shared/stores/feedback';
+import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
+import { getNodes } from '../nodes/store';
+import { getSubnets } from '../subnets/store';
 
 // daemon_id to latest update
 export const sessions = writable<Map<string, DaemonDiscoveryUpdate>>(new Map());
@@ -14,7 +16,11 @@ export function startDiscoveryPolling() {
   discoveryPoller = createPoller({
     intervalMs: 5000, // 5 seconds
     onPoll: async () => {
-      await getActiveDiscoverySessions();
+      Promise.all([
+        await getActiveDiscoverySessions(),
+        await getNodes(),
+        await getSubnets()
+      ])
     },
     onError: (pollingError) => {
       pushError(`Failed to poll discovery status: ${pollingError}`);
@@ -43,6 +49,7 @@ export async function initiateDiscovery(data: InitiateDiscoveryRequest) {
       return map
     },
     { method: 'POST', body: JSON.stringify(data) },
+    true
   )
 
   if (result?.success && !discoveryPoller?.getIsRunning) {
@@ -56,6 +63,7 @@ export async function cancelDiscovery(id: string) {
     null,
     null,
     { method: 'POST' },
+    true
   )
 }
 
@@ -83,6 +91,11 @@ export async function getActiveDiscoverySessions() {
             currentSession.phase !== session.phase ||
             currentSession.discovered_count !== session.discovered_count ||
             currentSession.error !== session.error) {
+          
+          if (session.phase == 'Complete') pushSuccess(`"Discovery completed with ${session.discovered_count} nodes found`);
+          if (session.phase == 'Warn') pushWarning(`"Discovery cancelled with ${session.discovered_count} nodes found`);
+          if (session.error) pushError(`"Discovery error: ${session.error}`);
+          
           return newMap;
         }
       }
@@ -91,6 +104,7 @@ export async function getActiveDiscoverySessions() {
       return current;
     },
     { method: 'GET' },
+    true
   )
 
   if (result?.success && result.data && result.data?.length > 0) {

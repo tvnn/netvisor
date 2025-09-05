@@ -164,9 +164,7 @@
     />
 
   <!-- Loading state -->
-  {#if $loading}
-    <Loading />
-  {:else if $diagnosticExecutions.length === 0 && !$loading}
+  {#if $diagnosticExecutions.length === 0 && !$loading}
     <!-- Empty state -->
      <EmptyState 
         title="No diagnostic runs found" 

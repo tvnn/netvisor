@@ -10,31 +10,31 @@ import { testTypes } from '$lib/shared/stores/registry';
 export const nodes = writable<Node[]>([]);
 export const polling = writable(false);
 
-// Create node polling instance
-let nodePoller: Poller | null = null;
+// // Create node polling instance
+// let nodePoller: Poller | null = null;
 
-export function startNodePolling() {  
-  nodePoller = createPoller({
-    intervalMs: 5000, // 5 seconds
-    onPoll: async () => {
-      await getNodes();
-    },
-    onError: (pollingError) => {
-      pushError(`Failed to poll node status: ${pollingError}`);
-      stopNodePolling();
-    },
-    name: 'NodePoller'
-  });
+// export function startNodePolling() {  
+//   nodePoller = createPoller({
+//     intervalMs: 5000, // 5 seconds
+//     onPoll: async () => {
+//       await getNodes();
+//     },
+//     onError: (pollingError) => {
+//       pushError(`Failed to poll node status: ${pollingError}`);
+//       stopNodePolling();
+//     },
+//     name: 'NodePoller'
+//   });
   
-  nodePoller.start();
-}
+//   nodePoller.start();
+// }
 
-export async function stopNodePolling() {
-  if (nodePoller) {
-    nodePoller.stop();
-    nodePoller = null;
-  }
-}
+// export async function stopNodePolling() {
+//   if (nodePoller) {
+//     nodePoller.stop();
+//     nodePoller = null;
+//   }
+// }
 
 export async function getNodes() {
   return await api.request<Node[]>(
@@ -87,21 +87,29 @@ export async function updateNode(data: Node) {
         newly_compatible.length > 0 ? pushInfo(`The following tests are now compatible with node "${updatedNode.name}" and have been added: ${newly_compatible.join(", ")}`) : null
       })
 
-      pushInfo(`The following subnets now have node "${updatedNode.name}" set as a DNS resolver: ${
-        updatedNodeResponse.subnet_changes.new_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
-      }`)
+      if (updatedNodeResponse.subnet_changes.new_dns_resolver.length > 0) {
+        pushInfo(`The following subnets now have node "${updatedNode.name}" set as a DNS resolver: ${
+          updatedNodeResponse.subnet_changes.new_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
+        }`)
+      }
 
-      pushInfo(`The following subnets now have node "${updatedNode.name}" set as a gateway: ${
-        updatedNodeResponse.subnet_changes.new_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
-      }`)
+      if (updatedNodeResponse.subnet_changes.new_gateway.length > 0) {
+        pushInfo(`The following subnets now have node "${updatedNode.name}" set as a gateway: ${
+          updatedNodeResponse.subnet_changes.new_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
+        }`)
+      }
 
-      pushWarning(`The following subnets no longer have node "${updatedNode.name}" set as a gateway: ${
-        updatedNodeResponse.subnet_changes.no_longer_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
-      }`)
+      if (updatedNodeResponse.subnet_changes.no_longer_dns_resolver.length > 0) {
+        pushWarning(`The following subnets no longer have node "${updatedNode.name}" set as a gateway: ${
+          updatedNodeResponse.subnet_changes.no_longer_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
+        }`)
+      }
 
-      pushWarning(`The following subnets no longer have node "${updatedNode.name}" set as a gateway: ${
-        updatedNodeResponse.subnet_changes.no_longer_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
-      }`)
+      if (updatedNodeResponse.subnet_changes.no_longer_gateway.length > 0) {
+        pushWarning(`The following subnets no longer have node "${updatedNode.name}" set as a gateway: ${
+          updatedNodeResponse.subnet_changes.no_longer_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
+        }`)
+      }
 
       return current.map(n => n.id === data.id ? updatedNode : n)
     },
@@ -136,7 +144,6 @@ export function createEmptyNodeFormData(): Node {
     },
     node_type: 'UnknownDevice',
     capabilities: [],
-    mac_address: '',
     subnets: [],
     monitoring_interval: 10,
     last_seen: utcTimeZoneSentinel,

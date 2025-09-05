@@ -6,11 +6,11 @@ interface Subnet {
     name: string,
     dns_resolvers: string[],
     gateways: string[]
-    descripton?: string
+    description?: string
 }
 
 interface NodeSubnetMembership {
     subnet_id: string,
-    ip_address: string,
-    mac_address: string
+    ip_address?: string,
+    mac_address?: string
 }

@@ -19,35 +19,35 @@
   export let error: string = '';
 
   // Options (dropdown)
-  export let options: T[] = [];
-  export let getOptionId: (item: T) => string;
+  export let options: V[] = [];
+  export let getOptionId: (item: V) => string;
 
   // Options display
-  export let getOptionIcon: (item: T) => any | null = (item) => null;
-  export let getOptionIconColor: (item: T) => string | null = (item) => null;
-  export let getOptionTags: (item: T) => TagProps[] = (item) => [];
-  export let getOptionLabel: (item: T) => string | null = (item) => null
-  export let getOptionDescription: (item: T) => string | null = (item) => null
-  export let getOptionIsDisabled: (item: T) => boolean = (item) => false
+  export let getOptionIcon: (item: V) => any | null = (item) => null;
+  export let getOptionIconColor: (item: V) => string | null = (item) => null;
+  export let getOptionTags: (item: V) => TagProps[] = (item) => [];
+  export let getOptionLabel: (item: V) => string | null = (item) => null
+  export let getOptionDescription: (item: V) => string | null = (item) => null
+  export let getOptionIsDisabled: (item: V) => boolean = (item) => false
 
   // Items
-  export let items: V[] = [];
-  export let getItemId: (item: V) => string;
+  export let items: T[] = [];
+  export let getItemId: (item: T) => string;
 
   // Item interaction
   export let allowDuplicates: boolean = false;
-  export let allowItemEdit: ((item: any) => boolean) = (item) => true;
-  export let allowItemRemove: ((item: any) => boolean) = (item) => true;
+  export let allowItemEdit: ((item: T) => boolean) = (item) => true;
+  export let allowItemRemove: ((item: T) => boolean) = (item) => true;
 
   // Item display
-  export let getItemIcon: (item: V) => any | null = (item) => null;
-  export let getItemIconColor: (item: V) => string | null = (item) => null;
-  export let getItemTags: (item: V) => TagProps[] = (item) => [];
-  export let getItemLabel: (item: V) => string | null = (item) => null;
-  export let getItemDescription: (item: V) => string | null = (item) => null;
+  export let getItemIcon: (item: T) => any | null = (item) => null;
+  export let getItemIconColor: (item: T) => string | null = (item) => null;
+  export let getItemTags: (item: T) => TagProps[] = (item) => [];
+  export let getItemLabel: (item: T) => string | null = (item) => null;
+  export let getItemDescription: (item: T) => string | null = (item) => null;
   
   // Interaction handlers
-  export let onEdit: (item: V, index: number) => void = () => {};
+  export let onEdit: (item: T, index: number) => void = () => {};
   export let onAdd: (selectOptionId: string) => void = () => {};
   export let onMoveUp: (fromIndex: number, toIndex: number) => void = () => {};
   export let onMoveDown: (fromIndex: number, toIndex: number) => void = () => {};
@@ -101,9 +101,16 @@
     }
   }
 
+
   function handleSelectChange(value: string) {
-    selectedOptionId = value;
-  }
+      console.log('handleSelectChange called with:', value);
+      selectedOptionId = value;
+      // Automatically add the item when something is selected in direct add mode
+      if (value && allowDirectAdd) {
+        console.log('Auto-calling addItem()');
+        addItem();
+      }
+    }
 
 </script>
 

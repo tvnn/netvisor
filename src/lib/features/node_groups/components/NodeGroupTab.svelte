@@ -86,9 +86,7 @@
     />
   {/if}
 
-  {#if $loading}
-    <Loading/>
-  {:else if $nodeGroups.length === 0}
+  {#if $nodeGroups.length === 0 && !$loading}
     <!-- Empty state -->
     <EmptyState 
       title="No diagnostic groups configured yet"

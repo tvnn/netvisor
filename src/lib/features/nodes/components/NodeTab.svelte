@@ -119,9 +119,7 @@
   <SearchField searchTerm={searchTerm} placeholder="Search nodes by name, IP, or domain..." /> -->
 
   <!-- Loading state -->
-  {#if $loading}
-    <Loading/>
-  {:else if filteredNodes.length === 0}
+  {#if filteredNodes.length === 0 && !$loading}
     <!-- Empty state -->
     <div class="text-center py-12">
       {#if $nodes.length === 0}

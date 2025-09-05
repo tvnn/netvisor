@@ -6,14 +6,17 @@
 	import NodeGroupTab from '$lib/features/node_groups/components/NodeGroupTab.svelte';
 	import { getNodeGroups } from '$lib/features/node_groups/store';
 	import NodeTab from '$lib/features/nodes/components/NodeTab.svelte';
-	import { getNodes, startNodePolling, stopNodePolling } from '$lib/features/nodes/store';
+	import { getNodes } from '$lib/features/nodes/store';
 	import { getSubnets } from '$lib/features/subnets/store';
+	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import Toast from '$lib/shared/components/feedback/Toast.svelte';
 	import Sidebar from '$lib/shared/components/layout/Sidebar.svelte';
+	import { loading } from '$lib/shared/stores/feedback';
 	import { getRegistry } from '$lib/shared/stores/registry';
 	import { onDestroy, onMount } from 'svelte';
   
   let activeTab = 'nodes';
+  let appInitialized = false;
   
   function handleTabChange(tab: string) {
     activeTab = tab;
@@ -21,22 +24,22 @@
 
   onMount(async () => {
     // Load initial data
-    await getRegistry();
-    await getNodes();
-    await getDaemons();
-    await getNodeGroups();
-    await getDiagnosticExecutions();
-    await getSubnets();
-    
-    // Start continuous node polling for real-time updates
-    startNodePolling();
-    
-    // Check for any active discovery sessions and resume if found
-    await getActiveDiscoverySessions();
+    await Promise.all([
+      getRegistry(),
+      getNodes(),
+      getDaemons(),
+      getNodeGroups(),
+      getDiagnosticExecutions(),
+      getSubnets(),
+      getActiveDiscoverySessions()
+    ]);
+
+    setTimeout(() => {
+      appInitialized = true;
+    }, 50);
   });
 
   onDestroy(() => {
-    stopNodePolling();
     stopDiscoveryPolling();
   });
 </script>
@@ -48,7 +51,9 @@
   <!-- Main Content -->
   <main class="flex-1 overflow-auto">
     <div class="p-8">
-      {#if activeTab === 'nodes'}
+      {#if appInitialized && $loading}
+        <Loading />
+      {:else if activeTab === 'nodes'}
         <NodeTab />
       {:else if activeTab === 'groups'}
         <NodeGroupTab />

@@ -14,5 +14,6 @@ export async function getCapabilityForms(data: CapabilityFormRequest) {
       method: 'POST',
       body: JSON.stringify(data)
     },
+    true
   )
 }

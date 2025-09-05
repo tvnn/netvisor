@@ -1,11 +1,12 @@
 <!-- src/lib/features/nodes/components/NodeEditModal/NodeEditor.svelte -->
 <script lang="ts">
-  import { Server, Settings, Shield, Info } from 'lucide-svelte';
+  import { Server, Settings, Shield, Info, Network } from 'lucide-svelte';
   import type { Node } from "$lib/features/nodes/types/base";
   import { createEmptyNodeFormData } from "$lib/features/nodes/store";
   import DetailsForm from './Details/DetailsForm.svelte';
   import CapabilitiesForm from './Capabilities/CapabilitiesForm.svelte';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
+	import SubnetsForm from './Subnets/SubnetsForm.svelte';
   
   export let node: Node | null = null;
   export let isOpen = false;
@@ -31,6 +32,12 @@
       label: 'Capabilities',
       icon: Shield,
       description: 'Services and monitoring configuration'
+    },
+    { 
+      id: 'subnets', 
+      label: 'Subnets',
+      icon: Network,
+      description: 'Subnet membership'
     }
   ];
 
@@ -214,12 +221,29 @@
             </div>
           {/if}
           
-          <div class="flex-1 overflow-hidden min-h-0">
+          <div class="flex-1 relative">
             <CapabilitiesForm 
               {form}
               bind:selectedCapabilities={formData.capabilities}
               {nodeContext}
             />
+          </div>
+        </div>
+      {:else if activeTab == 'subnets'}
+      <div class="h-full overflow-hidden">
+          {#if !isEditing}
+            <div class="p-6 pb-4 border-b border-gray-700 flex-shrink-0">
+              <h3 class="text-lg font-medium text-white mb-2">Subnets</h3>
+              <p class="text-sm text-gray-400">
+                Select the subnets that this node is a member of.
+              </p>
+            </div>
+          {/if}
+          
+          <div class="flex-1 relative">
+            <SubnetsForm 
+              {form}
+              bind:formData={formData}/>
           </div>
         </div>
       {/if}
