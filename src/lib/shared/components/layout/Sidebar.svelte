@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Server, Stethoscope, Workflow } from 'lucide-svelte';
+  import { Server, Workflow } from 'lucide-svelte';
   
   export let activeTab: string = 'nodes';
   export let onTabChange: (tab: string) => void;
@@ -7,7 +7,6 @@
   const navItems = [
     { id: 'nodes', label: 'Nodes', icon: Server },
     { id: 'groups', label: 'Groups', icon: Workflow },
-    { id: 'diagnostics', label: 'Diagnostics', icon: Stethoscope },
   ];
 </script>
 

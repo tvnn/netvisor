@@ -1,4 +1,4 @@
-import type { TestSection } from "./forms";
+// import type { TestSection } from "./forms";
 
 export interface CapabilityTest {
   test: {
@@ -19,11 +19,10 @@ export interface CapabilityConfig extends CapabilityConfigBase {
 
 export interface CapabilityConfigBase {
   name: string;  // "API Server", "Node-Level Tests", "Daemon Service"
-  tests: CapabilityTest[];
+  // tests: CapabilityTest[];
   port?: number;
   process?: string;
   discovery_ports?: number[];
-  system_assigned?: boolean;
 }
 
 // Helper functions to work with the generic structure
@@ -56,14 +55,14 @@ export function updateCapabilityConfig(capability: Capability, updates: Partial<
   };
 }
 
-export function getTestConfigFromSchema(section: TestSection): Record<string, any> {
-  const config: Record<string, any> = {};
+// export function getTestConfigFromSchema(section: TestSection): Record<string, any> {
+//   const config: Record<string, any> = {};
   
-  section.test_fields.forEach(field => {
-    if (field.default_value !== undefined && field.id !== 'criticality') {
-      config[field.id] = field.default_value;
-    }
-  });
+//   section.test_fields.forEach(field => {
+//     if (field.default_value !== undefined && field.id !== 'criticality') {
+//       config[field.id] = field.default_value;
+//     }
+//   });
   
-  return config;
-}
+//   return config;
+// }

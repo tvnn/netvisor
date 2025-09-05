@@ -1,7 +1,7 @@
 <script lang="ts">
   import { ChevronDown, ChevronRight, ToggleLeft, ToggleRight, AlertCircle } from 'lucide-svelte';
   import { field } from 'svelte-forms';
-  import { getCapabilityConfig, getCapabilityType, getTestConfigFromSchema, updateCapabilityConfig, type Capability } from '$lib/features/capabilities/types/base';
+  import { getCapabilityConfig, getCapabilityType, updateCapabilityConfig, type Capability } from '$lib/features/capabilities/types/base';
   import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
   import { createStyle } from '$lib/shared/utils/styling';
   import { criticalityLevels } from '$lib/shared/stores/registry';
@@ -78,41 +78,41 @@
     if (!capability || !schema) return;
     
     const capabilityConfig = getCapabilityConfig(capability);
-    const updatedTests = [...capabilityConfig.tests];
-    const section = schema.test_sections[sectionIndex];
+    // const updatedTests = [...capabilityConfig.tests];
+    // const section = schema.test_sections[sectionIndex];
     
-    // Ensure test exists with proper structure
-    if (!updatedTests[sectionIndex]) {
-      updatedTests[sectionIndex] = {
-        test: {
-          type: section.test_type,
-          config: getTestConfigFromSchema(section)
-        },
-        criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
-        enabled: section.enabled_by_default
-      };
-    }
+    // // Ensure test exists with proper structure
+    // if (!updatedTests[sectionIndex]) {
+    //   updatedTests[sectionIndex] = {
+    //     test: {
+    //       type: section.test_type,
+    //       config: getTestConfigFromSchema(section)
+    //     },
+    //     criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
+    //     enabled: section.enabled_by_default
+    //   };
+    // }
     
     // Apply updates
-    if (updates.enabled !== undefined) {
-      updatedTests[sectionIndex].enabled = updates.enabled;
-    }
+    // if (updates.enabled !== undefined) {
+    //   updatedTests[sectionIndex].enabled = updates.enabled;
+    // }
     
-    if (updates.criticality !== undefined) {
-      updatedTests[sectionIndex].criticality = updates.criticality;
-    }
+    // if (updates.criticality !== undefined) {
+    //   updatedTests[sectionIndex].criticality = updates.criticality;
+    // }
     
-    if (updates.config) {
-      updatedTests[sectionIndex].test.config = {
-        ...updatedTests[sectionIndex].test.config,
-        ...updates.config
-      };
-    }
+    // if (updates.config) {
+    //   updatedTests[sectionIndex].test.config = {
+    //     ...updatedTests[sectionIndex].test.config,
+    //     ...updates.config
+    //   };
+    // }
     
     // Update the capability
     const updatedCapability = updateCapabilityConfig(capability, {
       ...capabilityConfig,
-      tests: updatedTests
+      // tests: updatedTests
     });
     
     onChange(updatedCapability);
@@ -212,7 +212,7 @@
       {/if}
 
       <!-- Tests -->
-      {#if schema.test_sections.length > 0}
+      <!-- {#if schema.test_sections.length > 0}
         <div>
           <h4 class="text-sm font-medium text-gray-300 mb-4">Tests</h4>
           <div class="space-y-4">
@@ -222,11 +222,11 @@
               {@const testStyle = createStyle(section.test_info.color, section.test_info.icon)}
               
               <div class="border border-gray-600 rounded-lg overflow-hidden">
-                <!-- Test Header -->
+
                 <div class="p-4 bg-gray-700/50">
                   <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                      <!-- Test Enable/Disable Toggle -->
+
                       <button
                         type="button"
                         on:click={() => toggleTest(sectionIndex)}
@@ -240,7 +240,7 @@
                         {/if}
                       </button>
 
-                      <!-- Test Info -->
+
                       <div class="flex items-center gap-3">
                         <svelte:component this={testStyle.IconComponent} class="w-8 h-8 {testStyle.colors.icon}" />
                         <div class="flex-col">
@@ -256,7 +256,7 @@
                       </div>
                     </div>
 
-                    <!-- Expand/Collapse Button -->
+
                     <button
                       type="button"
                       on:click={() => toggleSection(section.test_type)}
@@ -276,7 +276,7 @@
                   {/if}
                 </div>
 
-                <!-- Test Configuration -->
+
                 {#if isExpanded}
                   <div class="p-4 border-t border-gray-600 bg-gray-800/30">
                     <div class="space-y-4">
@@ -297,7 +297,7 @@
             {/each}
           </div>
         </div>
-      {/if}
+      {/if} -->
 
       <!-- Warnings and Errors -->
       {#if schema.warnings.length > 0}

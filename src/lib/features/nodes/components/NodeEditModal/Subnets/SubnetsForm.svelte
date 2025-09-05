@@ -143,12 +143,7 @@
   
   {form}
   membership={selectedItem}
-  subnet={selectedItem ? (() => {
-    console.log('selectedItem:', selectedItem);
-    const subnet = findSubnetById(selectedItem.subnet_id);
-    console.log('found subnet:', subnet);
-    return subnet;
-  })() : null}
+  subnet={selectedItem ? (() => findSubnetById(selectedItem.subnet_id))() : null}
   onChange={(updatedMembership) => onChange(updatedMembership)}
 />
 </ListConfigEditor>

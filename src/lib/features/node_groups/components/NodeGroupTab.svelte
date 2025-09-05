@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { executeDiagnostics } from '$lib/features/diagnostics/store';
 	import { nodes } from '$lib/features/nodes/store';
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
 	import { createNodeGroup, deleteNodeGroup, nodeGroups, updateNodeGroup } from '../store';
@@ -25,13 +24,13 @@
     showGroupEditor = true;
   }
 
-  function handleExecuteDiagnostics(group: NodeGroup) {
-    let data = {
-      group_id: group.id,
-      trigger_reason: "Manual"
-    }
-    executeDiagnostics(group.id, data);
-  }
+  // function handleExecuteDiagnostics(group: NodeGroup) {
+  //   let data = {
+  //     group_id: group.id,
+  //     trigger_reason: "Manual"
+  //   }
+  //   executeDiagnostics(group.id, data);
+  // }
   
   function handleDeleteGroup(group: NodeGroup) {
     if (confirm(`Are you sure you want to delete "${group.name}"?`)) {
@@ -102,7 +101,6 @@
         nodes={getNodes(group.node_sequence)}
         onEdit={() => handleEditGroup(group)}
         onDelete={() => handleDeleteGroup(group)}
-        onExecute={() => handleExecuteDiagnostics(group)}
       />
     {/each}
     </div>

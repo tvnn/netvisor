@@ -67,15 +67,15 @@
         bgHover: 'hover:bg-red-900/20',
         onClick: () => onDelete(group)
       },
-      {
-        label: 'Execute Diagnostic',
-        icon: Play,
-        color: 'text-gray-400',
-        hoverColor: 'text-green-400',
-        bgHover: 'hover:bg-green-900/20',
-        onClick: () => onExecute(group),
-        disabled: group.node_sequence.length === 0
-      },
+      // {
+      //   label: 'Execute Diagnostic',
+      //   icon: Play,
+      //   color: 'text-gray-400',
+      //   hoverColor: 'text-green-400',
+      //   bgHover: 'hover:bg-green-900/20',
+      //   onClick: () => onExecute(group),
+      //   disabled: group.node_sequence.length === 0
+      // },
       {
         label: 'Edit Group',
         icon: Edit,

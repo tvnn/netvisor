@@ -3,7 +3,7 @@
   import type { Capability, CapabilityConfig } from '$lib/features/capabilities/types/base';
   import type { NodeContext } from '$lib/features/nodes/types/base';
   import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
-  import { getCapabilityConfig, getCapabilityType, createCapability, getTestConfigFromSchema } from '$lib/features/capabilities/types/base';
+  import { getCapabilityConfig, getCapabilityType, createCapability } from '$lib/features/capabilities/types/base';
   import CapabilitiesConfigPanel from './CapabilitiesConfigPanel.svelte';
   import { capabilities } from '$lib/shared/stores/registry';
   import { createStyle } from '$lib/shared/utils/styling';
@@ -39,14 +39,14 @@
     const schema = availableSchemas[capabilityType]
     const baseConfig = {
       name: capabilities.getDisplay(capabilityType),
-      tests: schema?.test_sections?.map(section => ({
-        test: {
-          type: section.test_type,
-          config: getTestConfigFromSchema(section)
-        },
-        criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
-        enabled: section.enabled_by_default ?? false
-      })) || [],
+      // tests: schema?.test_sections?.map(section => ({
+      //   test: {
+      //     type: section.test_type,
+      //     config: getTestConfigFromSchema(section)
+      //   },
+      //   criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
+      //   enabled: section.enabled_by_default ?? false
+      // })) || [],
       system_assigned: schema?.system_assigned ?? false,
       port: undefined,
       process: undefined,

@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { getDaemons } from '$lib/features/daemons/store';
-	import DiagnosticsTab from '$lib/features/diagnostics/components/DiagnosticsTab.svelte';
-	import { getDiagnosticExecutions } from '$lib/features/diagnostics/store';
 	import { getActiveDiscoverySessions, stopDiscoveryPolling } from '$lib/features/discovery/store';
 	import NodeGroupTab from '$lib/features/node_groups/components/NodeGroupTab.svelte';
 	import { getNodeGroups } from '$lib/features/node_groups/store';
@@ -29,7 +27,6 @@
       getNodes(),
       getDaemons(),
       getNodeGroups(),
-      getDiagnosticExecutions(),
       getSubnets(),
       getActiveDiscoverySessions()
     ]);
@@ -57,8 +54,6 @@
         <NodeTab />
       {:else if activeTab === 'groups'}
         <NodeGroupTab />
-      {:else if activeTab === 'diagnostics'}
-        <DiagnosticsTab />
       {/if}
     </div>
 
