@@ -11,7 +11,7 @@ use crate::{
     daemon::{shared::storage::ConfigStore}, server::{
         daemons::types::api::{
             DaemonRegistrationRequest, DaemonRegistrationResponse, 
-        }, nodes::types::{base::{Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType}, shared::types::api::ApiResponse
+        }, nodes::types::{base::{Node, NodeBase}, targets::{IpAddressTargetConfig, NodeTarget}}, shared::types::api::ApiResponse
     }
 };
 
@@ -69,17 +69,13 @@ impl DaemonRuntimeService {
         let node_base = NodeBase {
             name: format!("NetVisor-Daemon-{}", local_ip),
             hostname,
-            node_type: NodeType::UnknownDevice,
             description: Some("NetVisor daemon for network diagnostics".to_string()),
             target: NodeTarget::IpAddress(IpAddressTargetConfig {
                 ip: local_ip,
             }),
-            services: vec![], // Will be populated below
-            dns_resolver_node_id: None,
+            services: vec![],
             discovery_status: None,
             subnets: Vec::new(),
-            status: NodeStatus::Unknown,
-            monitoring_interval: 10,
             node_groups: vec![],
         };
 

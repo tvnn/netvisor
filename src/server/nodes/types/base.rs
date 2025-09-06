@@ -4,16 +4,12 @@ use mac_address::{MacAddress};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
-use crate::server::{nodes::types::{status::NodeStatus, targets::NodeTarget}, services::types::base::{Service, ServiceDiscriminants}, subnets::types::base::{NodeSubnetMembership, Subnet}};
-use super::{
-    types::{NodeType},
-};
+use crate::server::{nodes::types::{targets::NodeTarget}, services::types::base::{Service, ServiceDiscriminants}, subnets::types::base::{NodeSubnetMembership, Subnet}};
 use uuid::{Uuid};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct NodeBase {
     pub name: String,
-    pub node_type: NodeType,
     pub hostname: Option<String>,
     pub description: Option<String>,
     pub target: NodeTarget,
@@ -22,11 +18,6 @@ pub struct NodeBase {
     // Discovery & Service Data
     pub discovery_status: Option<DiscoveryStatus>,
     pub services: Vec<Service>,
-    pub dns_resolver_node_id: Option<String>,
-    
-    // Monitoring
-    pub status: NodeStatus,
-    pub monitoring_interval: u16,
     pub node_groups: Vec<Uuid>,
 }
 

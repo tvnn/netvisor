@@ -44,7 +44,7 @@ impl DatabaseMigrations {
         
         // Use actual compiled structs
         let dns_node = create_public_dns_node();
-        let connectivity_node = create_internet_connectivity_node(dns_node.id);
+        let connectivity_node = create_internet_connectivity_node();
         let node_storage = SqliteNodeStorage::new(pool.clone());
         
         node_storage.create(&dns_node).await?;

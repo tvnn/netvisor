@@ -66,26 +66,14 @@ impl NodeService {
         if let Some(name) = updates.name {
             node.base.name = name;
         }
-        if let Some(node_type) = updates.node_type {
-            node.base.node_type = node_type;
-        }
         if let Some(description) = updates.description {
             node.base.description = description;
         }
         if let Some(target) = updates.target {
             node.base.target = target;
         }
-        if let Some(dns_resolver_node_id) = updates.dns_resolver_node_id {
-            node.base.dns_resolver_node_id = dns_resolver_node_id;
-        }
         if let Some(discovery_status) = updates.discovery_status {
             node.base.discovery_status = discovery_status;
-        }
-        if let Some(status) = updates.status {
-            node.base.status = status;
-        }
-        if let Some(monitoring_interval) = updates.monitoring_interval {
-            node.base.monitoring_interval = monitoring_interval;
         }
         if let Some(node_groups) = updates.node_groups {
             node.base.node_groups = node_groups;

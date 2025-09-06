@@ -13,7 +13,7 @@ use crate::{
     daemon::{discovery::{manager::DaemonDiscoverySessionManager, types::base::DiscoveryPhase}, shared::storage::ConfigStore, utils::base::{create_system_utils, PlatformSystemUtils, SystemUtils}},
     server::{
         daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, nodes::types::{
-            api::NodeUpdateRequest, base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::{IpAddressTargetConfig, NodeTarget}, types::NodeType
+            api::NodeUpdateRequest, base::{DiscoveryStatus, Node, NodeBase}, targets::{IpAddressTargetConfig, NodeTarget},
         }, services::types::{base::{Service, ServiceDiscriminants}, ports::Port}, shared::types::api::ApiResponse, subnets::types::base::{NodeSubnetMembership, Subnet, SubnetType}
     },
 };
@@ -321,7 +321,6 @@ impl DaemonDiscoveryService {
         let mut node = Node::new(NodeBase {
             name: hostname.clone().unwrap_or_else(|| format!("Device-{}", host_ip)),
             hostname,
-            status: NodeStatus::Unknown,
             target: NodeTarget::IpAddress(IpAddressTargetConfig {
                 ip: host_ip,
             }),
@@ -336,9 +335,6 @@ impl DaemonDiscoveryService {
                 mac_address
             }),
             services: Vec::new(),
-            dns_resolver_node_id: None,
-            node_type: NodeType::UnknownDevice,
-            monitoring_interval: 5,
             node_groups: Vec::new(),
         });
 
@@ -401,15 +397,11 @@ impl DaemonDiscoveryService {
         let daemon_subnet_update = NodeUpdateRequest {
             subnets: Some(subnet_node_relationships),
             name: None,
-            node_type: None,
             hostname: None,
             description: None,
             target: None,
             discovery_status: None,
             services: None,
-            dns_resolver_node_id: None,
-            status: None,
-            monitoring_interval: None,
             node_groups: None,
         };
 

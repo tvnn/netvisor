@@ -1,12 +1,11 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::server::{services::types::base::{Service}, nodes::types::{base::{DiscoveryStatus, Node}, status::NodeStatus, targets::NodeTarget, types::NodeType}, subnets::types::base::{NodeSubnetMembership, Subnet}};
+use crate::server::{services::types::base::{Service}, nodes::types::{base::{DiscoveryStatus, Node}, targets::NodeTarget}, subnets::types::base::{NodeSubnetMembership, Subnet}};
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
 pub struct NodeUpdateRequest {
     pub name: Option<String>,
-    pub node_type: Option<NodeType>,
     pub hostname: Option<Option<String>>,
     pub description: Option<Option<String>>,
 
@@ -16,11 +15,6 @@ pub struct NodeUpdateRequest {
     // Discovery & Service Data
     pub discovery_status: Option<Option<DiscoveryStatus>>,
     pub services: Option<Vec<Service>>,
-    pub dns_resolver_node_id: Option<Option<String>>,
-    
-    // Monitoring
-    pub status: Option<NodeStatus>,
-    pub monitoring_interval: Option<u16>,
     pub node_groups: Option<Vec<Uuid>>,
 }
 
@@ -28,16 +22,12 @@ impl NodeUpdateRequest {
     pub fn from_node_group_change(node_groups: Vec<Uuid>) -> Self {
         Self {
             name: None,
-            node_type: None,
             hostname: None,
             description: None,
             target: None,
             subnets: None,
             discovery_status: None,
             services: None,
-            dns_resolver_node_id: None,
-            status: None,
-            monitoring_interval: None,
             node_groups: Some(node_groups),
         }
     }
