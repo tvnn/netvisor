@@ -1,10 +1,9 @@
-<!-- src/lib/features/nodes/components/NodeEditModal/NodeEditor.svelte -->
 <script lang="ts">
   import { Server, Settings, Shield, Info, Network } from 'lucide-svelte';
   import type { Node } from "$lib/features/nodes/types/base";
   import { createEmptyNodeFormData } from "$lib/features/nodes/store";
   import DetailsForm from './Details/DetailsForm.svelte';
-  import CapabilitiesForm from './Capabilities/CapabilitiesForm.svelte';
+  import CapabilitiesForm from './Services/ServicesForm.svelte';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import SubnetsForm from './Subnets/SubnetsForm.svelte';
   

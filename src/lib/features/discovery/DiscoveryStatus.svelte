@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { get } from 'svelte/store';
   import { daemons } from '../daemons/store';
   import { nodes } from '../nodes/store';
   import { 
@@ -12,9 +10,10 @@
 	import { nodeStatuses } from '$lib/shared/stores/registry';
 	import DaemonDiscoveryStatus from './DaemonDiscoveryStatus.svelte';
 	import { type TagProps } from '$lib/shared/components/data/types';
+	import { get } from 'svelte/store';
 
   let selectedDaemonId: string | null = null;  
-  $: discoveryData = getDaemonDiscoveryState(selectedDaemonId);
+  $: discoveryData = getDaemonDiscoveryState(selectedDaemonId, get(sessions));
   $: selectedDaemon = $daemons.find(daemon => daemon.id == selectedDaemonId);
   $: selectedNode = $nodes.find(node => node.id == selectedDaemon?.node_id);
   $: nodeStyle = nodeStatuses.getColor(selectedNode?.status || null);
@@ -70,8 +69,6 @@
       {#if selectedDaemon}
         <DaemonDiscoveryStatus
           daemon={selectedDaemon}
-          showName={false}
-          node={selectedNode}
           discoveryData={discoveryData}
         />
       {/if}

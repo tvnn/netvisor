@@ -4,7 +4,7 @@
   import type { NodeContext } from '$lib/features/nodes/types/base';
   import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
   import { getCapabilityConfig, getCapabilityType, createCapability } from '$lib/features/capabilities/types/base';
-  import CapabilitiesConfigPanel from './CapabilitiesConfigPanel.svelte';
+  import CapabilitiesConfigPanel from './ServicesConfigPanel.svelte';
   import { capabilities } from '$lib/shared/stores/registry';
   import { createStyle } from '$lib/shared/utils/styling';
   import { getCapabilityForms } from '$lib/features/capabilities/store';

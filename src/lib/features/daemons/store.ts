@@ -1,7 +1,6 @@
 import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { Daemon } from "./types/base";
-import { sessions } from '../discovery/store';
 import type { DaemonDiscoveryUpdate } from '../discovery/types/api';
 import { nodes } from '../nodes/store';
 import type { Node } from '../nodes/types/base';
@@ -21,7 +20,6 @@ export function getDaemonDiscoveryState(daemon_id: string | null, sessionsMap: M
   if (!daemon_id) return null;
   return sessionsMap.get(daemon_id) || null;
 }
-// Helper function to get node name for a daemon
 
 export function getDaemonNode(daemon_id: string): Node | null {
   const daemon = get(daemons).find(d => d.id === daemon_id);
