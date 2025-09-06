@@ -97,8 +97,8 @@ impl NodeService {
             node.base.subnets = subnets;
         }
 
-        if let Some(capabilities) = updates.capabilities {
-            node.base.capabilities = capabilities;
+        if let Some(services) = updates.services {
+            node.base.services = services;
         }
 
         let subnet_relationship_changes = self.update_subnet_node_relationships(&node).await;

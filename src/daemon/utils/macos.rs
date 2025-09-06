@@ -32,6 +32,7 @@ impl MacOsSystemUtils {
 
 #[cfg(target_os = "macos")]
 use crate::daemon::utils::base::SystemUtils;
+use crate::server::services::types::ports::Port;
 
 #[async_trait]
 impl SystemUtils for MacOsSystemUtils {
@@ -93,11 +94,11 @@ impl SystemUtils for MacOsSystemUtils {
         Ok(None)
     }
 
-    async fn scan_own_tcp_ports(&self) -> Result<Vec<u16>, Error> {
+    async fn scan_own_tcp_ports(&self) -> Result<Vec<Port>, Error> {
         self.scan_tcp_ports(self.get_own_ip_address()?).await
     }
 
-    async fn scan_own_udp_ports(&self) -> Result<Vec<u16>, Error> {
+    async fn scan_own_udp_ports(&self) -> Result<Vec<Port>, Error> {
         use tokio::process::Command;
         
         let output = Command::new("lsof")
@@ -130,7 +131,7 @@ impl SystemUtils for MacOsSystemUtils {
         ports.sort_unstable();
         ports.dedup();
         
-        Ok(ports)
+        Ok(ports.into_iter().map(|p| Port::new_udp(p)).collect())
     }
 }
 

@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::{capabilities::types::base::Capability, nodes::types::{base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::NodeTarget, types::NodeType}, subnets::types::base::NodeSubnetMembership};
+use crate::server::{nodes::types::{base::{DiscoveryStatus, Node, NodeBase}, status::NodeStatus, targets::NodeTarget, types::NodeType}, services::types::base::Service, subnets::types::base::NodeSubnetMembership};
 
 #[async_trait]
 pub trait NodeStorage: Send + Sync {
@@ -26,7 +26,7 @@ impl SqliteNodeStorage {
 #[async_trait]
 impl NodeStorage for SqliteNodeStorage {
     async fn create(&self, node: &Node) -> Result<()> {
-        let capabilities_str = serde_json::to_string(&node.base.capabilities)?;
+        let services_str = serde_json::to_string(&node.base.services)?;
         let node_groups_str = serde_json::to_string(&node.base.node_groups)?;
         let subnets_str = serde_json::to_string(&node.base.subnets)?;
         let node_type_str = serde_json::to_string(&node.base.node_type)?;
@@ -42,7 +42,7 @@ impl NodeStorage for SqliteNodeStorage {
             r#"
             INSERT INTO nodes (
                 id, name, hostname, dns_resolver_id, target, description,
-                node_type, capabilities, monitoring_interval,
+                node_type, services, monitoring_interval,
                 node_groups, status, discovery_status, subnets,
                 last_seen, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -55,7 +55,7 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(target_str)
         .bind(&node.base.description)
         .bind(node_type_str)
-        .bind(capabilities_str)
+        .bind(services_str)
         .bind(node.base.monitoring_interval)
         .bind(node_groups_str)
         .bind(status_str)
@@ -96,7 +96,7 @@ impl NodeStorage for SqliteNodeStorage {
     }
 
     async fn update(&self, node: &Node) -> Result<()> {
-        let capabilities_str = serde_json::to_string(&node.base.capabilities)?;
+        let services_str = serde_json::to_string(&node.base.services)?;
         let node_groups_str = serde_json::to_string(&node.base.node_groups)?;
         let subnets_str = serde_json::to_string(&node.base.subnets)?;
         let node_type_str = serde_json::to_string(&node.base.node_type)?;
@@ -109,7 +109,7 @@ impl NodeStorage for SqliteNodeStorage {
             r#"
             UPDATE nodes SET 
                 name = ?, node_type = ?, hostname = ?, dns_resolver_id = ?, description = ?,
-                target = ?, subnets = ?, discovery_status = ?, capabilities = ?, 
+                target = ?, subnets = ?, discovery_status = ?, services = ?, 
                 status = ?, monitoring_interval = ?, node_groups = ?,
                 last_seen = ?, updated_at = ?
             WHERE id = ?
@@ -123,7 +123,7 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(target_str)
         .bind(subnets_str)
         .bind(discovery_status_str)
-        .bind(capabilities_str)
+        .bind(services_str)
         .bind(status_str)
         .bind(node.base.monitoring_interval)
         .bind(node_groups_str)
@@ -148,7 +148,7 @@ impl NodeStorage for SqliteNodeStorage {
 
 fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
     // Parse JSON fields safely
-    let capabilities: Vec<Capability> = serde_json::from_str(&row.get::<String, _>("capabilities"))?;
+    let services: Vec<Service> = serde_json::from_str(&row.get::<String, _>("services"))?;
     let node_groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("node_groups"))?;
     let subnets: Vec<NodeSubnetMembership> = serde_json::from_str(&row.get::<String, _>("subnets"))?;
     let status: NodeStatus = serde_json::from_str(&row.get::<String, _>("status"))?;
@@ -188,7 +188,7 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
             dns_resolver_node_id: row.get("dns_resolver_id"),
             description: row.get("description"), // Plain string  
             node_type,
-            capabilities,
+            services,
             discovery_status,
             monitoring_interval: row.get("monitoring_interval"),
             node_groups,

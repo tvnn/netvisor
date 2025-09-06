@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::server::{capabilities::types::base::{Capability}, nodes::types::{base::{DiscoveryStatus, Node}, status::NodeStatus, targets::NodeTarget, types::NodeType}, subnets::types::base::{NodeSubnetMembership, Subnet}};
+use crate::server::{services::types::base::{Service}, nodes::types::{base::{DiscoveryStatus, Node}, status::NodeStatus, targets::NodeTarget, types::NodeType}, subnets::types::base::{NodeSubnetMembership, Subnet}};
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
 pub struct NodeUpdateRequest {
@@ -13,9 +13,9 @@ pub struct NodeUpdateRequest {
     pub target: Option<NodeTarget>,
     pub subnets: Option<Vec<NodeSubnetMembership>>,
     
-    // Discovery & Capability Data
+    // Discovery & Service Data
     pub discovery_status: Option<Option<DiscoveryStatus>>,
-    pub capabilities: Option<Vec<Capability>>,
+    pub services: Option<Vec<Service>>,
     pub dns_resolver_node_id: Option<Option<String>>,
     
     // Monitoring
@@ -34,7 +34,7 @@ impl NodeUpdateRequest {
             target: None,
             subnets: None,
             discovery_status: None,
-            capabilities: None,
+            services: None,
             dns_resolver_node_id: None,
             status: None,
             monitoring_interval: None,

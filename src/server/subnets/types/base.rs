@@ -4,10 +4,11 @@ use cidr::{IpCidr, Ipv4Cidr};
 use mac_address::MacAddress;
 use pnet::{ipnetwork::IpNetwork};
 use serde::{Deserialize, Serialize};
+use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use uuid::Uuid;
 
-use crate::server::{capabilities::types::base::CapabilityDiscriminants, nodes::types::base::Node};
+use crate::server::{services::types::base::{ServiceCategory}, nodes::types::base::Node};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SubnetBase {
@@ -68,7 +69,7 @@ impl Subnet {
     }
     
     pub fn update_node_relationships(&mut self, node: &Node)  {
-        if node.has_capability(CapabilityDiscriminants::Dns) { self.base.dns_resolvers.push(node.id) }
+        if node.base.services.iter().any(|c| [ServiceCategory::DNS, ServiceCategory::AdBlock].contains(&c.discriminant().service_category())) { self.base.dns_resolvers.push(node.id) }
         if node.is_gateway_for_subnet(&self) { self.base.gateways.push(node.id) }
     }
 }

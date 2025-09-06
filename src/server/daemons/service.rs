@@ -1,14 +1,14 @@
 use anyhow::{Error, Result};
 use uuid::Uuid;
 use std::sync::Arc;
-use crate::server::{capabilities::types::{base::{CapabilityDiscriminants}}, daemons::{
+use crate::server::{daemons::{
         storage::DaemonStorage, 
         types::{
             api::{
                 DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse
             }, base::Daemon
         }
-    }, nodes::{service::NodeService}, shared::types::api::ApiResponse};
+    }, nodes::service::NodeService, services::types::base::{Service, ServiceDiscriminants}, shared::types::api::ApiResponse};
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
@@ -56,10 +56,9 @@ impl DaemonService {
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };
 
-        let response = match daemon_node.get_capability(CapabilityDiscriminants::Daemon) {
-            Some(capability) => {
-                let endpoint = capability.as_endpoint(&daemon_node.base.target)
-                    .ok_or_else(|| anyhow::anyhow!("Failed to get endpoint for daemon node {}", daemon_node.id))?;
+        let response = match daemon_node.get_service(ServiceDiscriminants::NetvisorDaemon) {
+             Some(Service::NetvisorDaemon{endpoints, ..})  => {
+                let endpoint = endpoints[0].to_string();
                 
                 self.client
                     .post(format!("{}/api/discovery/initiate", endpoint))
@@ -67,7 +66,7 @@ impl DaemonService {
                     .send()
                     .await?
             },
-            _ => anyhow::bail!("Daemon capability is not enabled on node {}", daemon_node.id)
+            _ => anyhow::bail!("Daemon service is not enabled on node {}", daemon_node.id)
         };
 
         if !response.status().is_success() {
@@ -91,10 +90,9 @@ impl DaemonService {
             None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
         };
 
-        let response = match daemon_node.get_capability(CapabilityDiscriminants::Daemon) {
-            Some(capability) => {
-                let endpoint = capability.as_endpoint(&daemon_node.base.target)
-                    .ok_or_else(|| anyhow::anyhow!("Failed to get endpoint for daemon node {}", daemon_node.id))?;
+        let response = match daemon_node.get_service(ServiceDiscriminants::NetvisorDaemon) {
+            Some(Service::NetvisorDaemon{endpoints, ..})  => {
+                let endpoint = endpoints[0].to_string();
                 
                 self.client
                     .post(format!("{}/api/discovery/cancel", endpoint))
@@ -102,7 +100,7 @@ impl DaemonService {
                     .send()
                     .await?
             },
-            _ => anyhow::bail!("Daemon capability is not enabled on node {}", daemon_node.id)
+            _ => anyhow::bail!("Daemon service is not enabled on node {}", daemon_node.id)
         };
 
         if !response.status().is_success() {

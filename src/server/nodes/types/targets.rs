@@ -4,7 +4,7 @@ use strum_macros::{EnumIter, EnumDiscriminants, Display};
 
 use crate::server::shared::types::{metadata::TypeMetadataProvider};
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
+#[derive(Debug, Clone, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, EnumIter))]
 #[serde(tag="type", content="config")]
 pub enum NodeTarget {
@@ -17,6 +17,16 @@ impl fmt::Display for NodeTarget {
         match self {
             NodeTarget::Hostname(HostnameTargetConfig{hostname}) => write!(f,"{}", hostname),
             NodeTarget::IpAddress(IpAddressTargetConfig{ip}) => write!(f,"{}", ip.to_string())
+        }
+    }
+}
+
+impl PartialEq for NodeTarget {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (NodeTarget::Hostname(HostnameTargetConfig{hostname}), NodeTarget::Hostname(HostnameTargetConfig{hostname: other_hostname})) => hostname == other_hostname,
+            (NodeTarget::IpAddress(IpAddressTargetConfig{ip}),  NodeTarget::IpAddress(IpAddressTargetConfig{ip: other_ip})) => ip == other_ip,
+            _ => false
         }
     }
 }

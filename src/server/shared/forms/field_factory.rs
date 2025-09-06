@@ -1,7 +1,7 @@
 use serde_json::json;
-use strum::IntoEnumIterator;
+use strum::{IntoDiscriminant, IntoEnumIterator};
 
-use crate::server::{capabilities::types::base::Capability, nodes::types::{base::Node, criticality::{TestCriticality}, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget}}, shared::forms::types::fields::*};
+use crate::server::{nodes::types::{base::Node, criticality::TestCriticality, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget}}, services::types::base::{ServiceCategory}, shared::forms::types::fields::*};
 use crate::server::shared::types::metadata::TypeMetadataProvider;
 
 pub struct FieldFactory {}
@@ -118,7 +118,7 @@ impl FieldFactory {
 
     pub fn dns_resolver_selection(available_nodes: &[Node]) -> (Option<ValidationMessage>, ConfigField) {
         let dns_capable_nodes: Vec<SelectOption> = available_nodes.iter()
-                .filter(|node| node.base.capabilities.iter().any(|c| matches!(c, Capability::Dns{ .. })))
+                .filter(|node| node.base.services.iter().any(|c| [ServiceCategory::AdBlock, ServiceCategory::DNS].contains(&c.discriminant().service_category())))
                 .map(|node| {
                     let target_summary = match &node.base.target {
                         NodeTarget::IpAddress(IpAddressTargetConfig{ ip, .. }) => ip.to_string(),
@@ -142,7 +142,7 @@ impl FieldFactory {
 
             if dns_capable_nodes.is_empty() {
                 validation_message = Some(ValidationMessage {
-                    message: "No DNS servers available. Create a node with DNS Service capability first.".to_string(),
+                    message: "No DNS servers available. Create a node with DNS Service first.".to_string(),
                     field_id: Some("dns_resolver_node".to_string()),
                     severity: MessageSeverity::Warning,
                 });

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     subnets TEXT,
 
     discovery_status TEXT,
-    capabilities TEXT,
+    services TEXT,
     dns_resolver_id TEXT,
 
     status TEXT,

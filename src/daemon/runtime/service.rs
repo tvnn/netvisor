@@ -1,8 +1,11 @@
 use anyhow::Result;
+use strum::IntoEnumIterator;
 use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
+use crate::server::services::types::endpoints::Endpoint;
+use crate::server::services::types::ports::{ApplicationProtocol, Port};
 use crate::daemon::utils::base::{create_system_utils, PlatformSystemUtils, SystemUtils};
-use crate::server::capabilities::types::base::{Capability, CapabilityDiscriminants};
+use crate::server::services::types::base::{Service, ServiceDiscriminants};
 use crate::server::shared::types::metadata::TypeMetadataProvider;
 use crate::{
     daemon::{shared::storage::ConfigStore}, server::{
@@ -25,6 +28,115 @@ impl DaemonRuntimeService {
             client: reqwest::Client::new(),
             utils: create_system_utils()
         }
+    }
+
+    pub async fn heartbeat(&self) -> Result<()> {
+
+        let daemon_id = self.config_store.get_id().await?.expect("By the time heartbeat is running, ID will be assigned");
+        let interval = Duration::from_secs(self.config_store.get_heartbeat_interval().await?);
+
+        let mut interval_timer = tokio::time::interval(interval);
+        interval_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        
+        loop {
+            interval_timer.tick().await;
+            
+            match self.send_heartbeat(&daemon_id).await {
+                Ok(()) => {
+                    // Update last heartbeat timestamp in config
+                    if let Err(e) = self.config_store.update_heartbeat().await {
+                        tracing::warn!("Failed to update heartbeat timestamp: {}", e);
+                    }
+                    tracing::trace!("💓 Heartbeat sent successfully");
+                }
+                Err(e) => {
+                    tracing::warn!("❤️‍🩹 Heartbeat failed: {}", e);
+                    // Continue trying - don't exit on heartbeat failures
+                }
+            }
+        }
+    }
+
+    pub async fn create_self_as_node(&self, daemon_id: Uuid) -> Result<Node> {        
+        // Get daemon configuration
+        let config = &self.config_store;
+        let own_port = config.get_port().await?;
+
+        let local_ip = self.utils.get_own_ip_address()?;
+        let hostname = self.utils.get_own_hostname();
+        
+        // Create node base
+        let node_base = NodeBase {
+            name: format!("NetVisor-Daemon-{}", local_ip),
+            hostname,
+            node_type: NodeType::UnknownDevice,
+            description: Some("NetVisor daemon for network diagnostics".to_string()),
+            target: NodeTarget::IpAddress(IpAddressTargetConfig {
+                ip: local_ip,
+            }),
+            services: vec![], // Will be populated below
+            dns_resolver_node_id: None,
+            discovery_status: None,
+            subnets: Vec::new(),
+            status: NodeStatus::Unknown,
+            monitoring_interval: 10,
+            node_groups: vec![],
+        };
+
+        let mut node = Node::new(node_base);
+
+        node.add_service(Service::NetvisorDaemon { 
+            confirmed: true, 
+            name: ServiceDiscriminants::NetvisorDaemon.display_name().to_string(), 
+            ports: vec!(),
+            daemon_id, 
+            endpoints: vec!(
+                Endpoint { 
+                    protocol: ApplicationProtocol::Http, 
+                    ip: Some(local_ip), 
+                    port: Port::new_tcp(own_port), 
+                    path: None
+                }
+            )
+        });
+
+        let endpoints = Service::discovery_endpoints(local_ip);
+        let endpoint_results = self.utils.scan_endpoints(endpoints).await?;
+        let open_tcp_ports = self.utils.scan_own_tcp_ports().await?;
+        let open_udp_ports = self.utils.scan_own_udp_ports().await?;
+        let open_ports = [open_tcp_ports, open_udp_ports].concat();
+
+        // Add services from detected ports using existing method
+        for discriminant in ServiceDiscriminants::iter() {
+            if let Some(service) = Service::from_discovery(discriminant, local_ip, &open_ports, &endpoint_results) {
+                node.add_service(service);
+            }
+        };
+
+        let server_target = self.config_store.get_server_endpoint().await?;
+
+        let response = self
+            .client
+            .post(format!("{}/api/nodes", server_target.to_string()))
+            .json(&node)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to report daemon as node: HTTP {}", response.status());
+        }
+
+        let api_response: ApiResponse<Node> = response.json().await?;
+
+        if !api_response.success {
+            let error_msg = api_response.error.unwrap_or_else(|| "Unknown error".to_string());
+            anyhow::bail!("Failed to create node: {}", error_msg);
+        }
+
+        let created_node = api_response.data
+            .ok_or_else(|| anyhow::anyhow!("No node data in successful response"))?;
+
+        Ok(created_node)
     }
 
     /// Register daemon with server and return assigned ID
@@ -62,33 +174,6 @@ impl DaemonRuntimeService {
         Ok(())
     }
 
-    pub async fn heartbeat(&self) -> Result<()> {
-
-        let daemon_id = self.config_store.get_id().await?.expect("By the time heartbeat is running, ID will be assigned");
-        let interval = Duration::from_secs(self.config_store.get_heartbeat_interval().await?);
-
-        let mut interval_timer = tokio::time::interval(interval);
-        interval_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        
-        loop {
-            interval_timer.tick().await;
-            
-            match self.send_heartbeat(&daemon_id).await {
-                Ok(()) => {
-                    // Update last heartbeat timestamp in config
-                    if let Err(e) = self.config_store.update_heartbeat().await {
-                        tracing::warn!("Failed to update heartbeat timestamp: {}", e);
-                    }
-                    tracing::trace!("💓 Heartbeat sent successfully");
-                }
-                Err(e) => {
-                    tracing::warn!("❤️‍🩹 Heartbeat failed: {}", e);
-                    // Continue trying - don't exit on heartbeat failures
-                }
-            }
-        }
-    }
-
     /// Send heartbeat to server
     pub async fn send_heartbeat(&self, daemon_id: &Uuid) -> Result<()> {
 
@@ -106,69 +191,5 @@ impl DaemonRuntimeService {
 
         tracing::debug!("Heartbeat sent successfully");
         Ok(())
-    }
-
-    pub async fn create_self_as_node(&self, daemon_id: Uuid) -> Result<Node> {        
-        // Get daemon configuration
-        let config = &self.config_store;
-        let own_port = config.get_port().await?;
-
-        let local_ip = self.utils.get_own_ip_address()?;
-        let open_ports = self.utils.scan_own_tcp_ports().await?;
-        let hostname = self.utils.get_own_hostname();
-        
-        // Create node base
-        let node_base = NodeBase {
-            name: format!("NetVisor-Daemon-{}", local_ip),
-            hostname,
-            node_type: NodeType::UnknownDevice,
-            description: Some("NetVisor daemon for network diagnostics".to_string()),
-            target: NodeTarget::IpAddress(IpAddressTargetConfig {
-                ip: local_ip,
-            }),
-            capabilities: vec![], // Will be populated below
-            dns_resolver_node_id: None,
-            discovery_status: None,
-            subnets: Vec::new(),
-            status: NodeStatus::Unknown,
-            monitoring_interval: 10,
-            node_groups: vec![],
-        };
-
-        let mut node = Node::new(node_base);
-
-        node.add_capability(Capability::Daemon{port: Some(own_port), daemon_id, name: CapabilityDiscriminants::Daemon.display_name().to_string()});
-
-        // Add capabilities from detected ports using existing method
-        for port in &open_ports {
-            if let Some(capability) = Capability::from_port(Some(*port)) {
-                node.add_capability(capability);
-            }
-        };
-
-        let server_target = self.config_store.get_server_endpoint().await?;
-
-        let response = self
-            .client
-            .post(format!("{}/api/nodes", server_target.to_string()))
-            .json(&node)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Failed to report daemon as node: HTTP {}", response.status());
-        }
-
-        let api_response: ApiResponse<Node> = response.json().await?;
-
-        if !api_response.success {
-            let error_msg = api_response.error.unwrap_or_else(|| "Unknown error".to_string());
-            anyhow::bail!("Failed to create node: {}", error_msg);
-        }
-
-        let created_node = api_response.data
-            .ok_or_else(|| anyhow::anyhow!("No node data in successful response"))?;
-
-        Ok(created_node)
     }
 }

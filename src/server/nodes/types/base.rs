@@ -4,7 +4,7 @@ use mac_address::{MacAddress};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
-use crate::server::{capabilities::types::{base::{Capability, CapabilityDiscriminants}}, nodes::types::{status::NodeStatus, targets::NodeTarget}, subnets::types::base::{NodeSubnetMembership, Subnet}};
+use crate::server::{nodes::types::{status::NodeStatus, targets::NodeTarget}, services::types::base::{Service, ServiceDiscriminants}, subnets::types::base::{NodeSubnetMembership, Subnet}};
 use super::{
     types::{NodeType},
 };
@@ -19,9 +19,9 @@ pub struct NodeBase {
     pub target: NodeTarget,
     pub subnets: Vec<NodeSubnetMembership>,
     
-    // Discovery & Capability Data
+    // Discovery & Service Data
     pub discovery_status: Option<DiscoveryStatus>,
-    pub capabilities: Vec<Capability>,
+    pub services: Vec<Service>,
     pub dns_resolver_node_id: Option<String>,
     
     // Monitoring
@@ -93,15 +93,6 @@ impl Node {
         &self.base.subnets[0]
     }
 
-    pub fn as_context(&self) -> NodeContext {
-        NodeContext { 
-            node_id: Some(self.id), 
-            node_type: self.base.node_type.clone(), 
-            capabilities: self.base.capabilities.clone(), 
-            target: self.base.target.clone()
-        }
-    }
-    
     // Node group management
     pub fn add_to_group(&mut self, group_id: Uuid) -> Self {
         if !self.base.node_groups.contains(&group_id) {
@@ -116,16 +107,16 @@ impl Node {
         self.updated_at = chrono::Utc::now();
     }
 
-    pub fn has_capability(&self, capability_discriminant: CapabilityDiscriminants) -> bool{
-        self.base.capabilities.iter().any(|c| c.discriminant() == capability_discriminant)
+    pub fn has_service(&self, service_discriminants: ServiceDiscriminants) -> bool{
+        self.base.services.iter().any(|c| c.discriminant() == service_discriminants)
     }
 
-    pub fn get_capability(&self, capability_discriminant: CapabilityDiscriminants) -> Option<&Capability>{
-        self.base.capabilities.iter().find(|c| c.discriminant() == capability_discriminant)
+    pub fn get_service(&self, service_discriminants: ServiceDiscriminants) -> Option<&Service>{
+        self.base.services.iter().find(|c| c.discriminant() == service_discriminants)
     }
 
-    pub fn add_capability(&mut self, capability: Capability) {        
-        self.base.capabilities.push(capability);
+    pub fn add_service(&mut self, service: Service) {        
+        self.base.services.push(service);
     }
 
     pub fn is_gateway_for_subnet(&self, subnet: &Subnet) -> bool {
@@ -140,20 +131,5 @@ impl Node {
             }
             return false
         })
-    }
-}
-
-// Used during node form to generate capability form based on provided but unsaved information
-#[derive(Debug, Clone, Deserialize)]
-pub struct NodeContext {
-    pub node_id: Option<Uuid>,
-    pub node_type: NodeType,
-    pub capabilities: Vec<Capability>,
-    pub target: NodeTarget,
-}
-
-impl NodeContext {
-    pub fn has_capability(&self, capability_discriminant: CapabilityDiscriminants) -> bool{
-        self.capabilities.iter().any(|c| c.discriminant() == capability_discriminant)
     }
 }
