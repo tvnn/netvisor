@@ -1,326 +1,365 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, ToggleLeft, ToggleRight, AlertCircle } from 'lucide-svelte';
   import { field } from 'svelte-forms';
-  import { getCapabilityConfig, getCapabilityType, updateCapabilityConfig, type Capability } from '$lib/features/capabilities/types/base';
-  import type { CapabilityConfigForm } from '$lib/features/capabilities/types/forms';
-  import { createStyle } from '$lib/shared/utils/styling';
-  import { criticalityLevels } from '$lib/shared/stores/registry';
-  import Tag from '$lib/shared/components/data/Tag.svelte';
-  import { capabilityName } from '$lib/shared/components/forms/validators';
-	import DynamicField from '$lib/shared/components/forms/DynamicField.svelte';
-
+  import { required } from 'svelte-forms/validators';
+  import { AlertCircle, Plus, Trash2 } from 'lucide-svelte';
+  import type { Service, Port, Endpoint } from '$lib/features/services/types/base';
+  import { getServiceDisplayName, formatServicePorts } from '$lib/features/services/types/base';
+  import { registry } from '$lib/shared/stores/registry';
+	import Tag from '$lib/shared/components/data/Tag.svelte';
+  
   export let form: any;
-  export let capability: Capability | null = null;
-  export let schema: CapabilityConfigForm | null = null;
-  export let onChange: (updatedCapability: Capability) => void = () => {};
-
-  let expandedSections: Set<string> = new Set();
-  let capabilityNameField: any;
-  let capabilityConfig: Record<string, any> = {};
-
-  // Initialize form fields for capability name
-  $: if (capability && schema) {
-    const config = getCapabilityConfig(capability);
-    const isSystemAssigned = config.system_assigned;
-    
-    capabilityNameField = field(
-      `capability_name_${getCapabilityType(capability)}`, 
-      config.name, 
-      [capabilityName(isSystemAssigned)]
+  export let service: Service | null = null;
+  export let onChange: (updatedService: Service) => void = () => {};
+  
+  let serviceNameField: any;
+  let confirmedField: any;
+  
+  // Get service metadata from registry
+  $: serviceMetadata = service ? $registry?.services?.find(s => s.id === service.type) : null;
+  
+  // Validators
+  const serviceNameValidator = () => (value: string) => {
+    if (!value || value.trim().length === 0) {
+      return { name: 'required', valid: false };
+    }
+    return { name: 'valid', valid: true };
+  };
+  
+  // Initialize form fields when service changes
+  $: if (service && serviceMetadata) {
+    serviceNameField = field(
+      `service_name_${service.type}`,
+      service.name,
+      [serviceNameValidator()]
     );
     
-    if (form && !isSystemAssigned) {
-      form[`capability_name_${getCapabilityType(capability)}`] = capabilityNameField
+    confirmedField = field(
+      `service_confirmed_${service.type}`,
+      service.confirmed,
+      []
+    );
+    
+    // Register with parent form
+    if (form) {
+      form[`service_name_${service.type}`] = serviceNameField;
+      form[`service_confirmed_${service.type}`] = confirmedField;
     }
   }
-
-  // Initialize form data when capability changes
-  $: if (capability) {
-    const config = getCapabilityConfig(capability);
-    capabilityConfig = { ...config };
+  
+  // Update service when field values change
+  $: if (service && serviceNameField && confirmedField && $serviceNameField && $confirmedField) {
+    const updatedService: Service = {
+      ...service,
+      name: $serviceNameField.value,
+      confirmed: $confirmedField.value
+    };
     
-    // Update capability name field value if it exists
-    if (capabilityNameField && $capabilityNameField.value !== config.name) {
-      capabilityNameField.set(config.name);
+    // Only trigger onChange if values actually changed
+    if (updatedService.name !== service.name || updatedService.confirmed !== service.confirmed) {
+      onChange(updatedService);
     }
   }
-
-  // Update capability when form data changes
-  $: if (capability && schema) {
-    const currentConfig = getCapabilityConfig(capability);
-    const newName = capabilityNameField ? $capabilityNameField.value : currentConfig.name;
-    const hasNameChanged = newName !== currentConfig.name;
-    const hasConfigChanged = JSON.stringify(capabilityConfig) !== JSON.stringify(currentConfig);
+  
+  // Port management functions
+  function addPort() {
+    if (!service) return;
     
-    if (hasNameChanged || hasConfigChanged) {
-      const updatedCapability = updateCapabilityConfig(capability, {
-        ...capabilityConfig,
-        name: newName
-      });
-      onChange(updatedCapability);
-    }
+    const newPort: Port = {
+      number: 80,
+      tcp: true,
+      udp: false
+    };
+    
+    const updatedService = {
+      ...service,
+      ports: [...service.ports, newPort]
+    };
+    
+    onChange(updatedService);
   }
-
-  function toggleSection(sectionId: string) {
-    if (expandedSections.has(sectionId)) {
-      expandedSections.delete(sectionId);
-    } else {
-      expandedSections.add(sectionId);
-    }
-    expandedSections = expandedSections; // Trigger reactivity
+  
+  function updatePort(index: number, updates: Partial<Port>) {
+    if (!service) return;
+    
+    const updatedPorts = [...service.ports];
+    updatedPorts[index] = { ...updatedPorts[index], ...updates };
+    
+    const updatedService = {
+      ...service,
+      ports: updatedPorts
+    };
+    
+    onChange(updatedService);
   }
-
-  function updateTest(sectionIndex: number, updates: Partial<{
-    enabled: boolean;
-    criticality: string;
-    config: Record<string, any>;
-  }>) {
-    if (!capability || !schema) return;
+  
+  function removePort(index: number) {
+    if (!service) return;
     
-    const capabilityConfig = getCapabilityConfig(capability);
-    // const updatedTests = [...capabilityConfig.tests];
-    // const section = schema.test_sections[sectionIndex];
+    const updatedService = {
+      ...service,
+      ports: service.ports.filter((_, i) => i !== index)
+    };
     
-    // // Ensure test exists with proper structure
-    // if (!updatedTests[sectionIndex]) {
-    //   updatedTests[sectionIndex] = {
-    //     test: {
-    //       type: section.test_type,
-    //       config: getTestConfigFromSchema(section)
-    //     },
-    //     criticality: section.test_fields.find(f => f.id === 'criticality')?.default_value || 'Important',
-    //     enabled: section.enabled_by_default
-    //   };
-    // }
-    
-    // Apply updates
-    // if (updates.enabled !== undefined) {
-    //   updatedTests[sectionIndex].enabled = updates.enabled;
-    // }
-    
-    // if (updates.criticality !== undefined) {
-    //   updatedTests[sectionIndex].criticality = updates.criticality;
-    // }
-    
-    // if (updates.config) {
-    //   updatedTests[sectionIndex].test.config = {
-    //     ...updatedTests[sectionIndex].test.config,
-    //     ...updates.config
-    //   };
-    // }
-    
-    // Update the capability
-    const updatedCapability = updateCapabilityConfig(capability, {
-      ...capabilityConfig,
-      // tests: updatedTests
-    });
-    
-    onChange(updatedCapability);
+    onChange(updatedService);
   }
-
-  function toggleTest(sectionIndex: number) {
-    if (!capability || !schema) return;
-    const config = getCapabilityConfig(capability);
-    const currentTest = config.tests[sectionIndex];
-    const newEnabledState = currentTest ? !currentTest.enabled : true;
-    
-    updateTest(sectionIndex, { enabled: newEnabledState });
+  
+  // Event handlers for port fields
+  function handlePortNumberChange(index: number, event: Event) {
+    const target = event.target as HTMLInputElement;
+    const portNumber = parseInt(target.value) || 80;
+    updatePort(index, { number: portNumber });
   }
-
-  function updateTestConfig(sectionIndex: number, fieldId: string, value: any) {
-    if (fieldId === 'criticality') {
-      updateTest(sectionIndex, { criticality: value });
-    } else {
-      // This is a test config field
-      updateTest(sectionIndex, { 
-        config: { [fieldId]: value } 
-      });
-    }
+  
+  function handleTcpChange(index: number, event: Event) {
+    const target = event.target as HTMLInputElement;
+    updatePort(index, { tcp: target.checked });
+  }
+  
+  function handleUdpChange(index: number, event: Event) {
+    const target = event.target as HTMLInputElement;
+    updatePort(index, { udp: target.checked });
+  }
+  
+  // Endpoint management functions
+  function addEndpoint() {
+    if (!service) return;
+    
+    const newEndpoint: Endpoint = {
+      path: "/"
+    };
+    
+    const updatedService = {
+      ...service,
+      endpoints: [...service.endpoints, newEndpoint]
+    };
+    
+    onChange(updatedService);
+  }
+  
+  function updateEndpoint(index: number, updates: Partial<Endpoint>) {
+    if (!service) return;
+    
+    const updatedEndpoints = [...service.endpoints];
+    updatedEndpoints[index] = { ...updatedEndpoints[index], ...updates };
+    
+    const updatedService = {
+      ...service,
+      endpoints: updatedEndpoints
+    };
+    
+    onChange(updatedService);
+  }
+  
+  function removeEndpoint(index: number) {
+    if (!service) return;
+    
+    const updatedService = {
+      ...service,
+      endpoints: service.endpoints.filter((_, i) => i !== index)
+    };
+    
+    onChange(updatedService);
+  }
+  
+  // Event handler for endpoint path changes
+  function handleEndpointPathChange(index: number, event: Event) {
+    const target = event.target as HTMLInputElement;
+    updateEndpoint(index, { path: target.value });
   }
 </script>
 
-{#if !capability || !schema}
-  <div class="flex-1 min-h-0 flex items-center justify-center text-gray-400">
-    <div class="text-center">
-      <div class="text-lg mb-2">No capability selected</div>
-      <div class="text-sm">Select a capability from the list to configure it</div>
-    </div>
-  </div>
-{:else}
-  {@const config = getCapabilityConfig(capability)}
-  <div class="h-full flex flex-col min-h-0">
-    <!-- Header -->
-    <div class="border-b border-gray-600 pb-4 mb-6">
-      <div class="flex items-center gap-3 mb-2">
-        {#if schema.capability_info.icon}
-          {@const iconStyle = createStyle(schema.capability_info.color, schema.capability_info.icon)}
-          <svelte:component this={iconStyle.IconComponent} class="w-6 h-6 {iconStyle.colors.icon}" />
-        {/if}
-        <h3 class="text-lg font-medium text-white">
-          {schema.capability_info.display_name}
-        </h3>
+{#if service && serviceMetadata}
+  <div class="space-y-6">
+    <!-- Service Info Header -->
+    <div class="border-b border-gray-600 pb-4">
+      <div class="flex gap-3 pb-1">
+        <h3 class="text-lg font-medium text-white">{serviceMetadata.display_name}</h3>
+        <Tag
+          label={serviceMetadata.category}
+          color={serviceMetadata.color}/>
       </div>
-      {#if schema.capability_info.description}
-        <p class="text-sm text-gray-400">{schema.capability_info.description}</p>
-      {/if}
+      <p class="text-sm text-gray-400">{serviceMetadata.description}</p>
+      <div class="flex items-center gap-2 mt-2">
+      </div>
     </div>
-
-    <!-- Scrollable Content -->
-    <div class="flex-1 overflow-auto space-y-6 min-h-0">
-      <!-- Capability Name -->
-      {#if !getCapabilityConfig(capability).system_assigned && capabilityNameField}
+    
+    <!-- Basic Configuration -->
+    <div class="space-y-4">
+      
+      <!-- Service Name Field -->
+      {#if serviceNameField}
         <div class="space-y-2">
-          <label for="capability_name" class="block text-sm font-medium text-gray-300">
-            Name <span class="text-red-400 ml-1">*</span>
+          <label for="service_name" class="block text-sm font-medium text-gray-300">
+            Service Name <span class="text-red-400">*</span>
           </label>
           <input
-            id="capability_name"
+            id="service_name"
             type="text"
-            bind:value={$capabilityNameField.value}
-            class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500
-                   {$capabilityNameField.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
+            bind:value={$serviceNameField.value}
+            class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
+                   focus:outline-none focus:ring-2 focus:ring-blue-500
+                   {$serviceNameField.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
             placeholder="Enter a descriptive name..."
           />
-          {#if $capabilityNameField.errors.length > 0}
+          {#if $serviceNameField.errors.length > 0}
             <div class="flex items-center gap-2 text-red-400">
               <AlertCircle size={16} />
-              <p class="text-xs">{$capabilityNameField.errors[0]}</p>
+              <p class="text-xs">{$serviceNameField.errors[0]}</p>
             </div>
           {/if}
           <p class="text-xs text-gray-400">
-            Give this capability a meaningful name like "API Server" or "Admin Panel"
+            Give this service a meaningful name like "Main Web Server" or "Internal API"
           </p>
         </div>
       {/if}
-
-      <!-- Capability Configuration Fields -->
-      {#if schema.capability_fields.length > 0}
-        <div>
-          <h4 class="text-sm font-medium text-gray-300 mb-4">Configuration</h4>
-          <div class="space-y-4">
-            {#each schema.capability_fields as field}
-              <DynamicField
-                {form}
-                {field}
-                fieldId={`${getCapabilityType(capability)}_${field.id}`}
-                value={capabilityConfig[field.id]}
-                onUpdate={(value: any) => capabilityConfig[field.id] = value}
-              />
-            {/each}
-          </div>
+      
+      <!-- Confirmed Status -->
+      {#if confirmedField}
+        <div class="space-y-2">
+          <label class="flex items-center gap-3">
+            <input
+              type="checkbox"
+              bind:checked={$confirmedField.value}
+              class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+            />
+            <span class="text-sm font-medium text-gray-300">Service Confirmed</span>
+          </label>
+          <p class="text-xs text-gray-400 ml-7">
+            Mark as confirmed if you've verified this service is actually running
+          </p>
         </div>
       {/if}
-
-      <!-- Tests -->
-      <!-- {#if schema.test_sections.length > 0}
-        <div>
-          <h4 class="text-sm font-medium text-gray-300 mb-4">Tests</h4>
-          <div class="space-y-4">
-            {#each schema.test_sections as section, sectionIndex}
-              {@const isExpanded = expandedSections.has(section.test_type)}
-              {@const testConfig = config.tests[sectionIndex]}
-              {@const testStyle = createStyle(section.test_info.color, section.test_info.icon)}
-              
-              <div class="border border-gray-600 rounded-lg overflow-hidden">
-
-                <div class="p-4 bg-gray-700/50">
-                  <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-
-                      <button
-                        type="button"
-                        on:click={() => toggleTest(sectionIndex)}
-                        class="flex items-center"
-                        title={testConfig?.enabled ? 'Disable test' : 'Enable test'}
-                      >
-                        {#if testConfig?.enabled}
-                          <ToggleRight class="w-8 h-8 text-green-400" />
-                        {:else}
-                          <ToggleLeft class="w-8 h-8 text-gray-500" />
-                        {/if}
-                      </button>
-
-
-                      <div class="flex items-center gap-3">
-                        <svelte:component this={testStyle.IconComponent} class="w-8 h-8 {testStyle.colors.icon}" />
-                        <div class="flex-col">
-                          <div class="flex items-center gap-2">
-                            <span class="font-medium text-white">{section.test_info.display_name}</span>
-                            <Tag 
-                              bgColor={criticalityLevels.getColor(testConfig?.criticality || 'Important').bg}
-                              textColor={criticalityLevels.getColor(testConfig?.criticality || 'Important').text}
-                              label={testConfig?.criticality || 'Important'} />
-                          </div>
-                          <span class="text-sm text-gray-400">{section.test_info.description}</span>
-                        </div>
-                      </div>
-                    </div>
-
-
-                    <button
-                      type="button"
-                      on:click={() => toggleSection(section.test_type)}
-                      class="p-1 text-gray-400 hover:text-white hover:bg-gray-600 rounded"
-                      title={isExpanded ? 'Collapse' : 'Expand'}
-                    >
-                      {#if isExpanded}
-                        <ChevronDown class="w-4 h-4" />
-                      {:else}
-                        <ChevronRight class="w-4 h-4" />
-                      {/if}
-                    </button>
-                  </div>
-
-                  {#if section.description}
-                    <p class="text-sm text-gray-400 mt-2">{section.description}</p>
-                  {/if}
+    </div>
+    
+    <!-- Ports Configuration -->
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h4 class="text-sm font-medium text-gray-300">Ports</h4>
+        <button
+          type="button"
+          on:click={addPort}
+          class="flex items-center gap-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          <Plus size={14} />
+          Add Port
+        </button>
+      </div>
+      
+      {#if service.ports.length === 0}
+        <div class="text-center py-4 text-gray-400 text-sm">
+          No ports configured. Click "Add Port" to add one.
+        </div>
+      {:else}
+        <div class="space-y-3">
+          {#each service.ports as port, index}
+            <div class="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+              <div class="flex-1 grid grid-cols-3 gap-3">
+                <div>
+                  <div class="block text-xs font-medium text-gray-400 mb-1">Port Number</div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="65535"
+                    value={port.number}
+                    on:input={(e) => handlePortNumberChange(index, e)}
+                    class="w-full px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
-
-
-                {#if isExpanded}
-                  <div class="p-4 border-t border-gray-600 bg-gray-800/30">
-                    <div class="space-y-4">
-                      {#each section.test_fields as field}
-                        <DynamicField
-                          {form}
-                          {field}
-                          fieldId={`${getCapabilityType(capability)}_${section.test_type}_${field.id}`}
-                          value={testConfig?.[field.id as keyof typeof testConfig]}
-                          onUpdate={(value: any) => updateTestConfig(sectionIndex, field.id, value)}
-                          disabled={!testConfig?.enabled}
-                        />
-                      {/each}
-                    </div>
+                <div>
+                  <div class="block text-xs font-medium text-gray-400 mb-1">Protocol</div>
+                  <div class="flex gap-2">
+                    <label class="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={port.tcp}
+                        on:change={(e) => handleTcpChange(index, e)}
+                        class="w-3 h-3 text-blue-600 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span class="text-xs text-gray-300">TCP</span>
+                    </label>
+                    <label class="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={port.udp}
+                        on:change={(e) => handleUdpChange(index, e)}
+                        class="w-3 h-3 text-blue-600 bg-gray-700 border-gray-600 rounded"
+                      />
+                      <span class="text-xs text-gray-300">UDP</span>
+                    </label>
                   </div>
-                {/if}
+                </div>
+                <div class="flex items-end">
+                  <button
+                    type="button"
+                    on:click={() => removePort(index)}
+                    class="flex items-center gap-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                  >
+                    <Trash2 size={12} />
+                    Remove
+                  </button>
+                </div>
               </div>
-            {/each}
-          </div>
-        </div>
-      {/if} -->
-
-      <!-- Warnings and Errors -->
-      {#if schema.warnings.length > 0}
-        <div class="rounded-lg bg-yellow-900/20 border border-yellow-600 p-4">
-          <h5 class="text-sm font-medium text-yellow-400 mb-2">Warnings</h5>
-          <div class="space-y-1">
-            {#each schema.warnings as warning}
-              <p class="text-sm text-yellow-300">{warning.message}</p>
-            {/each}
-          </div>
+            </div>
+          {/each}
         </div>
       {/if}
-
-      {#if schema.errors.length > 0}
-        <div class="rounded-lg bg-red-900/20 border border-red-600 p-4">
-          <h5 class="text-sm font-medium text-red-400 mb-2">Errors</h5>
-          <div class="space-y-1">
-            {#each schema.errors as error}
-              <p class="text-sm text-red-300">{error.message}</p>
-            {/each}
-          </div>
+    </div>
+    
+    <!-- Endpoints Configuration -->
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h4 class="text-sm font-medium text-gray-300">Endpoints</h4>
+        <button
+          type="button"
+          on:click={addEndpoint}
+          class="flex items-center gap-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          <Plus size={14} />
+          Add Endpoint
+        </button>
+      </div>
+      
+      {#if service.endpoints.length === 0}
+        <div class="text-center py-4 text-gray-400 text-sm">
+          No endpoints configured. Click "Add Endpoint" to add one.
+        </div>
+      {:else}
+        <div class="space-y-3">
+          {#each service.endpoints as endpoint, index}
+            <div class="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
+              <div class="flex-1 grid grid-cols-2 gap-3">
+                <div>
+                  <div class="block text-xs font-medium text-gray-400 mb-1">Path</div>
+                  <input
+                    type="text"
+                    value={endpoint.path || ""}
+                    on:input={(e) => handleEndpointPathChange(index, e)}
+                    placeholder="/api/health"
+                    class="w-full px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div class="flex items-end">
+                  <button
+                    type="button"
+                    on:click={() => removeEndpoint(index)}
+                    class="flex items-center gap-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                  >
+                    <Trash2 size={12} />
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          {/each}
         </div>
       {/if}
+    </div>
+  </div>
+{:else}
+  <div class="flex-1 min-h-0 flex items-center justify-center text-gray-400">
+    <div class="text-center">
+      <div class="text-lg mb-2">No service selected</div>
+      <div class="text-sm">Select a service from the list to configure it</div>
     </div>
   </div>
 {/if}

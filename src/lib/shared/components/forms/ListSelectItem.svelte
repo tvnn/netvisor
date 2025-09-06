@@ -27,20 +27,22 @@
         
         <!-- Label and description -->
         <div class="flex-1 min-w-0 text-left">
-        <span class="block truncate">{getLabel(item)}</span>
+        <div class="flex gap-3 pb-1">
+            <span class="block truncate">{getLabel(item)}</span>
+            <!-- Tag -->
+            {#if getTags}
+            {@const tags = getTags(item)}
+                {#each tags as tag}
+                    <Tag
+                        label={tag.label}
+                        color={tag.color}
+                        textColor={tag.textColor}
+                        bgColor={tag.bgColor} />
+                {/each}
+            {/if}
+        </div>
         {#if getDescription}
             <span class="block text-xs text-gray-400 truncate">{getDescription(item)}</span>
         {/if}
         </div>
-        
-        <!-- Tag -->
-        {#if getTags}
-        {@const tags = getTags(item)}
-            {#each tags as tag}
-                <Tag
-                    label={tag.label}
-                    textColor={tag.textColor}
-                    bgColor={tag.bgColor} />
-            {/each}
-        {/if}
 </div>

@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { createColorHelper } from "$lib/shared/utils/styling";
-	import { Circle } from "lucide-svelte";
+	import type { Component } from "svelte";
 
-    export let icon = Circle;
-    export let enableIcon = false
+    export let icon: Component | null = null;
 
     export let color: string = 'gray';
     export let bgColor: string = 'bg-gray-700/30';
-    export let textColor: string = 'text-gray-500';
+    export let textColor: string = 'text-gray-300';
 
     export let disabled = false;
     export let label: string;
@@ -25,7 +24,7 @@
 
 <div class="items-center space-x-2">
 
-{#if enableIcon }
+{#if icon }
     <svelte:component this={icon} size={16} class={textColor} />
 {/if}
 

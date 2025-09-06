@@ -14,13 +14,8 @@ export interface TypeMetadata {
 }
 
 export interface TypeRegistry {
-  test_types: TypeMetadata[];
-  node_types: TypeMetadata[];
-  capabilities: TypeMetadata[];
-  criticality_levels: TypeMetadata[];
-  node_statuses: TypeMetadata[];
+  services: TypeMetadata[];
   node_targets: TypeMetadata[];
-  diagnostic_statuses: TypeMetadata[];
 }
 
 export const registry = writable<TypeRegistry>();
@@ -52,6 +47,11 @@ function createRegistryHelpers<T extends keyof TypeRegistry>(category: T) {
     getIcon: (id: string | null) => {
       const $registry = get(registry);
       return $registry?.[category]?.find(item => item.id === id)?.icon || 'help-circle';
+    },
+
+    getCategory: (id: string | null) => {
+      const $registry = get(registry);
+      return $registry?.[category]?.find(item => item.id === id)?.category || "";
     },
     
     getColor: (id: string | null): ColorStyle => {
@@ -86,13 +86,8 @@ function createRegistryHelpers<T extends keyof TypeRegistry>(category: T) {
 }
 
 // Create all the helpers
-export const testTypes = createRegistryHelpers('test_types');
-export const nodeTypes = createRegistryHelpers('node_types'); 
-export const capabilities = createRegistryHelpers('capabilities');
-export const criticalityLevels = createRegistryHelpers('criticality_levels');
-export const nodeStatuses = createRegistryHelpers('node_statuses');
+export const services = createRegistryHelpers('services');
 export const nodeTargets = createRegistryHelpers('node_targets');
-export const diagnosticStatuses = createRegistryHelpers('diagnostic_statuses');
 
 export async function getRegistry() {
   const result = await api.request<TypeRegistry>(

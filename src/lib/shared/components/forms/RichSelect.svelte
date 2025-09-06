@@ -20,6 +20,7 @@
   export let getOptionLabel: (item: any) => string | null = (item) => null
   export let getOptionDescription: (item: any) => string | null = (item) => null
   export let getOptionIsDisabled: (item: any) => boolean = (item) => false
+  export let getOptionCategory: (item: any) => string | null = (item) => null;
 
   export let showDescriptionUnderDropdown: boolean = false;
   
@@ -27,6 +28,32 @@
   let dropdownElement: HTMLDivElement;
   
   $: selectedItem = options.find(i => getOptionId(i) === selectedValue);
+  
+  // Group options by category when getOptionCategory is provided
+  $: groupedOptions = (() => {
+    if (!getOptionCategory) {
+      return [{ category: null, options: options }];
+    }
+    
+    const groups = new Map<string | null, any[]>();
+    
+    options.forEach(option => {
+      const category = getOptionCategory(option);
+      if (!groups.has(category)) {
+        groups.set(category, []);
+      }
+      groups.get(category)!.push(option);
+    });
+    
+    // Sort categories alphabetically, with null category first
+    const sortedEntries = Array.from(groups.entries()).sort(([a], [b]) => {
+      if (a === null) return -1;
+      if (b === null) return 1;
+      return a.localeCompare(b);
+    });
+    
+    return sortedEntries.map(([category, options]) => ({ category, options }));
+  })();
   
   function handleSelect(value: string) {
     try {
@@ -115,28 +142,41 @@
     <!-- Dropdown Menu -->
     {#if isOpen && !disabled}
       <div class="absolute z-50 w-full bg-gray-700 border border-gray-600 rounded-md shadow-lg max-h-96 overflow-y-auto mt-1">
-        {#each options as option}          
-          <button
-            type="button"
-            on:click={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!getOptionIsDisabled(option)) {
-                handleSelect(getOptionId(option));
-              }
-            }}
-            class="w-full px-3 py-3 text-left transition-colors border-b border-gray-600 last:border-b-0
-                   {getOptionIsDisabled(option) ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-600'}"
-            disabled={getOptionIsDisabled(option)}
-          >
-            <ListSelectItem
-              item={option}
-              getIcon={getOptionIcon}
-              getIconColor={getOptionIconColor}
-              getTags={getOptionTags}
-              getLabel={getOptionLabel}
-              getDescription={getOptionDescription} />
-          </button>
+        {#each groupedOptions as group, groupIndex}
+          <!-- Category Header -->
+          {#if group.category !== null}
+            <div class="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-800 border-b border-gray-600 sticky top-0">
+              {group.category}
+            </div>
+          {/if}
+          
+          <!-- Options in this category -->
+          {#each group.options as option, optionIndex}
+            {@const isLastInGroup = optionIndex === group.options.length - 1}
+            {@const isLastGroup = groupIndex === groupedOptions.length - 1}
+            <button
+              type="button"
+              on:click={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!getOptionIsDisabled(option)) {
+                  handleSelect(getOptionId(option));
+                }
+              }}
+              class="w-full px-3 py-3 text-left transition-colors 
+                     {!isLastInGroup || !isLastGroup ? 'border-b border-gray-600' : ''}
+                     {getOptionIsDisabled(option) ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-600'}"
+              disabled={getOptionIsDisabled(option)}
+            >
+              <ListSelectItem
+                item={option}
+                getIcon={getOptionIcon}
+                getIconColor={getOptionIconColor}
+                getTags={getOptionTags}
+                getLabel={getOptionLabel}
+                getDescription={getOptionDescription} />
+            </button>
+          {/each}
         {/each}
       </div>
     {/if}

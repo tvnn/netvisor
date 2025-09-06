@@ -29,6 +29,7 @@
   export let getOptionLabel: (item: V) => string | null = (item) => null
   export let getOptionDescription: (item: V) => string | null = (item) => null
   export let getOptionIsDisabled: (item: V) => boolean = (item) => false
+  export let getOptionCategory: (item: any) => string | null = (item) => null;
 
   // Items
   export let items: T[] = [];
@@ -158,6 +159,7 @@
             {getOptionDescription}
             {getOptionTags}
             {getOptionIsDisabled}
+            {getOptionCategory}
           />
         </div>
       </div>

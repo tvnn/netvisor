@@ -1,11 +1,9 @@
 import { writable } from 'svelte/store';
 import type { Node } from "./types/base";
 import { api } from '../../shared/utils/api';
-import { createPoller, type Poller } from '../../shared/utils/polling';
 import type { NodeTarget } from './types/targets';
-import { pushError, pushInfo, pushWarning } from '$lib/shared/stores/feedback';
+import { pushInfo, pushWarning } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
-import { testTypes } from '$lib/shared/stores/registry';
 
 export const nodes = writable<Node[]>([]);
 export const polling = writable(false);
@@ -57,14 +55,14 @@ export async function createNode(data: Node) {
 
 interface UpdateNodeResponse {
   node: Node,
-  capability_test_changes: Record<string, NodeCapabilityTestChange>,
+  // capability_test_changes: Record<string, NodeCapabilityTestChange>,
   subnet_changes: NodeSubnetRelationshipChange
 }
 
-interface NodeCapabilityTestChange {
-    newly_compatible: string[], 
-    incompatible: string[]
-}
+// interface NodeCapabilityTestChange {
+//     newly_compatible: string[], 
+//     incompatible: string[]
+// }
 
 interface NodeSubnetRelationshipChange {
   new_gateway: Subnet[],
@@ -80,12 +78,12 @@ export async function updateNode(data: Node) {
     (updatedNodeResponse, current) => {
       const updatedNode = updatedNodeResponse.node;
 
-      Object.keys(updatedNodeResponse.capability_test_changes).forEach(cap => {
-        let incompatible = updatedNodeResponse.capability_test_changes[cap].incompatible.map(i => testTypes.getDisplay(i))
-        let newly_compatible = updatedNodeResponse.capability_test_changes[cap].newly_compatible.map(n => testTypes.getDisplay(n))
-        incompatible.length > 0 ? pushWarning(`The following tests are no longer compatible with node "${updatedNode.name}" and have been removed: ${incompatible.join(", ")}`) : null
-        newly_compatible.length > 0 ? pushInfo(`The following tests are now compatible with node "${updatedNode.name}" and have been added: ${newly_compatible.join(", ")}`) : null
-      })
+      // Object.keys(updatedNodeResponse.capability_test_changes).forEach(cap => {
+      //   let incompatible = updatedNodeResponse.capability_test_changes[cap].incompatible.map(i => testTypes.getDisplay(i))
+      //   let newly_compatible = updatedNodeResponse.capability_test_changes[cap].newly_compatible.map(n => testTypes.getDisplay(n))
+      //   incompatible.length > 0 ? pushWarning(`The following tests are no longer compatible with node "${updatedNode.name}" and have been removed: ${incompatible.join(", ")}`) : null
+      //   newly_compatible.length > 0 ? pushInfo(`The following tests are now compatible with node "${updatedNode.name}" and have been added: ${newly_compatible.join(", ")}`) : null
+      // })
 
       if (updatedNodeResponse.subnet_changes.new_dns_resolver.length > 0) {
         pushInfo(`The following subnets now have node "${updatedNode.name}" set as a DNS resolver: ${
@@ -133,7 +131,6 @@ export function createEmptyNodeFormData(): Node {
     created_at: utcTimeZoneSentinel,
     updated_at: utcTimeZoneSentinel,
     name: '',
-    status: 'Unknown',
     description: '',
     hostname: '',
     target: {
@@ -142,14 +139,11 @@ export function createEmptyNodeFormData(): Node {
         ip: '',
       },
     },
-    node_type: 'UnknownDevice',
-    capabilities: [],
+    services: [],
     subnets: [],
-    monitoring_interval: 10,
     last_seen: utcTimeZoneSentinel,
     node_groups: [],
     discovery_status: 'Manual',
-    dns_resolver_node_id: uuidv4Sentinel
   };
 }
 

@@ -7,7 +7,6 @@
   import { getDaemonDiscoveryState } from '../daemons/store';
 	import RichSelect from '$lib/shared/components/forms/RichSelect.svelte';
 	  import { getNodeTargetString } from "../nodes/store";
-	import { nodeStatuses } from '$lib/shared/stores/registry';
 	import DaemonDiscoveryStatus from './DaemonDiscoveryStatus.svelte';
 	import { type TagProps } from '$lib/shared/components/data/types';
 	import { get } from 'svelte/store';
@@ -15,9 +14,6 @@
   let selectedDaemonId: string | null = null;  
   $: discoveryData = getDaemonDiscoveryState(selectedDaemonId, get(sessions));
   $: selectedDaemon = $daemons.find(daemon => daemon.id == selectedDaemonId);
-  $: selectedNode = $nodes.find(node => node.id == selectedDaemon?.node_id);
-  $: nodeStyle = nodeStatuses.getColor(selectedNode?.status || null);
-
 
   // Auto-select daemon logic: prioritize daemon with active session, fallback to first daemon
   $: if (!selectedDaemonId && $daemons.length > 0) {
@@ -50,17 +46,9 @@
                         value: d.id,
                         label: node?.name || `Daemon ${d.id.substring(0, 8)}`,
                         description: node ? `on ${getNodeTargetString(node?.target)}` : `Daemon ${d.id.substring(0, 8)}`,
-                        status: node?.status
                     }
                 })}
                 getOptionId={(option) => option.value}
-                getOptionTags={(option): TagProps[] => {
-                    return [{
-                        label: option.status,
-                        bgColor: nodeStyle.bg,
-                        textColor: nodeStyle.text
-                    }]
-                }}
                 onSelect={handleDaemonSelect} />
         </div>
     {/if}

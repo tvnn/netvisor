@@ -3,9 +3,10 @@
   import type { Node } from "$lib/features/nodes/types/base";
   import { createEmptyNodeFormData } from "$lib/features/nodes/store";
   import DetailsForm from './Details/DetailsForm.svelte';
-  import CapabilitiesForm from './Services/ServicesForm.svelte';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import SubnetsForm from './Subnets/SubnetsForm.svelte';
+	import ServicesForm from './Services/ServicesForm.svelte';
+	import { registry } from '$lib/shared/stores/registry';
   
   export let node: Node | null = null;
   export let isOpen = false;
@@ -27,9 +28,9 @@
       description: 'Basic node information and connection details'
     },
     { 
-      id: 'capabilities', 
-      label: 'Capabilities',
-      icon: Shield,
+      id: 'services', 
+      label: 'Services',
+      icon: Server,
       description: 'Services and monitoring configuration'
     },
     { 
@@ -100,14 +101,6 @@
       }
     }
   }
-
-  // Create node context for capabilities form
-  $: nodeContext = {
-    node_id: formData.id || undefined,
-    node_type: formData.node_type,
-    capabilities: formData.capabilities,
-    target: formData.target
-  };
   
   // Handle form-based submission for create flow with steps
   function handleFormSubmit() {
@@ -163,7 +156,9 @@
           {#each tabs as tab}
             <button
               type="button"
-              on:click={() => activeTab = tab.id}
+              on:click={() => {
+                activeTab = tab.id;
+              }}
               class="py-4 px-1 border-b-2 font-medium text-sm transition-colors
                      {activeTab === tab.id 
                        ? 'border-blue-500 text-blue-400' 
@@ -175,9 +170,15 @@
                 <span>{tab.label}</span>
                 
                 <!-- Show capability count indicator -->
-                {#if tab.id === 'capabilities' && formData.capabilities.length > 0}
+                {#if tab.id === 'services' && formData.services.length > 0}
                   <span class="ml-1 px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded-full">
-                    {formData.capabilities.length}
+                    {formData.services.length}
+                  </span>
+                {/if}
+
+                {#if tab.id === 'subnets' && formData.subnets.length > 0}
+                  <span class="ml-1 px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded-full">
+                    {formData.subnets.length}
                   </span>
                 {/if}
               </div>
@@ -204,12 +205,11 @@
             <DetailsForm 
               {form}
               bind:formData={formData}
-              {isEditing}
             />
           </div>
         </div>
         
-      {:else if activeTab === 'capabilities'}
+      {:else if activeTab === 'services'}
         <div class="h-full overflow-hidden">
           {#if !isEditing}
             <div class="p-6 pb-4 border-b border-gray-700 flex-shrink-0">
@@ -221,10 +221,9 @@
           {/if}
           
           <div class="flex-1 relative">
-            <CapabilitiesForm 
+            <ServicesForm 
               {form}
-              bind:selectedCapabilities={formData.capabilities}
-              {nodeContext}
+              bind:formData={formData}
             />
           </div>
         </div>

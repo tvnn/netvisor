@@ -33,6 +33,7 @@
   export let getOptionIconColor: (option: TOption) => string = () => '';
   export let getOptionTags: (option: TOption) => TagProps[] = () => [];
   export let getOptionIsDisabled: (option: TOption) => boolean = () => false;
+  export let getOptionCategory: (item: any) => string | null = (item) => null;
   
   // Display functions for items (list)
   export let getItemId: (item: TItem) => string;
@@ -134,6 +135,7 @@
           getOptionIconColor={getOptionIconColor}
           getOptionTags={getOptionTags}
           getOptionIsDisabled={getOptionIsDisabled}
+          {getOptionCategory}
           
           getItemId={getItemId}
           getItemLabel={getItemLabel}

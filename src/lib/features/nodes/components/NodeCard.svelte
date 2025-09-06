@@ -2,12 +2,12 @@
   import { Edit, Radar, Trash2 } from 'lucide-svelte';
 	import { getNodeTargetString } from '../store';
   import type { Node } from '../types/base';
-	import { capabilities, nodeStatuses, nodeTypes } from '$lib/shared/stores/registry';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
 	import { getDaemonDiscoveryState } from '$lib/features/daemons/store';
   import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
 	import { sessions } from '$lib/features/discovery/store';
+	import { services } from '$lib/shared/stores/registry';
   
   export let node: Node;
   export let daemon: Daemon | null;
@@ -26,12 +26,8 @@
   // Build card data
   $: cardData = {
     title: node.name,
-    subtitle: nodeTypes.getDisplay(node.node_type),
-    status: node.monitoring_interval == 0 ? 'Monitoring Disabled' : nodeStatuses.getDisplay(node.status || null),
-    statusColor: node.monitoring_interval == 0 ? 'text-gray-400' : nodeStatuses.getColor(node.status || null).text,
-    icon: nodeTypes.getIconComponent(node.node_type),
     iconColor: 'text-blue-400',
-    
+    icon: services.getIconComponent(node.services[0].type),
     sections: connectionInfo ? [{
       label: 'Connection',
       value: connectionInfo
@@ -39,12 +35,11 @@
     
     lists: [
       {
-        label: 'Capabilities',
-        items: node.capabilities.map(cap => {
-          const [capId, capInfo] = Object.entries(cap)[0];
+        label: 'Services',
+        items: node.services.map(cap => {
           return ({
-            id: capId,
-            label: capabilities.getDisplay(capId),
+            id: cap.type,
+            label: services.getDisplay(cap.type),
             bgColor: 'bg-purple-900/30',
             color: 'text-purple-300'
           })

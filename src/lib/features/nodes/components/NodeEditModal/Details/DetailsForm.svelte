@@ -5,33 +5,28 @@
   import { required } from 'svelte-forms/validators';
   import type { Node } from '$lib/features/nodes/types/base';
   import { maxLength, validNodeType } from '$lib/shared/components/forms/validators';
-	import { nodeTargets, nodeTypes } from '$lib/shared/stores/registry';
+	import { nodeTargets } from '$lib/shared/stores/registry';
   
   export let form: any;
   export let formData: Node;
-  export let isEditing: boolean = false;
   
   // Create form fields with validation
   const name = field('name', formData.name, [required(), maxLength(100)]);
   const description = field('description', formData.description || '', [maxLength(500)]);
-  const nodeType = field('node_type', formData.node_type, [validNodeType(isEditing)]);
   const hostname = field('hostname', formData.hostname || '');
   
   // Add fields to form
   onMount(() => {
     form.name = name
     form.description = description
-    form.nodeType = nodeType
     form.hostname = hostname
   });
   
   // Update formData when field values change
   $: formData.name = $name.value;
   $: formData.description = $description.value;
-  $: formData.node_type = $nodeType.value;
   $: formData.hostname = $hostname.value;
 
-  $: nodeTypeOptions = nodeTypes.getItems().map(t => {return {value:t.id, label: t.display_name}});
   $: targetTypeOptions = nodeTargets.getItems().map(t => {return {value:t.id, label: t.display_name, description: t.description, icon: t.icon}});
   
   // Initialize target if needed
@@ -88,36 +83,6 @@
         {/if}
         <p class="text-xs text-gray-400">
           A meaningful name like "API Server", "Database", or "Load Balancer"
-        </p>
-      </div>
-
-      <!-- Node Type -->
-      <div class="space-y-2">
-        <label for="node_type" class="block text-sm font-medium text-gray-300">
-          Node Type
-          {#if !isEditing}
-            <span class="text-red-400 ml-1">*</span>
-          {/if}
-        </label>
-        <select
-          id="node_type"
-          bind:value={$nodeType.value}
-          class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
-                 focus:outline-none focus:ring-2 focus:ring-blue-500
-                 {$nodeType.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
-        >
-          {#each nodeTypeOptions as option}
-            <option value={option.value}>{option.label}</option>
-          {/each}
-        </select>
-        {#if $nodeType.errors.length > 0}
-          <div class="flex items-center gap-2 text-red-400">
-            <AlertCircle size={16} />
-            <p class="text-xs">{$nodeType.errors[0]}</p>
-          </div>
-        {/if}
-        <p class="text-xs text-gray-400">
-          Classification for this node type
         </p>
       </div>
 
