@@ -32,7 +32,6 @@ impl MacOsSystemUtils {
 
 #[cfg(target_os = "macos")]
 use crate::daemon::utils::base::SystemUtils;
-use crate::server::services::types::ports::Port;
 
 #[async_trait]
 impl SystemUtils for MacOsSystemUtils {
@@ -93,46 +92,4 @@ impl SystemUtils for MacOsSystemUtils {
 
         Ok(None)
     }
-
-    async fn scan_own_tcp_ports(&self) -> Result<Vec<Port>, Error> {
-        self.scan_tcp_ports(self.get_own_ip_address()?).await
-    }
-
-    async fn scan_own_udp_ports(&self) -> Result<Vec<Port>, Error> {
-        use tokio::process::Command;
-        
-        let output = Command::new("lsof")
-            .args(&["-Pn", "-i4UDP"])
-            .output()
-            .await?;
-            
-        if !output.status.success() {
-            return Err(anyhow!("Failed to run lsof command"));
-        }
-        
-        let output_str = String::from_utf8_lossy(&output.stdout);
-        let mut ports = Vec::new();
-        
-        for line in output_str.lines() {
-            // UDP doesn't have LISTEN state, look for local bindings
-            if line.contains("UDP") && !line.contains("->") {
-                let parts: Vec<&str> = line.split_whitespace().collect();
-                if let Some(name_part) = parts.last() {
-                    if let Some(port_start) = name_part.rfind(':') {
-                        let port_str = &name_part[port_start + 1..];
-                        if let Ok(port) = port_str.parse::<u16>() {
-                            ports.push(port);
-                        }
-                    }
-                }
-            }
-        }
-        
-        ports.sort_unstable();
-        ports.dedup();
-        
-        Ok(ports.into_iter().map(|p| Port::new_udp(p)).collect())
-    }
 }
-
-// =====

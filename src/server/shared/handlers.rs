@@ -2,7 +2,7 @@ use axum::{routing::get, Json, Router};
 use strum::IntoEnumIterator;
 use std::{sync::Arc};
 use crate::server::{
-        config::AppState, daemons::handlers as daemon_handlers, discovery::handlers as discovery_handlers, node_groups::handlers as group_handlers, nodes::{handlers as node_handlers, types::{targets::NodeTarget}}, services::types::base::{ServiceDiscriminants}, shared::types::{api::ApiResponse, metadata::{TypeMetadataProvider, TypeRegistry}}, subnets::handlers as subnet_handlers
+        config::AppState, daemons::handlers as daemon_handlers, discovery::handlers as discovery_handlers, node_groups::handlers as group_handlers, nodes::{handlers as node_handlers, types::targets::NodeTarget}, services::types::base::ServiceDiscriminants, shared::types::{api::ApiResponse, metadata::{TypeMetadataProvider, TypeRegistry}}, subnets::{handlers as subnet_handlers, types::base::SubnetType}
     };
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -19,6 +19,7 @@ async fn get_type_registry() -> Json<ApiResponse<TypeRegistry>> {
     let registry = TypeRegistry {
         services: ServiceDiscriminants::iter().map(|t| t.to_metadata()).collect(),
         node_targets: NodeTarget::iter().map(|t| t.to_metadata()).collect(),
+        subnet_types: SubnetType::iter().map(|t| t.to_metadata()).collect(),
     };
     
     Json(ApiResponse::success(registry))

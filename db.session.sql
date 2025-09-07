@@ -1,2 +1,0 @@
-DELETE FROM subnets;
-DELETE FROM nodes WHERE id NOT IN (SELECT DISTINCT node_id FROM daemons)

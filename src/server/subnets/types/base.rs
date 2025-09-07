@@ -8,7 +8,7 @@ use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use uuid::Uuid;
 
-use crate::server::{services::types::base::{ServiceCategory}, nodes::types::base::Node};
+use crate::server::{nodes::types::base::Node, services::types::categories::ServiceCategory, shared::types::metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SubnetBase {
@@ -89,10 +89,10 @@ pub struct NodeSubnetMembership {
     pub mac_address: Option<MacAddress>
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, EnumDiscriminants)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum SubnetType {
-    LocalLan,
+    Lan,
     VpnTunnel, 
     DockerBridge,
     Unknown
@@ -110,7 +110,7 @@ impl SubnetType {
         }
 
         if Self::match_interface_names(&["eth", "en", "wlan", "wifi", "eno", "enp"], interface_name) {
-            return SubnetType::LocalLan;
+            return SubnetType::Lan;
         }
 
         SubnetType::Unknown
@@ -125,5 +125,50 @@ impl SubnetType {
                 .map(|rest| rest.is_empty() || rest.chars().next().unwrap().is_ascii_digit())
                 .unwrap_or(false)
         })
+    }
+}
+
+impl TypeMetadataProvider for SubnetType {
+    fn id(&self) -> String {
+        self.discriminant().to_string()
+    }
+
+    fn display_name(&self) -> &str {
+        match self {
+            SubnetType::DockerBridge => "Docker Bridge",
+            SubnetType::Lan => "Local Area Network",
+            SubnetType::VpnTunnel => "VPN Tunnel",
+            SubnetType::Unknown => "Unknown",
+        }
+    }
+
+    fn description(&self) -> &str {
+        match self {
+            SubnetType::DockerBridge => "Docker bridge network",
+            SubnetType::Lan => "Local area network",
+            SubnetType::VpnTunnel => "VPN tunnel network",
+            SubnetType::Unknown => "Unknown network type",
+        }
+    }
+
+    fn category(&self) -> &str {
+        "subnet"
+    }
+
+    fn icon(&self) -> &str {
+        "Network"
+    }
+
+    fn color(&self) -> &str {
+        match self {
+            SubnetType::DockerBridge => "blue",
+            SubnetType::Lan => "green",
+            SubnetType::VpnTunnel => "purple",
+            SubnetType::Unknown => "gray",
+        }
+    }
+
+    fn metadata(&self) -> serde_json::Value {
+        serde_json::json!({})
     }
 }

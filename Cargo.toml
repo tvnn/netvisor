@@ -40,7 +40,7 @@ thiserror = "1.0"
 # Networking
 reqwest = { version = "0.11", features = ["json", "stream"] }
 trust-dns-resolver = { version = "0.23", features = ["tokio-runtime"] }
-snmp2 = "0.4.8"
+snmp2 = { version = "0.4.8", features = ["tokio"] }
 
 # TLS and security
 rustls = "0.21"
@@ -84,6 +84,9 @@ unzip3 = "1.0.0"
 network-interface = "2.0.3"
 getifaddrs = "0.5.0"
 pnet = "0.35.0"
+rsntp = "4.0.0"
+dhcproto = "0.13.0"
+rand = "0.9.2"
 
 # Linux/Unix dependencies  
 [target.'cfg(target_os = "linux")'.dependencies]

@@ -52,7 +52,7 @@ impl Default for ServerConfig {
         Self {
             server: ServerSettings {
                 host: "127.0.0.1".to_string(),
-                port: 3000,
+                port: 60072,
                 log_level: "info".to_string(),
             },
             database: DatabaseSettings {

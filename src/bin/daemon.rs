@@ -58,12 +58,7 @@ impl From<Cli> for CliArgs {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing::info!("🤖 NetVisor daemon starting");
-    // Initialize tracing
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new("debug"))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-    
+
     // Parse CLI and convert to CliArgs
     let cli = Cli::parse();
     let cli_args = CliArgs::from(cli);
@@ -82,6 +77,12 @@ async fn main() -> anyhow::Result<()> {
 
     let state = DaemonAppState::new(config_store.clone(), utils).await?;    
     let runtime_service = state.services.runtime_service.clone();
+
+    // Initialize tracing
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(config.log_level))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
 
     tracing::info!("🔗 Server at {}", server_addr);
     

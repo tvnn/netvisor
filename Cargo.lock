@@ -638,6 +638,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "critical-section"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
+
+[[package]]
 name = "crossbeam-queue"
 version = "0.3.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -707,6 +713,27 @@ checksum = "9c9e6a11ca8224451684bc0d7d5a7adbf8f2fd6887261a1cfc3c0432f9d4068e"
 dependencies = [
  "powerfmt",
 ]
+
+[[package]]
+name = "dhcproto"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f77998aa4d800695f2a6c746b2350c72ad4512ae556d515b69d12122d5467e05"
+dependencies = [
+ "dhcproto-macros",
+ "hex",
+ "hickory-proto",
+ "ipnet",
+ "rand 0.9.2",
+ "thiserror 2.0.12",
+ "url",
+]
+
+[[package]]
+name = "dhcproto-macros"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7993efb860416547839c115490d4951c6d0f8ec04a3594d9dd99d50ed7ec170"
 
 [[package]]
 name = "digest"
@@ -1227,6 +1254,28 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "hickory-proto"
+version = "0.25.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8a6fe56c0038198998a6f217ca4e7ef3a5e51f46163bd6dd60b5c71ca6c6502"
+dependencies = [
+ "async-trait",
+ "cfg-if",
+ "data-encoding",
+ "enum-as-inner",
+ "futures-channel",
+ "futures-util",
+ "idna 1.1.0",
+ "ipnet",
+ "once_cell",
+ "rand 0.9.2",
+ "thiserror 2.0.12",
+ "tinyvec",
+ "tracing",
+ "url",
+]
 
 [[package]]
 name = "hkdf"
@@ -1900,6 +1949,7 @@ dependencies = [
  "cidr",
  "clap",
  "config",
+ "dhcproto",
  "directories-next",
  "dirs",
  "dns-lookup",
@@ -1918,7 +1968,9 @@ dependencies = [
  "num_enum",
  "pnet",
  "procfs",
+ "rand 0.9.2",
  "reqwest",
+ "rsntp",
  "rust-embed",
  "rustls 0.21.12",
  "serde",
@@ -2105,6 +2157,10 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+dependencies = [
+ "critical-section",
+ "portable-atomic",
+]
 
 [[package]]
 name = "once_cell_polyfill"
@@ -2479,6 +2535,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "portable-atomic"
+version = "1.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f84267b20a16ea918e43c6a88433c2d54fa145c92a811b5b047ccbe153674483"
+
+[[package]]
 name = "potential_utf"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2800,6 +2862,16 @@ dependencies = [
  "spki",
  "subtle",
  "zeroize",
+]
+
+[[package]]
+name = "rsntp"
+version = "4.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5cce5f45764fc4f0da82badc165fec123f137f2b2ba7112778a83575bc6af3e1"
+dependencies = [
+ "chrono",
+ "tokio",
 ]
 
 [[package]]
@@ -3173,6 +3245,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eab795d01160def94264acb3b4569c3f025a8ee5ee010a5f2bbfdd6fe78a7db9"
 dependencies = [
  "asn1-rs 0.6.2",
+ "tokio",
 ]
 
 [[package]]

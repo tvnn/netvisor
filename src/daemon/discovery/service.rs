@@ -4,7 +4,7 @@ use cidr::{IpCidr};
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use tokio_util::sync::CancellationToken;
-use strum::IntoEnumIterator;
+use strum::{IntoDiscriminant, IntoEnumIterator};
 use uuid::Uuid;
 use anyhow::anyhow;
 use futures::{future::{try_join_all}, stream::{self, StreamExt}};
@@ -14,11 +14,11 @@ use crate::{
     server::{
         daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, nodes::types::{
             api::NodeUpdateRequest, base::{DiscoveryStatus, Node, NodeBase}, targets::{IpAddressTargetConfig, NodeTarget},
-        }, services::types::{base::{Service, ServiceDiscriminants}, ports::Port}, shared::types::api::ApiResponse, subnets::types::base::{NodeSubnetMembership, Subnet, SubnetType}
+        }, services::types::{base::{Service, ServiceDiscriminants}}, shared::types::{api::ApiResponse, metadata::TypeMetadataProvider}, subnets::types::base::{NodeSubnetMembership, Subnet, SubnetType}
     },
 };
 
-const CONCURRENT_SCANS: usize = 100;
+const CONCURRENT_SCANS: usize = 20;
 
 pub struct DaemonDiscoveryService {
     pub config_store: Arc<ConfigStore>,
@@ -204,21 +204,11 @@ impl DaemonDiscoveryService {
                             return Err(Error::msg("Discovery was cancelled"))
                         }
 
-                        // Skip local IP
-                        if ip == local_ip {
-                            scanned_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                            return Ok(None);
-                        }
-
-                        let open_ports = self.utils.scan_ports(ip).await;
-
-                        // Port scan directly - if ports are open, host is alive
-                        let scanned = match open_ports {
-                            Ok(ports) if !ports.is_empty() => {
-
-                                let processed = self.process_discovered_host(
+                        let scanned = match self.utils.ping_host(ip).await {
+                            Ok(true) => {
+                                tracing::info!("Processing host {}", ip);
+                                let processed = self.process_host(
                                     ip,
-                                    ports,
                                     session_id,
                                     subnet,
                                     discovered_count.clone()
@@ -230,21 +220,20 @@ impl DaemonDiscoveryService {
                                 } else {
                                     return processed;
                                 }
-                            },
-                            Ok(_) => {
-                                // No open ports, host might be alive but no interesting services
-                                tracing::debug!("Host {} has no open discovery ports", ip);
+                            }
+                            Ok(false) => {
+                                tracing::info!("Failed to reach host {}", ip);
                                 Ok(None)
-                            },
+                            }
                             Err(e) => {
-                                tracing::debug!("Failed to scan host {}: {}", ip, e);
+                                tracing::error!("Error sending ping {}: {}", ip, e);
                                 Ok(None)
                             }
                         };
 
                         scanned_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-
                         scanned
+
                     }
                 }
             })
@@ -297,14 +286,15 @@ impl DaemonDiscoveryService {
         Ok(successful_discoveries)
     }
     /// Process a discovered host immediately (port scan, DNS lookup, node creation)
-    async fn process_discovered_host(
+    async fn process_host(
         &self,
         host_ip: IpAddr,
-        open_ports: Vec<Port>,
         session_id: Uuid,
         subnet: Subnet,
         discovered_count: Arc<std::sync::atomic::AtomicUsize>
     ) -> Result<Option<Node>> {
+
+        let (open_ports, endpoint_results) = self.utils.scan_ports_and_endpoints(host_ip).await?;
         
         if open_ports.is_empty() {
             return Ok(None); // Skip hosts with no interesting services
@@ -338,12 +328,28 @@ impl DaemonDiscoveryService {
             node_groups: Vec::new(),
         });
 
-        let endpoints = Service::discovery_endpoints(host_ip);
-        let endpoint_results = self.utils.scan_endpoints(endpoints).await?;
+        let mut unclaimed_ports = open_ports.clone();
+        
+        let mut sorted_discriminants: Vec<ServiceDiscriminants> = ServiceDiscriminants::iter()
+            .collect::<Vec<ServiceDiscriminants>>();
+        
+        sorted_discriminants.sort_unstable_by_key(|discriminant| {
+            discriminant.to_string().contains("Generic")
+        });
 
         // Add services from detected ports using existing method
-        for discriminant in ServiceDiscriminants::iter() {
-            if let Some(service) = Service::from_discovery(discriminant, host_ip, &open_ports, &endpoint_results) {
+        for discriminant in sorted_discriminants {
+            let non_generic_service_count = node.base.services.iter().filter(|s| !s.discriminant().is_generic_service()).count();
+            // Once a distinct vendor service has been identified, skip other services
+            if discriminant.is_generic_service() && non_generic_service_count > 0 {
+                continue;
+            }
+            if let Some(service) = Service::from_discovery(discriminant, host_ip, &open_ports, &endpoint_results, &subnet, mac_address) {
+                if !discriminant.is_generic_service() && non_generic_service_count == 0 {
+                    node.base.name = service.discriminant().display_name().to_string();
+                }
+
+                unclaimed_ports.retain(|p| !service.discriminant().discovery_ports().contains(p));
                 node.add_service(service);
             }
         };
@@ -391,8 +397,6 @@ impl DaemonDiscoveryService {
                 })
             })
             .collect();
-
-        tracing::debug!("Found node subnet relations: {:?}", subnet_node_relationships);
 
         let daemon_subnet_update = NodeUpdateRequest {
             subnets: Some(subnet_node_relationships),

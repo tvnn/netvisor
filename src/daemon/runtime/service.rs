@@ -1,5 +1,4 @@
 use anyhow::Result;
-use strum::IntoEnumIterator;
 use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
 use crate::server::services::types::endpoints::Endpoint;
@@ -95,19 +94,6 @@ impl DaemonRuntimeService {
                 }
             )
         });
-
-        let endpoints = Service::discovery_endpoints(local_ip);
-        let endpoint_results = self.utils.scan_endpoints(endpoints).await?;
-        let open_tcp_ports = self.utils.scan_own_tcp_ports().await?;
-        let open_udp_ports = self.utils.scan_own_udp_ports().await?;
-        let open_ports = [open_tcp_ports, open_udp_ports].concat();
-
-        // Add services from detected ports using existing method
-        for discriminant in ServiceDiscriminants::iter() {
-            if let Some(service) = Service::from_discovery(discriminant, local_ip, &open_ports, &endpoint_results) {
-                node.add_service(service);
-            }
-        };
 
         let server_target = self.config_store.get_server_endpoint().await?;
 

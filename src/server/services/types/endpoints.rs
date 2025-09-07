@@ -42,6 +42,14 @@ impl Endpoint {
         Endpoint { protocol: ApplicationProtocol::Https, port: Port::HTTPS, ip: ip.clone(), path: Some(path.to_string())}
     }
 
+    pub fn http_alt(ip: Option<IpAddr>, path: &str) -> Self {
+        Endpoint { protocol: ApplicationProtocol::Http, port: Port::HTTPALT, ip: ip.clone(), path: Some(path.to_string())}
+    }
+
+    pub fn https_alt(ip: Option<IpAddr>, path: &str) -> Self {
+        Endpoint { protocol: ApplicationProtocol::Https, port: Port::HTTPSALT, ip: ip.clone(), path: Some(path.to_string())}
+    }
+
     pub fn from_refs(ip: Option<IpAddr>, protocol: &ApplicationProtocol, port: &Port, path: &Option<String>) -> Self {
         Endpoint { protocol: protocol.clone(), ip: ip.clone(), port: port.clone(), path: path.clone()}
     }

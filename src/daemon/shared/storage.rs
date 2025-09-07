@@ -48,8 +48,8 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             server_ip: None,
-            server_port: 5622,
-            port: 5621,
+            server_port: 60072,
+            port: 60073,
             name: "netvisor-daemon".to_string(),
             log_level: "info".to_string(),
             heartbeat_interval: 30,

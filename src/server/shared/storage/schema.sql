@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS nodes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    node_type TEXT,
     hostname TEXT,
     description TEXT,
     target TEXT NOT NULL,
@@ -9,10 +8,7 @@ CREATE TABLE IF NOT EXISTS nodes (
 
     discovery_status TEXT,
     services TEXT,
-    dns_resolver_id TEXT,
 
-    status TEXT,
-    monitoring_interval INTEGER,
     node_groups TEXT,
     
     last_seen TEXT,
