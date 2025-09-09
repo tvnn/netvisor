@@ -13,7 +13,7 @@ pub struct DaemonResponse {
 /// Daemon registration request from daemon to server
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonRegistrationRequest {
-    pub node_id: Uuid,
+    pub host_id: Uuid,
     pub daemon_id: Uuid
 }
 

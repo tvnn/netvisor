@@ -5,8 +5,8 @@ use std::result::Result::Ok;
 use crate::{
     daemon::{utils::base::{DaemonUtils}},
     server::{
-        nodes::types::{
-            base::{Node, NodeBase}, targets::{IpAddressTargetConfig, NodeTarget}
+        hosts::types::{
+            base::{Host, HostBase}, targets::{IpAddressTargetConfig, HostTarget}
         }, services::types::{base::{Service, ServiceDiscriminants}}, shared::types::{metadata::TypeMetadataProvider}
     },
 };
@@ -16,7 +16,7 @@ impl DaemonDiscoveryService {
     pub async fn run_self_report_discovery(&self) -> Result<(), Error> {    
         // Get daemon configuration
         let daemon_id = self.config_store.get_id().await?;
-        let (node_subnet_memberships, subnets) = self.utils.scan_subnets(daemon_id).await?;
+        let (host_subnet_membership, subnets) = self.utils.scan_subnets(daemon_id).await?;
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
 
@@ -27,33 +27,33 @@ impl DaemonDiscoveryService {
         let local_ip = self.utils.get_own_ip_address()?;
         let hostname = self.utils.get_own_hostname();
         
-        // Create node base
-        let node_base = NodeBase {
+        // Create host base
+        let host_base = HostBase {
             name: hostname.clone().unwrap_or(format!("Netvisor-Daemon-{}", local_ip)),
             hostname,
             description: Some("NetVisor daemon for network diagnostics".to_string()),
-            target: NodeTarget::IpAddress(IpAddressTargetConfig {
+            target: HostTarget::IpAddress(IpAddressTargetConfig {
                 ip: local_ip,
             }),
             services: Vec::new(),
-            subnets: node_subnet_memberships,
-            node_groups: Vec::new(),
+            subnets: host_subnet_membership,
+            groups: Vec::new(),
             open_ports: Vec::new(),
         };
 
-        let mut node = Node::new(node_base);
+        let mut host = Host::new(host_base);
 
-        node.add_service(Service::NetvisorDaemon { 
+        host.add_service(Service::NetvisorDaemon { 
             name: ServiceDiscriminants::NetvisorDaemon.display_name().to_string(), 
             ports: vec!(own_port),
             daemon_id
         });
 
-        let created_node = self.create_node(&node).await?;
+        let created_host = self.create_host(&host).await?;
 
-        tracing::info!("Created node with local IP: {}, Hostname: {:?}", local_ip, node.base.hostname);
+        tracing::info!("Created host with local IP: {}, Hostname: {:?}", local_ip, host.base.hostname);
 
-        self.config_store.set_node_id(created_node.id).await?;
+        self.config_store.set_host_id(created_host.id).await?;
         Ok(())
     }
 }

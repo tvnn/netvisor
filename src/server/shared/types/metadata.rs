@@ -3,7 +3,7 @@ use serde::Serialize;
 #[derive(Serialize, Debug, Clone)]
 pub struct TypeRegistry {
     pub services: Vec<TypeMetadata>,
-    pub node_targets: Vec<TypeMetadata>,
+    pub host_targets: Vec<TypeMetadata>,
     pub subnet_types: Vec<TypeMetadata>
 }
 

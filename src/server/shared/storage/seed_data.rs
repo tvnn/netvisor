@@ -1,17 +1,17 @@
 use std::net::{IpAddr, Ipv4Addr};
 use crate::server::{
-    nodes::types::{
-        base::{Node, NodeBase}, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget},
+    hosts::types::{
+        base::{Host, HostBase}, targets::{HostnameTargetConfig, IpAddressTargetConfig, HostTarget},
     },
 };
 
-pub fn create_internet_connectivity_node() -> Node {
+pub fn create_internet_connectivity_host() -> Host {
 
-    let node_target= NodeTarget::Hostname(HostnameTargetConfig { 
+    let host_target = HostTarget::Hostname(HostnameTargetConfig { 
         hostname: "google.com".to_string(), 
     });
 
-    let base = NodeBase {
+    let base = HostBase {
         name: "Google.com".to_string(),
         hostname: None,
         description: Some("Google.com for connectivity testing".to_string()),
@@ -27,24 +27,24 @@ pub fn create_internet_connectivity_node() -> Node {
             //     )
             // }
         ],
-        target: node_target,
-        node_groups: Vec::new(),
+        target: host_target ,
+        groups: Vec::new(),
     };
     
-    Node::new(base)
+    Host::new(base)
 }
 
-pub fn create_public_dns_node() -> Node {
+pub fn create_public_dns_host() -> Host {
 
-    let node_target = NodeTarget::IpAddress(IpAddressTargetConfig { 
+    let host_target  = HostTarget::IpAddress(IpAddressTargetConfig { 
         ip: IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 
     });
 
-    let base = NodeBase {
+    let base = HostBase {
         name: "Cloudflare".to_string(),
         hostname: None,
         description: Some("Cloudflare DNS for DNS resolution testing".to_string()),
-        target: node_target.clone(),
+        target: host_target .clone(),
         subnets: Vec::new(),
         open_ports: Vec::new(),
         services: vec![
@@ -62,8 +62,8 @@ pub fn create_public_dns_node() -> Node {
             //     )
             // }
         ],
-        node_groups: Vec::new(),
+        groups: Vec::new(),
     };
     
-    Node::new(base)
+    Host::new(base)
 }

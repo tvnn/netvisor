@@ -4,41 +4,40 @@ use mac_address::{MacAddress};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
-use crate::server::{nodes::types::targets::NodeTarget, services::types::{base::{Service, ServiceDiscriminants}, ports::Port}, subnets::types::base::NodeSubnetMembership};
+use crate::server::{hosts::types::targets::HostTarget, services::types::{base::{Service, ServiceDiscriminants}, ports::Port}};
 use uuid::{Uuid};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct NodeBase {
+pub struct HostBase {
     pub name: String,
     pub hostname: Option<String>,
     pub description: Option<String>,
-    pub target: NodeTarget,
-    pub subnets: Vec<NodeSubnetMembership>,
+    pub target: HostTarget,
+    pub subnets: Vec<HostSubnetMembership>,
     pub services: Vec<Service>,
     pub open_ports: Vec<Port>,
-    pub node_groups: Vec<Uuid>,
+    pub groups: Vec<Uuid>,
 }
 
-// Make any changes to NodeBody to NodeUpdate in types/api.rs
-
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub enum DiscoveryStatus {
-    Discovered { session_id: Uuid, discovered_at: DateTime<Utc> },
-    Reviewed,
-    Manual,
+pub struct HostSubnetMembership {
+    pub subnet_id: Uuid,
+    pub ip_address: IpAddr,
+    pub mac_address: Option<MacAddress>,
+    pub default: bool
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]
-pub struct Node {
+pub struct Host {
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub last_seen: Option<DateTime<Utc>>,
     #[serde(flatten)]
-    pub base: NodeBase,
+    pub base: HostBase,
 }
 
-impl PartialEq for Node {
+impl PartialEq for Host {
     fn eq(&self, other: &Self) -> bool {
         
         let macs_a: Vec<Option<MacAddress>> = self.base.subnets.iter().map(|s| s.mac_address).collect();
@@ -66,8 +65,8 @@ impl PartialEq for Node {
     }
 }
 
-impl Node {
-    pub fn new(base: NodeBase) -> Self {
+impl Host {
+    pub fn new(base: HostBase) -> Self {
         let now = chrono::Utc::now();
         Self {
             id: uuid::Uuid::new_v4(),
@@ -78,7 +77,7 @@ impl Node {
         }
     }
 
-    pub fn default_subnet(&self) -> Option<&NodeSubnetMembership> {
+    pub fn default_subnet(&self) -> Option<&HostSubnetMembership> {
         self.base.subnets.iter().find_map(|s| if s.default {Some(s)} else {None})
     }
 
@@ -89,17 +88,16 @@ impl Node {
         }
     }
 
-    // Node group management
     pub fn add_to_group(&mut self, group_id: Uuid) -> Self {
-        if !self.base.node_groups.contains(&group_id) {
-            self.base.node_groups.push(group_id);
+        if !self.base.groups.contains(&group_id) {
+            self.base.groups.push(group_id);
             self.updated_at = chrono::Utc::now();
         }
         self.clone()
     }
     
     pub fn remove_from_group(&mut self, group_id: &Uuid) {
-        self.base.node_groups.retain(|id| id != group_id);
+        self.base.groups.retain(|id| id != group_id);
         self.updated_at = chrono::Utc::now();
     }
 

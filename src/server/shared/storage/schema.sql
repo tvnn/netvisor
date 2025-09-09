@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS nodes (
+CREATE TABLE IF NOT EXISTS hosts (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     hostname TEXT,
@@ -7,17 +7,17 @@ CREATE TABLE IF NOT EXISTS nodes (
     subnets TEXT,
     services TEXT,
     open_ports TEXT,
-    node_groups TEXT,
+    groups TEXT,
     last_seen TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS node_groups (
+CREATE TABLE IF NOT EXISTS host_groups (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    node_sequence TEXT NOT NULL,
+    hosts TEXT NOT NULL,
     auto_diagnostic_enabled BOOLEAN DEFAULT true,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS node_groups (
 
 CREATE TABLE IF NOT EXISTS daemons (
     id TEXT PRIMARY KEY,
-    node_id TEXT NOT NULL,
+    host_id TEXT NOT NULL,
     registered_at TEXT NOT NULL,
     last_seen TEXT NOT NULL
 );
@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS subnets (
     cidr TEXT NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
+    hosts TEXT NOT NULL,
     dns_resolvers TEXT NOT NULL,
     gateways TEXT NOT NULL,
     subnet_type TEXT NOT NULL,

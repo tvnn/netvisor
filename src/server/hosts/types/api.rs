@@ -1,22 +1,23 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::server::{nodes::types::{base::Node, targets::NodeTarget}, services::types::{base::Service, ports::Port}, subnets::types::base::{NodeSubnetMembership, Subnet}};
+use crate::server::hosts::types::base::HostSubnetMembership;
+use crate::server::{hosts::types::{base::Host, targets::HostTarget}, services::types::{base::Service, ports::Port}, subnets::types::base::{Subnet}};
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
-pub struct NodeUpdateRequest {
+pub struct HostUpdateRequest {
     pub name: Option<String>,
     pub hostname: Option<Option<String>>,
     pub description: Option<Option<String>>,
-    pub target: Option<NodeTarget>,
-    pub subnets: Option<Vec<NodeSubnetMembership>>,
+    pub target: Option<HostTarget>,
+    pub subnets: Option<Vec<HostSubnetMembership>>,
     pub services: Option<Vec<Service>>,
     pub open_ports: Option<Vec<Port>>,
-    pub node_groups: Option<Vec<Uuid>>,
+    pub groups: Option<Vec<Uuid>>,
 }
 
-impl NodeUpdateRequest {
-    pub fn from_node_group_change(node_groups: Vec<Uuid>) -> Self {
+impl HostUpdateRequest {
+    pub fn from_group_change(groups: Vec<Uuid>) -> Self {
         Self {
             name: None,
             hostname: None,
@@ -25,19 +26,19 @@ impl NodeUpdateRequest {
             subnets: None,
             services: None,
             open_ports: None,
-            node_groups: Some(node_groups),
+            groups: Some(groups),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
-pub struct UpdateNodeResponse {
-    pub node: Node,
-    pub subnet_changes: NodeSubnetRelationshipChange
+pub struct UpdateHostResponse {
+    pub host: Host,
+    pub subnet_changes: HostSubnetRelationshipChange
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct NodeSubnetRelationshipChange {
+pub struct HostSubnetRelationshipChange {
     pub new_gateway: Vec<Subnet>,
     pub no_longer_gateway: Vec<Subnet>,
     pub new_dns_resolver: Vec<Subnet>,

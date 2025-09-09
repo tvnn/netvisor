@@ -8,19 +8,19 @@ use crate::server::{daemons::{
                 DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse
             }, base::Daemon
         }
-    }, nodes::service::NodeService, services::types::{base::{Service, ServiceDiscriminants}, endpoints::{Endpoint,ApplicationProtocol}}, shared::types::api::ApiResponse};
+    }, hosts::service::HostService, services::types::{base::{Service, ServiceDiscriminants}, endpoints::{Endpoint,ApplicationProtocol}}, shared::types::api::ApiResponse};
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
-    node_service: Arc<NodeService>,
+    host_service: Arc<HostService>,
     client: reqwest::Client,
 }
 
 impl DaemonService {
-    pub fn new(daemon_storage: Arc<dyn DaemonStorage>, node_service: Arc<NodeService>) -> Self {
+    pub fn new(daemon_storage: Arc<dyn DaemonStorage>, host_service: Arc<HostService>) -> Self {
         Self {
             daemon_storage,
-            node_service,
+            host_service,
             client: reqwest::Client::new(),
         }
     }
@@ -51,23 +51,23 @@ impl DaemonService {
     /// Send discovery request to daemon
     pub async fn send_discovery_request(&self, daemon: &Daemon, request: DaemonDiscoveryRequest) -> Result<(), Error> {        
         
-        let daemon_node = match self.node_service.get_node(&daemon.base.node_id).await? {
-            Some(node) => node,
-            None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
+        let daemon_host = match self.host_service.get_host(&daemon.base.host_id).await? {
+            Some(host) => host,
+            None => return Err(Error::msg(format!("Host '{}' for daemon {} not found", daemon.base.host_id, daemon.id)))
         };
 
-        let response = match daemon_node.get_service(ServiceDiscriminants::NetvisorDaemon) {
+        let response = match daemon_host.get_service(ServiceDiscriminants::NetvisorDaemon) {
              Some(Service::NetvisorDaemon{ports, ..})  => {
                 let port = ports[0].clone();
 
-                let endpoint = match daemon_node.default_ip() {
+                let endpoint = match daemon_host.default_ip() {
                     Some(ip) => Endpoint {
                         ip: Some(ip),
                         port,
                         protocol: ApplicationProtocol::Http,
                         path: None
                     },
-                    None => anyhow::bail!("Could not resolve endpoint for daemon node {}: no default IP available", daemon_node.id)
+                    None => anyhow::bail!("Could not resolve endpoint for daemon host {}: no default IP available", daemon_host.id)
                 };
 
                 self.client
@@ -76,7 +76,7 @@ impl DaemonService {
                     .send()
                     .await?              
             },
-            _ => anyhow::bail!("Daemon service is not enabled on node {}", daemon_node.id)
+            _ => anyhow::bail!("Daemon service is not enabled on host {}", daemon_host.id)
         };
 
         if !response.status().is_success() {
@@ -95,23 +95,23 @@ impl DaemonService {
 
     pub async fn send_discovery_cancellation(&self, daemon: &Daemon, session_id: Uuid) -> Result<(), anyhow::Error> {
 
-        let daemon_node = match self.node_service.get_node(&daemon.base.node_id).await? {
-            Some(node) => node,
-            None => return Err(Error::msg(format!("Node '{}' for daemon {} not found", daemon.base.node_id, daemon.id)))
+        let daemon_host = match self.host_service.get_host(&daemon.base.host_id).await? {
+            Some(host) => host,
+            None => return Err(Error::msg(format!("Host '{}' for daemon {} not found", daemon.base.host_id, daemon.id)))
         };
 
-        let response = match daemon_node.get_service(ServiceDiscriminants::NetvisorDaemon) {
+        let response = match daemon_host.get_service(ServiceDiscriminants::NetvisorDaemon) {
             Some(Service::NetvisorDaemon{ports, ..})  => {
                 let port = ports[0].clone();
 
-                let endpoint = match daemon_node.default_ip() {
+                let endpoint = match daemon_host.default_ip() {
                     Some(ip) => Endpoint {
                         ip: Some(ip),
                         port,
                         protocol: ApplicationProtocol::Http,
                         path: None
                     },
-                    None => anyhow::bail!("Could not resolve endpoint for daemon node {}: no default IP available", daemon_node.id)
+                    None => anyhow::bail!("Could not resolve endpoint for daemon host {}: no default IP available", daemon_host.id)
                 };
                 
                 self.client
@@ -120,7 +120,7 @@ impl DaemonService {
                     .send()
                     .await?
             },
-            _ => anyhow::bail!("Daemon service is not enabled on node {}", daemon_node.id)
+            _ => anyhow::bail!("Daemon service is not enabled on host {}", daemon_host.id)
         };
 
         if !response.status().is_success() {

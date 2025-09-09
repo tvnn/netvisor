@@ -10,7 +10,8 @@ use tokio::net::{TcpStream};
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-use crate::server::subnets::types::base::{NodeSubnetMembership, Subnet};
+use crate::server::subnets::types::base::{Subnet};
+use crate::server::hosts::types::base::HostSubnetMembership;
 use crate::daemon::utils::udp::{send_udp_probe, test_dns_service, test_ntp_service, test_snmp_service};
 use crate::server::services::types::base::Service;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
@@ -43,13 +44,13 @@ pub trait DaemonUtils: NetworkUtils {
         }
     }
     
-    async fn scan_subnets(&self, daemon_id: Uuid) -> Result<(Vec<NodeSubnetMembership>, Vec<Subnet>)> {
+    async fn scan_subnets(&self, daemon_id: Uuid) -> Result<(Vec<HostSubnetMembership>, Vec<Subnet>)> {
 
         let interfaces = self.get_own_interfaces();
 
         tracing::debug!("Found {} network interfaces", interfaces.len());
 
-        let (memberships, subnets): (Vec<NodeSubnetMembership>, Vec<Subnet>) = interfaces.into_iter()
+        let (memberships, subnets): (Vec<HostSubnetMembership>, Vec<Subnet>) = interfaces.into_iter()
             .filter(|interface| !interface.is_loopback())
             .flat_map(|interface| {
                 interface.ips.iter().filter_map(|ip| {
@@ -59,7 +60,7 @@ pub trait DaemonUtils: NetworkUtils {
                             None => None
                         };
                         return Some((
-                            NodeSubnetMembership {
+                            HostSubnetMembership {
                                 subnet_id: subnet.id,
                                 ip_address: ip.ip(),
                                 mac_address,
@@ -70,7 +71,7 @@ pub trait DaemonUtils: NetworkUtils {
                     }
                     None
                 })
-                .collect::<Vec<(NodeSubnetMembership, Subnet)>>()
+                .collect::<Vec<(HostSubnetMembership, Subnet)>>()
             })
             .unzip();
 

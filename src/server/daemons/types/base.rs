@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonBase {
-    pub node_id: Uuid
+    pub host_id: Uuid
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

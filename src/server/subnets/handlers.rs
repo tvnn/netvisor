@@ -63,7 +63,7 @@ async fn delete_subnet(
 ) -> ApiResult<Json<ApiResponse<()>>> {
     let service = &state.services.subnet_service;
     
-    // Check if node exists
+    // Check if host exists
     if service.get_subnet(&id).await?.is_none() {
         return Err(ApiError::not_found(&format!("Subnet '{}' not found", &id)));
     }

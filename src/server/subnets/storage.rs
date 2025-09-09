@@ -7,9 +7,9 @@ use crate::server::subnets::types::base::{Subnet, SubnetBase, SubnetSource, Subn
 
 #[async_trait]
 pub trait SubnetStorage: Send + Sync {
-    async fn create(&self, subnet: &Subnet) -> Result<Subnet>;
+    async fn create(&self, subnet: &Subnet) -> Result<()>;
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Subnet>>;
-    async fn get_by_ids(&self, ids: Vec<Uuid>) -> Result<Vec<Subnet>>;
+    async fn get_by_ids(&self, ids: &Vec<Uuid>) -> Result<Vec<Subnet>>;
     async fn get_all(&self) -> Result<Vec<Subnet>>;
     async fn update(&self, subnet: &Subnet) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
@@ -28,25 +28,27 @@ impl SqliteSubnetStorage {
 #[async_trait]
 impl SubnetStorage for SqliteSubnetStorage {
 
-    async fn create(&self, subnet: &Subnet) -> Result<Subnet> {
+    async fn create(&self, subnet: &Subnet) -> Result<()> {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
         let gateways_str = serde_json::to_string(&subnet.base.gateways)?;
         let dns_resolvers_str = serde_json::to_string(&subnet.base.dns_resolvers)?;
+        let hosts_str = serde_json::to_string(&subnet.base.hosts)?;
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
         let subnet_source_str = serde_json::to_string(&subnet.base.source)?;
 
         // Try to insert, ignore if constraint sviolation
         sqlx::query(
             r#"
-            INSERT OR IGNORE INTO subnets (
-                id, name, description, cidr, dns_resolvers, gateways, subnet_type, source, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO subnets (
+                id, name, description, cidr, hosts, dns_resolvers, gateways, subnet_type, source, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&subnet.id)
         .bind(&subnet.base.name)
         .bind(&subnet.base.description)
         .bind(&cidr_str)
+        .bind(hosts_str)
         .bind(dns_resolvers_str)
         .bind(&gateways_str)
         .bind(subnet_type_str)
@@ -56,14 +58,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         .execute(&self.pool)
         .await?;
 
-        // Always query for the actual record (either just inserted or existing)
-        let existing = sqlx::query("SELECT * FROM subnets WHERE cidr = ? AND gateways = ?")
-            .bind(&cidr_str)
-            .bind(&gateways_str)
-            .fetch_one(&self.pool)
-            .await?;
-
-        Ok(row_to_subnet(existing)?)
+        Ok(())
     }
 
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Subnet>> {
@@ -78,7 +73,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         }
     }
 
-    async fn get_by_ids(&self, ids: Vec<Uuid>) -> Result<Vec<Subnet>> {
+    async fn get_by_ids(&self, ids: &Vec<Uuid>) -> Result<Vec<Subnet>> {
         if ids.is_empty() {
             return Ok(vec![]);
         }
@@ -113,6 +108,7 @@ impl SubnetStorage for SqliteSubnetStorage {
 
     async fn update(&self, subnet: &Subnet) -> Result<()> {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
+        let hosts_str = serde_json::to_string(&subnet.base.hosts)?;
         let dns_resolvers_str = serde_json::to_string(&subnet.base.dns_resolvers)?;
         let gateways_str = serde_json::to_string(&subnet.base.gateways)?;
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
@@ -121,7 +117,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         sqlx::query(
             r#"
             UPDATE subnets SET 
-                name = ?, description = ?, cidr = ?, dns_resolvers = ?, gateways = ?, subnet_type = ?, source = ?,
+                name = ?, description = ?, cidr = ?, hosts = ?, dns_resolvers = ?, gateways = ?, subnet_type = ?, source = ?,
                 updated_at = ?
             WHERE id = ?
             "#
@@ -129,6 +125,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(&subnet.base.name)
         .bind(&subnet.base.description)
         .bind(cidr_str)
+        .bind(hosts_str)
         .bind(dns_resolvers_str)
         .bind(gateways_str)
         .bind(subnet_type_str)
@@ -154,6 +151,7 @@ impl SubnetStorage for SqliteSubnetStorage {
 fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet> {
     // Parse JSON fields safely
     let cidr: IpCidr = serde_json::from_str(&row.get::<String, _>("cidr"))?;
+    let hosts: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("hosts"))?;
     let dns_resolvers: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("dns_resolvers"))?;
     let gateways: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("gateways"))?;
     let subnet_type: SubnetType = serde_json::from_str(&row.get::<String, _>("subnet_type"))?;
@@ -174,6 +172,7 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet> {
             source,
             cidr,
             dns_resolvers,
+            hosts,
             gateways,
             subnet_type,
         }        

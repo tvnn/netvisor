@@ -52,10 +52,10 @@ impl DaemonRuntimeService {
         }
     }
 
-    // /// Check if self is registered and node exists
-    // pub async fn check_registry(&self, node_id: Uuid, daemon_id: Uuid) -> Result<()> {
-    //     tracing::info!("Checking registration of daemon with ID: {}, Node ID: {:?}", daemon_id, node_id);
-    //     let registration_request = DaemonRegistrationRequest {daemon_id, node_id};
+    // /// Check if self is registered and host exists
+    // pub async fn check_registry(&self, host_id: Uuid, daemon_id: Uuid) -> Result<()> {
+    //     tracing::info!("Checking registration of daemon with ID: {}, host ID: {:?}", daemon_id, host_id);
+    //     let registration_request = DaemonRegistrationRequest {daemon_id, host_id};
 
     //     let server_target = self.config_store.get_server_endpoint().await?;
 
@@ -88,9 +88,9 @@ impl DaemonRuntimeService {
     // }
 
     /// Register daemon with server and return assigned ID
-    pub async fn register_with_server(&self, node_id: Uuid, daemon_id: Uuid) -> Result<()> {
-        tracing::info!("Registering daemon with ID: {}, Node ID: {:?}", daemon_id, node_id);
-        let registration_request = DaemonRegistrationRequest {daemon_id, node_id};
+    pub async fn register_with_server(&self, host_id: Uuid, daemon_id: Uuid) -> Result<()> {
+        tracing::info!("Registering daemon with ID: {}, host ID: {:?}", daemon_id, host_id);
+        let registration_request = DaemonRegistrationRequest {daemon_id, host_id};
 
         let server_target = self.config_store.get_server_endpoint().await?;
 

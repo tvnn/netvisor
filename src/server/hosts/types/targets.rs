@@ -7,25 +7,25 @@ use crate::server::shared::types::{metadata::TypeMetadataProvider};
 #[derive(Debug, Clone, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, EnumIter))]
 #[serde(tag="type", content="config")]
-pub enum NodeTarget {
+pub enum HostTarget {
     IpAddress(IpAddressTargetConfig),
     Hostname(HostnameTargetConfig)
 }
 
-impl fmt::Display for NodeTarget {
+impl fmt::Display for HostTarget {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            NodeTarget::Hostname(HostnameTargetConfig{hostname}) => write!(f,"{}", hostname),
-            NodeTarget::IpAddress(IpAddressTargetConfig{ip}) => write!(f,"{}", ip.to_string())
+            HostTarget::Hostname(HostnameTargetConfig{hostname}) => write!(f,"{}", hostname),
+            HostTarget::IpAddress(IpAddressTargetConfig{ip}) => write!(f,"{}", ip.to_string())
         }
     }
 }
 
-impl PartialEq for NodeTarget {
+impl PartialEq for HostTarget {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (NodeTarget::Hostname(HostnameTargetConfig{hostname}), NodeTarget::Hostname(HostnameTargetConfig{hostname: other_hostname})) => hostname == other_hostname,
-            (NodeTarget::IpAddress(IpAddressTargetConfig{ip}),  NodeTarget::IpAddress(IpAddressTargetConfig{ip: other_ip})) => ip == other_ip,
+            (HostTarget::Hostname(HostnameTargetConfig{hostname}), HostTarget::Hostname(HostnameTargetConfig{hostname: other_hostname})) => hostname == other_hostname,
+            (HostTarget::IpAddress(IpAddressTargetConfig{ip}),  HostTarget::IpAddress(IpAddressTargetConfig{ip: other_ip})) => ip == other_ip,
             _ => false
         }
     }
@@ -57,28 +57,28 @@ impl Default for HostnameTargetConfig {
     }
 }
 
-impl NodeTarget {
+impl HostTarget {
     pub fn variant_name(&self) -> String {
-        NodeTargetDiscriminants::from(self).to_string()
+        HostTargetDiscriminants::from(self).to_string()
     }
 }
 
-impl TypeMetadataProvider for NodeTarget {
+impl TypeMetadataProvider for HostTarget {
     fn id(&self) -> String { 
         self.variant_name().to_string()
     }
     
     fn display_name(&self) -> &str {
         match self {
-            NodeTarget::IpAddress(..) => "IP Address",
-            NodeTarget::Hostname(..) => "Hostname",
+            HostTarget::IpAddress(..) => "IP Address",
+            HostTarget::Hostname(..) => "Hostname",
         }
     }
     
     fn description(&self) -> &str {
         match self {
-            NodeTarget::IpAddress(..) => "Connect using an IP address",
-            NodeTarget::Hostname(..) => "Connect using a hostname",
+            HostTarget::IpAddress(..) => "Connect using an IP address",
+            HostTarget::Hostname(..) => "Connect using a hostname",
         }
     }
     
@@ -96,12 +96,12 @@ impl TypeMetadataProvider for NodeTarget {
     
     fn metadata(&self) -> serde_json::Value {
         match self {
-            NodeTarget::IpAddress(..) => serde_json::json!({
+            HostTarget::IpAddress(..) => serde_json::json!({
                 "defaultConfig": {
                     "ip": "127.0.0.1",
                 }
             }),
-            NodeTarget::Hostname(..) => serde_json::json!({
+            HostTarget::Hostname(..) => serde_json::json!({
                 "defaultConfig": {
                     "hostname": "127.0.0.1",
                 }

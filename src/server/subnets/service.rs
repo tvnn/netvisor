@@ -2,24 +2,24 @@ use anyhow::Result;
 use futures::future::try_join_all;
 use uuid::Uuid;
 use std::sync::{Arc, Mutex};
-use crate::server::{nodes::{service::NodeService, types::api::NodeUpdateRequest}, subnets::{storage::SubnetStorage, types::base::Subnet}
+use crate::server::{hosts::{service::HostService, types::api::HostUpdateRequest}, subnets::{storage::SubnetStorage, types::base::Subnet}
 };
 
 pub struct SubnetService {
     storage: Arc<dyn SubnetStorage>,
-    node_service: Arc<Mutex<Option<Arc<NodeService>>>>
+    host_service: Arc<Mutex<Option<Arc<HostService>>>>
 }
 
 impl SubnetService {
     pub fn new(storage: Arc<dyn SubnetStorage>) -> Self {
         Self { 
             storage,
-            node_service: Arc::new(Mutex::new(None))
+            host_service: Arc::new(Mutex::new(None))
         }
     }
     
-    pub fn set_node_service(&self, node_service: Arc<NodeService>) {
-        *self.node_service.lock().unwrap() = Some(node_service);
+    pub fn set_host_service(&self, host_service: Arc<HostService>) {
+        *self.host_service.lock().unwrap() = Some(host_service);
     }
 
     /// Create a new subnet
@@ -44,7 +44,7 @@ impl SubnetService {
         self.storage.get_by_id(id).await
     }
 
-    pub async fn get_by_ids(&self, ids: Vec<Uuid>) -> Result<Vec<Subnet>> {
+    pub async fn get_by_ids(&self, ids: &Vec<Uuid>) -> Result<Vec<Subnet>> {
         self.storage.get_by_ids(ids).await
     }
 
@@ -60,20 +60,20 @@ impl SubnetService {
 
     pub async fn delete_subnet(&self, id: &Uuid) -> Result<()> {
 
-        let node_service = self.node_service
+        let host_service = self.host_service
             .lock()
             .unwrap()
             .as_ref()
-            .expect("Node service not initialized")
+            .expect("Host service not initialized")
             .clone();
 
-        let nodes = node_service.get_all_nodes().await?;
-        let update_futures = nodes
+        let hosts = host_service.get_all_hosts().await?;
+        let update_futures = hosts
             .iter()
             .filter_map(|n| {
                 let has_subnet = n.base.subnets.iter().find(|s| &s.subnet_id == id).is_some();
                 if has_subnet {
-                    let updates = NodeUpdateRequest {
+                    let updates = HostUpdateRequest {
                         name: None,
                         hostname: None,
                         description: None,
@@ -81,9 +81,9 @@ impl SubnetService {
                         open_ports: None,
                         subnets: Some(n.base.subnets.iter().filter(|s| &s.subnet_id != id).cloned().collect()),
                         services: None,
-                        node_groups: None,
+                        groups: None,
                     };
-                    return Some(node_service.update_node(&n.id, updates));
+                    return Some(host_service.update_host(&n.id, updates));
                 }
                 None
             });

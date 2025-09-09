@@ -1,14 +1,12 @@
-use std::net::{IpAddr};
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
-use mac_address::MacAddress;
 use pnet::{ipnetwork::IpNetwork};
 use serde::{Deserialize, Serialize};
 use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use uuid::Uuid;
 
-use crate::server::{nodes::types::base::Node, shared::types::metadata::TypeMetadataProvider};
+use crate::server::{hosts::types::base::Host, shared::types::metadata::TypeMetadataProvider};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum SubnetSource {
@@ -23,6 +21,7 @@ pub struct SubnetBase {
     pub description: Option<String>,
     pub dns_resolvers: Vec<Uuid>,    // [primary_dns, secondary_dns, fallback_dns]
     pub gateways: Vec<Uuid>,         // [default_gateway, backup_gateway]
+    pub hosts: Vec<Uuid>,
     pub subnet_type: SubnetType,
     pub source: SubnetSource
 }
@@ -70,15 +69,17 @@ impl Subnet {
                     subnet_type,
                     dns_resolvers: Vec::new(),
                     gateways: Vec::new(),
+                    hosts: Vec::new(),
                     source: SubnetSource::Discovery(daemon_id)
                 }))
             }
         }
     }
     
-    pub fn update_node_relationships(&mut self, node: &Node)  {
-        if node.base.services.iter().any(|c| c.discriminant().can_be_dns_resolver()) { self.base.dns_resolvers.push(node.id) }
-        if node.base.services.iter().any(|c| c.discriminant().can_be_gateway()) { self.base.gateways.push(node.id) }
+    pub fn update_host_relationships(&mut self, host: &Host)  {
+        if host.base.services.iter().any(|c| c.discriminant().can_be_dns_resolver()) { self.base.dns_resolvers.push(host.id) }
+        if host.base.services.iter().any(|c| c.discriminant().can_be_gateway()) { self.base.gateways.push(host.id) }
+        self.base.hosts.push(host.id)
     }
 }
 
@@ -96,14 +97,6 @@ impl PartialEq for Subnet {
 }
 
 impl Eq for Subnet {}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct NodeSubnetMembership {
-    pub subnet_id: Uuid,
-    pub ip_address: IpAddr,
-    pub mac_address: Option<MacAddress>,
-    pub default: bool
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]

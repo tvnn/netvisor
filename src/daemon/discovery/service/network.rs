@@ -8,12 +8,13 @@ use strum::{IntoDiscriminant, IntoEnumIterator};
 use uuid::Uuid;
 use futures::{future::{try_join_all}, stream::{self, StreamExt}};
 use std::result::Result::Ok;
+use crate::server::hosts::types::base::HostSubnetMembership;
 use crate::{
     daemon::{discovery::{types::base::DiscoveryPhase}, utils::base::{DaemonUtils}},
     server::{
-        daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, nodes::types::{
-            base::{Node, NodeBase}, targets::{IpAddressTargetConfig, NodeTarget}
-        }, services::types::{base::{Service, ServiceDiscriminants}, endpoints::EndpointResponse, ports::Port}, shared::types::{metadata::TypeMetadataProvider}, subnets::types::base::{NodeSubnetMembership, Subnet, SubnetType}
+        daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, hosts::types::{
+            base::{Host, HostBase}, targets::{IpAddressTargetConfig, HostTarget}
+        }, services::types::{base::{Service, ServiceDiscriminants}, endpoints::EndpointResponse, ports::Port}, shared::types::{metadata::TypeMetadataProvider}, subnets::types::base::{Subnet, SubnetType}
     },
 };
 
@@ -122,7 +123,7 @@ impl DaemonDiscoveryService {
             return Ok(());
         }
         
-        tracing::info!("Discovery session {} finished with {} nodes discovered", session_id, final_discovered_count);
+        tracing::info!("Discovery session {} finished with {} hosts discovered", session_id, final_discovered_count);
         Ok(())
     }
 
@@ -137,7 +138,7 @@ impl DaemonDiscoveryService {
         discovered_count: Arc<std::sync::atomic::AtomicUsize>,
         scanned_count: Arc<std::sync::atomic::AtomicUsize>,
         total_ips_across_subnets: usize,
-    ) -> Result<Vec<Node>> {
+    ) -> Result<Vec<Host>> {
         tracing::info!("Scanning subnet {} concurrently for hosts with open ports", subnet.base.cidr);
 
         // Report initial progress
@@ -162,14 +163,14 @@ impl DaemonDiscoveryService {
                 
                 if let Ok(Some((open_ports, endpoint_responses))) = self.scan_host(ip, scanned_count, cancel).await {
                     
-                    if let Ok(Some(node)) = self.process_host(
+                    if let Ok(Some(host)) = self.process_host(
                         ip,
                         subnet,
                         open_ports,
                         endpoint_responses,
                     ).await {
                         discovered_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        return Ok::<std::option::Option<Node>, Error>(self.create_node(&node).await.ok())
+                        return Ok::<std::option::Option<Host>, Error>(self.create_host(&host).await.ok())
                     }
                 }
                 Ok(None)
@@ -190,7 +191,7 @@ impl DaemonDiscoveryService {
             }
 
             match result {
-                Ok(Some(node)) => successful_discoveries.push(node),
+                Ok(Some(host)) => successful_discoveries.push(host),
                 Ok(None) => {},
                 Err(e) => tracing::warn!("Stream: error during scanning/processing: {}", e)
             }
@@ -275,7 +276,7 @@ impl DaemonDiscoveryService {
         subnet: Subnet,
         open_ports: Vec<Port>,
         endpoint_responses: Vec<EndpointResponse>,
-    ) -> Result<Option<Node>, Error> {
+    ) -> Result<Option<Host>, Error> {
         
         if open_ports.is_empty() && endpoint_responses.is_empty() {
             return Ok(None); // Skip hosts with no interesting services
@@ -288,15 +289,15 @@ impl DaemonDiscoveryService {
             _ => self.utils.get_mac_address_for_ip(host_ip).await?
         };
 
-        // Create node
-        let mut node = Node::new(NodeBase {
+        // Create host
+        let mut host = Host::new(HostBase {
             name: hostname.clone().unwrap_or_else(|| host_ip.to_string()),
             hostname,
-            target: NodeTarget::IpAddress(IpAddressTargetConfig {
+            target: HostTarget::IpAddress(IpAddressTargetConfig {
                 ip: host_ip,
             }),
             description: Some("Discovered device".to_string()),
-            subnets: vec!(NodeSubnetMembership {
+            subnets: vec!(HostSubnetMembership {
                 subnet_id: subnet.id,
                 ip_address: host_ip,
                 mac_address,
@@ -304,7 +305,7 @@ impl DaemonDiscoveryService {
             }),
             services: Vec::new(),
             open_ports: Vec::new(),
-            node_groups: Vec::new(),
+            groups: Vec::new(),
         });
 
         let mut unclaimed_ports = open_ports.clone();
@@ -318,25 +319,25 @@ impl DaemonDiscoveryService {
 
         // Add services from detected ports
         for discriminant in sorted_discriminants {
-            let non_generic_service_count = node.base.services.iter().filter(|s| !s.discriminant().is_generic_service()).count();
+            let non_generic_service_count = host.base.services.iter().filter(|s| !s.discriminant().is_generic_service()).count();
             // Once a distinct vendor service has been identified, skip other services
             if discriminant.is_generic_service() && non_generic_service_count > 0 {
                 continue;
             }
             if let (Some(service), Some(service_ports)) = Service::from_discovery(discriminant, host_ip, &open_ports, &endpoint_responses, &subnet, mac_address) {
                 if !discriminant.is_generic_service() && non_generic_service_count == 0 {
-                    node.base.name = service.discriminant().display_name().to_string();
+                    host.base.name = service.discriminant().display_name().to_string();
                 }
 
                 unclaimed_ports.retain(|p| !service_ports.contains(p));
-                node.add_service(service);
+                host.add_service(service);
             }
         };
 
-        node.base.open_ports = unclaimed_ports;
+        host.base.open_ports = unclaimed_ports;
         
-        tracing::info!("Processed node for host {} with {} open ports", host_ip, open_ports.len());
-        Ok(Some(node))
+        tracing::info!("Processed host for host {} with {} open ports", host_ip, open_ports.len());
+        Ok(Some(host))
     }
 
     /// Figure out what order to scan IPs in given allocation patterns

@@ -4,12 +4,12 @@ use std::sync::Arc;
 
 
 use crate::server::{
-    daemons::storage::{DaemonStorage, SqliteDaemonStorage}, node_groups::storage::{NodeGroupStorage, SqliteNodeGroupStorage}, nodes::storage::{NodeStorage, SqliteNodeStorage}, shared::storage::DatabaseMigrations, subnets::storage::{SqliteSubnetStorage, SubnetStorage}
+    daemons::storage::{DaemonStorage, SqliteDaemonStorage}, host_groups::storage::{HostGroupStorage, SqliteHostGroupStorage}, hosts::storage::{HostStorage, SqliteHostStorage}, shared::storage::DatabaseMigrations, subnets::storage::{SqliteSubnetStorage, SubnetStorage}
 };
 
 pub struct StorageFactory {
-    pub nodes: Arc<dyn NodeStorage>,
-    pub node_groups: Arc<dyn NodeGroupStorage>,
+    pub hosts: Arc<dyn HostStorage>,
+    pub host_groups: Arc<dyn HostGroupStorage>,
     pub daemons: Arc<dyn DaemonStorage>,
     pub subnets: Arc<dyn SubnetStorage>
 }
@@ -22,8 +22,8 @@ impl StorageFactory {
         DatabaseMigrations::initialize(&pool).await?;
         
         Ok(Self {
-            nodes: Arc::new(SqliteNodeStorage::new(pool.clone())),
-            node_groups: Arc::new(SqliteNodeGroupStorage::new(pool.clone())),
+            hosts: Arc::new(SqliteHostStorage::new(pool.clone())),
+            host_groups: Arc::new(SqliteHostGroupStorage::new(pool.clone())),
             daemons: Arc::new(SqliteDaemonStorage::new(pool.clone())),
             subnets: Arc::new(SqliteSubnetStorage::new(pool.clone()))
         })

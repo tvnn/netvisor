@@ -30,13 +30,13 @@ impl DaemonStorage for SqliteDaemonStorage {
         sqlx::query(
             r#"
             INSERT INTO daemons (
-                id, node_id,
+                id, host_id,
                 last_seen, registered_at
             ) VALUES (?, ?, ?, ?)
             "#
         )
         .bind(&daemon.id)
-        .bind(&daemon.base.node_id)
+        .bind(&daemon.base.host_id)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
@@ -75,11 +75,11 @@ impl DaemonStorage for SqliteDaemonStorage {
         sqlx::query(
             r#"
             UPDATE daemons SET 
-                node_id = ?, last_seen = ?
+                host_id = ?, last_seen = ?
             WHERE id = ?
             "#
         )
-        .bind(&daemon.base.node_id)
+        .bind(&daemon.base.host_id)
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
         .await?;
@@ -103,7 +103,7 @@ fn row_to_daemon(row: sqlx::sqlite::SqliteRow) -> Result<Daemon> {
         last_seen: row.get("last_seen"),
         registered_at: row.get("registered_at"),
         base: DaemonBase {
-            node_id: row.get("node_id"),
+            host_id: row.get("host_id"),
         }
     })
 }

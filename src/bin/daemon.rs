@@ -90,15 +90,15 @@ async fn main() -> anyhow::Result<()> {
     let daemon_id = config_store.get_id().await?;
     
     // Get or register daemon ID
-    if let Some(existing_id) = runtime_service.config_store.get_node_id().await? {
-        tracing::info!("📋 Existing node ID, already registered: {}", existing_id);
+    if let Some(existing_id) = runtime_service.config_store.get_host_id().await? {
+        tracing::info!("📋 Existing host ID, already registered: {}", existing_id);
     } else {        
         tracing::info!("📝 Registering with server...");
-        // Create self as node, register with server, and save daemon ID
+        // Create self as host, register with server, and save daemon ID
         discovery_service.run_self_report_discovery().await?;
 
-        if let Some(node_id) = config_store.get_node_id().await? {
-            runtime_service.register_with_server(node_id, daemon_id).await?;
+        if let Some(host_id) = config_store.get_host_id().await? {
+            runtime_service.register_with_server(host_id, daemon_id).await?;
         } else {
             tracing::error!("Failed to register daemon. Aborting.");
             panic!()

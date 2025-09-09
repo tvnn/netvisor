@@ -1,9 +1,9 @@
 use sqlx::SqlitePool;
 use anyhow::Result;
 
-use crate::{server::nodes::storage::SqliteNodeStorage};
-use super::seed_data::{create_internet_connectivity_node, create_public_dns_node};
-use crate::server::nodes::storage::NodeStorage;
+use crate::{server::hosts::storage::SqliteHostStorage};
+use super::seed_data::{create_internet_connectivity_host, create_public_dns_host};
+use crate::server::hosts::storage::HostStorage;
 pub struct DatabaseMigrations;
 
 impl DatabaseMigrations {
@@ -24,34 +24,34 @@ impl DatabaseMigrations {
         
         tracing::info!("Database schema initialized successfully");
         
-        Self::seed_default_nodes(pool).await?;
+        Self::seed_default_hosts(pool).await?;
 
         Ok(())
     }
 
-    async fn seed_default_nodes(pool: &SqlitePool) -> Result<()> {
-        // Check if nodes already exist
-        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM nodes")
+    async fn seed_default_hosts(pool: &SqlitePool) -> Result<()> {
+        // Check if hosts already exist
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM hosts")
             .fetch_one(pool)
             .await?;
             
         if count.0 > 0 {
-            tracing::info!("Database already contains nodes, skipping seed data");
+            tracing::info!("Database already contains hosts, skipping seed data");
             return Ok(());
         }
         
-        tracing::info!("Seeding default nodes...");
+        tracing::info!("Seeding default hosts...");
         
         // Use actual compiled structs
-        let dns_node = create_public_dns_node();
-        let connectivity_node = create_internet_connectivity_node();
-        let node_storage = SqliteNodeStorage::new(pool.clone());
+        let dns_host = create_public_dns_host();
+        let connectivity_host = create_internet_connectivity_host();
+        let host_storage = SqliteHostStorage::new(pool.clone());
         
-        node_storage.create(&dns_node).await?;
-        node_storage.create(&connectivity_node).await?;
+        host_storage.create(&dns_host).await?;
+        host_storage.create(&connectivity_host).await?;
 
         
-        tracing::info!("Default nodes seeded successfully");
+        tracing::info!("Default hosts seeded successfully");
         Ok(())
     }
 }
