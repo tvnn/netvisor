@@ -1,10 +1,9 @@
 use std::sync::Arc;
 use anyhow::Result;
-use crate::{daemon::{discovery::{service::DaemonDiscoveryService}, runtime::service::DaemonRuntimeService, shared::storage::ConfigStore, subnets::service::DaemonSubnetService}};
+use crate::daemon::{discovery::service::base::DaemonDiscoveryService, runtime::service::DaemonRuntimeService, shared::storage::ConfigStore};
 
 pub struct DaemonServiceFactory {
     pub discovery_service: Arc<DaemonDiscoveryService>,
-    pub subnet_service: Arc<DaemonSubnetService>,
     pub runtime_service: Arc<DaemonRuntimeService>,
 }
 
@@ -16,17 +15,12 @@ impl DaemonServiceFactory {
             config.clone(),
         ));
 
-        let subnet_service = Arc::new(DaemonSubnetService::new(
-            config.clone(),
-        ));
-
         let runtime_service = Arc::new(DaemonRuntimeService::new(
             config.clone(),
         ));
         
         Ok(Self {
             discovery_service,
-            subnet_service,
             runtime_service,
         })
     }

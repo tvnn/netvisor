@@ -4,14 +4,11 @@ use mac_address::MacAddress;
 use anyhow::{anyhow, Error, Result};
 
 #[cfg(any(target_os = "macos"))]
-pub struct MacOsSystemUtils;
+#[derive(Clone)]
+pub struct MacOsDaemonUtils;
 
 #[cfg(any(target_os = "macos"))]
-impl MacOsSystemUtils {
-    pub fn new() -> Self {
-        Self
-    }
-    
+impl MacOsDaemonUtils {
     /// Parse MAC address from macOS format (handles missing leading zeros)
     fn parse_macos_mac_address(&self, mac_str: &str) -> Result<MacAddress, Error> {
         let parts: Vec<&str> = mac_str.split(':').collect();
@@ -31,10 +28,18 @@ impl MacOsSystemUtils {
 }
 
 #[cfg(target_os = "macos")]
-use crate::daemon::utils::base::SystemUtils;
+use crate::daemon::utils::base::DaemonUtils;
+use crate::server::utils::base::NetworkUtils;
+
+impl NetworkUtils for MacOsDaemonUtils {
+    fn new() -> Self {
+        Self
+    }
+}
 
 #[async_trait]
-impl SystemUtils for MacOsSystemUtils {
+impl DaemonUtils for MacOsDaemonUtils {
+
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>, Error> {
         use tokio::process::Command;
 

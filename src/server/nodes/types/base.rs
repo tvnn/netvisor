@@ -1,10 +1,10 @@
-use std::{net::{IpAddr, Ipv4Addr}};
+use std::{net::{IpAddr}};
 
 use mac_address::{MacAddress};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
-use crate::server::{nodes::types::{targets::NodeTarget}, services::types::base::{Service, ServiceDiscriminants}, subnets::types::base::{NodeSubnetMembership, Subnet}};
+use crate::server::{nodes::types::{targets::NodeTarget}, services::types::base::{Service, ServiceDiscriminants}, subnets::types::base::{NodeSubnetMembership}};
 use uuid::{Uuid};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
@@ -14,9 +14,6 @@ pub struct NodeBase {
     pub description: Option<String>,
     pub target: NodeTarget,
     pub subnets: Vec<NodeSubnetMembership>,
-    
-    // Discovery & Service Data
-    pub discovery_status: Option<DiscoveryStatus>,
     pub services: Vec<Service>,
     pub node_groups: Vec<Uuid>,
 }
@@ -80,8 +77,15 @@ impl Node {
         }
     }
 
-    pub fn default_subnet(&self) -> &NodeSubnetMembership {
-        &self.base.subnets[0]
+    pub fn default_subnet(&self) -> Option<&NodeSubnetMembership> {
+        self.base.subnets.iter().find_map(|s| if s.default {Some(s)} else {None})
+    }
+
+    pub fn default_ip(&self) -> Option<IpAddr> {
+        match self.default_subnet() {
+            Some(subnet) => Some(subnet.ip_address),
+            None => None
+        }
     }
 
     // Node group management
@@ -108,19 +112,5 @@ impl Node {
 
     pub fn add_service(&mut self, service: Service) {        
         self.base.services.push(service);
-    }
-
-    pub fn is_gateway_for_subnet(&self, subnet: &Subnet) -> bool {
-        self.base.subnets.iter().any(|subnet_membership| {
-            if subnet_membership.subnet_id == subnet.id {
-                 let ip_octets = match subnet_membership.ip_address.to_canonical() {
-                    IpAddr::V4(ip) => ip.octets(),
-                    IpAddr::V6(ip ) => ip.to_ipv4().unwrap_or(Ipv4Addr::LOCALHOST).octets()
-                 };
-
-                 return ip_octets.last() == Some(&u8::from(1)) || ip_octets.last() == Some(&u8::from(254))
-            }
-            return false
-        })
     }
 }

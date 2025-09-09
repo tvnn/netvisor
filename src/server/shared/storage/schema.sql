@@ -5,12 +5,8 @@ CREATE TABLE IF NOT EXISTS nodes (
     description TEXT,
     target TEXT NOT NULL,
     subnets TEXT,
-
-    discovery_status TEXT,
     services TEXT,
-
     node_groups TEXT,
-    
     last_seen TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
@@ -42,7 +38,8 @@ CREATE TABLE IF NOT EXISTS subnets (
     description TEXT,
     dns_resolvers TEXT NOT NULL,
     gateways TEXT NOT NULL,
-    subnet_type TEXT NOT NULL
+    subnet_type TEXT NOT NULL,
+    source TEXT NOT NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subnets_unique_cidr_gateways ON subnets(cidr, gateways);

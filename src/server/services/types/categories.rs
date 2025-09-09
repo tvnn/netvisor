@@ -32,6 +32,7 @@ pub enum ServiceCategory {
     Web,               // Web servers
     Database,          // DB servers
     Development,       // Dev tools, CI/CD
+    Dashboard,
     
     // Special
     Unknown,
@@ -70,6 +71,7 @@ impl ServiceCategory {
             ServiceCategory::Web => "Web",
             ServiceCategory::Database => "Database",
             ServiceCategory::Development => "Development",
+            ServiceCategory::Dashboard => "Dashboard",
             
             // Unknown
             ServiceCategory::Netvisor => "NetVisor",
@@ -107,6 +109,7 @@ impl ServiceCategory {
             ServiceCategory::Web => "Globe",
             ServiceCategory::Database => "Database",
             ServiceCategory::Development => "Code",
+            ServiceCategory::Dashboard => "LayoutDashboard",
             
             // Unknown
             ServiceCategory::Netvisor => "Zap",
@@ -117,7 +120,7 @@ impl ServiceCategory {
         match self {
             // Infrastructure (always-on, core network services)
             ServiceCategory::NetworkCore => "yellow",
-            ServiceCategory::NetworkAccess => "orange",
+            ServiceCategory::NetworkAccess => "green",
             ServiceCategory::NetworkSecurity => "red",
 
             // Server Services
@@ -144,6 +147,7 @@ impl ServiceCategory {
             ServiceCategory::Web => "blue",
             ServiceCategory::Database => "gray",
             ServiceCategory::Development => "red",
+            ServiceCategory::Dashboard => "purple",
             
             // Unknown
             ServiceCategory::Netvisor => "purple",

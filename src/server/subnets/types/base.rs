@@ -8,7 +8,13 @@ use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use uuid::Uuid;
 
-use crate::server::{nodes::types::base::Node, services::types::categories::ServiceCategory, shared::types::metadata::TypeMetadataProvider};
+use crate::server::{nodes::types::base::Node, shared::types::metadata::TypeMetadataProvider};
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+pub enum SubnetSource {
+    Manual,
+    Discovery(Uuid)
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SubnetBase {
@@ -17,7 +23,8 @@ pub struct SubnetBase {
     pub description: Option<String>,
     pub dns_resolvers: Vec<Uuid>,    // [primary_dns, secondary_dns, fallback_dns]
     pub gateways: Vec<Uuid>,         // [default_gateway, backup_gateway]
-    pub subnet_type: SubnetType
+    pub subnet_type: SubnetType,
+    pub source: SubnetSource
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -40,7 +47,7 @@ impl Subnet {
         }
     }
 
-    pub fn from_interface(interface_name: &String, ip_network: &IpNetwork) -> Option<Self> {
+    pub fn from_discovery(interface_name: &String, ip_network: &IpNetwork, daemon_id: Uuid) -> Option<Self> {
 
         let subnet_type = SubnetType::from_interface_name(&interface_name);
 
@@ -63,20 +70,28 @@ impl Subnet {
                     subnet_type,
                     dns_resolvers: Vec::new(),
                     gateways: Vec::new(),
+                    source: SubnetSource::Discovery(daemon_id)
                 }))
             }
         }
     }
     
     pub fn update_node_relationships(&mut self, node: &Node)  {
-        if node.base.services.iter().any(|c| [ServiceCategory::DNS, ServiceCategory::AdBlock].contains(&c.discriminant().service_category())) { self.base.dns_resolvers.push(node.id) }
-        if node.is_gateway_for_subnet(&self) { self.base.gateways.push(node.id) }
+        if node.base.services.iter().any(|c| c.discriminant().can_be_dns_resolver()) { self.base.dns_resolvers.push(node.id) }
+        if node.base.services.iter().any(|c| c.discriminant().can_be_gateway()) { self.base.gateways.push(node.id) }
     }
 }
 
 impl PartialEq for Subnet {
     fn eq(&self, other: &Self) -> bool {
-        self.base.cidr == other.base.cidr && self.base.gateways[0] == other.base.gateways[0]
+        let cidr_match = &self.base.cidr == &other.base.cidr;
+        let sources_match = match (&self.base.source, &other.base.source) {
+            (SubnetSource::Discovery(daemon_id), SubnetSource::Discovery(other_daemon_id))  => {
+                daemon_id == other_daemon_id
+            },
+            _ => false
+        };
+        cidr_match && sources_match
     }
 }
 
@@ -86,7 +101,8 @@ impl Eq for Subnet {}
 pub struct NodeSubnetMembership {
     pub subnet_id: Uuid,
     pub ip_address: IpAddr,
-    pub mac_address: Option<MacAddress>
+    pub mac_address: Option<MacAddress>,
+    pub default: bool
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, EnumDiscriminants, EnumIter)]

@@ -1,5 +1,6 @@
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::time::Duration;
+use tokio::sync::{RwLock};
 use tokio_util::sync::CancellationToken;
 use tokio::task::JoinHandle;
 
@@ -48,16 +49,31 @@ impl DaemonDiscoverySessionManager {
     }
 
     /// Cancel current discovery task
-pub async fn cancel_current_discovery(&self) -> bool {
-    let is_running = self.is_discovery_running().await;
-    
-    if is_running {
+    pub async fn cancel_current_session(&self) -> bool {
+        if !self.is_discovery_running().await {
+            return false;
+        }
+        
+        tracing::info!("Cancelling discovery session...");
+        
+        // Signal cooperative cancellation
         self.cancellation_token.write().await.cancel();
+        
+        // Give it a brief moment for cooperative cancellation
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+        
+        // If still running, abort
+        if self.is_discovery_running().await {
+            tracing::warn!("Discovery not responding to cancellation, aborting task");
+            if let Some(task) = self.current_task.write().await.take() {
+                task.abort();
+            }
+            return false;
+        }
+        
+        tracing::info!("Discovery cancelled successfully");
         true
-    } else {
-        false
     }
-}
 
     pub async fn token(&self) -> CancellationToken {
         self.cancellation_token.read().await.clone()

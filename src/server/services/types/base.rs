@@ -7,9 +7,9 @@ use strum::IntoEnumIterator;
 use uuid::Uuid;
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::patterns::{Pattern, TPLINK_MAC, UBIQUITI_MAC};
-use crate::server::services::types::ports::Port;
-use crate::server::subnets::types::base::Subnet;
+use crate::server::services::types::patterns::{Pattern, Vendor};
+use crate::server::services::types::ports::{ApplicationProtocol, Port};
+use crate::server::subnets::types::base::{Subnet, SubnetType};
 use crate::server::{shared::{types::metadata::TypeMetadataProvider}};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
@@ -36,6 +36,7 @@ pub enum Service {
     Duplicati{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
     Syncthing{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
     Restic{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
+    WgDashboard{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
 
     // Services that can be inferred from a more complex pattern
     TrueNAS{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
@@ -56,6 +57,10 @@ pub enum Service {
     Traefik{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
     NginxProxyManager{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
     Cloudflared{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
+    HpPrinter{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
+    EeroGateway{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
+    EeroRepeater{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
+    PhilipsHueBridge{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
 
     // Generic categories (non-vendor specific)
     GenericRouter{confirmed: bool, name: String, ports: Vec<Port>, endpoints: Vec<Endpoint>},
@@ -88,9 +93,13 @@ impl Service {
     }
 
     pub fn discovery_endpoints() -> Vec<Endpoint> {
-        ServiceDiscriminants::iter()
+        let mut endpoints: Vec<Endpoint> = ServiceDiscriminants::iter()
             .flat_map(|discriminant| discriminant.discovery_endpoints())
-            .collect()
+            .collect();
+
+        endpoints.sort_by_key(|e| (e.protocol.to_string(), e.port.number, e.path.clone().unwrap_or("".to_string())) );
+        endpoints.dedup();
+        endpoints
     }
 
     pub fn from_discovery(discriminant: ServiceDiscriminants, ip: IpAddr, open_ports: &Vec<Port>, endpoint_responses: &Vec<EndpointResponse>, subnet: &Subnet, mac_address: Option<MacAddress>) -> Option<Self> where Self: Sized {
@@ -110,7 +119,7 @@ impl Service {
             tracing::info!("✅ Service {:?} matched for {} with ports {:?}", discriminant, ip, open_ports);
             let name = discriminant.to_string();
             let ports = discriminant.discovery_ports();
-            let endpoints = discriminant.discovery_endpoints().iter().map(|e| e.new_with_ip(ip)).collect();
+            let endpoints = discriminant.discovery_endpoints().iter().map(|e| e.use_ip(ip)).collect();
             return match discriminant {
                         // Services with a single specific port they can be identified on
                         ServiceDiscriminants::HomeAssistant => Some(Self::HomeAssistant{confirmed: false, name, ports, endpoints}),
@@ -131,6 +140,7 @@ impl Service {
                         ServiceDiscriminants::Duplicati => Some(Self::Duplicati{confirmed: false, name, ports, endpoints}),
                         ServiceDiscriminants::Restic => Some(Self::Restic{confirmed: false, name, ports, endpoints}),
                         ServiceDiscriminants::Syncthing => Some(Self::Syncthing{confirmed: false, name, ports, endpoints}),
+                        ServiceDiscriminants::WgDashboard => Some(Self::WgDashboard{confirmed: false, name, ports, endpoints}),
 
                         // Services that can be inferred from a combination of open ports and HTTP responses to endpoint requests
                         ServiceDiscriminants::Grafana => Some(Self::Grafana{confirmed: false, name, ports, endpoints}),
@@ -152,6 +162,10 @@ impl Service {
                         ServiceDiscriminants::Cloudflared => Some(Self::Cloudflared {confirmed: false, name, ports, endpoints}),
                         ServiceDiscriminants::NginxProxyManager => Some(Self::NginxProxyManager {confirmed: false, name, ports, endpoints}),
                         ServiceDiscriminants::Traefik => Some(Self::Traefik {confirmed: false, name, ports, endpoints}),
+                        ServiceDiscriminants::HpPrinter => Some(Self::HpPrinter {confirmed: false, name, ports, endpoints}),
+                        ServiceDiscriminants::EeroGateway => Some(Self::EeroGateway {confirmed: false, name, ports, endpoints}),
+                        ServiceDiscriminants::EeroRepeater => Some(Self::EeroRepeater {confirmed: false, name, ports, endpoints}),
+                        ServiceDiscriminants::PhilipsHueBridge => Some(Self::PhilipsHueBridge {confirmed: false, name, ports, endpoints}),
                         
 
                         // Generic categories for unknown devices with specific ports
@@ -184,6 +198,33 @@ impl ServiceDiscriminants {
         self.to_string().contains("Generic")
     }
 
+    pub fn can_be_manually_added(&self) -> bool {
+        match self {
+            ServiceDiscriminants::NetvisorDaemon | ServiceDiscriminants::NetvisorServer => false,
+            _ => true
+        }
+    }
+
+    pub fn can_be_dns_resolver(&self) -> bool {
+        match self.service_category() {
+            ServiceCategory::DNS | ServiceCategory::AdBlock => true,
+            _ => false
+        }
+    }
+
+    pub fn can_be_gateway(&self) -> bool {
+        match self {
+            ServiceDiscriminants::GenericVpnGateway 
+            | ServiceDiscriminants::GenericRouter 
+            | ServiceDiscriminants::PfSense 
+            | ServiceDiscriminants::OpnSense 
+            | ServiceDiscriminants::Fortigate
+            | ServiceDiscriminants::GenericFirewall
+            | ServiceDiscriminants::EeroGateway => true,
+            _ => false
+        }
+    }
+
     pub fn discovery_ports(&self) -> Vec<Port> {
         self.discovery_patterns().into_iter().flat_map(|p| p.ports()).collect::<Vec<Port>>()
     }
@@ -195,14 +236,19 @@ impl ServiceDiscriminants {
     fn discovery_patterns(&self) -> Vec<Pattern> {
         match &self {
 
-            // Discovery - specific ports
+            // Discovery - specific ports or endpoints
             ServiceDiscriminants::HomeAssistant => vec!( Pattern::AnyPort(vec!(Port::new_tcp(8123))) ),
             ServiceDiscriminants::Plex => vec!( Pattern::AnyPort(vec!(Port::new_tcp(32400))) ),
             ServiceDiscriminants::UnifiController => vec!( Pattern::AnyPort(vec!(Port::new_tcp(2049))) ),
             ServiceDiscriminants::Proxmox => vec!( Pattern::AnyPort(vec!(Port::new_tcp(8006))) ),
             ServiceDiscriminants::Jellyfin => vec!( Pattern::AnyPort(vec!(Port::new_tcp(8096))) ),
             ServiceDiscriminants::Emby => vec!( Pattern::AnyPort(vec!(Port::new_tcp(8920))) ),
-            ServiceDiscriminants::NetvisorDaemon => vec!( Pattern::AnyPort(vec!(Port::new_tcp(60073))) ),
+            ServiceDiscriminants::NetvisorDaemon => vec!( Pattern::AnyResponse(vec!(
+                EndpointResponse {
+                    endpoint: Endpoint{ protocol: ApplicationProtocol::Http, ip: None, port: Port::new_tcp(60072), path: None },
+                    response: "Netvisor Daemon Running".to_string()
+                }
+            ))),
             ServiceDiscriminants::NetvisorServer => vec!( Pattern::AnyPort(vec!(Port::new_tcp(60072))) ),
             ServiceDiscriminants::Unbound => vec!( Pattern::AllPort(vec!(Port::DNS, Port::new_tcp(8953))) ),
             ServiceDiscriminants::Bind9 => vec!( Pattern::AllPort(vec!(Port::DNS, Port::new_tcp(8053))) ),
@@ -217,6 +263,7 @@ impl ServiceDiscriminants {
             ServiceDiscriminants::Restic => vec!(Pattern::AnyPort(vec![Port::new_tcp(8000)])),
             ServiceDiscriminants::Duplicati => vec!(Pattern::AnyPort(vec![Port::new_tcp(8200)])),
             ServiceDiscriminants::Syncthing => vec!(Pattern::AnyPort(vec![Port::new_tcp(8384)])),
+            ServiceDiscriminants::WgDashboard => vec!(Pattern::AnyPort(vec![Port::new_tcp(10086)]), Pattern::SubnetIsNotType(SubnetType::VpnTunnel)),
 
             // Discovery - generic ports but look for match on specific HTTP response, see discovery_request_expected_response
             ServiceDiscriminants::Synology => vec!(Pattern::WebService("/", "Synology")),
@@ -230,14 +277,18 @@ impl ServiceDiscriminants {
             ServiceDiscriminants::PfSense => vec!(Pattern::WebService("/", "pfSense")),
             ServiceDiscriminants::OpnSense => vec!(Pattern::WebService("/", "OPNSense")),
             ServiceDiscriminants::Fortigate => vec!(Pattern::WebService("/", "FortiGate")),
-            ServiceDiscriminants::UnifiAccessPoint => vec!(Pattern::MacVendor(UBIQUITI_MAC), Pattern::WebService("/", "UniFi")),
-            ServiceDiscriminants::TpLinkEap => vec!(Pattern::MacVendor(TPLINK_MAC), Pattern::WebService("/", "TP-LINK")),
+            ServiceDiscriminants::UnifiAccessPoint => vec!(Pattern::MacVendor(Vendor::UBIQUITI), Pattern::WebService("/", "UniFi")),
+            ServiceDiscriminants::TpLinkEap => vec!(Pattern::MacVendor(Vendor::TPLINK), Pattern::WebService("/", "TP-LINK")),
             ServiceDiscriminants::AdguardHome => vec!(Pattern::AllPort(vec!(Port::DNS)), Pattern::WebService("/", "AdGuard Home")),
             ServiceDiscriminants::QNAP => vec!(Pattern::WebService("/", "QNAP")),
             ServiceDiscriminants::OpenMediaVault => vec!(Pattern::AllPort(vec!(Port::SAMBA)),Pattern::WebService("/", "OpenMediaVault")),
             ServiceDiscriminants::NextCloud => vec!(Pattern::WebService("/", "Nextcloud")),
             ServiceDiscriminants::PfBlockerNg => vec!(Pattern::AllPort(vec!(Port::DNS)), Pattern::WebService("/pfblockerng", "pfBlockerNG")),
             ServiceDiscriminants::CUPS => vec!(Pattern::AnyPort(vec!(Port::IPP)), Pattern::WebService("/", "CUPS")),
+            ServiceDiscriminants::HpPrinter => vec!(Pattern::MacVendor(Vendor::HP), Pattern::AnyPort(vec![Port::IPP])),
+            ServiceDiscriminants::EeroGateway => vec!(Pattern::MacVendor(Vendor::EERO), Pattern::IsGatewayIp),
+            ServiceDiscriminants::EeroRepeater => vec!(Pattern::MacVendor(Vendor::EERO), Pattern::NotGatewayIp),
+            ServiceDiscriminants::PhilipsHueBridge => vec!(Pattern::MacVendor(Vendor::PHILIPS), Pattern::WebService("/", "hue")),
             
             // Generic services
             ServiceDiscriminants::GenericRouter => vec!(
@@ -323,6 +374,8 @@ impl ServiceDiscriminants {
             ServiceDiscriminants::GenericDhcpServer => ServiceCategory::NetworkCore,
             ServiceDiscriminants::GenericSwitch => ServiceCategory::NetworkCore,
             ServiceDiscriminants::GenericAccessPoint => ServiceCategory::NetworkAccess,
+            ServiceDiscriminants::EeroGateway => ServiceCategory::NetworkAccess,
+            ServiceDiscriminants::EeroRepeater => ServiceCategory::NetworkAccess,
 
             // Storage & NAS
             ServiceDiscriminants::Synology => ServiceCategory::Storage,
@@ -356,9 +409,13 @@ impl ServiceDiscriminants {
             // Print Services
             ServiceDiscriminants::CUPS => ServiceCategory::Printer,
             ServiceDiscriminants::GenericPrintServer => ServiceCategory::Printer,
+            ServiceDiscriminants::HpPrinter => ServiceCategory::Printer,
 
-            // Cloud
-            ServiceDiscriminants::NextCloud => ServiceCategory::Web,
+            // Dashboard
+            ServiceDiscriminants::WgDashboard => ServiceCategory::Dashboard,
+
+            // IoT
+            ServiceDiscriminants::PhilipsHueBridge => ServiceCategory::IoT,
 
             // Security
             ServiceDiscriminants::PfSense => ServiceCategory::NetworkSecurity,
@@ -373,9 +430,10 @@ impl ServiceDiscriminants {
             // Device Types
             ServiceDiscriminants::Workstation => ServiceCategory::Workstation,
 
-            // Generic Services
+            // Web Services
             ServiceDiscriminants::GenericHttpWebServer => ServiceCategory::Web,
             ServiceDiscriminants::GenericHttpsWebServer => ServiceCategory::Web,
+            ServiceDiscriminants::NextCloud => ServiceCategory::Web,
         }
     }
 }
@@ -416,6 +474,8 @@ impl TypeMetadataProvider for ServiceDiscriminants {
             ServiceDiscriminants::UnifiController => "UniFi Controller",
             ServiceDiscriminants::UnifiAccessPoint => "UniFi Access Point",
             ServiceDiscriminants::TpLinkEap => "TP-Link EAP",
+            ServiceDiscriminants::EeroGateway => "Eero Gateway",
+            ServiceDiscriminants::EeroRepeater => "Eero Repeater",
 
             // Reverse proxy
             ServiceDiscriminants::Traefik => "Traefik",
@@ -434,6 +494,9 @@ impl TypeMetadataProvider for ServiceDiscriminants {
             ServiceDiscriminants::Restic => "Restic",
             ServiceDiscriminants::Syncthing => "Syncthing",
 
+            // Dashboard
+            ServiceDiscriminants::WgDashboard => "Wireguard Dashboard",
+
             // Virtualization
             ServiceDiscriminants::Proxmox => "Proxmox VE",
             ServiceDiscriminants::DockerSwarm => "Docker Swarm",
@@ -447,16 +510,20 @@ impl TypeMetadataProvider for ServiceDiscriminants {
             
             // Print Services
             ServiceDiscriminants::CUPS => "CUPS Print Server",
+            ServiceDiscriminants::HpPrinter => "HP Printer",
             
             // NetVisor
             ServiceDiscriminants::NetvisorDaemon => "NetVisor Daemon",
             ServiceDiscriminants::NetvisorServer => "NetVisor Server",
+
+            // IoT
+            ServiceDiscriminants::PhilipsHueBridge => "Philips Hue Bridge",
             
             // Device Types
             ServiceDiscriminants::Workstation => "Workstation",
             
             // Generic Services
-            ServiceDiscriminants::GenericVpnGateway => "VPN Server",
+            ServiceDiscriminants::GenericVpnGateway => "VPN Gateway",
             ServiceDiscriminants::GenericHttpWebServer => "HTTP Web Server",
             ServiceDiscriminants::GenericHttpsWebServer => "HTTPS Web Server",
             ServiceDiscriminants::GenericDnsServer => "DNS Server",
@@ -500,6 +567,8 @@ impl TypeMetadataProvider for ServiceDiscriminants {
             ServiceDiscriminants::UnifiController => "Ubiquiti UniFi network controller",
             ServiceDiscriminants::UnifiAccessPoint => "Ubiquiti UniFi wireless access point",
             ServiceDiscriminants::TpLinkEap => "TP-Link EAP wireless access point",
+            ServiceDiscriminants::EeroGateway => "Eero providing routing and gateway services",
+            ServiceDiscriminants::EeroRepeater => "Eero providing mesh network services",
 
             // Reverse proxy
             ServiceDiscriminants::Traefik => "Modern reverse proxy and load balancer",
@@ -512,6 +581,9 @@ impl TypeMetadataProvider for ServiceDiscriminants {
             ServiceDiscriminants::QNAP => "QNAP network attached storage system",
             ServiceDiscriminants::OpenMediaVault => "Debian-based NAS solution",
             ServiceDiscriminants::NextCloud => "Self-hosted cloud storage and collaboration platform",
+
+            // Dashboard
+            ServiceDiscriminants::WgDashboard => "Dashboard for visualizing and managing wireguard clients and server",
 
             // Backup
             ServiceDiscriminants::Duplicati => "Cross-platform backup client with encryption",
@@ -532,10 +604,14 @@ impl TypeMetadataProvider for ServiceDiscriminants {
             // Print Services
             ServiceDiscriminants::CUPS => "Common Unix Printing System",
             ServiceDiscriminants::GenericPrintServer => "Generic printing service",
+            ServiceDiscriminants::HpPrinter => "HP Printer",
             
             // NetVisor
             ServiceDiscriminants::NetvisorDaemon => "NetVisor daemon for enhanced network diagnostics",
             ServiceDiscriminants::NetvisorServer => "NetVisor server for network management",
+
+            // IoT
+            ServiceDiscriminants::PhilipsHueBridge => "Philips Hue Bridge for lighting control",
             
             // Device Types
             ServiceDiscriminants::Workstation => "Desktop computer for productivity work",
@@ -563,19 +639,10 @@ impl TypeMetadataProvider for ServiceDiscriminants {
     
     fn metadata(&self) -> serde_json::Value {
         let default_ports = self.discovery_ports();
-        let default_endpoints = self.discovery_ports();
-        let can_be_added = match self {
-            ServiceDiscriminants::NetvisorDaemon | ServiceDiscriminants::NetvisorServer => false,
-            _ => true
-        };
-        let can_be_dns_resolver = match self.service_category() {
-            ServiceCategory::DNS | ServiceCategory::AdBlock => true,
-            _ => false
-        };
-        let can_be_gateway = match self {
-            ServiceDiscriminants::GenericVpnGateway | ServiceDiscriminants::GenericRouter => true,
-            _ => false
-        };
+        let default_endpoints = self.discovery_endpoints();
+        let can_be_added = self.can_be_manually_added();    
+        let can_be_dns_resolver = self.can_be_dns_resolver();
+        let can_be_gateway = self.can_be_gateway();
         let is_generic = self.is_generic_service();
         serde_json::json!({
             "default_ports": default_ports, 

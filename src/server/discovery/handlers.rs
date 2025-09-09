@@ -98,6 +98,6 @@ async fn cancel_discovery(
         tracing::warn!("Daemon {} not found when trying to cancel discovery session {}", daemon_id, session_id);
     }
 
-    tracing::info!("Discovery session {} cancelled", session_id);
+    tracing::info!("Discovery session was {} cancelled", session_id);
     Ok(Json(ApiResponse::success(())))
 }

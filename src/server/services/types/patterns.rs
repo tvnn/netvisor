@@ -1,6 +1,7 @@
 use std::net::{IpAddr};
 
 use mac_address::MacAddress;
+use mac_oui::Oui;
 
 use crate::server::{services::types::{endpoints::{Endpoint, EndpointResponse}, ports::Port}, subnets::types::base::{Subnet, SubnetType}};
 
@@ -12,16 +13,15 @@ pub enum Pattern {
     AllPort(Vec<Port>),           // Match if ALL of these ports are open
     AnyResponse(Vec<EndpointResponse>), // Match if at least one endpoint response contains the response string
     WebService(&'static str, &'static str), // Match on a string response from a path on endpoints using standard HTTP/HTTPS ports
+    SubnetIsType(SubnetType),
+    SubnetIsNotType(SubnetType),
     IsGatewayIp,
     IsVpnSubnetGateway,
     IsDockerHost,
     NotGatewayIp,
-    MacVendor([&'static str; 2]),
+    MacVendor(&'static str),
     None,
 }
-
-pub const UBIQUITI_MAC: [&str; 2] =  ["F09FC2", "788A20"];
-pub const TPLINK_MAC: [&str; 2] = ["C46E1F", "AC84C6"];
 
 fn web_service_endpoint_responses(ip: Option<IpAddr>, path: &&str, resp: &&str) -> Vec<EndpointResponse> {
     vec!(
@@ -32,6 +32,15 @@ fn web_service_endpoint_responses(ip: Option<IpAddr>, path: &&str, resp: &&str) 
     )
 }
 
+// https://gist.github.com/aallan/b4bb86db86079509e6159810ae9bd3e4
+pub struct Vendor {}
+impl Vendor {
+    pub const PHILIPS: &'static str = "Philips Lighting BV";
+    pub const HP: &'static str = "Hewlett Packard";
+    pub const EERO: &'static str = "eero Inc";
+    pub const TPLINK: &'static str = "TP-LINK TECHNOLOGIES CO.,LTD";
+    pub const UBIQUITI: &'static str = "Ubiquiti Networks Inc";
+}
 
 impl Pattern {
     pub fn matches(&self, open_ports: Vec<Port>, responses: Vec<EndpointResponse>, ip: IpAddr, subnet: &Subnet, mac_address: Option<MacAddress>) -> bool {
@@ -44,8 +53,8 @@ impl Pattern {
                 endpoint_responses.iter().any(|expected| {
                     responses.iter().any(|actual| {
                         
-                        let resolved_expected_endpoint = if !expected.endpoint.is_resolved() {expected.endpoint.new_with_ip(ip)} else {expected.endpoint.clone()};
-                        let resolved_actual_endpoint = if !actual.endpoint.is_resolved() {actual.endpoint.new_with_ip(ip)} else {actual.endpoint.clone()};
+                        let resolved_expected_endpoint = if !expected.endpoint.is_resolved() {expected.endpoint.use_ip(ip)} else {expected.endpoint.clone()};
+                        let resolved_actual_endpoint = if !actual.endpoint.is_resolved() {actual.endpoint.use_ip(ip)} else {actual.endpoint.clone()};
 
                         resolved_actual_endpoint == resolved_expected_endpoint && 
                         actual.response.contains(&expected.response)
@@ -56,6 +65,7 @@ impl Pattern {
                 let endpoints = web_service_endpoint_responses(Some(ip), path, resp);
                 Pattern::AnyResponse(endpoints).matches(open_ports, responses, ip, subnet, mac_address)
             }
+            Pattern::NotGatewayIp => !Pattern::IsGatewayIp.matches(open_ports, responses, ip, subnet, mac_address),
             Pattern::IsGatewayIp => match ip {
                 IpAddr::V4(ipv4) => {
                     let octets = ipv4.octets();
@@ -69,14 +79,30 @@ impl Pattern {
                     (segments[7] == 1 || segments[7] == 254)
                 }
             },
+            Pattern::SubnetIsType(subnet_type) => &subnet.base.subnet_type == subnet_type,
+            Pattern::SubnetIsNotType(subnet_type) => &subnet.base.subnet_type != subnet_type,
             Pattern::IsVpnSubnetGateway => Pattern::IsGatewayIp.matches(open_ports, responses, ip, subnet, mac_address) && matches!(subnet.base.subnet_type, SubnetType::VpnTunnel),
             Pattern::IsDockerHost => Pattern::IsGatewayIp.matches(open_ports, responses, ip, subnet, mac_address) && matches!(subnet.base.subnet_type, SubnetType::DockerBridge),
-            Pattern::NotGatewayIp => !Pattern::IsGatewayIp.matches(open_ports, responses, ip, subnet, mac_address),
-            Pattern::MacVendor(vendor_strings) => {
-                match mac_address {
-                    Some(mac) => vendor_strings.iter().any(|s: &&str| mac.to_string().contains(s)),
-                    None => false
+            Pattern::MacVendor(vendor_string) => {
+
+                if let Some(mac) = mac_address {
+                    let Ok(oui_db) = Oui::default() else {return false};
+                    let Ok(Some(entry)) = Oui::lookup_by_mac(&oui_db, &mac.to_string()) else {return false};
+
+                    let normalize = |s: &str| -> String {
+                        s.trim()
+                        .to_lowercase()
+                        .chars()
+                        .filter(|c| c.is_alphanumeric())
+                        .collect()
+                    };
+
+                    let vendor_string = normalize(vendor_string);
+                    let entry_string = normalize(&entry.company_name);
+
+                    return vendor_string == entry_string
                 }
+                false
             }
             Pattern::None => false
         }
@@ -86,6 +112,8 @@ impl Pattern {
         match self {
             Pattern::AnyPort(ports) => ports.to_vec(),
             Pattern::AllPort(ports) => ports.to_vec(),
+            Pattern::AnyResponse(endpoint_response) => endpoint_response.iter().map(|er| er.endpoint.port.clone()).collect(),
+            Pattern::WebService(path, resp) => web_service_endpoint_responses(None, path, resp).iter().map(|er| er.endpoint.port.clone()).collect(),
             Pattern::AnyOf(patterns) => patterns.iter().flat_map(|p| p.ports().to_vec()).collect(),
             Pattern::AllOf(patterns) => patterns.iter().flat_map(|p| p.ports().to_vec()).collect(),
             _ => vec!()

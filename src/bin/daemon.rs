@@ -1,11 +1,11 @@
 use clap::Parser;
 use netvisor::daemon::{
-    runtime::types::DaemonAppState, shared::{handlers::create_router, storage::{AppConfig, CliArgs, ConfigStore}}, utils::base::{PlatformSystemUtils, SystemUtils}
+    runtime::types::DaemonAppState, shared::{handlers::create_router, storage::{AppConfig, CliArgs, ConfigStore}}, utils::base::PlatformDaemonUtils
     };
 use tower::ServiceBuilder;
+use netvisor::server::utils::base::NetworkUtils;
 use tower_http::{cors::{Any, CorsLayer}, trace::TraceLayer};
 use axum::{http::{Method}, Router};
-use uuid::Uuid;
 use std::{sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -70,13 +70,14 @@ async fn main() -> anyhow::Result<()> {
     
     // Initialize unified storage with full config
     let config_store = Arc::new(ConfigStore::new(path.clone(), config.clone()));
-    let utils = PlatformSystemUtils::new();
+    let utils = PlatformDaemonUtils::new();
 
     let own_addr = format!("{}:{}", utils.get_own_ip_address()?, &config_store.get_port().await?);
     let server_addr = &config_store.get_server_endpoint().await?;
 
     let state = DaemonAppState::new(config_store.clone(), utils).await?;    
     let runtime_service = state.services.runtime_service.clone();
+    let discovery_service = state.services.discovery_service.clone();
 
     // Initialize tracing
     tracing_subscriber::registry()
@@ -85,25 +86,23 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     tracing::info!("🔗 Server at {}", server_addr);
+
+    let daemon_id = config_store.get_id().await?;
     
     // Get or register daemon ID
-    let daemon_id = if let Some(existing_id) = runtime_service.config_store.get_id().await? {
-        tracing::info!("📋 Using existing daemon ID: {}", existing_id);
-        existing_id
+    if let Some(existing_id) = runtime_service.config_store.get_node_id().await? {
+        tracing::info!("📋 Existing node ID, already registered: {}", existing_id);
     } else {        
         tracing::info!("📝 Registering with server...");
-        
-        let daemon_id = Uuid::new_v4();
-
         // Create self as node, register with server, and save daemon ID
-        let node = runtime_service.create_self_as_node(daemon_id).await?;
-        tracing::info!("🌐 Local IP: {}, Hostname: {:?}", node.base.target.to_string(), node.base.hostname);
+        discovery_service.run_self_report_discovery().await?;
 
-        runtime_service.config_store.set_node_id(node.id).await?;
-        runtime_service.register_with_server(node, daemon_id).await?;
-        runtime_service.config_store.set_id(daemon_id).await?;
-        
-        daemon_id
+        if let Some(node_id) = config_store.get_node_id().await? {
+            runtime_service.register_with_server(node_id, daemon_id).await?;
+        } else {
+            tracing::error!("Failed to register daemon. Aborting.");
+            panic!()
+        };
     };
     
     tracing::info!("✅ Daemon ID: {}", daemon_id);

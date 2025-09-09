@@ -27,20 +27,17 @@ async fn handle_discovery_request(
     tracing::info!("Received discovery request for session {}", session_id);
 
     let discovery_service = state.services.discovery_service.clone();
-    let subnet_service = &state.services.subnet_service;
     let manager = discovery_service.discovery_manager.clone();
 
     if manager.is_discovery_running().await {
         return Err(ApiError::conflict(&"Discovery session already running"));
     } else {
-
-        let subnets = subnet_service.scan_subnets().await?;
         
         let cancel_token = manager.start_new_session().await;
 
         let inner_manager = manager.clone();
         let handle = tokio::spawn(async move {
-            match discovery_service.run_discovery_session(request, cancel_token, subnets).await {
+            match discovery_service.run_network_discovery(request, cancel_token).await {
                 Ok(()) => {
                     tracing::info!("Discovery completed successfully");
                 },
@@ -68,7 +65,7 @@ async fn handle_cancel_request(
     let manager = discovery_service.discovery_manager.clone();
 
     if manager.is_discovery_running().await {
-        if manager.cancel_current_discovery().await {
+        if manager.cancel_current_session().await {
             manager.clear_completed_task().await;
             Ok(Json(ApiResponse::success(DaemonDiscoveryCancellationResponse{session_id})))
         } else {

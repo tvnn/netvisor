@@ -20,7 +20,6 @@ pub fn create_internet_connectivity_node() -> Node {
         hostname: None,
         description: Some("Google.com for connectivity testing".to_string()),
         subnets: Vec::new(),
-        discovery_status: None,
         services: vec![
             Service::GenericHttpsWebServer { 
                 confirmed: true, 
@@ -50,7 +49,6 @@ pub fn create_public_dns_node() -> Node {
         description: Some("Cloudflare DNS for DNS resolution testing".to_string()),
         target: node_target.clone(),
         subnets: Vec::new(),
-        discovery_status: None,
         services: vec![
             Service::GenericDnsServer { 
                 confirmed: true, 

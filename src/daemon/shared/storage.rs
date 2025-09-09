@@ -36,8 +36,7 @@ pub struct AppConfig {
     pub request_timeout_ms: u64,
     
     // Runtime state (persisted)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<Uuid>,
+    pub id: Uuid,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_heartbeat: Option<chrono::DateTime<chrono::Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,7 +54,7 @@ impl Default for AppConfig {
             heartbeat_interval: 30,
             max_concurrent_operations: 10,
             request_timeout_ms: 30000,
-            id: None,
+            id: Uuid::new_v4(),
             last_heartbeat: None,
             node_id: None
         }
@@ -173,14 +172,14 @@ impl ConfigStore {
         Ok(())
     }
 
-    pub async fn get_id(&self) -> Result<Option<Uuid>> {
+    pub async fn get_id(&self) -> Result<Uuid> {
         let config = self.config.read().await;
         Ok(config.id)
     }
 
     pub async fn set_id(&self, id: Uuid) -> Result<()> {
         let mut config = self.config.write().await;
-        config.id = Some(id);
+        config.id = id;
         self.save(&config.clone()).await
     }
 

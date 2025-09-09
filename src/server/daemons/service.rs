@@ -58,13 +58,22 @@ impl DaemonService {
 
         let response = match daemon_node.get_service(ServiceDiscriminants::NetvisorDaemon) {
              Some(Service::NetvisorDaemon{endpoints, ..})  => {
-                let endpoint = endpoints[0].to_string();
-                
+                let endpoint = endpoints[0].clone();
+
+                let resolved_endpoint = if endpoint.is_resolved() {
+                    endpoint
+                } else {
+                    match daemon_node.default_ip() {
+                        Some(ip) => endpoint.use_ip(ip),
+                        None => anyhow::bail!("Could not resolve endpoint for daemon node {}: no default IP available", daemon_node.id)
+                    }
+                };
+
                 self.client
-                    .post(format!("{}/api/discovery/initiate", endpoint))
+                    .post(format!("{}/api/discovery/initiate", resolved_endpoint))
                     .json(&request)
                     .send()
-                    .await?
+                    .await?              
             },
             _ => anyhow::bail!("Daemon service is not enabled on node {}", daemon_node.id)
         };
@@ -92,10 +101,19 @@ impl DaemonService {
 
         let response = match daemon_node.get_service(ServiceDiscriminants::NetvisorDaemon) {
             Some(Service::NetvisorDaemon{endpoints, ..})  => {
-                let endpoint = endpoints[0].to_string();
+                let endpoint = endpoints[0].clone();
+
+                let resolved_endpoint = if endpoint.is_resolved() {
+                    endpoint
+                } else {
+                    match daemon_node.default_ip() {
+                        Some(ip) => endpoint.use_ip(ip),
+                        None => anyhow::bail!("Could not resolve endpoint for daemon node {}: no default IP available", daemon_node.id)
+                    }
+                };
                 
                 self.client
-                    .post(format!("{}/api/discovery/cancel", endpoint))
+                    .post(format!("{}/api/discovery/cancel", resolved_endpoint))
                     .json(&DaemonDiscoveryCancellationRequest { session_id })
                     .send()
                     .await?

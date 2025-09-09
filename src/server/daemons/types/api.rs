@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use crate::{daemon::discovery::types::base::DiscoveryPhase, server::{
-    daemons::types::base::Daemon, nodes::types::base::Node
+    daemons::types::base::Daemon
 }};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -13,7 +13,7 @@ pub struct DaemonResponse {
 /// Daemon registration request from daemon to server
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonRegistrationRequest {
-    pub node: Node,
+    pub node_id: Uuid,
     pub daemon_id: Uuid
 }
 
@@ -53,8 +53,6 @@ pub struct DaemonDiscoveryUpdate {
     pub session_id: Uuid,
     pub daemon_id: Uuid,
     pub phase: DiscoveryPhase,
-    pub subnet: usize,
-    pub total_subnets: usize,
     pub completed: usize,
     pub total: usize,
     pub discovered_count: usize,
@@ -69,8 +67,6 @@ impl DaemonDiscoveryUpdate {
             session_id,
             daemon_id,
             phase: DiscoveryPhase::Initiated,
-            subnet: 0,
-            total_subnets: 0,
             completed: 0,
             total: 0,
             discovered_count: 0,

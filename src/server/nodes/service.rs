@@ -1,4 +1,5 @@
 use anyhow::{Error, Result};
+use futures::future::try_join_all;
 use uuid::Uuid;
 use std::{sync::Arc};
 use crate::server::{
@@ -7,21 +8,23 @@ use crate::server::{
         types::{
             api::{NodeSubnetRelationshipChange, NodeUpdateRequest}, base::{Node, NodeBase}
         }
-    }, subnets::{storage::SubnetStorage, types::base::Subnet}
+    }, subnets::{service::SubnetService, types::base::{Subnet}}, utils::base::{NetworkUtils, ServerNetworkUtils}
 };
 
 pub struct NodeService {
     storage: Arc<dyn NodeStorage>,
     group_storage: Arc<dyn NodeGroupStorage>,
-    subnet_storage: Arc<dyn SubnetStorage>,
+    subnet_service: Arc<SubnetService>,
+    utils: ServerNetworkUtils
 }
 
 impl NodeService {
-    pub fn new(storage: Arc<dyn NodeStorage>, group_storage: Arc<dyn NodeGroupStorage>, subnet_storage: Arc<dyn SubnetStorage>) -> Self {
+    pub fn new(storage: Arc<dyn NodeStorage>, group_storage: Arc<dyn NodeGroupStorage>, subnet_service: Arc<SubnetService>, utils: ServerNetworkUtils) -> Self {
         Self { 
             storage,
             group_storage,
-            subnet_storage,
+            subnet_service,
+            utils
         }
     }
 
@@ -29,7 +32,7 @@ impl NodeService {
     pub async fn create_node(&self, node_base: NodeBase) -> Result<Node> {
         
         let node = Node::new(node_base);
-        
+
         let all_nodes = self.storage.get_all().await?;
 
         let node_from_storage = match all_nodes.iter().find(|n| node.eq(n)) {
@@ -37,7 +40,9 @@ impl NodeService {
                 existing_node.clone()
             }
             None => {
+                let node = self.update_default_subnet_membership(node).await?;
                 self.storage.create(&node).await?;
+                self.update_subnet_node_relationships(&node).await?;
                 node
             }
         };
@@ -72,9 +77,6 @@ impl NodeService {
         if let Some(target) = updates.target {
             node.base.target = target;
         }
-        if let Some(discovery_status) = updates.discovery_status {
-            node.base.discovery_status = discovery_status;
-        }
         if let Some(node_groups) = updates.node_groups {
             node.base.node_groups = node_groups;
         }
@@ -84,19 +86,39 @@ impl NodeService {
         if let Some(subnets) = updates.subnets {
             node.base.subnets = subnets;
         }
-
         if let Some(services) = updates.services {
             node.base.services = services;
         }
 
-        let subnet_relationship_changes = self.update_subnet_node_relationships(&node).await;
+        let subnet_relationship_changes = self.update_subnet_node_relationships(&node).await?;
         
         node.updated_at = chrono::Utc::now();
+
+        let node = self.update_default_subnet_membership(node).await?;
+
         self.storage.update(&node).await?;
         Ok((node, subnet_relationship_changes))
     }
 
-    pub async fn update_subnet_node_relationships(&self, node: &Node) -> NodeSubnetRelationshipChange {
+    pub async fn update_default_subnet_membership(&self, mut node: Node) -> Result<Node> {
+        let server_ip = self.utils.get_own_ip_address()?;
+        let subnet_ids: Vec<Uuid> = node.base.subnets.iter().map(|membership| membership.subnet_id).collect();
+        let subnets = self.subnet_service.get_by_ids(subnet_ids).await?;
+
+        node.base.subnets.iter_mut().find_map( |sm| {
+            if let Some(cidr) = subnets.iter().find_map(|sub| if sm.subnet_id == sub.id {Some(sub.base.cidr)} else {None}) {
+                if cidr.contains(&server_ip) {
+                    sm.default = true;
+                    return Some(sm.clone())
+                }
+            }
+            None
+        });
+
+        Ok(node)
+    }
+
+    pub async fn update_subnet_node_relationships(&self, node: &Node) -> Result<NodeSubnetRelationshipChange, Error> {
         let subnet_ids: Vec<Uuid> = node.base.subnets.iter().map(|membership| membership.subnet_id).collect();
 
         let mut new_gateway: Vec<Subnet> = Vec::new();
@@ -104,7 +126,7 @@ impl NodeService {
         let mut new_dns_resolver: Vec<Subnet> = Vec::new();
         let mut no_longer_dns_resolver: Vec<Subnet>  = Vec::new();
 
-        if let Ok(mut subnets) = self.subnet_storage.get_by_ids(subnet_ids).await {
+        if let Ok(mut subnets) = self.subnet_service.get_by_ids(subnet_ids).await {
             subnets.iter_mut().for_each(|subnet| {
 
                 let original_dns_resolver_count = subnet.base.dns_resolvers.len();
@@ -122,19 +144,39 @@ impl NodeService {
                 if original_gateway_count < new_gateway_count {new_gateway.push(subnet.clone())} else if original_gateway_count > new_gateway_count {no_longer_gateway.push(subnet.clone())}
             });
 
-            let subnet_futures = subnets.iter().map(|subnet| self.subnet_storage.update(&subnet));
-            futures::future::join_all(subnet_futures).await;
+            let subnet_futures = subnets.into_iter().map(|subnet| self.subnet_service.update_subnet(subnet));
+            try_join_all(subnet_futures).await?;
         };
 
-        NodeSubnetRelationshipChange {
+        Ok(NodeSubnetRelationshipChange {
             new_gateway,
             no_longer_gateway,
             new_dns_resolver,
             no_longer_dns_resolver,
-        }
+        })
     }
 
     pub async fn delete_node(&self, id: &Uuid) -> Result<()> {
+
+        let mut subnets = self.subnet_service.get_all_subnets().await?;
+        let update_futures = subnets
+            .iter_mut()
+            .filter_map(|s| {
+                let has_node_as_dns = s.base.dns_resolvers.iter().find(|n_id| n_id == &id).is_some();
+                let has_node_as_gateway = s.base.gateways.iter().find(|n_id| n_id == &id).is_some();
+                if has_node_as_dns {
+                    s.base.dns_resolvers = s.base.dns_resolvers.iter().filter(|n_id| n_id != &id).cloned().collect();
+                }
+                if has_node_as_gateway {
+                    s.base.gateways = s.base.gateways.iter().filter(|n_id| n_id != &id).cloned().collect();
+                }
+                if has_node_as_dns || has_node_as_gateway {
+                    return Some(self.subnet_service.update_subnet(s.clone()));
+                }
+                None
+            });
+
+        try_join_all(update_futures).await?;
 
         let all_groups = self.group_storage.get_all().await?;
     

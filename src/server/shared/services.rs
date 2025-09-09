@@ -2,7 +2,7 @@
 use std::sync::Arc;
 use anyhow::Result;
 use crate::server::{
-    daemons::service::DaemonService, node_groups::service::NodeGroupService, nodes::service::NodeService, shared::types::storage::StorageFactory, subnets::service::SubnetService
+    daemons::service::DaemonService, node_groups::service::NodeGroupService, nodes::service::NodeService, shared::types::storage::StorageFactory, subnets::service::SubnetService, utils::base::{NetworkUtils, ServerNetworkUtils}
 };
 
 pub struct ServiceFactory {
@@ -15,20 +15,22 @@ pub struct ServiceFactory {
 impl ServiceFactory {
     pub async fn new(storage: &StorageFactory) -> Result<Self> {
         // Initialize services with proper dependencies
+        let utils = ServerNetworkUtils::new();
+
+        let subnet_service = Arc::new(SubnetService::new(storage.subnets.clone()));
 
         let node_service = Arc::new(NodeService::new(
             storage.nodes.clone(),
             storage.node_groups.clone(),
-            storage.subnets.clone(),
+            subnet_service.clone(),
+            utils
         ));
+
+        subnet_service.set_node_service(node_service.clone());
         
         let node_group_service = Arc::new(NodeGroupService::new(
             storage.node_groups.clone(),
             node_service.clone(),
-        ));
-
-        let subnet_service = Arc::new(SubnetService::new(
-            storage.subnets.clone()
         ));
 
         let daemon_service = Arc::new(DaemonService::new(

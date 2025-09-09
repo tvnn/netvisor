@@ -1,23 +1,19 @@
 use anyhow::Result;
 use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
-use crate::server::services::types::endpoints::Endpoint;
-use crate::server::services::types::ports::{ApplicationProtocol, Port};
-use crate::daemon::utils::base::{create_system_utils, PlatformSystemUtils, SystemUtils};
-use crate::server::services::types::base::{Service, ServiceDiscriminants};
-use crate::server::shared::types::metadata::TypeMetadataProvider;
+use crate::daemon::utils::base::{create_system_utils, PlatformDaemonUtils};
 use crate::{
     daemon::{shared::storage::ConfigStore}, server::{
         daemons::types::api::{
             DaemonRegistrationRequest, DaemonRegistrationResponse, 
-        }, nodes::types::{base::{Node, NodeBase}, targets::{IpAddressTargetConfig, NodeTarget}}, shared::types::api::ApiResponse
-    }
+        },
+        shared::types::api::ApiResponse}
 };
 
 pub struct DaemonRuntimeService {
     pub config_store: Arc<ConfigStore>,
     pub client: reqwest::Client,
-    pub utils: PlatformSystemUtils
+    pub utils: PlatformDaemonUtils
 }
 
 impl DaemonRuntimeService {
@@ -31,7 +27,7 @@ impl DaemonRuntimeService {
 
     pub async fn heartbeat(&self) -> Result<()> {
 
-        let daemon_id = self.config_store.get_id().await?.expect("By the time heartbeat is running, ID will be assigned");
+        let daemon_id = self.config_store.get_id().await?;
         let interval = Duration::from_secs(self.config_store.get_heartbeat_interval().await?);
 
         let mut interval_timer = tokio::time::interval(interval);
@@ -56,75 +52,10 @@ impl DaemonRuntimeService {
         }
     }
 
-    pub async fn create_self_as_node(&self, daemon_id: Uuid) -> Result<Node> {        
-        // Get daemon configuration
-        let config = &self.config_store;
-        let own_port = config.get_port().await?;
-
-        let local_ip = self.utils.get_own_ip_address()?;
-        let hostname = self.utils.get_own_hostname();
-        
-        // Create node base
-        let node_base = NodeBase {
-            name: format!("NetVisor-Daemon-{}", local_ip),
-            hostname,
-            description: Some("NetVisor daemon for network diagnostics".to_string()),
-            target: NodeTarget::IpAddress(IpAddressTargetConfig {
-                ip: local_ip,
-            }),
-            services: vec![],
-            discovery_status: None,
-            subnets: Vec::new(),
-            node_groups: vec![],
-        };
-
-        let mut node = Node::new(node_base);
-
-        node.add_service(Service::NetvisorDaemon { 
-            confirmed: true, 
-            name: ServiceDiscriminants::NetvisorDaemon.display_name().to_string(), 
-            ports: vec!(),
-            daemon_id, 
-            endpoints: vec!(
-                Endpoint { 
-                    protocol: ApplicationProtocol::Http, 
-                    ip: Some(local_ip), 
-                    port: Port::new_tcp(own_port), 
-                    path: None
-                }
-            )
-        });
-
-        let server_target = self.config_store.get_server_endpoint().await?;
-
-        let response = self
-            .client
-            .post(format!("{}/api/nodes", server_target.to_string()))
-            .json(&node)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Failed to report daemon as node: HTTP {}", response.status());
-        }
-
-        let api_response: ApiResponse<Node> = response.json().await?;
-
-        if !api_response.success {
-            let error_msg = api_response.error.unwrap_or_else(|| "Unknown error".to_string());
-            anyhow::bail!("Failed to create node: {}", error_msg);
-        }
-
-        let created_node = api_response.data
-            .ok_or_else(|| anyhow::anyhow!("No node data in successful response"))?;
-
-        Ok(created_node)
-    }
-
     /// Register daemon with server and return assigned ID
-    pub async fn register_with_server(&self, node: Node, daemon_id: Uuid) -> Result<()> {
-        tracing::info!("Registering daemon with ID: {}, Node ID: {:?}", daemon_id, node.id);
-        let registration_request = DaemonRegistrationRequest {daemon_id, node};
+    pub async fn register_with_server(&self, node_id: Uuid, daemon_id: Uuid) -> Result<()> {
+        tracing::info!("Registering daemon with ID: {}, Node ID: {:?}", daemon_id, node_id);
+        let registration_request = DaemonRegistrationRequest {daemon_id, node_id};
 
         let server_target = self.config_store.get_server_endpoint().await?;
 

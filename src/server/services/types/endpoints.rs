@@ -25,7 +25,7 @@ impl Endpoint {
         self.ip.is_some()
     }
 
-    pub fn new_with_ip(&self, ip: IpAddr) -> Self {
+    pub fn use_ip(&self, ip: IpAddr) -> Self {
         Self {
             protocol: self.protocol.clone(),
             ip: Some(ip),
