@@ -3,12 +3,12 @@
   import { Globe, Server, FileText, Tag as TagIcon, AlertCircle, TargetIcon } from 'lucide-svelte';
   import { field } from 'svelte-forms';
   import { required } from 'svelte-forms/validators';
-  import type { Node } from '$lib/features/nodes/types/base';
-  import { maxLength, validNodeType } from '$lib/shared/components/forms/validators';
-	import { nodeTargets } from '$lib/shared/stores/registry';
+  import type { Host } from '$lib/features/hosts/types/base';
+  import { maxLength } from '$lib/shared/components/forms/validators';
+	import { hostTargets } from '$lib/shared/stores/registry';
   
   export let form: any;
-  export let formData: Node;
+  export let formData: Host;
   
   // Create form fields with validation
   const name = field('name', formData.name, [required(), maxLength(100)]);
@@ -27,7 +27,7 @@
   $: formData.description = $description.value;
   $: formData.hostname = $hostname.value;
 
-  $: targetTypeOptions = nodeTargets.getItems().map(t => {return {value:t.id, label: t.display_name, description: t.description, icon: t.icon}});
+  $: targetTypeOptions = hostTargets.getItems().map(t => {return {value:t.id, label: t.display_name, description: t.description, icon: t.icon}});
   
   // Initialize target if needed
   $: if (!formData.target) {
@@ -60,20 +60,20 @@
 
 <div class="space-y-8">    
     <div class="grid grid-cols-2 gap-6">
-      <!-- Node Name -->
+      <!-- Host Name -->
       <div class="space-y-2">
-        <label for="node_name" class="block text-sm font-medium text-gray-300">
+        <label for="host_name" class="block text-sm font-medium text-gray-300">
           Name
           <span class="text-red-400 ml-1">*</span>
         </label>
         <input
-          id="node_name"
+          id="host_name"
           type="text"
           bind:value={$name.value}
           class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
                  focus:outline-none focus:ring-2 focus:ring-blue-500
                  {$name.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
-          placeholder="Enter a descriptive name for this node..."
+          placeholder="Enter a descriptive name for this host..."
         />
         {#if $name.errors.length > 0}
           <div class="flex items-center gap-2 text-red-400">
@@ -88,11 +88,11 @@
 
       <!-- Hostname -->
       <div class="space-y-2">
-        <label for="node_domain" class="block text-sm font-medium text-gray-300">
+        <label for="host_domain" class="block text-sm font-medium text-gray-300">
           Hostname
         </label>
         <input
-          id="node_domain"
+          id="host_domain"
           type="text"
           bind:value={$hostname.value}
           class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
@@ -100,24 +100,24 @@
           placeholder="production, staging, development..."
         />
         <p class="text-xs text-gray-400">
-          Environment or domain this node belongs to
+          Environment or domain this host belongs to
         </p>
       </div>
     </div>
     
     <!-- Description -->
     <div class="space-y-2">
-      <label for="node_description" class="block text-sm font-medium text-gray-300">
+      <label for="host_description" class="block text-sm font-medium text-gray-300">
         Description
       </label>
       <textarea
-        id="node_description"
+        id="host_description"
         bind:value={$description.value}
         rows="3"
         class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
                 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical
                 {$description.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
-        placeholder="Optional description of this node's role or purpose..."
+        placeholder="Optional description of this hosts's role or purpose..."
       ></textarea>
       {#if $description.errors.length > 0}
         <div class="flex items-center gap-2 text-red-400">
@@ -126,7 +126,7 @@
         </div>
       {/if}
       <p class="text-xs text-gray-400">
-        Describe what this node does or its role in your infrastructure
+        Describe what this host does or its role in your infrastructure
       </p>
     </div>
 </div>

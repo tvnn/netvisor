@@ -1,6 +1,6 @@
 
 
-export type NodeTarget = { type: 'IpAddress'; config: IpTargetConfig; } |
+export type HostTarget = { type: 'IpAddress'; config: IpTargetConfig; } |
 { type: 'Hostname'; config: HostnameTargetConfig; };export interface IpTargetConfig {
   ip: string;
 }

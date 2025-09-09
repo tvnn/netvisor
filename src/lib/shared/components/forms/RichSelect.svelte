@@ -69,7 +69,7 @@
   }
   
   function handleClickOutside(event: MouseEvent) {
-    if (dropdownElement && !dropdownElement.contains(event.target as Node)) {
+    if (dropdownElement && !dropdownElement.contains(event.target as Host)) {
       isOpen = false;
     }
   }

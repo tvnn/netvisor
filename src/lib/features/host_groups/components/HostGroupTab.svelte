@@ -1,30 +1,30 @@
 <script lang="ts">
-	import { nodes } from '$lib/features/nodes/store';
+	import { hosts } from '$lib/features/hosts/store';
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
-	import { createNodeGroup, deleteNodeGroup, nodeGroups, updateNodeGroup } from '../store';
-	import type { NodeGroup } from '../types/base';
-	import NodeGroupCard from './NodeGroupCard.svelte';
-  	import type { Node } from "$lib/features/nodes/types/base";
-	import NodeGroupEditModal from './NodeGroupEditModal.svelte';
+	import { createHostGroup, deleteHostGroup, hostGroups, updateHostGroup } from '../store';
+	import type { HostGroup } from '../types/base';
+	import HostGroupCard from './HostGroupCard.svelte';
+  	import type { Host } from "$lib/features/hosts/types/base";
+	import HostGroupEditModal from './HostGroupEditModal.svelte';
 	import SummaryStats from '$lib/shared/components/layout/SummaryStats.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import { loading } from '$lib/shared/stores/feedback';
   
   let showGroupEditor = false;
-  let editingGroup: NodeGroup | null = null;
+  let editingGroup: HostGroup | null = null;
     
   function handleCreateGroup() {
     editingGroup = null;
     showGroupEditor = true;
   }
   
-  function handleEditGroup(group: NodeGroup) {
+  function handleEditGroup(group: HostGroup) {
     editingGroup = group;
     showGroupEditor = true;
   }
 
-  // function handleExecuteDiagnostics(group: NodeGroup) {
+  // function handleExecuteDiagnostics(group: HostGroup) {
   //   let data = {
   //     group_id: group.id,
   //     trigger_reason: "Manual"
@@ -32,22 +32,22 @@
   //   executeDiagnostics(group.id, data);
   // }
   
-  function handleDeleteGroup(group: NodeGroup) {
+  function handleDeleteGroup(group: HostGroup) {
     if (confirm(`Are you sure you want to delete "${group.name}"?`)) {
-      deleteNodeGroup(group.id);
+      deleteHostGroup(group.id);
     }
   }
   
-  async function handleGroupCreate(data: NodeGroup) {
-    const result = await createNodeGroup(data);
+  async function handleGroupCreate(data: HostGroup) {
+    const result = await createHostGroup(data);
     if (result?.success) {
       showGroupEditor = false;
       editingGroup = null;
     }
   }
   
-  async function handleGroupUpdate(data: NodeGroup) {
-    const result = await updateNodeGroup(data);
+  async function handleGroupUpdate(data: HostGroup) {
+    const result = await updateHostGroup(data);
     if (result?.success) {
       showGroupEditor = false;
       editingGroup = null;
@@ -59,15 +59,15 @@
     editingGroup = null;
   }
 
-  function getNodes(nodeIds: string[]): Node[] {
-    return $nodes.filter(n => n.id in nodeIds)
+  function getHosts(hostIds: string[]): Host[] {
+    return $hosts.filter(n => n.id in hostIds)
   }
 </script>
 
 <div class="space-y-6">
   <TabHeader
     title="Groups"
-    subtitle="Create node groups to define logical network paths for diagnostics"
+    subtitle="Create host groups to define logical network groups for visualization"
     buttons={[
       {
         onClick: handleCreateGroup,
@@ -76,16 +76,16 @@
     ]}
     />
 
-  {#if $nodeGroups.length > 0}
+  <!-- {#if $hostGroups.length > 0}
     <SummaryStats 
       totalStatLabel="Total Groups"
-      totalStatValue={$nodeGroups.length}
+      totalStatValue={$hostGroups.length}
       goodStatLabel="Auto-Diagnostic"
-      goodStatValue={$nodeGroups.filter(g => g.auto_diagnostic_enabled).length}
+      goodStatValue={$hostGroups.filter(g => g.auto_diagnostic_enabled).length}
     />
-  {/if}
+  {/if} -->
 
-  {#if $nodeGroups.length === 0 && !$loading}
+  {#if $hostGroups.length === 0 && !$loading}
     <!-- Empty state -->
     <EmptyState 
       title="No diagnostic groups configured yet"
@@ -93,12 +93,12 @@
       onClick={handleCreateGroup}
       cta="Create your first diagnostic group"/>
   {:else}
-    <!-- Node Groups Grid -->
+    <!-- Host Groups Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {#each $nodeGroups as group (group.id)}
-      <NodeGroupCard
+      {#each $hostGroups as group (group.id)}
+      <HostGroupCard
         {group}
-        nodes={getNodes(group.node_sequence)}
+        hosts={getHosts(group.hosts)}
         onEdit={() => handleEditGroup(group)}
         onDelete={() => handleDeleteGroup(group)}
       />
@@ -108,7 +108,7 @@
 </div>
 
 <!-- Modal -->
-<NodeGroupEditModal
+<HostGroupEditModal
   isOpen={showGroupEditor}
   group={editingGroup}
   onCreate={handleGroupCreate}

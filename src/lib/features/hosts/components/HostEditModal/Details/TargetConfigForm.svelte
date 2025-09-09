@@ -1,15 +1,14 @@
-<!-- src/lib/features/nodes/components/NodeEditModal/Details/TargetConfigForm.svelte -->
 <script lang="ts">
   import { AlertCircle, Globe, Server, TargetIcon } from 'lucide-svelte';
   import { field } from 'svelte-forms';
   import { required } from 'svelte-forms/validators';
-  import type { NodeTarget } from "$lib/features/nodes/types/targets";
+  import type { HostTarget } from "$lib/features/hosts/types/targets";
   import { ipAddress, hostname } from '$lib/shared/components/forms/validators';
-  import type { Node } from '$lib/features/nodes/types/base';
+  import type { Host } from '$lib/features/hosts/types/base';
 
   export let form: any;
-  export let formData: Node;
-  export let target: NodeTarget;
+  export let formData: Host;
+  export let target: HostTarget;
 
   // Create form fields based on target type
   let ipField: any;
@@ -117,7 +116,7 @@ function handleTargetTypeChange(event: Event) {
       {/each}
     </select>
     <p class="text-xs text-gray-400">
-      How should NetVisor connect to this node?
+      How should NetVisor connect to this host?
     </p>
   </div>
 <div class="flex flex-col flex-grow">
@@ -150,7 +149,7 @@ function handleTargetTypeChange(event: Event) {
           </div>
         {/if}
         <p class="text-xs text-gray-400">
-          The IP address where this node can be reached
+          The IP address where this host can be reached
         </p>
       </div>
     </div>
@@ -183,7 +182,7 @@ function handleTargetTypeChange(event: Event) {
             </div>
           {/if}
           <p class="text-xs text-gray-400">
-            The hostname or domain name for this node
+            The hostname or domain name for this host
           </p>
         </div>
       </div>

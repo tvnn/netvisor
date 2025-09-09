@@ -46,17 +46,6 @@ export const requiredForNew = (isEditing: boolean): Validator => (value: string)
   };
 };
 
-// Node type validator (not unknown device for new nodes)
-export const validNodeType = (isEditing: boolean): Validator => (value: string) => {
-  if (isEditing) return { valid: true, name: 'validNodeType' };
-  
-  return {
-    valid: Boolean(value && value !== 'UnknownDevice'),
-    name: 'validNodeType', 
-    message: 'Node type is required for new nodes'
-  };
-};
-
 // Port range validator
 export const portRange = (): Validator => (value: number | string) => {
   if (!value && value !== 0) return { valid: true, name: 'portRange' };

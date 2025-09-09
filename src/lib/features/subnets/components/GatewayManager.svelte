@@ -1,46 +1,46 @@
 <script lang="ts">
   import { Router } from 'lucide-svelte';
-  import { nodes } from '$lib/features/nodes/store';
-  import { getNodeTargetString } from '$lib/features/nodes/store';
+  import { hosts } from '$lib/features/hosts/store';
+  import { getHostTargetString } from '$lib/features/hosts/store';
   import ListManager from '$lib/shared/components/forms/ListManager.svelte';
-  import type { Node } from '$lib/features/nodes/types/base';
+  import type { Host } from '$lib/features/hosts/types/base';
 	import { services } from '$lib/shared/stores/registry';
 	import type { TagProps } from '$lib/shared/components/data/types';
   
   export let form: any;
   export let gatewayIds: string[] = [];
   
-  // Get nodes that can act as gateways (have Router services or gateway-like IPs)
-  $: gatewayCapableNodes = $nodes.filter((node: Node) => 
-    node.services.some(service => services.getMetadata(service.type).can_be_gateway));
+  // Get hosts that can act as gateways (have Router services or gateway-like IPs)
+  $: gatewayCapableHosts = $hosts.filter((host: Host) => 
+    host.services.some(service => services.getMetadata(service.type).can_be_gateway));
   
-  // Get available nodes (not already selected)
-  $: availableNodes = gatewayCapableNodes.filter(node => 
-    !gatewayIds.includes(node.id)
+  // Get available hosts (not already selected)
+  $: availableHosts = gatewayCapableHosts.filter(host => 
+    !gatewayIds.includes(host.id)
   );
   
-  // Convert gateway IDs to node objects for display
+  // Convert gateway IDs to host objects for display
   $: selectedGateways = gatewayIds.map(id => 
-    $nodes.find(node => node.id === id)
-  ).filter(Boolean) as Node[];
+    $hosts.find(host => host.id === id)
+  ).filter(Boolean) as Host[];
   
-  // Display functions for available nodes (dropdown options)
-  function getOptionId(node: Node): string {
-    return node.id;
+  // Display functions for available hosts (dropdown options)
+  function getOptionId(host: Host): string {
+    return host.id;
   }
   
-  function getOptionLabel(node: Node): string {
-    return node.name;
+  function getOptionLabel(host: Host): string {
+    return host.name;
   }
   
-  function getOptionDescription(node: Node): string {
-    return getNodeTargetString(node.target)
+  function getOptionDescription(host: Host): string {
+    return getHostTargetString(host.target)
   }
   
-  function getOptionTags(node: Node) {
+  function getOptionTags(host: Host) {
     const tags: TagProps[] = [];
     
-    const gatewayServices = node.services.filter(service => services.getMetadata(service.type).can_be_gateway);
+    const gatewayServices = host.services.filter(service => services.getMetadata(service.type).can_be_gateway);
     
     gatewayServices.forEach(service => {
       tags.push({
@@ -53,9 +53,9 @@
   }
   
   // Event handlers
-  function handleAdd(nodeId: string) {
-    if (!gatewayIds.includes(nodeId)) {
-      gatewayIds = [...gatewayIds, nodeId];
+  function handleAdd(hostId: string) {
+    if (!gatewayIds.includes(hostId)) {
+      gatewayIds = [...gatewayIds, hostId];
     }
   }
   
@@ -66,12 +66,12 @@
 
 <ListManager
   label="Gateways"
-  helpText="Select nodes that provide gateway/routing services for this subnet"
+  helpText="Select hosts that provide gateway/routing services for this subnet"
   placeholder="Select a gateway to add..."
-  emptyMessage="No gateways configured. Router-capable nodes will appear here."
+  emptyMessage="No gateways configured. Gateway-capable hosts will appear here."
   allowReorder={true}
   
-  options={availableNodes}
+  options={availableHosts}
   items={selectedGateways}
   allowItemEdit={(item) => false}
   

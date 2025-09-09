@@ -5,15 +5,9 @@ interface Subnet {
     cidr: string,
     name: string,
     dns_resolvers: string[],
-    gateways: string[]
+    gateways: string[],
+    hosts: string[],
     description?: string
     subnet_type: string
     source: string
-}
-
-interface NodeSubnetMembership {
-    subnet_id: string,
-    ip_address?: string,
-    mac_address?: string
-    default: boolean
 }

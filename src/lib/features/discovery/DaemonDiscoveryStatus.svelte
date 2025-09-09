@@ -42,7 +42,7 @@
     <div class="flex-1 space-y-2">
       <div class="flex items-center gap-3">
         <span class="text-sm font-medium text-blue-400">{discoveryData.phase}</span>
-        <span class="text-sm text-green-400 font-medium">{discoveryData.discovered_count} nodes found</span>
+        <span class="text-sm text-green-400 font-medium">{discoveryData.discovered_count} hosts found</span>
       </div>
       
       {#if discoveryData.total && discoveryData.total > 0}
@@ -80,7 +80,7 @@
       on:click={handleStartDiscovery}
     >
       <Radar class="w-4 h-4" />
-      <span>Discover Nodes</span>
+      <span>Discover Hosts</span>
     </button>
   </div>
 {/if}

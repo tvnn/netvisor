@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { getDaemons } from '$lib/features/daemons/store';
 	import { getActiveDiscoverySessions, stopDiscoveryPolling } from '$lib/features/discovery/store';
-	import NodeGroupTab from '$lib/features/node_groups/components/NodeGroupTab.svelte';
-	import { getNodeGroups } from '$lib/features/node_groups/store';
-	import NodeTab from '$lib/features/nodes/components/NodeTab.svelte';
-	import { getNodes } from '$lib/features/nodes/store';
+	import HostGroupTab from '$lib/features/host_groups/components/HostGroupTab.svelte';
+	import { getHostGroups } from '$lib/features/host_groups/store';
+	import HostTab from '$lib/features/hosts/components/HostTab.svelte';
+	import { getHosts } from '$lib/features/hosts/store';
 	import SubnetTab from '$lib/features/subnets/components/SubnetTab.svelte';
 	import { getSubnets } from '$lib/features/subnets/store';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
@@ -14,7 +14,7 @@
 	import { getRegistry } from '$lib/shared/stores/registry';
 	import { onDestroy, onMount } from 'svelte';
   
-  let activeTab = 'nodes';
+  let activeTab = 'hosts';
   let appInitialized = false;
   
   function handleTabChange(tab: string) {
@@ -25,9 +25,9 @@
     // Load initial data
     await Promise.all([
       getRegistry(),
-      getNodes(),
+      getHosts(),
       getDaemons(),
-      getNodeGroups(),
+      getHostGroups(),
       getSubnets(),
       getActiveDiscoverySessions()
     ]);
@@ -51,12 +51,12 @@
     <div class="p-8">
       {#if appInitialized && $loading}
         <Loading />
-      {:else if activeTab === 'nodes'}
-        <NodeTab />
+      {:else if activeTab === 'hosts'}
+        <HostTab />
       {:else if activeTab === 'subnets'}
         <SubnetTab />
       {:else if activeTab === 'groups'}
-        <NodeGroupTab />
+        <HostGroupTab />
       {/if}
     </div>
 

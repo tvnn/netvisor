@@ -15,7 +15,7 @@ export interface TypeMetadata {
 
 export interface TypeRegistry {
   services: TypeMetadata[];
-  node_targets: TypeMetadata[];
+  host_targets: TypeMetadata[];
   subnet_types: TypeMetadata[];
 }
 
@@ -94,7 +94,7 @@ function createRegistryHelpers<T extends keyof TypeRegistry>(category: T) {
 
 // Create all the helpers
 export const services = createRegistryHelpers('services');
-export const nodeTargets = createRegistryHelpers('node_targets');
+export const hostTargets = createRegistryHelpers('host_targets');
 export const subnet_types = createRegistryHelpers('subnet_types');
 
 export async function getRegistry() {

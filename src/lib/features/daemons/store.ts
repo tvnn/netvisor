@@ -2,8 +2,8 @@ import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { Daemon } from "./types/base";
 import type { DaemonDiscoveryUpdate } from '../discovery/types/api';
-import { nodes } from '../nodes/store';
-import type { Node } from '../nodes/types/base';
+import { hosts } from '../hosts/store';
+import type { Host } from '../hosts/types/base';
 
 export const daemons = writable<Daemon[]>([]);
 
@@ -21,15 +21,15 @@ export function getDaemonDiscoveryState(daemon_id: string | null, sessionsMap: M
   return sessionsMap.get(daemon_id) || null;
 }
 
-export function getDaemonNode(daemon_id: string): Node | null {
+export function getDaemonHost(daemon_id: string): Host | null {
   const daemon = get(daemons).find(d => d.id === daemon_id);
   if (!daemon) return null;
 
-  const node = get(nodes).find(n => n.id === daemon.node_id) || null;
-  return node ? node : null;
+  const host = get(hosts).find(n => n.id === daemon.host_id) || null;
+  return host ? host : null;
 }
 
-export function getNodeDaemon(node_id: string): Daemon | null {
-  const daemon = get(daemons).find(d => d.node_id === node_id);
+export function getHostDaemon(host_id: string): Daemon | null {
+  const daemon = get(daemons).find(d => d.host_id === host_id);
   return daemon ? daemon :null
 } 

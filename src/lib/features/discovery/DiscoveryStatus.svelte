@@ -1,12 +1,12 @@
 <script lang="ts">
   import { daemons } from '../daemons/store';
-  import { nodes } from '../nodes/store';
+  import { hosts } from '../hosts/store';
   import { 
 	sessions,
   } from './store';
   import { getDaemonDiscoveryState } from '../daemons/store';
 	import RichSelect from '$lib/shared/components/forms/RichSelect.svelte';
-	  import { getNodeTargetString } from "../nodes/store";
+	  import { getHostTargetString } from "../hosts/store";
 	import DaemonDiscoveryStatus from './DaemonDiscoveryStatus.svelte';
 	import { type TagProps } from '$lib/shared/components/data/types';
 	import { get } from 'svelte/store';
@@ -41,11 +41,11 @@
             <RichSelect
                 selectedValue={selectedDaemonId}
                 options={$daemons.map((d) => {
-                    let node = $nodes.find(n => n.id === d.node_id)
+                    let host = $hosts.find(n => n.id === d.host_id)
                     return {
                         value: d.id,
-                        label: node?.name || `Daemon ${d.id.substring(0, 8)}`,
-                        description: node ? `on ${getNodeTargetString(node?.target)}` : `Daemon ${d.id.substring(0, 8)}`,
+                        label: host?.name || `Daemon ${d.id.substring(0, 8)}`,
+                        description: host ? `on ${getHostTargetString(host?.target)}` : `Daemon ${d.id.substring(0, 8)}`,
                     }
                 })}
                 getOptionId={(option) => option.value}

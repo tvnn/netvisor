@@ -1,12 +1,12 @@
 <script lang="ts">
   import { field } from 'svelte-forms';
-  import { required } from 'svelte-forms/validators';
   import { AlertCircle } from 'lucide-svelte';
+	import type { HostSubnetMembership } from '$lib/features/hosts/types/base';
   
   export let form: any;
-  export let membership: NodeSubnetMembership | null = null;
+  export let membership: HostSubnetMembership | null = null;
   export let subnet: Subnet | null = null;
-  export let onChange: (updatedMembership: NodeSubnetMembership) => void = () => {};
+  export let onChange: (updatedMembership: HostSubnetMembership) => void = () => {};
   
   let ipAddressField: any;
   let macAddressField: any;
@@ -61,7 +61,7 @@
   
   // Update membership when field values change
   $: if (membership && ipAddressField && macAddressField && $ipAddressField && $macAddressField) {
-    const updatedMembership: NodeSubnetMembership = {
+    const updatedMembership: HostSubnetMembership = {
       ...membership,
       ip_address: $ipAddressField.value,
       mac_address: $macAddressField.value || undefined

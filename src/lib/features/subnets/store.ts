@@ -57,6 +57,8 @@ export function createEmptySubnetFormData(): Subnet {
     description: '',
     subnet_type: 'LocalLan',
     dns_resolvers: [],
-    gateways: []
+    gateways: [],
+    hosts: [],
+    source: 'Manual'
   };
 }

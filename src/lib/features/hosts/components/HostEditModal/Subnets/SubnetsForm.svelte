@@ -2,15 +2,15 @@
   import ListConfigEditor from '$lib/shared/components/forms/ListConfigEditor.svelte';
   import SubnetConfigPanel from './SubnetConfigPanel.svelte';
   import { subnets } from '$lib/features/subnets/store';
-  import { type Node } from '$lib/features/nodes/types/base';
+  import { type Host, type HostSubnetMembership } from '$lib/features/hosts/types/base';
   
   export let form: any;
-  export let formData: Node;
+  export let formData: Host;
   
   // Computed values
-  $: nodeSubnetMemberships = formData.subnets || [];
+  $: hostSubnetMemberships = formData.subnets || [];
   $: availableSubnets = $subnets.filter(s => 
-    !nodeSubnetMemberships.find(membership => membership.subnet_id === s.id)
+    !hostSubnetMemberships.find(membership => membership.subnet_id === s.id)
   );
   
   // Helper function to find subnet by ID
@@ -23,26 +23,26 @@
     const subnet = findSubnetById(subnetId);
     if (!subnet) return;
     
-    const newMembership: NodeSubnetMembership = {
+    const newMembership: HostSubnetMembership = {
       subnet_id: subnetId,
       ip_address: undefined,
       mac_address: undefined,
       default: false
     };
     
-    formData.subnets = [...nodeSubnetMemberships, newMembership];
+    formData.subnets = [...hostSubnetMemberships, newMembership];
   }
   
-  function handleSubnetChange(membership: NodeSubnetMembership, index: number) {
-    if (index >= 0 && index < nodeSubnetMemberships.length) {
-      const updatedMemberships = [...nodeSubnetMemberships];
+  function handleSubnetChange(membership: HostSubnetMembership, index: number) {
+    if (index >= 0 && index < hostSubnetMemberships.length) {
+      const updatedMemberships = [...hostSubnetMemberships];
       updatedMemberships[index] = membership;
       formData.subnets = updatedMemberships;
     }
   }
   
   function handleRemoveSubnet(index: number) {
-    formData.subnets = nodeSubnetMemberships.filter((_, i) => i !== index);
+    formData.subnets = hostSubnetMemberships.filter((_, i) => i !== index);
   }
   
   // Display functions for options (available subnets)
@@ -69,16 +69,16 @@
   }
   
   // Display functions for items (current memberships)
-  function getItemId(membership: NodeSubnetMembership): string {
+  function getItemId(membership: HostSubnetMembership): string {
     return membership.subnet_id;
   }
   
-  function getItemLabel(membership: NodeSubnetMembership): string {
+  function getItemLabel(membership: HostSubnetMembership): string {
     const subnet = findSubnetById(membership.subnet_id);
     return subnet?.name || 'Unknown Subnet';
   }
   
-  function getItemDescription(membership: NodeSubnetMembership): string {
+  function getItemDescription(membership: HostSubnetMembership): string {
     const parts = [membership.ip_address];
     if (membership.mac_address) {
       parts.push(membership.mac_address);
@@ -88,7 +88,7 @@
     return parts.join(' • ');
   }
   
-  function getItemTags(membership: NodeSubnetMembership) {
+  function getItemTags(membership: HostSubnetMembership) {
     const subnet = findSubnetById(membership.subnet_id);
     const tags = [];
     if (membership.default) {

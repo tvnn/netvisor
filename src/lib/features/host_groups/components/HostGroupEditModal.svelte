@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { nodes } from "$lib/features/nodes/store";
-		import { getNodeTargetString } from "$lib/features/nodes/store";
+	import { hosts } from "$lib/features/hosts/store";
+		import { getHostTargetString } from "$lib/features/hosts/store";
 	import EditModal from "$lib/shared/components/forms/EditModal.svelte";
 	import ListManager from "$lib/shared/components/forms/ListManager.svelte";
-	import type { NodeGroup } from "../types/base";
+	import type { HostGroup } from "../types/base";
 
   
-  export let group: NodeGroup | null = null;
+  export let group: HostGroup | null = null;
   export let isOpen = false;
-  export let onCreate: (data: NodeGroup) => Promise<void> | void;
-  export let onUpdate: (data: NodeGroup) => Promise<void> | void;
+  export let onCreate: (data: HostGroup) => Promise<void> | void;
+  export let onUpdate: (data: HostGroup) => Promise<void> | void;
   export let onClose: () => void;
   export let onDelete: ((id: string) => Promise<void> | void) | null = null;
   
@@ -20,7 +20,7 @@
   let errors: Record<string, string> = {};
   
   $: isEditing = group !== null;
-  $: title = isEditing ? `Edit ${group?.name}` : 'Create Node Group';
+  $: title = isEditing ? `Edit ${group?.name}` : 'Create Host Group';
   
   // Initialize form data when group changes or modal opens
   $: if (isOpen) {
@@ -28,7 +28,7 @@
   }
   
   function resetForm() {
-    formData = group ? nodeGroupToFormData(group) : createEmptyFormData();
+    formData = group ? HostGroupToFormData(group) : createEmptyFormData();
     errors = {};
   }
   
@@ -39,19 +39,18 @@
       errors.name = 'Name is required';
     }
     
-    if (formData.node_sequence.length === 0) {
-      errors.nodes = 'At least one node is required';
+    if (formData.hosts.length === 0) {
+      errors.hosts = 'At least one host is required';
     }
     
     return Object.keys(errors).length === 0;
   }
   
   async function handleSubmit() {
-    const groupData: NodeGroup = {
+    const groupData: HostGroup = {
       name: formData.name.trim(),
       description: formData.description.trim(),
-      node_sequence: formData.node_sequence,
-      auto_diagnostic_enabled: formData.auto_diagnostic_enabled,
+      hosts: formData.hosts,
       id: group?.id || '',
       created_at: group?.created_at || '',
       updated_at: group?.updated_at || '',
@@ -84,13 +83,13 @@
     }
   }
   
-  function getNodeName(nodeId: string): string {
-    const node = $nodes.find(n => n.id === nodeId);
-    return node ? node.name : `Node ${nodeId.slice(0, 8)}...`;
+  function getHostName(hostId: string): string {
+    const host = $hosts.find(n => n.id === hostId);
+    return host ? host.name : `Host ${hostId.slice(0, 8)}...`;
   }
 
 
-	function nodeGroupToFormData(group: NodeGroup): any {
+	function HostGroupToFormData(group: HostGroup): any {
 		throw new Error("Function not implemented.");
 	}
 
@@ -146,39 +145,23 @@
         class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
       ></textarea>
     </div>
-    
-    <!-- Auto Diagnostic Toggle -->
-    <div>
-      <label class="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          name="auto_diagnostic_enabled"
-          bind:checked={formData.auto_diagnostic_enabled}
-          class="rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
-        />
-        <span class="text-sm font-medium text-gray-300">Enable Auto-Diagnostic</span>
-      </label>
-      <p class="text-xs text-gray-400 mt-1">
-        When enabled, this diagnostic will run automatically when any node in the group fails a test
-      </p>
-    </div>
-    
-    <!-- Node Sequence Manager -->
+        
+    <!-- Host Manager -->
     <div>
       <ListManager
-        label="Diagnostic Sequence"
-        helpText="When diagnostics are run, tests will be executed on nodes in the order specified below. This allows you to follow logical network paths and dependencies during troubleshooting."
-        bind:items={formData.node_sequence}
-        availableOptions={$nodes.map(node => ({
-          id: node.id,
-          label: node.name,
-          subtitle: getNodeTargetString(node.target)
+        label="Hosts"
+        helpText=""
+        bind:items={formData.hosts}
+        availableOptions={$hosts.map(host => ({
+          id: host.id,
+          label: host.name,
+          subtitle: getHostTargetString(host.target)
         }))}
-        placeholder="Select a node to add"
+        placeholder="Select a host to add"
         required={true}
         allowReorder={true}
-        getDisplayName={getNodeName}
-        error={errors.nodes}
+        getDisplayName={getHostName}
+        error={errors.hosts}
       />
     </div>
   </div>

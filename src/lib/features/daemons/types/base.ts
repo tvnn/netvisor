@@ -1,5 +1,5 @@
 export interface DaemonBase {
-    node_id: string;
+    host_id: string;
 }
 
 export interface Daemon extends DaemonBase {

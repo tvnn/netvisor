@@ -1,17 +1,17 @@
 <script lang="ts">
   import { Server, Settings, Shield, Info, Network } from 'lucide-svelte';
-  import type { Node } from "$lib/features/nodes/types/base";
-  import { createEmptyNodeFormData } from "$lib/features/nodes/store";
+  import type { Host } from "$lib/features/hosts/types/base";
+  import { createEmptyHostFormData } from "$lib/features/hosts/store";
   import DetailsForm from './Details/DetailsForm.svelte';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import SubnetsForm from './Subnets/SubnetsForm.svelte';
 	import ServicesForm from './Services/ServicesForm.svelte';
 	import { registry } from '$lib/shared/stores/registry';
   
-  export let node: Node | null = null;
+  export let host: Host | null = null;
   export let isOpen = false;
-  export let onCreate: (data: Node) => Promise<void> | void;
-  export let onUpdate: (id: string, data: Node) => Promise<void> | void;
+  export let onCreate: (data: Host) => Promise<void> | void;
+  export let onUpdate: (id: string, data: Host) => Promise<void> | void;
   export let onClose: () => void;
   export let onDelete: ((id: string) => Promise<void> | void) | null = null;
   
@@ -25,7 +25,7 @@
       id: 'details', 
       label: 'Details',
       icon: Info,
-      description: 'Basic node information and connection details'
+      description: 'Basic host information and connection details'
     },
     { 
       id: 'services', 
@@ -55,25 +55,25 @@
     }
   }
   
-  $: isEditing = node !== null;
-  $: title = isEditing ? `Edit ${node?.name}` : 'Create Node';
+  $: isEditing = host !== null;
+  $: title = isEditing ? `Edit ${host?.name}` : 'Create Host';
   
-  let formData: Node = createEmptyNodeFormData();
+  let formData: Host = createEmptyHostFormData();
   
-  // Initialize form data when node changes or modal opens
+  // Initialize form data when host changes or modal opens
   $: if (isOpen) {
     resetForm();
   }
   
   function resetForm() {
-    // Work directly with Node - no conversion needed
-    formData = node ? { ...node } : createEmptyNodeFormData();
+    // Work directly with Host - no conversion needed
+    formData = host ? { ...host } : createEmptyHostFormData();
     activeTab = 'details'; // Reset to first tab
   }
   
   async function handleSubmit() {
     // Clean up the data before sending
-    const nodeData: Node = {
+    const hostData: Host = {
       ...formData,
       name: formData.name.trim(),
       description: formData.description?.trim() || '',
@@ -81,10 +81,10 @@
     
     loading = true;
     try {
-      if (isEditing && node) {
-        await onUpdate(node.id, nodeData);
+      if (isEditing && host) {
+        await onUpdate(host.id, hostData);
       } else {
-        await onCreate(nodeData);
+        await onCreate(hostData);
       }
     } finally {
       loading = false;
@@ -92,10 +92,10 @@
   }
   
   async function handleDelete() {
-    if (onDelete && node) {
+    if (onDelete && host) {
       deleting = true;
       try {
-        await onDelete(node.id);
+        await onDelete(host.id);
       } finally {
         deleting = false;
       }
@@ -120,8 +120,8 @@
   }
   
   // Dynamic labels based on create/edit mode and tab position
-  $: saveLabel = isEditing ? 'Update Node' : (
-    currentTabIndex === tabs.length - 1 ? 'Create Node' : 'Next'
+  $: saveLabel = isEditing ? 'Update Host' : (
+    currentTabIndex === tabs.length - 1 ? 'Create Host' : 'Next'
   );
   $: cancelLabel = isEditing ? 'Cancel' : 'Previous';
   $: showCancel = isEditing ? true : activeTab !== 'details';
@@ -152,7 +152,7 @@
     <!-- Tab Navigation (only show for editing) -->
     {#if isEditing}
       <div class="border-b border-gray-700 px-6">
-        <nav class="flex space-x-8" aria-label="Node editor tabs">
+        <nav class="flex space-x-8" aria-label="Host editor tabs">
           {#each tabs as tab}
             <button
               type="button"
@@ -195,9 +195,9 @@
           <div class="p-6">
             {#if !isEditing}
               <div class="mb-6">
-                <h3 class="text-lg font-medium text-white mb-2">Node Details</h3>
+                <h3 class="text-lg font-medium text-white mb-2">Host Details</h3>
                 <p class="text-sm text-gray-400">
-                  Configure basic information about this node including its connection details and metadata.
+                  Configure basic information about this host including its connection details and metadata.
                 </p>
               </div>
             {/if}
@@ -215,7 +215,7 @@
             <div class="p-6 pb-4 border-b border-gray-700 flex-shrink-0">
               <h3 class="text-lg font-medium text-white mb-2">Capabilities & Monitoring</h3>
               <p class="text-sm text-gray-400">
-                Define what services this node provides and configure monitoring tests for each capability.
+                Define what services this host provides.
               </p>
             </div>
           {/if}
@@ -233,7 +233,7 @@
             <div class="p-6 pb-4 border-b border-gray-700 flex-shrink-0">
               <h3 class="text-lg font-medium text-white mb-2">Subnets</h3>
               <p class="text-sm text-gray-400">
-                Select the subnets that this node is a member of.
+                Select the subnets that this host is a member of.
               </p>
             </div>
           {/if}

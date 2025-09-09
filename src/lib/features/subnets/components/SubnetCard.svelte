@@ -1,7 +1,7 @@
 <script lang="ts">
   import { Edit, Trash2, Network } from 'lucide-svelte';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
-	import { nodes } from '$lib/features/nodes/store';
+	import { hosts } from '$lib/features/hosts/store';
 	import { get } from 'svelte/store';
 	import { subnet_types } from '$lib/shared/stores/registry';
   
@@ -9,8 +9,8 @@
   export let onEdit: (subnet: Subnet) => void = () => {};
   export let onDelete: (subnet: Subnet) => void = () => {};
     
-  function getNodeName(id: string): string | null {
-    return get(nodes).find(n => n.id == id)?.name || null
+  function getHostName(id: string): string | null {
+    return get(hosts).find(h => h.id == id)?.name || null
   }
   
   // Build card data
@@ -39,7 +39,7 @@
         label: 'DNS Resolvers',
         items: subnet.dns_resolvers.map((resolverId) => ({
           id: resolverId,
-          label: getNodeName(resolverId) || "Unknown Node",
+          label: getHostName(resolverId) || "Unknown Host",
           color: 'yellow'
         })),
         emptyText: 'No DNS resolvers'
@@ -48,7 +48,7 @@
         label: 'Gateways',
         items: subnet.gateways.map((gatewayId) => ({
           id: gatewayId,
-          label: getNodeName(gatewayId) || "Unknown Node",
+          label: getHostName(gatewayId) || "Unknown Host",
           color: 'green'
         })),
         emptyText: 'No gateways'

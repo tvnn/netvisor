@@ -4,16 +4,16 @@
   import { createStyle } from '$lib/shared/utils/styling';
   import type { Port, Service } from '$lib/features/services/types/base';
   import { createDefaultService, formatServicePorts } from '$lib/features/services/types/base';
-  import type { Node } from '$lib/features/nodes/types/base';
+  import type { Host } from '$lib/features/hosts/types/base';
   import { registry, services } from '$lib/shared/stores/registry';
   import type { TypeMetadata } from '$lib/shared/stores/registry';
 	import type { TagProps } from '$lib/shared/components/data/types';
   
   export let form: any;
-  export let formData: Node;
+  export let formData: Host;
   
   // Computed values
-  $: nodeServices = formData.services || [];
+  $: hostServices = formData.services || [];
   $: availableServiceTypes = $registry?.services?.filter(service => 
     service.metadata?.can_be_added !== false
   ).sort((a, b) => a.category.localeCompare(b.category, 'en')) || [];
@@ -33,19 +33,19 @@
       defaultEndpoints
     );
     
-    formData.services = [...nodeServices, newService];
+    formData.services = [...hostServices, newService];
   }
   
   function handleServiceChange(service: Service, index: number) {
-    if (index >= 0 && index < nodeServices.length) {
-      const updatedServices = [...nodeServices];
+    if (index >= 0 && index < hostServices.length) {
+      const updatedServices = [...hostServices];
       updatedServices[index] = service;
       formData.services = updatedServices;
     }
   }
   
   function handleRemoveService(index: number) {
-    formData.services = nodeServices.filter((_, i) => i !== index);
+    formData.services = hostServices.filter((_, i) => i !== index);
   }
   
   // Display functions for options (available service types)
@@ -138,7 +138,7 @@
   bind:items={formData.services}
   options={availableServiceTypes}
   label="Services"
-  helpText="Configure services running on this node"
+  helpText="Configure services running on this host"
   emptyMessage="No services configured. Add one to get started."
   
   allowReorder={true}

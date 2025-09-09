@@ -1,44 +1,44 @@
 <script lang="ts">
-  import { nodes } from '$lib/features/nodes/store';
-  import { getNodeTargetString } from '$lib/features/nodes/store';
+  import { hosts } from '$lib/features/hosts/store';
+  import { getHostTargetString } from '$lib/features/hosts/store';
   import ListManager from '$lib/shared/components/forms/ListManager.svelte';
-  import type { Node } from '$lib/features/nodes/types/base';
+  import type { Host } from '$lib/features/hosts/types/base';
 	import { services } from '$lib/shared/stores/registry';
 	import type { Service } from '$lib/features/services/types/base';
   
   export let form: any;
   export let resolverIds: string[] = [];
   
-  // Get nodes that can act as DNS resolvers (have DNS or AdBlock services)
-  $: dnsCapableNodes = $nodes.filter((node: Node) => 
-    node.services.some(service => services.getMetadata(service.type).can_be_dns_resolver)
+  // Get hosts that can act as DNS resolvers (have DNS or AdBlock services)
+  $: dnsCapableHosts = $hosts.filter((host: Host) => 
+    host.services.some(service => services.getMetadata(service.type).can_be_dns_resolver)
   );
   
-  // Get available nodes (not already selected)
-  $: availableNodes = dnsCapableNodes.filter(node => 
-    !resolverIds.includes(node.id)
+  // Get available hosts (not already selected)
+  $: availableHosts = dnsCapableHosts.filter(host => 
+    !resolverIds.includes(host.id)
   );
   
-  // Convert resolver IDs to node objects for display
+  // Convert resolver IDs to host objects for display
   $: selectedResolvers = resolverIds.map(id => 
-    $nodes.find(node => node.id === id)
-  ).filter(Boolean) as Node[];
+    $hosts.find(host => host.id === id)
+  ).filter(Boolean) as Host[];
   
-  // Display functions for available nodes (dropdown options)
-  function getOptionId(node: Node): string {
-    return node.id;
+  // Display functions for available hosts (dropdown options)
+  function getOptionId(host: Host): string {
+    return host.id;
   }
   
-  function getOptionLabel(node: Node): string {
-    return node.name;
+  function getOptionLabel(host: Host): string {
+    return host.name;
   }
   
-  function getOptionDescription(node: Node): string {
-    return getNodeTargetString(node.target);
+  function getOptionDescription(host: Host): string {
+    return getHostTargetString(host.target);
   }
   
-  function getOptionTags(node: Node) {
-    const dnsServices: Service[] = node.services.filter(service => services.getMetadata(service.type).can_be_dns_resolver)
+  function getOptionTags(host: Host) {
+    const dnsServices: Service[] = host.services.filter(service => services.getMetadata(service.type).can_be_dns_resolver)
     
     return dnsServices.map(service => ({
       label: service.type,
@@ -47,9 +47,9 @@
   }
 
   // Event handlers
-  function handleAdd(nodeId: string) {
-    if (!resolverIds.includes(nodeId)) {
-      resolverIds = [...resolverIds, nodeId];
+  function handleAdd(hostId: string) {
+    if (!resolverIds.includes(hostId)) {
+      resolverIds = [...resolverIds, hostId];
     }
   }
   
@@ -60,12 +60,12 @@
 
 <ListManager
   label="DNS Resolvers"
-  helpText="Select nodes that provide DNS resolution services for this subnet"
+  helpText="Select hosts that provide DNS resolution services for this subnet"
   placeholder="Select a DNS server to add..."
-  emptyMessage="No DNS resolvers configured. DNS capable nodes will appear here."
+  emptyMessage="No DNS resolvers configured. DNS capable hosts will appear here."
   allowReorder={true}
   
-  options={availableNodes}
+  options={availableHosts}
   items={selectedResolvers}
   allowItemEdit={(item) => false}
   

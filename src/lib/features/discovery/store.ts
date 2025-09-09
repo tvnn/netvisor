@@ -3,7 +3,7 @@ import { api } from '../../shared/utils/api';
 import { createPoller, Poller } from '../../shared/utils/polling';
 import type { DaemonDiscoveryUpdate, InitiateDiscoveryRequest } from './types/api';
 import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
-import { getNodes } from '../nodes/store';
+import { getHosts } from '../hosts/store';
 import { getSubnets } from '../subnets/store';
 
 // daemon_id to latest update
@@ -18,7 +18,7 @@ export function startDiscoveryPolling() {
     onPoll: async () => {
       Promise.all([
         await getActiveDiscoverySessions(),
-        await getNodes(),
+        await getHosts(),
         await getSubnets()
       ])
     },
@@ -92,8 +92,8 @@ export async function getActiveDiscoverySessions() {
             currentSession.discovered_count !== session.discovered_count ||
             currentSession.error !== session.error) {
           
-          if (session.phase == 'Complete') pushSuccess(`"Discovery completed with ${session.discovered_count} nodes found`);
-          if (session.phase == 'Warn') pushWarning(`"Discovery cancelled with ${session.discovered_count} nodes found`);
+          if (session.phase == 'Complete') pushSuccess(`"Discovery completed with ${session.discovered_count} hosts found`);
+          if (session.phase == 'Warn') pushWarning(`"Discovery cancelled with ${session.discovered_count} hosts found`);
           if (session.error) pushError(`"Discovery error: ${session.error}`);
           
           return newMap;
