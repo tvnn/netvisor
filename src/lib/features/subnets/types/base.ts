@@ -7,10 +7,13 @@ interface Subnet {
     dns_resolvers: string[],
     gateways: string[]
     description?: string
+    subnet_type: string
+    source: string
 }
 
 interface NodeSubnetMembership {
     subnet_id: string,
     ip_address?: string,
     mac_address?: string
+    default: boolean
 }

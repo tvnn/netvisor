@@ -186,13 +186,16 @@
           role={allowItemEdit(item) ? 'button' : undefined}
         >
           
-          <ListSelectItem
-            item={item}
-            getIcon={getItemIcon}
-            getIconColor={getItemIconColor}
-            getTags={getItemTags}
-            getLabel={getItemLabel}
-            getDescription={getItemDescription} />
+          <!-- Use slot if provided, otherwise default to ListSelectItem -->
+          <slot name="item" {item} {index}>
+            <ListSelectItem
+              item={item}
+              getIcon={getItemIcon}
+              getIconColor={getItemIconColor}
+              getTags={getItemTags}
+              getLabel={getItemLabel}
+              getDescription={getItemDescription} />
+          </slot>
           
           <!-- Action Buttons -->
           <div class="flex items-center gap-1">

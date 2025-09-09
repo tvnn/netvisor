@@ -75,21 +75,18 @@
   
   function getOptionTags(serviceMetadata: TypeMetadata) {
     const tags = [];
-    const defaultPorts = serviceMetadata.metadata?.default_ports || [];
-    if (defaultPorts.length > 0) {
-      const portTags = defaultPorts.map((p: Port) => {
-        return {
-          label: `${p.number}${p.tcp && p.udp ? '/tcp+udp' : p.tcp ? '/tcp' : '/udp'}`,
-          color:"blue"
-        }}
-      );
-
-      console.log(portTags)
-
-      tags.push(...portTags)
-    }
+    // const defaultPorts = serviceMetadata.metadata?.default_ports || [];
+    // if (defaultPorts.length > 0) {
+    //   const portTags = defaultPorts.map((p: Port) => {
+    //     return {
+    //       label: `${p.number}${p.tcp && p.udp ? '/tcp+udp' : p.tcp ? '/tcp' : '/udp'}`,
+    //       color:"blue"
+    //     }}
+    //   );
+    //   tags.push(...portTags)
+    // }
     
-    return tags;
+    return [];
   }
   
   // Display functions for items (current services)
@@ -131,14 +128,7 @@
     //     color: serviceMetadata.color
     //   });
     // }
-    
-    if (!service.confirmed) {
-      tags.push({
-        label: "Unconfirmed",
-        color: "yellow"
-      });
-    }
-    
+        
     return tags;
   }
 </script>
@@ -153,6 +143,7 @@
   
   allowReorder={true}
   placeholder="Select service type to add..."
+  allowItemRemove={(item) => services.getMetadata(item.type).can_be_added}
   
   {getOptionId}
   {getOptionLabel}
@@ -182,5 +173,6 @@
     {form}
     service={selectedItem}
     onChange={(updatedService) => onChange(updatedService)}
+    open_ports={formData.open_ports}
   />
 </ListConfigEditor>

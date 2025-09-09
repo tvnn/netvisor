@@ -55,10 +55,8 @@
                 <div class="flex items-center space-x-2">
                   <Tag
                     icon={item.icon}
-                    enableIcon={!!item.icon}
                     disabled={item.disabled}
-                    bgColor={item.bgColor}
-                    textColor={item.color}
+                    color={item.color}
                     badge={item.badge}
                     label={item.label} />
                 </div>

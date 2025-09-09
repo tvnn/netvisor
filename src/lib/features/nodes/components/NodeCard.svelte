@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Edit, Radar, Trash2 } from 'lucide-svelte';
+  import { CircleQuestionMark, Edit, Radar, Trash2 } from 'lucide-svelte';
 	import { getNodeTargetString } from '../store';
   import type { Node } from '../types/base';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
@@ -8,6 +8,8 @@
   import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
 	import { sessions } from '$lib/features/discovery/store';
 	import { services } from '$lib/shared/stores/registry';
+	import { subnets } from '$lib/features/subnets/store';
+	import { get } from 'svelte/store';
   
   export let node: Node;
   export let daemon: Daemon | null;
@@ -22,12 +24,16 @@
 
   $: nodeIsRunningDiscovery = (discoveryIsRunning && daemon !== null) ? getDaemonDiscoveryState(daemon.id, $sessions) !== null : false;
   $: discoveryData = nodeIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;
+
+  function getSubnetNameFromId(id: string): string | null {
+    return get(subnets).find(s => s.id == id)?.cidr || null
+  }
   
   // Build card data
   $: cardData = {
     title: node.name,
     iconColor: 'text-blue-400',
-    icon: services.getIconComponent(node.services[0].type),
+    icon: services.getIconComponent(node.services[0]?.type) || CircleQuestionMark,
     sections: connectionInfo ? [{
       label: 'Connection',
       value: connectionInfo
@@ -40,11 +46,21 @@
           return ({
             id: cap.type,
             label: services.getDisplay(cap.type),
-            bgColor: 'bg-purple-900/30',
-            color: 'text-purple-300'
+            color: 'cyan'
           })
         }),
-        emptyText: 'No capabilities assigned'
+        emptyText: 'No services assigned'
+      },
+      {
+        label: 'Subnets',
+        items: node.subnets.filter(sub => getSubnetNameFromId(sub.subnet_id) != null).map(sub => {
+          return ({
+            id: sub.subnet_id,
+            label: getSubnetNameFromId(sub.subnet_id) || "Unknown Subnet",
+            color: 'orange'
+          })
+        }),
+        emptyText: 'No subnets assigned'
       },
       {
         label: 'Diagnostic Groups',
@@ -52,8 +68,7 @@
           id: node?.node_groups ? node.node_groups[i] : group.name,
           label: group.name,
           disabled: !group.auto_diagnostic_enabled,
-          bgColor: 'bg-green-900/30',
-          color: 'text-green-400'
+          color: 'purple'
         })),
         emptyText: 'No groups assigned'
       }

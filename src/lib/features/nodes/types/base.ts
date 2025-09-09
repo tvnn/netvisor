@@ -1,4 +1,4 @@
-import type { Service } from "$lib/features/services/types/base";
+import type { Port, Service } from "$lib/features/services/types/base";
 import type { NodeTarget } from "./targets";
 
 export interface Node {
@@ -11,10 +11,9 @@ export interface Node {
   hostname: string;
   target: NodeTarget;
   services: Service[];
-
+  open_ports: Port[]
   subnets: NodeSubnetMembership[];
   node_groups: string[];
-  discovery_status: string;
 }
 
 export type NodeCapability = {

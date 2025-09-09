@@ -5,21 +5,15 @@
     export let icon: Component | null = null;
 
     export let color: string = 'gray';
-    export let bgColor: string = 'bg-gray-700/30';
-    export let textColor: string = 'text-gray-300';
+    const colorHelper = createColorHelper(color)
+
+    export let bgColor: string = colorHelper.bg;
+    export let textColor: string = colorHelper.text;
 
     export let disabled = false;
     export let label: string;
 
     export let badge: string = ''
-
-    const colorHelper = createColorHelper(color)
-
-    if (color !== 'gray') {
-        bgColor = colorHelper.bg;
-        textColor = colorHelper.text;
-    }
-
 </script>
 
 <div class="items-center space-x-2">

@@ -2,13 +2,10 @@
 
 export interface Port {
   number: number;
-  udp: boolean;
-  tcp: boolean;
+  protocol: string;
 }
 
 export interface Endpoint {
-  url?: string;
-  method?: string;
   protocol?: string;
   ip?: string;
   port?: Port;
@@ -16,14 +13,9 @@ export interface Endpoint {
 }
 
 export interface Service {
-  // Service type (automatically added by serde tag)
   type: string;
-  
-  // Common fields shared by all service variants
-  confirmed: boolean;
   name: string;
   ports: Port[];
-  endpoints: Endpoint[];
   
   // Optional daemon_id for NetvisorDaemon services
   daemon_id?: string;
@@ -33,10 +25,8 @@ export interface Service {
 export function createDefaultService(serviceType: string, serviceName?: string, defaultPorts?: Port[], defaultEndpoints?: Endpoint[]): Service {
   return {
     type: serviceType,
-    confirmed: false,
     name: serviceName || serviceType,
     ports: defaultPorts ? [...defaultPorts] : [],
-    endpoints: defaultEndpoints ? [...defaultEndpoints] : []
   };
 }
 
@@ -48,6 +38,6 @@ export function formatServicePorts(ports: Port[]): string {
   if (!ports || ports.length === 0) return "No ports";
   
   return ports.map(p => 
-    `${p.number}${p.tcp && p.udp ? '/tcp+udp' : p.tcp ? '/tcp' : '/udp'}`
+    `${p.number}${p.protocol == 'Tcp' ? '/tcp' : '/udp'}`
   ).join(', ');
 }

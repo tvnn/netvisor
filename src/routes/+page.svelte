@@ -5,6 +5,7 @@
 	import { getNodeGroups } from '$lib/features/node_groups/store';
 	import NodeTab from '$lib/features/nodes/components/NodeTab.svelte';
 	import { getNodes } from '$lib/features/nodes/store';
+	import SubnetTab from '$lib/features/subnets/components/SubnetTab.svelte';
 	import { getSubnets } from '$lib/features/subnets/store';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import Toast from '$lib/shared/components/feedback/Toast.svelte';
@@ -52,6 +53,8 @@
         <Loading />
       {:else if activeTab === 'nodes'}
         <NodeTab />
+      {:else if activeTab === 'subnets'}
+        <SubnetTab />
       {:else if activeTab === 'groups'}
         <NodeGroupTab />
       {/if}

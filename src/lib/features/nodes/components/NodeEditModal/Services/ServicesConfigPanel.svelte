@@ -1,14 +1,17 @@
 <script lang="ts">
   import { field } from 'svelte-forms';
   import { required } from 'svelte-forms/validators';
-  import { AlertCircle, Plus, Trash2 } from 'lucide-svelte';
+  import { AlertCircle, AlertTriangle, CheckCircle } from 'lucide-svelte';
   import type { Service, Port, Endpoint } from '$lib/features/services/types/base';
   import { getServiceDisplayName, formatServicePorts } from '$lib/features/services/types/base';
   import { registry } from '$lib/shared/stores/registry';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
+  import ListManager from '$lib/shared/components/forms/ListManager.svelte';
+	import PortListItem from '$lib/shared/components/forms/PortListItem.svelte';
   
   export let form: any;
   export let service: Service | null = null;
+  export let open_ports: Port[] = [];
   export let onChange: (updatedService: Service) => void = () => {};
   
   let serviceNameField: any;
@@ -32,13 +35,7 @@
       service.name,
       [serviceNameValidator()]
     );
-    
-    confirmedField = field(
-      `service_confirmed_${service.type}`,
-      service.confirmed,
-      []
-    );
-    
+        
     // Register with parent form
     if (form) {
       form[`service_name_${service.type}`] = serviceNameField;
@@ -51,34 +48,43 @@
     const updatedService: Service = {
       ...service,
       name: $serviceNameField.value,
-      confirmed: $confirmedField.value
     };
     
     // Only trigger onChange if values actually changed
-    if (updatedService.name !== service.name || updatedService.confirmed !== service.confirmed) {
+    if (updatedService.name !== service.name) {
       onChange(updatedService);
     }
   }
   
-  // Port management functions
-  function addPort() {
+  // Port management functions for ListManager
+  function getPortId(port: Port): string {
+    return `${port.number}-${port.protocol}`;
+  }
+  
+  function getPortLabel(port: Port): string {
+    return `Port ${port.number} (${port.protocol.toUpperCase()})`;
+  }
+  
+  function getPortDescription(port: Port): string {
+    return `${port.protocol.toUpperCase()} port ${port.number}`;
+  }
+
+  function handleAddPort(portId: string) {
     if (!service) return;
     
-    const newPort: Port = {
-      number: 80,
-      tcp: true,
-      udp: false
-    };
+    // Find the port from open_ports by ID
+    const selectedPort = open_ports.find(p => getPortId(p) === portId);
+    if (!selectedPort) return;
     
     const updatedService = {
       ...service,
-      ports: [...service.ports, newPort]
+      ports: [...service.ports, selectedPort]
     };
     
     onChange(updatedService);
   }
   
-  function updatePort(index: number, updates: Partial<Port>) {
+  function handleUpdatePort(index: number, updates: Partial<Port>) {
     if (!service) return;
     
     const updatedPorts = [...service.ports];
@@ -92,7 +98,7 @@
     onChange(updatedService);
   }
   
-  function removePort(index: number) {
+  function handleRemovePort(index: number) {
     if (!service) return;
     
     const updatedService = {
@@ -103,86 +109,21 @@
     onChange(updatedService);
   }
   
-  // Event handlers for port fields
-  function handlePortNumberChange(index: number, event: Event) {
-    const target = event.target as HTMLInputElement;
-    const portNumber = parseInt(target.value) || 80;
-    updatePort(index, { number: portNumber });
-  }
-  
-  function handleTcpChange(index: number, event: Event) {
-    const target = event.target as HTMLInputElement;
-    updatePort(index, { tcp: target.checked });
-  }
-  
-  function handleUdpChange(index: number, event: Event) {
-    const target = event.target as HTMLInputElement;
-    updatePort(index, { udp: target.checked });
-  }
-  
-  // Endpoint management functions
-  function addEndpoint() {
-    if (!service) return;
-    
-    const newEndpoint: Endpoint = {
-      path: "/"
-    };
-    
-    const updatedService = {
-      ...service,
-      endpoints: [...service.endpoints, newEndpoint]
-    };
-    
-    onChange(updatedService);
-  }
-  
-  function updateEndpoint(index: number, updates: Partial<Endpoint>) {
-    if (!service) return;
-    
-    const updatedEndpoints = [...service.endpoints];
-    updatedEndpoints[index] = { ...updatedEndpoints[index], ...updates };
-    
-    const updatedService = {
-      ...service,
-      endpoints: updatedEndpoints
-    };
-    
-    onChange(updatedService);
-  }
-  
-  function removeEndpoint(index: number) {
-    if (!service) return;
-    
-    const updatedService = {
-      ...service,
-      endpoints: service.endpoints.filter((_, i) => i !== index)
-    };
-    
-    onChange(updatedService);
-  }
-  
-  // Event handler for endpoint path changes
-  function handleEndpointPathChange(index: number, event: Event) {
-    const target = event.target as HTMLInputElement;
-    updateEndpoint(index, { path: target.value });
-  }
 </script>
 
 {#if service && serviceMetadata}
   <div class="space-y-6">
-    <!-- Service Info Header -->
-    <div class="border-b border-gray-600 pb-4">
-      <div class="flex gap-3 pb-1">
+      <!-- Service Info -->
+      <div class="flex gap-3 items-center">
         <h3 class="text-lg font-medium text-white">{serviceMetadata.display_name}</h3>
         <Tag
           label={serviceMetadata.category}
           color={serviceMetadata.color}/>
       </div>
-      <p class="text-sm text-gray-400">{serviceMetadata.description}</p>
-      <div class="flex items-center gap-2 mt-2">
-      </div>
-    </div>
-    
+      
+      <p class="text-sm text-gray-400">{serviceMetadata.description}</p>  
+    <div class="border-b border-gray-600"></div>
+
     <!-- Basic Configuration -->
     <div class="space-y-4">
       
@@ -212,147 +153,36 @@
           </p>
         </div>
       {/if}
-      
-      <!-- Confirmed Status -->
-      {#if confirmedField}
-        <div class="space-y-2">
-          <label class="flex items-center gap-3">
-            <input
-              type="checkbox"
-              bind:checked={$confirmedField.value}
-              class="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
-            />
-            <span class="text-sm font-medium text-gray-300">Service Confirmed</span>
-          </label>
-          <p class="text-xs text-gray-400 ml-7">
-            Mark as confirmed if you've verified this service is actually running
-          </p>
-        </div>
-      {/if}
     </div>
     
-    <!-- Ports Configuration -->
+    <!-- Ports Configuration using ListManager -->
     <div class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h4 class="text-sm font-medium text-gray-300">Ports</h4>
-        <button
-          type="button"
-          on:click={addPort}
-          class="flex items-center gap-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          <Plus size={14} />
-          Add Port
-        </button>
-      </div>
-      
-      {#if service.ports.length === 0}
-        <div class="text-center py-4 text-gray-400 text-sm">
-          No ports configured. Click "Add Port" to add one.
-        </div>
-      {:else}
-        <div class="space-y-3">
-          {#each service.ports as port, index}
-            <div class="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
-              <div class="flex-1 grid grid-cols-3 gap-3">
-                <div>
-                  <div class="block text-xs font-medium text-gray-400 mb-1">Port Number</div>
-                  <input
-                    type="number"
-                    min="1"
-                    max="65535"
-                    value={port.number}
-                    on:input={(e) => handlePortNumberChange(index, e)}
-                    class="w-full px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <div class="block text-xs font-medium text-gray-400 mb-1">Protocol</div>
-                  <div class="flex gap-2">
-                    <label class="flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={port.tcp}
-                        on:change={(e) => handleTcpChange(index, e)}
-                        class="w-3 h-3 text-blue-600 bg-gray-700 border-gray-600 rounded"
-                      />
-                      <span class="text-xs text-gray-300">TCP</span>
-                    </label>
-                    <label class="flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={port.udp}
-                        on:change={(e) => handleUdpChange(index, e)}
-                        class="w-3 h-3 text-blue-600 bg-gray-700 border-gray-600 rounded"
-                      />
-                      <span class="text-xs text-gray-300">UDP</span>
-                    </label>
-                  </div>
-                </div>
-                <div class="flex items-end">
-                  <button
-                    type="button"
-                    on:click={() => removePort(index)}
-                    class="flex items-center gap-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    <Trash2 size={12} />
-                    Remove
-                  </button>
-                </div>
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </div>
-    
-    <!-- Endpoints Configuration -->
-    <div class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h4 class="text-sm font-medium text-gray-300">Endpoints</h4>
-        <button
-          type="button"
-          on:click={addEndpoint}
-          class="flex items-center gap-2 px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          <Plus size={14} />
-          Add Endpoint
-        </button>
-      </div>
-      
-      {#if service.endpoints.length === 0}
-        <div class="text-center py-4 text-gray-400 text-sm">
-          No endpoints configured. Click "Add Endpoint" to add one.
-        </div>
-      {:else}
-        <div class="space-y-3">
-          {#each service.endpoints as endpoint, index}
-            <div class="flex items-center gap-3 p-3 bg-gray-700/30 rounded-lg">
-              <div class="flex-1 grid grid-cols-2 gap-3">
-                <div>
-                  <div class="block text-xs font-medium text-gray-400 mb-1">Path</div>
-                  <input
-                    type="text"
-                    value={endpoint.path || ""}
-                    on:input={(e) => handleEndpointPathChange(index, e)}
-                    placeholder="/api/health"
-                    class="w-full px-2 py-1 text-sm bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div class="flex items-end">
-                  <button
-                    type="button"
-                    on:click={() => removeEndpoint(index)}
-                    class="flex items-center gap-1 px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                  >
-                    <Trash2 size={12} />
-                    Remove
-                  </button>
-                </div>
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
+      <ListManager
+        label="Ports"
+        helpText="Configure which ports this service uses"
+        placeholder="Select a port to add"
+        options={open_ports}
+        items={service.ports}
+        getOptionId={getPortId}
+        getOptionLabel={getPortLabel}
+        getOptionDescription={getPortDescription}
+        getItemId={getPortId}
+        getItemLabel={getPortLabel}
+        getItemDescription={getPortDescription}
+        onAdd={handleAddPort}
+        onRemove={handleRemovePort}
+        allowDuplicates={false}
+        allowItemEdit={() => false}
+        allowItemRemove={() => true}
+        allowReorder={false}
+      >
+        <svelte:fragment slot="item" let:item let:index>
+          <PortListItem 
+            port={item} 
+            onUpdate={(updates: Partial<Port>) => handleUpdatePort(index, updates)} 
+          />
+        </svelte:fragment>
+      </ListManager>
     </div>
   </div>
 {:else}

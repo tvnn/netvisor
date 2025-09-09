@@ -17,16 +17,7 @@
   function findSubnetById(subnetId: string): Subnet | null {
     return $subnets.find(s => s.id === subnetId) || null;
   }
-  
-  // Helper function to generate default IP for a subnet
-  function generateDefaultIP(cidr: string): string {
-    // Parse CIDR and suggest a reasonable default IP
-    // For now, just suggest .10 as a common choice for static IPs
-    const [network] = cidr.split('/');
-    const octets = network.split('.');
-    return `${octets[0]}.${octets[1]}.${octets[2]}.10`;
-  }
-  
+    
   // Event handlers
   function handleAddSubnet(subnetId: string) {
     const subnet = findSubnetById(subnetId);
@@ -35,7 +26,8 @@
     const newMembership: NodeSubnetMembership = {
       subnet_id: subnetId,
       ip_address: undefined,
-      mac_address: undefined
+      mac_address: undefined,
+      default: false
     };
     
     formData.subnets = [...nodeSubnetMemberships, newMembership];
@@ -67,12 +59,13 @@
   }
   
   function getOptionTags(subnet: Subnet) {
-    return [
-      {
-        label: subnet.cidr,
-        color: "blue"
-      }
-    ];
+    // return [
+    //   {
+    //     label: subnet.cidr,
+    //     color: "yellow"
+    //   }
+    // ];
+    return []
   }
   
   // Display functions for items (current memberships)
@@ -97,12 +90,20 @@
   
   function getItemTags(membership: NodeSubnetMembership) {
     const subnet = findSubnetById(membership.subnet_id);
-    return subnet ? [
-      {
+    const tags = [];
+    if (membership.default) {
+      tags.push({
+        label: "Default",
+        color: "green"
+      })
+    }
+    if (subnet) {
+      tags.push({
         label: subnet.cidr,
         color: "yellow"
-      }
-    ] : [];
+      })
+    }
+    return tags;
   }
 </script>
 
@@ -116,7 +117,7 @@
   
   allowReorder={false}
   placeholder="Select subnet to add..."
-  
+
   {getOptionId}
   {getOptionLabel}
   {getOptionDescription}

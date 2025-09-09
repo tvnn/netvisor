@@ -1,7 +1,7 @@
 import type { Writable } from "svelte/store";
 import { loading, pushError } from "../stores/feedback";
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = 'http://localhost:60072/api';
 
 interface ApiResponse<T> {
   success: boolean;

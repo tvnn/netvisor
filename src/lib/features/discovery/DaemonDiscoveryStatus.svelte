@@ -12,22 +12,15 @@
   
   // Calculate progress across multiple subnets
   $: progressPercent = (() => {
-    if (!isActive || !discoveryData || !discoveryData.total_subnets || discoveryData.total_subnets === 0) {
+    if (!isActive || !discoveryData) {
       return 0;
     }
     
-    const currentSubnet = discoveryData.subnet || 0;
-    const totalSubnets = discoveryData.total_subnets;
-    const subnetProgress = (discoveryData.completed && discoveryData.total && discoveryData.total > 0) 
+    const progress = (discoveryData.completed && discoveryData.total && discoveryData.total > 0) 
       ? (discoveryData.completed / discoveryData.total) 
       : 0;
-    
-    // Each subnet represents 1/total_subnets of the overall progress
-    const subnetWeight = 1 / totalSubnets;
-    const completedSubnetsProgress = currentSubnet * subnetWeight;
-    const currentSubnetProgress = subnetProgress * subnetWeight;
-    
-    return Math.min(100, (completedSubnetsProgress + currentSubnetProgress) * 100);
+        
+    return Math.min(100, (progress) * 100);
   })();
 
   async function handleStartDiscovery() {
@@ -49,17 +42,10 @@
     <div class="flex-1 space-y-2">
       <div class="flex items-center gap-3">
         <span class="text-sm font-medium text-blue-400">{discoveryData.phase}</span>
-        {#if discoveryData.discovered_count && discoveryData.discovered_count > 0}
-          <span class="text-sm text-green-400 font-medium">{discoveryData.discovered_count} nodes found</span>
-        {/if}
-        {#if discoveryData.total_subnets > 1}
-          <span class="text-sm text-gray-400">
-            Subnet {(discoveryData.subnet || 0) + 1} of {discoveryData.total_subnets}
-          </span>
-        {/if}
+        <span class="text-sm text-green-400 font-medium">{discoveryData.discovered_count} nodes found</span>
       </div>
       
-      {#if discoveryData.total_subnets && discoveryData.total_subnets > 0}
+      {#if discoveryData.total && discoveryData.total > 0}
         <div class="flex items-center gap-2">
           <div class="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
             <div 

@@ -32,6 +32,7 @@
             <!-- Tag -->
             {#if getTags}
             {@const tags = getTags(item)}
+                <div class="flex gap-1">
                 {#each tags as tag}
                     <Tag
                         label={tag.label}
@@ -39,6 +40,7 @@
                         textColor={tag.textColor}
                         bgColor={tag.bgColor} />
                 {/each}
+                </div>
             {/if}
         </div>
         {#if getDescription}

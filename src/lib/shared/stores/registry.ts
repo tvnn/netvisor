@@ -16,6 +16,7 @@ export interface TypeMetadata {
 export interface TypeRegistry {
   services: TypeMetadata[];
   node_targets: TypeMetadata[];
+  subnet_types: TypeMetadata[];
 }
 
 export const registry = writable<TypeRegistry>();
@@ -54,7 +55,13 @@ function createRegistryHelpers<T extends keyof TypeRegistry>(category: T) {
       return $registry?.[category]?.find(item => item.id === id)?.category || "";
     },
     
-    getColor: (id: string | null): ColorStyle => {
+    getColorString: (id: string | null): string => {
+      const $registry = get(registry);
+      const item = $registry?.[category]?.find(item => item.id === id);
+      return item?.color || "gray";
+    },
+
+    getColorHelper: (id: string | null): ColorStyle => {
       const $registry = get(registry);
       const item = $registry?.[category]?.find(item => item.id === id);
       const baseColor = item?.color || null;
@@ -88,6 +95,7 @@ function createRegistryHelpers<T extends keyof TypeRegistry>(category: T) {
 // Create all the helpers
 export const services = createRegistryHelpers('services');
 export const nodeTargets = createRegistryHelpers('node_targets');
+export const subnet_types = createRegistryHelpers('subnet_types');
 
 export async function getRegistry() {
   const result = await api.request<TypeRegistry>(
