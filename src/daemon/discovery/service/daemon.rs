@@ -1,13 +1,13 @@
 use anyhow::{Error, Result};
 use futures::future::try_join_all;
-use crate::{daemon::discovery::service::base::{DaemonDiscoveryService}, server::{services::types::{endpoints::Endpoint, ports::ApplicationProtocol}, utils::base::NetworkUtils}};
+use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{services::types::ports::Port, utils::base::NetworkUtils}};
 use std::result::Result::Ok;
 use crate::{
     daemon::{utils::base::{DaemonUtils}},
     server::{
         nodes::types::{
             base::{Node, NodeBase}, targets::{IpAddressTargetConfig, NodeTarget}
-        }, services::types::{base::{Service, ServiceDiscriminants}, ports::Port}, shared::types::{metadata::TypeMetadataProvider}
+        }, services::types::{base::{Service, ServiceDiscriminants}}, shared::types::{metadata::TypeMetadataProvider}
     },
 };
 
@@ -22,7 +22,7 @@ impl DaemonDiscoveryService {
 
         try_join_all(subnet_futures).await?;
 
-        let own_port = self.config_store.get_port().await?;
+        let own_port = Port::new_tcp(self.config_store.get_port().await?);
         
         let local_ip = self.utils.get_own_ip_address()?;
         let hostname = self.utils.get_own_hostname();
@@ -38,23 +38,15 @@ impl DaemonDiscoveryService {
             services: Vec::new(),
             subnets: node_subnet_memberships,
             node_groups: Vec::new(),
+            open_ports: Vec::new(),
         };
 
         let mut node = Node::new(node_base);
 
         node.add_service(Service::NetvisorDaemon { 
-            confirmed: true, 
             name: ServiceDiscriminants::NetvisorDaemon.display_name().to_string(), 
-            ports: vec!(),
-            daemon_id, 
-            endpoints: vec!(
-                Endpoint { 
-                    protocol: ApplicationProtocol::Http, 
-                    ip: Some(local_ip), 
-                    port: Port::new_tcp(own_port), 
-                    path: None
-                }
-            )
+            ports: vec!(own_port),
+            daemon_id
         });
 
         let created_node = self.create_node(&node).await?;

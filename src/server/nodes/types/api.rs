@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::server::{services::types::base::{Service}, nodes::types::{base::{Node}, targets::NodeTarget}, subnets::types::base::{NodeSubnetMembership, Subnet}};
+use crate::server::{nodes::types::{base::Node, targets::NodeTarget}, services::types::{base::Service, ports::Port}, subnets::types::base::{NodeSubnetMembership, Subnet}};
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
 pub struct NodeUpdateRequest {
@@ -11,6 +11,7 @@ pub struct NodeUpdateRequest {
     pub target: Option<NodeTarget>,
     pub subnets: Option<Vec<NodeSubnetMembership>>,
     pub services: Option<Vec<Service>>,
+    pub open_ports: Option<Vec<Port>>,
     pub node_groups: Option<Vec<Uuid>>,
 }
 
@@ -23,6 +24,7 @@ impl NodeUpdateRequest {
             target: None,
             subnets: None,
             services: None,
+            open_ports: None,
             node_groups: Some(node_groups),
         }
     }

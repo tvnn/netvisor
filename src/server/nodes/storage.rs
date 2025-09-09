@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::{nodes::types::{base::{Node, NodeBase}, targets::NodeTarget}, services::types::base::Service, subnets::types::base::NodeSubnetMembership};
+use crate::server::{nodes::types::{base::{Node, NodeBase}, targets::NodeTarget}, services::types::{base::Service, ports::Port}, subnets::types::base::NodeSubnetMembership};
 
 #[async_trait]
 pub trait NodeStorage: Send + Sync {
@@ -31,14 +31,15 @@ impl NodeStorage for SqliteNodeStorage {
         let subnets_str = serde_json::to_string(&node.base.subnets)?;
         let last_seen_str = node.last_seen.as_ref().map(|dt| dt.to_rfc3339());
         let target_str = serde_json::to_string(&node.base.target)?;
+        let open_ports_str = serde_json::to_string(&node.base.open_ports)?;
 
         sqlx::query(
             r#"
             INSERT INTO nodes (
                 id, name, hostname, target, description,
-                services, node_groups, subnets,
+                services, node_groups, subnets, open_ports,
                 last_seen, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&node.id)
@@ -49,6 +50,7 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(services_str)
         .bind(node_groups_str)
         .bind(subnets_str)
+        .bind(open_ports_str)
         .bind(last_seen_str)
         .bind(&node.created_at.to_rfc3339())
         .bind(&node.updated_at.to_rfc3339())
@@ -89,12 +91,13 @@ impl NodeStorage for SqliteNodeStorage {
         let subnets_str = serde_json::to_string(&node.base.subnets)?;
         let last_seen_str = node.last_seen.as_ref().map(|dt| dt.to_rfc3339());
         let target_str = serde_json::to_string(&node.base.target)?;
+        let open_ports_str = serde_json::to_string(&node.base.open_ports)?;
 
         sqlx::query(
             r#"
             UPDATE nodes SET 
                 name = ?, hostname = ?, description = ?,
-                target = ?, subnets = ?, services = ?, node_groups = ?,
+                target = ?, subnets = ?, open_ports = ?, services = ?, node_groups = ?,
                 last_seen = ?, updated_at = ?
             WHERE id = ?
             "#
@@ -104,6 +107,7 @@ impl NodeStorage for SqliteNodeStorage {
         .bind(&node.base.description)
         .bind(target_str)
         .bind(subnets_str)
+        .bind(open_ports_str)
         .bind(services_str)
         .bind(node_groups_str)
         .bind(last_seen_str)
@@ -131,6 +135,7 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
     let node_groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("node_groups"))?;
     let subnets: Vec<NodeSubnetMembership> = serde_json::from_str(&row.get::<String, _>("subnets"))?;
     let target: NodeTarget = serde_json::from_str(&row.get::<String, _>("target"))?;
+    let open_ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("open_ports"))?;
     
     // Handle datetime fields  
     let last_seen = match row.get::<Option<String>, _>("last_seen") {
@@ -154,6 +159,7 @@ fn row_to_node(row: sqlx::sqlite::SqliteRow) -> Result<Node> {
             hostname: row.get("hostname"),
             description: row.get("description"),
             services,
+            open_ports,
             node_groups,
             subnets,
         }        

@@ -4,7 +4,7 @@ use mac_address::{MacAddress};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use strum::IntoDiscriminant;
-use crate::server::{nodes::types::{targets::NodeTarget}, services::types::base::{Service, ServiceDiscriminants}, subnets::types::base::{NodeSubnetMembership}};
+use crate::server::{nodes::types::targets::NodeTarget, services::types::{base::{Service, ServiceDiscriminants}, ports::Port}, subnets::types::base::NodeSubnetMembership};
 use uuid::{Uuid};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
@@ -15,6 +15,7 @@ pub struct NodeBase {
     pub target: NodeTarget,
     pub subnets: Vec<NodeSubnetMembership>,
     pub services: Vec<Service>,
+    pub open_ports: Vec<Port>,
     pub node_groups: Vec<Uuid>,
 }
 
@@ -102,12 +103,12 @@ impl Node {
         self.updated_at = chrono::Utc::now();
     }
 
-    pub fn has_service(&self, service_discriminants: ServiceDiscriminants) -> bool{
-        self.base.services.iter().any(|c| c.discriminant() == service_discriminants)
+    pub fn has_service(&self, service_discriminant: ServiceDiscriminants) -> bool{
+        self.base.services.iter().any(|c| c.discriminant() == service_discriminant)
     }
 
-    pub fn get_service(&self, service_discriminants: ServiceDiscriminants) -> Option<&Service>{
-        self.base.services.iter().find(|c| c.discriminant() == service_discriminants)
+    pub fn get_service(&self, service_discriminant: ServiceDiscriminants) -> Option<&Service>{
+        self.base.services.iter().find(|c| c.discriminant() == service_discriminant)
     }
 
     pub fn add_service(&mut self, service: Service) {        

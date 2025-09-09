@@ -52,6 +52,41 @@ impl DaemonRuntimeService {
         }
     }
 
+    // /// Check if self is registered and node exists
+    // pub async fn check_registry(&self, node_id: Uuid, daemon_id: Uuid) -> Result<()> {
+    //     tracing::info!("Checking registration of daemon with ID: {}, Node ID: {:?}", daemon_id, node_id);
+    //     let registration_request = DaemonRegistrationRequest {daemon_id, node_id};
+
+    //     let server_target = self.config_store.get_server_endpoint().await?;
+
+    //     let response = self
+    //         .client
+    //         .post(format!("{}/api/daemons/register", server_target.to_string()))
+    //         .json(&registration_request)
+    //         .send()
+    //         .await?;
+
+    //     if !response.status().is_success() {
+    //         anyhow::bail!("Registration failed: HTTP {}", response.status());
+    //     }
+
+    //     let api_response: ApiResponse<DaemonRegistrationResponse> = response.json().await?;
+        
+    //     if !api_response.success {
+    //         let error_msg = api_response.error.unwrap_or_else(|| "Unknown registration error".to_string());
+    //         anyhow::bail!("Registration failed: {}", error_msg);
+    //     }
+
+    //     let daemon_id = api_response.data
+    //         .ok_or_else(|| anyhow::anyhow!("No daemon data in successful response"))?
+    //         .daemon
+    //         .id;
+        
+    //     tracing::info!("Successfully registered with server, assigned ID: {}", daemon_id);
+        
+    //     Ok(())
+    // }
+
     /// Register daemon with server and return assigned ID
     pub async fn register_with_server(&self, node_id: Uuid, daemon_id: Uuid) -> Result<()> {
         tracing::info!("Registering daemon with ID: {}, Node ID: {:?}", daemon_id, node_id);

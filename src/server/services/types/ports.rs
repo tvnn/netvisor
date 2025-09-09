@@ -5,32 +5,29 @@ use strum_macros::{Display, EnumDiscriminants, EnumIter};
 
 #[derive(Debug, Clone, Default, Display, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
-pub enum ApplicationProtocol {
+pub enum TransportProtocol {
     #[default]
-    Http,
-    Https
+    Udp,
+    Tcp
 }
 
 #[derive(Debug, Clone, Default, Eq, Hash, Serialize, Deserialize)]
 pub struct Port {
     pub number: u16,
-    pub udp: bool,
-    pub tcp: bool
+    pub protocol: TransportProtocol
 }
 
 impl PartialEq for Port {
     fn eq(&self, other: &Self) -> bool {
-        self.number == other.number && ((self.tcp && self.tcp == other.tcp) || (self.udp && self.udp == other.udp))
+        self.number == other.number && self.protocol == other.protocol
     }
 }
 
 impl Display for Port {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let port_str = match (self.tcp, self.udp) {
-            (true, true) => "/tcp+udp",
-            (true, false) => "/tcp",
-            (false, true) => "/udp",
-            (false, false) => "(unknown protocol)"
+        let port_str = match self.protocol {
+            TransportProtocol::Tcp => "/tcp",
+            TransportProtocol::Udp => "/udp",
         };
         write!(f, "{}{}", self.number, port_str)
     }
@@ -38,44 +35,44 @@ impl Display for Port {
 
 impl Port {
     
-    pub const SSH: Port = Port{number: 22, tcp: true, udp: false};
-    pub const TELNET: Port = Port{number: 23, tcp: true, udp: false};
-    pub const DNS: Port = Port{number: 53, tcp: true, udp: true};
-    pub const SAMBA: Port = Port{number: 445, tcp: true, udp: false};
-    pub const NFS: Port = Port{number: 2049, tcp: true, udp: false};
-    pub const FTP: Port = Port{number: 21, tcp: true, udp: false};
-    pub const IPP: Port = Port{number: 631, tcp: true, udp: false};
-    pub const SNMP: Port = Port{number: 161, tcp: false, udp: true};
-    pub const RDP: Port = Port{number: 3389, tcp: true, udp: false};
-    pub const NTP: Port = Port{number: 123, tcp: false, udp: true };
-    pub const RTSP: Port = Port{number: 554, tcp: true, udp: false};
-    pub const DHCP: Port = Port{number: 67, tcp: false, udp: true};
-    pub const HTTP: Port = Port{number: 80, tcp: true, udp: false};
-    pub const HTTPALT: Port = Port{number: 8080, tcp: true, udp: false};
-    pub const HTTPS: Port = Port{number: 443, tcp: true, udp: false};
-    pub const HTTPSALT: Port = Port{number: 8443, tcp: true, udp: false};
+    pub const SSH: Port = Port{number: 22, protocol: TransportProtocol::Tcp};
+    pub const TELNET: Port = Port{number: 23, protocol: TransportProtocol::Tcp};
+    pub const DNS_UDP: Port = Port{number: 53, protocol: TransportProtocol::Tcp};
+    pub const DNS_TCP: Port = Port{number: 53, protocol: TransportProtocol::Udp};
+    pub const SAMBA: Port = Port{number: 445, protocol: TransportProtocol::Tcp};
+    pub const NFS: Port = Port{number: 2049, protocol: TransportProtocol::Tcp};
+    pub const FTP: Port = Port{number: 21, protocol: TransportProtocol::Tcp};
+    pub const IPP: Port = Port{number: 631, protocol: TransportProtocol::Tcp};
+    pub const LDP_TCP: Port = Port{number: 515, protocol: TransportProtocol::Tcp};
+    pub const LDP_UDP: Port = Port{number: 515, protocol: TransportProtocol::Udp};
+    pub const SNMP: Port = Port{number: 161, protocol: TransportProtocol::Udp};
+    pub const RDP: Port = Port{number: 3389, protocol: TransportProtocol::Tcp};
+    pub const NTP: Port = Port{number: 123, protocol: TransportProtocol::Udp};
+    pub const RTSP: Port = Port{number: 554, protocol: TransportProtocol::Tcp};
+    pub const DHCP: Port = Port{number: 67, protocol: TransportProtocol::Udp};
+    pub const HTTP: Port = Port{number: 80, protocol: TransportProtocol::Tcp};
+    pub const HTTPALT: Port = Port{number: 8080, protocol: TransportProtocol::Tcp};
+    pub const HTTPS: Port = Port{number: 443, protocol: TransportProtocol::Tcp};
+    pub const HTTPSALT: Port = Port{number: 8443, protocol: TransportProtocol::Tcp};
 
-    pub fn new(number: u16, udp: bool, tcp: bool) -> Self {
+    pub fn new(number: u16, protocol: TransportProtocol) -> Self {
         Self {
             number,
-            udp,
-            tcp
+            protocol
         }
     }
 
     pub fn new_tcp(number: u16) -> Self {
         Self {
             number,
-            tcp:true,
-            udp:false
+            protocol: TransportProtocol::Tcp
         }
     }
 
     pub fn new_udp(number: u16) -> Self {
         Self {
             number,
-            tcp:false,
-            udp:true
+            protocol: TransportProtocol::Udp
         }
     }
 }

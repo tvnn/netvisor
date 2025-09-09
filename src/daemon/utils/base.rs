@@ -14,7 +14,7 @@ use crate::server::subnets::types::base::{NodeSubnetMembership, Subnet};
 use crate::daemon::utils::udp::{send_udp_probe, test_dns_service, test_ntp_service, test_snmp_service};
 use crate::server::services::types::base::Service;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::ports::Port;
+use crate::server::services::types::ports::{Port, TransportProtocol};
 
 const SCAN_TIMEOUT: Duration = Duration::from_millis(800);
 
@@ -112,7 +112,7 @@ pub trait DaemonUtils: NetworkUtils {
 
     async fn scan_tcp_ports(&self, ip: IpAddr, cancel: CancellationToken) -> Result<Vec<Port>, Error> {
         let discovery_ports = Service::discovery_ports();
-        let ports: Vec<u16> = discovery_ports.iter().filter_map(|p| p.tcp.then(|| p.number)).collect();
+        let ports: Vec<u16> = discovery_ports.iter().filter_map(|p| (p.protocol == TransportProtocol::Tcp).then(|| p.number)).collect();
         
         let mut open_ports = Vec::new();
         
@@ -135,7 +135,7 @@ pub trait DaemonUtils: NetworkUtils {
 
     async fn scan_udp_ports(&self, ip: IpAddr, cancel: CancellationToken) -> Result<Vec<Port>, Error> {
         let discovery_ports = Service::discovery_ports();
-        let ports: Vec<u16> = discovery_ports.iter().filter_map(|p| p.udp.then(|| p.number)).collect();
+        let ports: Vec<u16> = discovery_ports.iter().filter_map(|p| (p.protocol == TransportProtocol::Udp).then(|| p.number)).collect();
         
         let mut open_ports = Vec::new();
         

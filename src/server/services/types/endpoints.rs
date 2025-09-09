@@ -1,9 +1,16 @@
 use std::{fmt::{Display}, net::IpAddr};
 use serde::{Deserialize, Serialize};
 use strum::{IntoDiscriminant};
+use strum_macros::{Display, EnumDiscriminants, EnumIter};
+use crate::server::services::types::ports::{Port};
 
-
-use crate::server::services::types::ports::{ApplicationProtocol, Port};
+#[derive(Debug, Clone, Default, Display, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
+#[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
+pub enum ApplicationProtocol {
+    #[default]
+    Http,
+    Https
+}
 
 #[derive(Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct Endpoint {

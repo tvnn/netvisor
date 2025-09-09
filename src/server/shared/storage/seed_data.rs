@@ -1,8 +1,4 @@
 use std::net::{IpAddr, Ipv4Addr};
-use crate::server::services::types::base::{Service, ServiceDiscriminants};
-use crate::server::services::types::endpoints::Endpoint;
-use crate::server::services::types::ports::{ApplicationProtocol, Port};
-use crate::server::shared::types::metadata::TypeMetadataProvider;
 use crate::server::{
     nodes::types::{
         base::{Node, NodeBase}, targets::{HostnameTargetConfig, IpAddressTargetConfig, NodeTarget},
@@ -20,15 +16,16 @@ pub fn create_internet_connectivity_node() -> Node {
         hostname: None,
         description: Some("Google.com for connectivity testing".to_string()),
         subnets: Vec::new(),
+        open_ports: Vec::new(),
         services: vec![
-            Service::GenericHttpsWebServer { 
-                confirmed: true, 
-                name: ServiceDiscriminants::GenericHttpsWebServer.display_name().to_string(), 
-                ports: vec!(),
-                endpoints: vec!(
-                    Endpoint::https(None, "/")
-                )
-            }
+            // Service::GenericHttpsWebServer { 
+            //     confirmed: true, 
+            //     name: ServiceDiscriminants::GenericHttpsWebServer.display_name().to_string(), 
+            //     ports: vec!(),
+            //     endpoints: vec!(
+            //         Endpoint::https(None, "/")
+            //     )
+            // }
         ],
         target: node_target,
         node_groups: Vec::new(),
@@ -49,20 +46,21 @@ pub fn create_public_dns_node() -> Node {
         description: Some("Cloudflare DNS for DNS resolution testing".to_string()),
         target: node_target.clone(),
         subnets: Vec::new(),
+        open_ports: Vec::new(),
         services: vec![
-            Service::GenericDnsServer { 
-                confirmed: true, 
-                name: ServiceDiscriminants::GenericDnsServer.display_name().to_string(), 
-                ports: vec!(),
-                endpoints: vec!(
-                    Endpoint { 
-                        protocol: ApplicationProtocol::Http, 
-                        ip: Some(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1))), 
-                        port: Port::DNS, 
-                        path: None
-                    }
-                )
-            }
+            // Service::GenericDnsServer { 
+            //     confirmed: true, 
+            //     name: ServiceDiscriminants::GenericDnsServer.display_name().to_string(), 
+            //     ports: vec!(),
+            //     endpoints: vec!(
+            //         Endpoint { 
+            //             protocol: ApplicationProtocol::Http, 
+            //             ip: Some(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1))), 
+            //             port: Port::DNS, 
+            //             path: None
+            //         }
+            //     )
+            // }
         ],
         node_groups: Vec::new(),
     };

@@ -303,6 +303,7 @@ impl DaemonDiscoveryService {
                 default: false
             }),
             services: Vec::new(),
+            open_ports: Vec::new(),
             node_groups: Vec::new(),
         });
 
@@ -322,15 +323,17 @@ impl DaemonDiscoveryService {
             if discriminant.is_generic_service() && non_generic_service_count > 0 {
                 continue;
             }
-            if let Some(service) = Service::from_discovery(discriminant, host_ip, &open_ports, &endpoint_responses, &subnet, mac_address) {
+            if let (Some(service), Some(service_ports)) = Service::from_discovery(discriminant, host_ip, &open_ports, &endpoint_responses, &subnet, mac_address) {
                 if !discriminant.is_generic_service() && non_generic_service_count == 0 {
                     node.base.name = service.discriminant().display_name().to_string();
                 }
 
-                unclaimed_ports.retain(|p| !service.discriminant().discovery_ports().contains(p));
+                unclaimed_ports.retain(|p| !service_ports.contains(p));
                 node.add_service(service);
             }
         };
+
+        node.base.open_ports = unclaimed_ports;
         
         tracing::info!("Processed node for host {} with {} open ports", host_ip, open_ports.len());
         Ok(Some(node))

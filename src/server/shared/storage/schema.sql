@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS nodes (
     target TEXT NOT NULL,
     subnets TEXT,
     services TEXT,
+    open_ports TEXT,
     node_groups TEXT,
     last_seen TEXT,
     created_at TEXT NOT NULL,

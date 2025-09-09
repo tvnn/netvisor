@@ -78,6 +78,7 @@ impl SubnetService {
                         hostname: None,
                         description: None,
                         target: None,
+                        open_ports: None,
                         subnets: Some(n.base.subnets.iter().filter(|s| &s.subnet_id != id).cloned().collect()),
                         services: None,
                         node_groups: None,

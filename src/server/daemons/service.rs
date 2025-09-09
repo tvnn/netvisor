@@ -8,7 +8,7 @@ use crate::server::{daemons::{
                 DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse
             }, base::Daemon
         }
-    }, nodes::service::NodeService, services::types::base::{Service, ServiceDiscriminants}, shared::types::api::ApiResponse};
+    }, nodes::service::NodeService, services::types::{base::{Service, ServiceDiscriminants}, endpoints::{Endpoint,ApplicationProtocol}}, shared::types::api::ApiResponse};
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
@@ -57,20 +57,21 @@ impl DaemonService {
         };
 
         let response = match daemon_node.get_service(ServiceDiscriminants::NetvisorDaemon) {
-             Some(Service::NetvisorDaemon{endpoints, ..})  => {
-                let endpoint = endpoints[0].clone();
+             Some(Service::NetvisorDaemon{ports, ..})  => {
+                let port = ports[0].clone();
 
-                let resolved_endpoint = if endpoint.is_resolved() {
-                    endpoint
-                } else {
-                    match daemon_node.default_ip() {
-                        Some(ip) => endpoint.use_ip(ip),
-                        None => anyhow::bail!("Could not resolve endpoint for daemon node {}: no default IP available", daemon_node.id)
-                    }
+                let endpoint = match daemon_node.default_ip() {
+                    Some(ip) => Endpoint {
+                        ip: Some(ip),
+                        port,
+                        protocol: ApplicationProtocol::Http,
+                        path: None
+                    },
+                    None => anyhow::bail!("Could not resolve endpoint for daemon node {}: no default IP available", daemon_node.id)
                 };
 
                 self.client
-                    .post(format!("{}/api/discovery/initiate", resolved_endpoint))
+                    .post(format!("{}/api/discovery/initiate", endpoint))
                     .json(&request)
                     .send()
                     .await?              
@@ -100,20 +101,21 @@ impl DaemonService {
         };
 
         let response = match daemon_node.get_service(ServiceDiscriminants::NetvisorDaemon) {
-            Some(Service::NetvisorDaemon{endpoints, ..})  => {
-                let endpoint = endpoints[0].clone();
+            Some(Service::NetvisorDaemon{ports, ..})  => {
+                let port = ports[0].clone();
 
-                let resolved_endpoint = if endpoint.is_resolved() {
-                    endpoint
-                } else {
-                    match daemon_node.default_ip() {
-                        Some(ip) => endpoint.use_ip(ip),
-                        None => anyhow::bail!("Could not resolve endpoint for daemon node {}: no default IP available", daemon_node.id)
-                    }
+                let endpoint = match daemon_node.default_ip() {
+                    Some(ip) => Endpoint {
+                        ip: Some(ip),
+                        port,
+                        protocol: ApplicationProtocol::Http,
+                        path: None
+                    },
+                    None => anyhow::bail!("Could not resolve endpoint for daemon node {}: no default IP available", daemon_node.id)
                 };
                 
                 self.client
-                    .post(format!("{}/api/discovery/cancel", resolved_endpoint))
+                    .post(format!("{}/api/discovery/cancel", endpoint))
                     .json(&DaemonDiscoveryCancellationRequest { session_id })
                     .send()
                     .await?
