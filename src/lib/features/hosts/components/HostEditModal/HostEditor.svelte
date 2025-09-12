@@ -4,7 +4,7 @@
   import { createEmptyHostFormData } from "$lib/features/hosts/store";
   import DetailsForm from './Details/DetailsForm.svelte';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
-	import SubnetsForm from './Subnets/SubnetsForm.svelte';
+	import InterfacesForm from './Interfaces/InterfacesForm.svelte';
 	import ServicesForm from './Services/ServicesForm.svelte';
 	import { registry } from '$lib/shared/stores/registry';
   
@@ -31,13 +31,13 @@
       id: 'services', 
       label: 'Services',
       icon: Server,
-      description: 'Services and monitoring configuration'
+      description: 'Service configuration'
     },
     { 
-      id: 'subnets', 
-      label: 'Subnets',
+      id: 'interfaces', 
+      label: 'Interfaces',
       icon: Network,
-      description: 'Subnet membership'
+      description: 'Network interfaces and subnet membership'
     }
   ];
 
@@ -176,9 +176,9 @@
                   </span>
                 {/if}
 
-                {#if tab.id === 'subnets' && formData.subnets.length > 0}
+                {#if tab.id === 'interfaces' && formData.interfaces.length > 0}
                   <span class="ml-1 px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded-full">
-                    {formData.subnets.length}
+                    {formData.interfaces.length}
                   </span>
                 {/if}
               </div>
@@ -227,11 +227,11 @@
             />
           </div>
         </div>
-      {:else if activeTab == 'subnets'}
+      {:else if activeTab == 'interfaces'}
       <div class="h-full overflow-hidden">
           {#if !isEditing}
             <div class="p-6 pb-4 border-b border-gray-700 flex-shrink-0">
-              <h3 class="text-lg font-medium text-white mb-2">Subnets</h3>
+              <h3 class="text-lg font-medium text-white mb-2">Interfaces</h3>
               <p class="text-sm text-gray-400">
                 Select the subnets that this host is a member of.
               </p>
@@ -239,7 +239,7 @@
           {/if}
           
           <div class="flex-1 relative">
-            <SubnetsForm 
+            <InterfacesForm 
               {form}
               bind:formData={formData}/>
           </div>

@@ -1,24 +1,24 @@
 <script lang="ts">
-  import { Edit, Trash2, Play } from 'lucide-svelte';
-	import type { HostGroup } from '../types/base';
-    import type { Host } from "$lib/features/hosts/types/base";
-	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
+  import { Edit, Trash2, Users } from 'lucide-svelte';
+  import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
+  import { hosts } from '$lib/features/hosts/store';
+  import { get } from 'svelte/store';
+  import type { HostGroup } from '../types/base';
   
   export let group: HostGroup;
-  export let hosts: Host[] = [];
   export let onEdit: (group: HostGroup) => void = () => {};
   export let onDelete: (group: HostGroup) => void = () => {};
-  
-  // Get host name from ID
-  function getHostName(hostId: string): string {
-    const host = hosts.find(n => n.id === hostId);
-    return host ? host.name : `Host ${hostId.slice(0, 8)}...`;
+    
+  function getHostName(id: string): string | null {
+    return get(hosts).find(h => h.id === id)?.name || null;
   }
-      
+  
   // Build card data
   $: cardData = {
     title: group.name,
-    subtitle: `${group.hosts.length} hosts in group`,
+    subtitle: `${group.hosts.length} host${group.hosts.length === 1 ? '' : 's'} in group`,
+    iconColor: 'text-purple-400',
+    icon: Users,
     
     sections: group.description ? [{
       label: 'Description',
@@ -28,11 +28,10 @@
     lists: [
       {
         label: 'Hosts',
-        items: group.hosts.map((hostId, index) => ({
+        items: group.hosts.map((hostId) => ({
           id: hostId,
-          label: `${index + 1}. ${getHostName(hostId)}`,
-          bgColor: 'bg-purple-900/30',
-          color: 'text-purple-300'
+          label: getHostName(hostId) || "Unknown Host",
+          color: 'blue'
         })),
         emptyText: 'No hosts in group'
       }
@@ -47,15 +46,6 @@
         bgHover: 'hover:bg-red-900/20',
         onClick: () => onDelete(group)
       },
-      // {
-      //   label: 'Execute Diagnostic',
-      //   icon: Play,
-      //   color: 'text-gray-400',
-      //   hoverColor: 'text-green-400',
-      //   bgHover: 'hover:bg-green-900/20',
-      //   onClick: () => onExecute(group),
-      //   disabled: group.hosts.length === 0
-      // },
       {
         label: 'Edit Group',
         icon: Edit,

@@ -4,6 +4,7 @@
 	import HostGroupTab from '$lib/features/host_groups/components/HostGroupTab.svelte';
 	import { getHostGroups } from '$lib/features/host_groups/store';
 	import HostTab from '$lib/features/hosts/components/HostTab.svelte';
+  import TopologyTab from '$lib/features/topology/components/TopologyTab.svelte';
 	import { getHosts } from '$lib/features/hosts/store';
 	import SubnetTab from '$lib/features/subnets/components/SubnetTab.svelte';
 	import { getSubnets } from '$lib/features/subnets/store';
@@ -13,6 +14,7 @@
 	import { loading } from '$lib/shared/stores/feedback';
 	import { getRegistry } from '$lib/shared/stores/registry';
 	import { onDestroy, onMount } from 'svelte';
+	import { getTopology } from '$lib/features/topology/store';
   
   let activeTab = 'hosts';
   let appInitialized = false;
@@ -29,7 +31,8 @@
       getDaemons(),
       getHostGroups(),
       getSubnets(),
-      getActiveDiscoverySessions()
+      getActiveDiscoverySessions(),
+      getTopology()
     ]);
 
     setTimeout(() => {
@@ -57,6 +60,8 @@
         <SubnetTab />
       {:else if activeTab === 'groups'}
         <HostGroupTab />
+      {:else if activeTab === 'topology'}
+        <TopologyTab />
       {/if}
     </div>
 

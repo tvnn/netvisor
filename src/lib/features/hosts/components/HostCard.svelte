@@ -10,6 +10,7 @@
 	import { services } from '$lib/shared/stores/registry';
 	import { subnets } from '$lib/features/subnets/store';
 	import { get } from 'svelte/store';
+	import type { HostGroup } from '$lib/features/host_groups/types/base';
   
   export let host: Host;
   export let daemon: Daemon | null;
@@ -33,7 +34,7 @@
   $: cardData = {
     title: host.name,
     iconColor: 'text-blue-400',
-    icon: services.getIconComponent(host.services[0]?.type) || CircleQuestionMark,
+    icon: services.getIconComponent(host.services[0]?.service_type.type) || CircleQuestionMark,
     sections: connectionInfo ? [{
       label: 'Connection',
       value: connectionInfo
@@ -42,10 +43,10 @@
     lists: [
       {
         label: 'Services',
-        items: host.services.map(cap => {
+        items: host.services.map(sv => {
           return ({
-            id: cap.type,
-            label: services.getDisplay(cap.type),
+            id: sv.service_type.type,
+            label: services.getDisplay(sv.service_type.type),
             color: 'cyan'
           })
         }),
@@ -53,7 +54,7 @@
       },
       {
         label: 'Subnets',
-        items: host.subnets.filter(sub => getSubnetNameFromId(sub.subnet_id) != null).map(sub => {
+        items: host.interfaces.filter(sub => getSubnetNameFromId(sub.subnet_id) != null).map(sub => {
           return ({
             id: sub.subnet_id,
             label: getSubnetNameFromId(sub.subnet_id) || "Unknown Subnet",
@@ -63,11 +64,10 @@
         emptyText: 'No subnets assigned'
       },
       {
-        label: 'Diagnostic Groups',
-        items: groupInfo.map((group, i) => ({
+        label: 'Groups',
+        items: groupInfo.map((group: HostGroup, i) => ({
           id: host?.groups ? host.groups[i] : group.name,
           label: group.name,
-          disabled: !group.auto_diagnostic_enabled,
           color: 'purple'
         })),
         emptyText: 'No groups assigned'

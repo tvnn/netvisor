@@ -1,13 +1,9 @@
 <script lang="ts">
-	import { hosts } from '$lib/features/hosts/store';
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
 	import { createHostGroup, deleteHostGroup, hostGroups, updateHostGroup } from '../store';
 	import type { HostGroup } from '../types/base';
 	import HostGroupCard from './HostGroupCard.svelte';
-  	import type { Host } from "$lib/features/hosts/types/base";
 	import HostGroupEditModal from './HostGroupEditModal.svelte';
-	import SummaryStats from '$lib/shared/components/layout/SummaryStats.svelte';
-	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import { loading } from '$lib/shared/stores/feedback';
   
@@ -46,7 +42,7 @@
     }
   }
   
-  async function handleGroupUpdate(data: HostGroup) {
+  async function handleGroupUpdate(id: string, data: HostGroup) {
     const result = await updateHostGroup(data);
     if (result?.success) {
       showGroupEditor = false;
@@ -57,10 +53,6 @@
   function handleCloseGroupEditor() {
     showGroupEditor = false;
     editingGroup = null;
-  }
-
-  function getHosts(hostIds: string[]): Host[] {
-    return $hosts.filter(n => n.id in hostIds)
   }
 </script>
 
@@ -88,17 +80,16 @@
   {#if $hostGroups.length === 0 && !$loading}
     <!-- Empty state -->
     <EmptyState 
-      title="No diagnostic groups configured yet"
-      subtitle="Diagnostic groups define test sequences for systematic troubleshooting"
+      title="No host groups configured yet"
+      subtitle="Host groups define clusters or paths of nodes for visualization"
       onClick={handleCreateGroup}
-      cta="Create your first diagnostic group"/>
+      cta="Create your first host group"/>
   {:else}
     <!-- Host Groups Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {#each $hostGroups as group (group.id)}
       <HostGroupCard
         {group}
-        hosts={getHosts(group.hosts)}
         onEdit={() => handleEditGroup(group)}
         onDelete={() => handleDeleteGroup(group)}
       />

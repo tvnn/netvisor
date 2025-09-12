@@ -5,20 +5,21 @@ export interface Host {
   id: string;
   created_at: string;
   updated_at: string;
-  last_seen: string;
   name: string;
   description: string;
   hostname: string;
   target: HostTarget;
   services: Service[];
   open_ports: Port[]
-  subnets: HostSubnetMembership[];
+  interfaces: Interface[];
   groups: string[];
 }
 
-export interface HostSubnetMembership {
+export interface Interface {
+    id: string,
     subnet_id: string,
+    name: string,
     ip_address?: string,
     mac_address?: string
-    default: boolean
+    is_primary: boolean
 }

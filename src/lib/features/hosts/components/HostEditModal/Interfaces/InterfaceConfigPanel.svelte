@@ -1,12 +1,12 @@
 <script lang="ts">
   import { field } from 'svelte-forms';
   import { AlertCircle } from 'lucide-svelte';
-	import type { HostSubnetMembership } from '$lib/features/hosts/types/base';
+	import type { Interface } from '$lib/features/hosts/types/base';
   
   export let form: any;
-  export let membership: HostSubnetMembership | null = null;
+  export let iface: Interface | null = null;
   export let subnet: Subnet | null = null;
-  export let onChange: (updatedMembership: HostSubnetMembership) => void = () => {};
+  export let onChange: (updatedIface: Interface) => void = () => {};
   
   let ipAddressField: any;
   let macAddressField: any;
@@ -39,43 +39,43 @@
     };
   
   // Initialize form fields when membership changes
-  $: if (membership && subnet) {
+  $: if (iface && subnet) {
     ipAddressField = field(
-      `subnet_ip_${membership.subnet_id}`,
-      membership.ip_address,
+      `interface_ip_${iface.subnet_id}`,
+      iface.ip_address,
       [ipValidator()]
     );
     
     macAddressField = field(
-      `subnet_mac_${membership.subnet_id}`,
-      membership.mac_address || '',
+      `interface_mac_${iface.subnet_id}`,
+      iface.mac_address || '',
       [macValidator()]
     );
     
     // Register with parent form
     if (form) {
-      form[`subnet_ip_${membership.subnet_id}`] = ipAddressField;
-      form[`subnet_mac_${membership.subnet_id}`] = macAddressField;
+      form[`interface_ip_${iface.subnet_id}`] = ipAddressField;
+      form[`interface_mac_${iface.subnet_id}`] = macAddressField;
     }
   }
   
-  // Update membership when field values change
-  $: if (membership && ipAddressField && macAddressField && $ipAddressField && $macAddressField) {
-    const updatedMembership: HostSubnetMembership = {
-      ...membership,
+  // Update interface when field values change
+  $: if (iface && ipAddressField && macAddressField && $ipAddressField && $macAddressField) {
+    const updatedIface: Interface = {
+      ...iface,
       ip_address: $ipAddressField.value,
       mac_address: $macAddressField.value || undefined
     };
     
     // Only trigger onChange if values actually changed
-    if (updatedMembership.ip_address !== membership.ip_address || 
-        updatedMembership.mac_address !== membership.mac_address) {
-      onChange(updatedMembership);
+    if (updatedIface.ip_address !== iface.ip_address || 
+        updatedIface.mac_address !== iface.mac_address) {
+      onChange(updatedIface);
     }
   }
 </script>
 
-{#if membership && subnet}
+{#if iface && subnet}
   <div class="space-y-6">
     <!-- Subnet Info Header -->
     <div class="border-b border-gray-600 pb-4">

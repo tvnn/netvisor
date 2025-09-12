@@ -65,7 +65,7 @@
     buttons={[
       {
         onClick: handleCreateSubnet,
-        cta: "Add Subnet"
+        cta: "Create Subnet"
       }
     ]}
      />

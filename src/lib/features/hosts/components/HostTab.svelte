@@ -96,7 +96,7 @@
     buttons={[
       {
         onClick: handleCreateHost,
-        cta: "Add Host"
+        cta: "Create Host"
       }
     ]}
      />

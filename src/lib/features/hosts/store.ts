@@ -110,7 +110,7 @@ export function createEmptyHostFormData(): Host {
     target: {
       type: 'IpAddress',
       config: {
-        ip: '',
+        ip: '127.0.0.1',
       },
     },
     services: [],

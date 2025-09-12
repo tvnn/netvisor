@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
+import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
 export const subnets = writable<Subnet[]>([]);
 
@@ -49,13 +50,13 @@ export async function deleteSubnet(subnetId: string) {
 
 export function createEmptySubnetFormData(): Subnet {
   return {
-    id: '',
-    created_at: '',
-    updated_at: '',
+    id: uuidv4Sentinel,
+    created_at: utcTimeZoneSentinel,
+    updated_at: utcTimeZoneSentinel,
     name: '',
     cidr: '',
     description: '',
-    subnet_type: 'LocalLan',
+    subnet_type: 'Lan',
     dns_resolvers: [],
     gateways: [],
     hosts: [],

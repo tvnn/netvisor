@@ -1,16 +1,17 @@
 <script lang="ts">
   import ListConfigEditor from '$lib/shared/components/forms/ListConfigEditor.svelte';
-  import SubnetConfigPanel from './SubnetConfigPanel.svelte';
+  import InterfaceConfigPanel from './InterfaceConfigPanel.svelte';
   import { subnets } from '$lib/features/subnets/store';
-  import { type Host, type HostSubnetMembership } from '$lib/features/hosts/types/base';
+  import { type Host, type Interface } from '$lib/features/hosts/types/base';
+  import { v4 as uuidv4 } from 'uuid';
   
   export let form: any;
   export let formData: Host;
   
   // Computed values
-  $: hostSubnetMemberships = formData.subnets || [];
+  $: interfaces = formData.interfaces || [];
   $: availableSubnets = $subnets.filter(s => 
-    !hostSubnetMemberships.find(membership => membership.subnet_id === s.id)
+    !interfaces.find(iface => iface.subnet_id === s.id)
   );
   
   // Helper function to find subnet by ID
@@ -19,30 +20,32 @@
   }
     
   // Event handlers
-  function handleAddSubnet(subnetId: string) {
+  function handleAddInterface(subnetId: string) {
     const subnet = findSubnetById(subnetId);
     if (!subnet) return;
     
-    const newMembership: HostSubnetMembership = {
+    const newInterface: Interface = {
+      id: uuidv4(),
+      name: "",
       subnet_id: subnetId,
       ip_address: undefined,
       mac_address: undefined,
-      default: false
+      is_primary: false
     };
     
-    formData.subnets = [...hostSubnetMemberships, newMembership];
+    formData.interfaces = [...interfaces, newInterface];
   }
   
-  function handleSubnetChange(membership: HostSubnetMembership, index: number) {
-    if (index >= 0 && index < hostSubnetMemberships.length) {
-      const updatedMemberships = [...hostSubnetMemberships];
-      updatedMemberships[index] = membership;
-      formData.subnets = updatedMemberships;
+  function handleInterfaceChange(membership: Interface, index: number) {
+    if (index >= 0 && index < interfaces.length) {
+      const updatedInterfaces = [...interfaces];
+      updatedInterfaces[index] = membership;
+      formData.interfaces = updatedInterfaces;
     }
   }
   
-  function handleRemoveSubnet(index: number) {
-    formData.subnets = hostSubnetMemberships.filter((_, i) => i !== index);
+  function handleRemoveInterface(index: number) {
+    formData.interfaces = interfaces.filter((_, i) => i !== index);
   }
   
   // Display functions for options (available subnets)
@@ -68,17 +71,17 @@
     return []
   }
   
-  // Display functions for items (current memberships)
-  function getItemId(membership: HostSubnetMembership): string {
-    return membership.subnet_id;
+  // Display functions for items (current interfaces)
+  function getItemId(iface: Interface): string {
+    return iface.subnet_id;
   }
   
-  function getItemLabel(membership: HostSubnetMembership): string {
-    const subnet = findSubnetById(membership.subnet_id);
+  function getItemLabel(iface: Interface): string {
+    const subnet = findSubnetById(iface.subnet_id);
     return subnet?.name || 'Unknown Subnet';
   }
   
-  function getItemDescription(membership: HostSubnetMembership): string {
+  function getItemDescription(membership: Interface): string {
     const parts = [membership.ip_address];
     if (membership.mac_address) {
       parts.push(membership.mac_address);
@@ -88,10 +91,10 @@
     return parts.join(' • ');
   }
   
-  function getItemTags(membership: HostSubnetMembership) {
+  function getItemTags(membership: Interface) {
     const subnet = findSubnetById(membership.subnet_id);
     const tags = [];
-    if (membership.default) {
+    if (membership.is_primary) {
       tags.push({
         label: "Default",
         color: "green"
@@ -109,14 +112,14 @@
 
 <ListConfigEditor
   {form}
-  bind:items={formData.subnets}
+  bind:items={formData.interfaces}
   options={availableSubnets}
-  label="Subnets"
-  helpText="Configure network memberships and addresses"
-  emptyMessage="No subnets configured. Add one to get started."
+  label="Interfaces"
+  helpText="Configure network interfaces and addresses"
+  emptyMessage="No interfaces configured. Add one to get started."
   
   allowReorder={false}
-  placeholder="Select subnet to add..."
+  placeholder="Select subnet to create interface with..."
 
   {getOptionId}
   {getOptionLabel}
@@ -132,18 +135,18 @@
   getItemIconColor={() => ''}
   {getItemTags}
   
-  onAdd={handleAddSubnet}
-  onRemove={handleRemoveSubnet}
-  onChange={handleSubnetChange}
+  onAdd={handleAddInterface}
+  onRemove={handleRemoveInterface}
+  onChange={handleInterfaceChange}
 >
-  <SubnetConfigPanel
+  <InterfaceConfigPanel
   slot="config"
   let:selectedItem
   let:selectedIndex
   let:onChange
   
   {form}
-  membership={selectedItem}
+  iface={selectedItem}
   subnet={selectedItem ? (() => findSubnetById(selectedItem.subnet_id))() : null}
   onChange={(updatedMembership) => onChange(updatedMembership)}
 />

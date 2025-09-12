@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { HostGroup } from '$lib/features/host_groups/types/base'
+import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
 export const hostGroups = writable<HostGroup[]>([]);
 
@@ -40,13 +41,13 @@ export async function deleteHostGroup(id: string) {
   )
 }
 
-export function createEmptyFormData(): HostGroup {
+export function createEmptyHostGroupFormData(): HostGroup {
   return {
+    id: uuidv4Sentinel,
     name: '',
     description: '',
-    hosts: [] as string[],
-    id: '',
-    created_at: '',
-    updated_at: ''
+    hosts: [],
+    created_at: utcTimeZoneSentinel,
+    updated_at: utcTimeZoneSentinel
   };
 }

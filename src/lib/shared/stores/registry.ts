@@ -1,5 +1,4 @@
 import { writable, derived, get } from 'svelte/store';
-import { browser } from '$app/environment';
 import { api } from '../utils/api';
 import { createColorHelper, createIconComponent, createStyle, type ColorStyle } from '../utils/styling';
 
@@ -17,6 +16,7 @@ export interface TypeRegistry {
   services: TypeMetadata[];
   host_targets: TypeMetadata[];
   subnet_types: TypeMetadata[];
+  graph_edge_types: TypeMetadata[];
 }
 
 export const registry = writable<TypeRegistry>();
@@ -96,6 +96,7 @@ function createRegistryHelpers<T extends keyof TypeRegistry>(category: T) {
 export const services = createRegistryHelpers('services');
 export const hostTargets = createRegistryHelpers('host_targets');
 export const subnet_types = createRegistryHelpers('subnet_types');
+export const graph_edge_types = createRegistryHelpers('graph_edge_types');
 
 export async function getRegistry() {
   const result = await api.request<TypeRegistry>(

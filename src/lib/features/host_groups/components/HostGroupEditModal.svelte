@@ -1,26 +1,24 @@
 <script lang="ts">
-	import { hosts } from "$lib/features/hosts/store";
-		import { getHostTargetString } from "$lib/features/hosts/store";
-	import EditModal from "$lib/shared/components/forms/EditModal.svelte";
-	import ListManager from "$lib/shared/components/forms/ListManager.svelte";
-	import type { HostGroup } from "../types/base";
-
+  import { Users } from 'lucide-svelte';
+  import { createEmptyHostGroupFormData } from '../store';
+  import EditModal from '$lib/shared/components/forms/EditModal.svelte';
+  import HostManager from './HostManager.svelte';
+  import type { HostGroup } from '../types/base';
   
   export let group: HostGroup | null = null;
   export let isOpen = false;
   export let onCreate: (data: HostGroup) => Promise<void> | void;
-  export let onUpdate: (data: HostGroup) => Promise<void> | void;
+  export let onUpdate: (id: string, data: HostGroup) => Promise<void> | void;
   export let onClose: () => void;
   export let onDelete: ((id: string) => Promise<void> | void) | null = null;
   
-  let formData = createEmptyFormData();
-  
   let loading = false;
   let deleting = false;
-  let errors: Record<string, string> = {};
   
   $: isEditing = group !== null;
   $: title = isEditing ? `Edit ${group?.name}` : 'Create Host Group';
+  
+  let formData: HostGroup = createEmptyHostGroupFormData();
   
   // Initialize form data when group changes or modal opens
   $: if (isOpen) {
@@ -28,42 +26,21 @@
   }
   
   function resetForm() {
-    formData = group ? HostGroupToFormData(group) : createEmptyFormData();
-    errors = {};
-  }
-  
-  function validateForm(): boolean {
-    errors = {};
-    
-    if (!formData.name.trim()) {
-      errors.name = 'Name is required';
-    }
-    
-    if (formData.hosts.length === 0) {
-      errors.hosts = 'At least one host is required';
-    }
-    
-    return Object.keys(errors).length === 0;
+    formData = group ? { ...group } : createEmptyHostGroupFormData();
   }
   
   async function handleSubmit() {
+    // Clean up the data before sending
     const groupData: HostGroup = {
+      ...formData,
       name: formData.name.trim(),
-      description: formData.description.trim(),
-      hosts: formData.hosts,
-      id: group?.id || '',
-      created_at: group?.created_at || '',
-      updated_at: group?.updated_at || '',
+      description: formData.description?.trim() || '',
     };
-    
-    if (!validateForm()) {
-      return;
-    }
     
     loading = true;
     try {
       if (isEditing && group) {
-        await onUpdate(groupData);
+        await onUpdate(group.id, groupData);
       } else {
         await onCreate(groupData);
       }
@@ -83,20 +60,9 @@
     }
   }
   
-  function getHostName(hostId: string): string {
-    const host = $hosts.find(n => n.id === hostId);
-    return host ? host.name : `Host ${hostId.slice(0, 8)}...`;
-  }
-
-
-	function HostGroupToFormData(group: HostGroup): any {
-		throw new Error("Function not implemented.");
-	}
-
-
-	function createEmptyFormData(): any {
-		throw new Error("Function not implemented.");
-	}
+  // Dynamic labels based on create/edit mode
+  $: saveLabel = isEditing ? 'Update Group' : 'Create Group';
+  $: cancelLabel = 'Cancel';
 </script>
 
 <EditModal
@@ -104,65 +70,72 @@
   {title}
   {loading}
   {deleting}
-  onSubmit={handleSubmit}
+  {saveLabel}
+  {cancelLabel}
+  onSave={handleSubmit}
   onCancel={onClose}
-  {onClose}
   onDelete={isEditing ? handleDelete : null}
-  submitLabel={isEditing ? 'Update Group' : 'Create Group'}
+  size="xl"
+  let:form
 >
-  <!-- Add proper spacing container around all form elements -->
-  <div class="space-y-6">
-    <!-- Basic Information -->
-    <div>
-      <label for="name" class="block text-sm font-medium text-gray-300 mb-1">
-        Group Name *
-      </label>
-      <input
-        id="name"
-        name="name"
-        bind:value={formData.name}
-        type="text"
-        required
-        placeholder="VPN Access Path"
-        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        class:border-red-500={errors.name}
-      />
-      {#if errors.name}
-        <p class="text-red-400 text-xs mt-1">{errors.name}</p>
-      {/if}
+  <!-- Header icon -->
+  <svelte:fragment slot="header-icon">
+    <div class="p-2 bg-purple-600/20 rounded-lg">
+      <Users class="w-5 h-5 text-purple-400" />
     </div>
-    
-    <div>
-      <label for="description" class="block text-sm font-medium text-gray-300 mb-1">
-        Description
-      </label>
-      <textarea
-        id="description"
-        name="description"
-        bind:value={formData.description}
-        rows="3"
-        placeholder="Describe the purpose of this diagnostic sequence..."
-        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-      ></textarea>
-    </div>
-        
-    <!-- Host Manager -->
-    <div>
-      <ListManager
-        label="Hosts"
-        helpText=""
-        bind:items={formData.hosts}
-        availableOptions={$hosts.map(host => ({
-          id: host.id,
-          label: host.name,
-          subtitle: getHostTargetString(host.target)
-        }))}
-        placeholder="Select a host to add"
-        required={true}
-        allowReorder={true}
-        getDisplayName={getHostName}
-        error={errors.hosts}
-      />
+  </svelte:fragment>
+  
+  <!-- Content -->
+  <div class="h-full flex flex-col overflow-hidden">
+    <div class="flex-1 overflow-y-auto">
+      <div class="space-y-8 p-6">
+        <!-- Basic Information -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium text-white">Group Details</h3>
+          
+          <!-- Name -->
+          <div>
+            <label for="name" class="block text-sm font-medium text-gray-300 mb-2">
+              Group Name <span class="text-red-400">*</span>
+            </label>
+            <input
+              id="name"
+              type="text"
+              bind:value={formData.name}
+              placeholder="e.g., Production Servers, Web Cluster"
+              required
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+          </div>
+          
+          <!-- Description -->
+          <div>
+            <label for="description" class="block text-sm font-medium text-gray-300 mb-2">
+              Description
+            </label>
+            <textarea
+              id="description"
+              bind:value={formData.description}
+              placeholder="Optional description of this host group..."
+              rows="3"
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Hosts Section -->
+        <div class="space-y-4">
+          <div class="border-t border-gray-700 pt-6">
+            <h3 class="text-lg font-medium text-white mb-4">Hosts</h3>
+            <div class="bg-gray-800/50 rounded-lg p-4">
+              <HostManager
+                {form}
+                bind:hostIds={formData.hosts}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </EditModal>

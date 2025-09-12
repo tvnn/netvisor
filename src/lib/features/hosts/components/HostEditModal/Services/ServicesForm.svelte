@@ -26,14 +26,15 @@
     const defaultPorts = serviceMetadata.metadata?.default_ports || [];
     const defaultEndpoints = serviceMetadata.metadata?.default_endpoints || [];
     
-    const newService = createDefaultService(
-      serviceTypeId, 
-      serviceMetadata.display_name,
-      defaultPorts,
-      defaultEndpoints
-    );
+    // const newService = createDefaultService(
+    //   formData.id  
+    //   serviceTypeId, 
+    //   serviceMetadata.display_name,
+    //   defaultPorts,
+    //   defaultEndpoints
+    // );
     
-    formData.services = [...hostServices, newService];
+    // formData.services = [...hostServices, newService];
   }
   
   function handleServiceChange(service: Service, index: number) {
@@ -91,7 +92,7 @@
   
   // Display functions for items (current services)
   function getItemId(service: Service): string {
-    return `${service.type}_${service.name}`;
+    return `${service.service_type.type}_${service.name}`;
   }
   
   function getItemLabel(service: Service): string {
@@ -103,7 +104,7 @@
   }
   
   function getItemIcon(service: Service) {
-    const serviceMetadata = $registry?.services?.find(s => s.id === service.type);
+    const serviceMetadata = $registry?.services?.find(s => s.id === service.service_type.type);
     if (serviceMetadata) {
       return createStyle(null, serviceMetadata.icon).IconComponent;
     }
@@ -111,7 +112,7 @@
   }
   
   function getItemIconColor(service: Service) {
-    const serviceMetadata = $registry?.services?.find(s => s.id === service.type);
+    const serviceMetadata = $registry?.services?.find(s => s.id === service.service_type.type);
     if (serviceMetadata) {
       return createStyle(serviceMetadata.color, null).colors.icon;
     }
@@ -120,7 +121,7 @@
   
   function getItemTags(service: Service) {
     const tags: TagProps[] = [];
-    const serviceMetadata = $registry?.services?.find(s => s.id === service.type);
+    const serviceMetadata = $registry?.services?.find(s => s.id === service.service_type.type);
     
     // if (serviceMetadata) {
     //   tags.push({
@@ -143,7 +144,7 @@
   
   allowReorder={true}
   placeholder="Select service type to add..."
-  allowItemRemove={(item) => services.getMetadata(item.type).can_be_added}
+  allowItemRemove={(item) => services.getMetadata(item.service_type.type).can_be_added}
   
   {getOptionId}
   {getOptionLabel}

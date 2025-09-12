@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { Network } from 'lucide-svelte';
+  import { Network, Router } from 'lucide-svelte';
   import { createEmptySubnetFormData } from '../store';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
-  import DnsResolverManager from './DnsResolverManager.svelte';
-  import GatewayManager from './GatewayManager.svelte';
-	import { subnet_types } from '$lib/shared/stores/registry';
+	import { services, subnet_types } from '$lib/shared/stores/registry';
 	import { get } from 'svelte/store';
+	import HostSelector from '$lib/shared/components/forms/HostSelector.svelte';
   
   export let subnet: Subnet | null = null;
   export let isOpen = false;
@@ -165,9 +164,16 @@
           <div class="border-t border-gray-700 pt-6">
             <h3 class="text-lg font-medium text-white mb-4">DNS Resolvers</h3>
             <div class="bg-gray-800/50 rounded-lg p-4">
-              <DnsResolverManager
-                {form}
-                bind:resolverIds={formData.dns_resolvers}
+              <HostSelector
+                bind:selectedIds={formData.dns_resolvers}
+                label="DNS Resolvers"
+                helpText="Select hosts that provide DNS resolution services for this subnet"
+                placeholder="Select a DNS server to add..."
+                emptyMessage="No DNS resolvers configured. DNS capable hosts will appear here."
+                serviceMetadataField="can_be_dns_resolver"
+                icon={services.getIconComponent('DNS')}
+                iconColor="text-blue-400"
+                selectedIconColor="text-green-400"
               />
             </div>
           </div>
@@ -178,9 +184,36 @@
           <div class="border-t border-gray-700 pt-6">
             <h3 class="text-lg font-medium text-white mb-4">Gateways</h3>
             <div class="bg-gray-800/50 rounded-lg p-4">
-              <GatewayManager
-                {form}
-                bind:gatewayIds={formData.gateways}
+              <HostSelector
+                bind:selectedIds={formData.gateways}
+                label="Gateways"
+                helpText="Select hosts that provide gateway/routing services for this subnet"
+                placeholder="Select a gateway to add..."
+                emptyMessage="No gateways configured. Gateway-capable hosts will appear here."
+                serviceMetadataField="can_be_gateway"
+                icon={Router}
+                iconColor="text-orange-400"
+                selectedIconColor="text-green-400"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Reverse Proxies Section -->
+        <div class="space-y-4">
+          <div class="border-t border-gray-700 pt-6">
+            <h3 class="text-lg font-medium text-white mb-4">Reverse Proxies</h3>
+            <div class="bg-gray-800/50 rounded-lg p-4">
+              <HostSelector
+                bind:selectedIds={formData.reverse_proxies}
+                label="Reverse Proxies"
+                helpText="Select hosts that provide reverse proxy services for this subnet"
+                placeholder="Select a reverse proxy to add..."
+                emptyMessage="No reverse proxies configured. Reverse proxy-capable hosts will appear here."
+                serviceMetadataField="is_reverse_proxy"
+                icon={Router}
+                iconColor="text-orange-400"
+                selectedIconColor="text-green-400"
               />
             </div>
           </div>

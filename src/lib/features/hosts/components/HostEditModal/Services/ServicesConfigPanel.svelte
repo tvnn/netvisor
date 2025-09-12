@@ -18,7 +18,7 @@
   let confirmedField: any;
   
   // Get service metadata from registry
-  $: serviceMetadata = service ? $registry?.services?.find(s => s.id === service.type) : null;
+  $: serviceMetadata = service ? $registry?.services?.find(s => s.id === service.service_type.type) : null;
   
   // Validators
   const serviceNameValidator = () => (value: string) => {
@@ -31,15 +31,15 @@
   // Initialize form fields when service changes
   $: if (service && serviceMetadata) {
     serviceNameField = field(
-      `service_name_${service.type}`,
+      `service_name_${service.service_type.type}`,
       service.name,
       [serviceNameValidator()]
     );
         
     // Register with parent form
     if (form) {
-      form[`service_name_${service.type}`] = serviceNameField;
-      form[`service_confirmed_${service.type}`] = confirmedField;
+      form[`service_name_${service.service_type.type}`] = serviceNameField;
+      form[`service_confirmed_${service.service_type.type}`] = confirmedField;
     }
   }
   

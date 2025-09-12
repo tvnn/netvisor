@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Network, Server, Workflow } from 'lucide-svelte';
+  import { ChartNetwork, Group, Network, Server, Workflow } from 'lucide-svelte';
   
   export let activeTab: string = 'hosts';
   export let onTabChange: (tab: string) => void;
@@ -7,7 +7,8 @@
   const navItems = [
     { id: 'hosts', label: 'Hosts', icon: Server },
     { id: 'subnets', label: 'Subnets', icon: Network },
-    { id: 'groups', label: 'Groups', icon: Workflow },
+    { id: 'groups', label: 'Groups', icon: Group },
+    { id: 'topology', label: 'Topology', icon: ChartNetwork },
   ];
 </script>
 

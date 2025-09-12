@@ -13,25 +13,26 @@ export interface Endpoint {
 }
 
 export interface Service {
-  type: string;
+  host_id: string;
+  service_type: {
+    type: string
+  };
   name: string;
   ports: Port[];
-  
-  // Optional daemon_id for NetvisorDaemon services
-  daemon_id?: string;
+  interface_bindings: string[];
 }
 
 // Helper functions for working with services and the TypeRegistry
-export function createDefaultService(serviceType: string, serviceName?: string, defaultPorts?: Port[], defaultEndpoints?: Endpoint[]): Service {
-  return {
-    type: serviceType,
-    name: serviceName || serviceType,
-    ports: defaultPorts ? [...defaultPorts] : [],
-  };
+export function createDefaultService(serviceType: string, serviceName?: string, defaultPorts?: Port[], defaultEndpoints?: Endpoint[]) {
+  // return {
+  //   service_type: serviceType,
+  //   name: serviceName || serviceType,
+  //   ports: defaultPorts ? [...defaultPorts] : [],
+  // };
 }
 
 export function getServiceDisplayName(service: Service): string {
-  return service.name || service.type;
+  return service.name || service.service_type.type;
 }
 
 export function formatServicePorts(ports: Port[]): string {

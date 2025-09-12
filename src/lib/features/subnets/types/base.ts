@@ -6,6 +6,7 @@ interface Subnet {
     name: string,
     dns_resolvers: string[],
     gateways: string[],
+    reverse_proxies: string[],
     hosts: string[],
     description?: string
     subnet_type: string
