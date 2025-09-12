@@ -10,9 +10,9 @@ use tokio::net::{TcpStream};
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
+use crate::server::interfaces::types::base::{Interface, InterfaceBase};
 use crate::server::subnets::types::base::{Subnet};
-use crate::server::hosts::types::base::HostSubnetMembership;
-use crate::daemon::utils::udp::{send_udp_probe, test_dns_service, test_ntp_service, test_snmp_service};
+use crate::daemon::utils::udp::{send_udp_probe, test_dhcp_service, test_dns_service, test_ntp_service, test_snmp_service};
 use crate::server::services::types::base::Service;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::services::types::ports::{Port, TransportProtocol};
@@ -44,34 +44,39 @@ pub trait DaemonUtils: NetworkUtils {
         }
     }
     
-    async fn scan_subnets(&self, daemon_id: Uuid) -> Result<(Vec<HostSubnetMembership>, Vec<Subnet>)> {
+    async fn scan_interfaces(&self, daemon_id: Uuid, server_ip: Option<IpAddr>) -> Result<(Vec<Interface>, Vec<Subnet>)> {
 
         let interfaces = self.get_own_interfaces();
 
         tracing::debug!("Found {} network interfaces", interfaces.len());
 
-        let (memberships, subnets): (Vec<HostSubnetMembership>, Vec<Subnet>) = interfaces.into_iter()
+        let (memberships, subnets): (Vec<Interface>, Vec<Subnet>) = interfaces.into_iter()
             .filter(|interface| !interface.is_loopback())
             .flat_map(|interface| {
+                let name = interface.name;
                 interface.ips.iter().filter_map(|ip| {
-                    if let Some(subnet) = Subnet::from_discovery(&interface.name, &ip, daemon_id) {
+                    if let Some(subnet) = Subnet::from_discovery(&name, &ip, daemon_id) {
                         let mac_address = match interface.mac {
                             Some(mac) => Some(MacAddress::new(mac.octets())),
                             None => None
                         };
                         return Some((
-                            HostSubnetMembership {
+                            Interface::new(InterfaceBase{
+                                name: name.clone(),
                                 subnet_id: subnet.id,
                                 ip_address: ip.ip(),
                                 mac_address,
-                                default: false
-                            },
+                                is_primary: match server_ip {
+                                    Some(ip) => subnet.base.cidr.contains(&ip),
+                                    None => false
+                                }
+                            }),
                             subnet
                         ))
                     }
                     None
                 })
-                .collect::<Vec<(HostSubnetMembership, Subnet)>>()
+                .collect::<Vec<(Interface, Subnet)>>()
             })
             .unzip();
 
@@ -112,7 +117,7 @@ pub trait DaemonUtils: NetworkUtils {
     }
 
     async fn scan_tcp_ports(&self, ip: IpAddr, cancel: CancellationToken) -> Result<Vec<Port>, Error> {
-        let discovery_ports = Service::discovery_ports();
+        let discovery_ports = Service::all_discovery_ports();
         let ports: Vec<u16> = discovery_ports.iter().filter_map(|p| (p.protocol == TransportProtocol::Tcp).then(|| p.number)).collect();
         
         let mut open_ports = Vec::new();
@@ -135,7 +140,7 @@ pub trait DaemonUtils: NetworkUtils {
     }
 
     async fn scan_udp_ports(&self, ip: IpAddr, cancel: CancellationToken) -> Result<Vec<Port>, Error> {
-        let discovery_ports = Service::discovery_ports();
+        let discovery_ports = Service::all_discovery_ports();
         let ports: Vec<u16> = discovery_ports.iter().filter_map(|p| (p.protocol == TransportProtocol::Udp).then(|| p.number)).collect();
         
         let mut open_ports = Vec::new();
@@ -149,6 +154,7 @@ pub trait DaemonUtils: NetworkUtils {
                 53 => test_dns_service(ip).await,
                 123 => test_ntp_service(ip).await,
                 161 => test_snmp_service(ip).await,
+                67 => test_dhcp_service(ip).await,
                 _ => send_udp_probe(ip, port).await,
             };
             
@@ -162,7 +168,7 @@ pub trait DaemonUtils: NetworkUtils {
     }
 
     async fn scan_endpoints(&self, ip: IpAddr, cancel: CancellationToken) -> Result<Vec<EndpointResponse>, Error> {
-        let endpoints: Vec<Endpoint> = Service::discovery_endpoints().iter().map(|e| e.use_ip(ip)).collect();
+        let endpoints: Vec<Endpoint> = Service::all_discovery_endpoints().iter().map(|e| e.use_ip(ip)).collect();
         let mut responses = Vec::new();
 
         let client = reqwest::Client::builder()

@@ -1,3 +1,3 @@
 pub mod base;
-pub mod daemon;
+pub mod self_report;
 pub mod network;

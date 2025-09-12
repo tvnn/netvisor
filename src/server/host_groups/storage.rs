@@ -31,7 +31,7 @@ impl HostGroupStorage for SqliteHostGroupStorage {
         sqlx::query(
             r#"
             INSERT INTO host_groups (
-                id, name, description, hosts
+                id, name, description, hosts,
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?)
             "#

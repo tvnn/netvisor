@@ -38,7 +38,9 @@ async fn register_daemon(
     let service = &state.services.daemon_service;
 
     let daemon = Daemon::new(request.daemon_id, DaemonBase {
-        host_id: request.host_id
+        host_id: request.host_id,
+        ip: request.daemon_ip,
+        port: request.daemon_port
     });
             
     let registered_daemon = service.register_daemon(daemon).await

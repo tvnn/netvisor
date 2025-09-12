@@ -8,19 +8,17 @@ use crate::server::{daemons::{
                 DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse
             }, base::Daemon
         }
-    }, hosts::service::HostService, services::types::{base::{Service, ServiceDiscriminants}, endpoints::{Endpoint,ApplicationProtocol}}, shared::types::api::ApiResponse};
+    }, services::types::{endpoints::{ApplicationProtocol, Endpoint}, ports::Port}, shared::types::api::ApiResponse};
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
-    host_service: Arc<HostService>,
     client: reqwest::Client,
 }
 
 impl DaemonService {
-    pub fn new(daemon_storage: Arc<dyn DaemonStorage>, host_service: Arc<HostService>) -> Self {
+    pub fn new(daemon_storage: Arc<dyn DaemonStorage>) -> Self {
         Self {
             daemon_storage,
-            host_service,
             client: reqwest::Client::new(),
         }
     }
@@ -51,33 +49,18 @@ impl DaemonService {
     /// Send discovery request to daemon
     pub async fn send_discovery_request(&self, daemon: &Daemon, request: DaemonDiscoveryRequest) -> Result<(), Error> {        
         
-        let daemon_host = match self.host_service.get_host(&daemon.base.host_id).await? {
-            Some(host) => host,
-            None => return Err(Error::msg(format!("Host '{}' for daemon {} not found", daemon.base.host_id, daemon.id)))
+        let endpoint = Endpoint {
+            ip: Some(daemon.base.ip),
+            port: Port::new_tcp(daemon.base.port),
+            protocol: ApplicationProtocol::Http,
+            path: None
         };
-
-        let response = match daemon_host.get_service(ServiceDiscriminants::NetvisorDaemon) {
-             Some(Service::NetvisorDaemon{ports, ..})  => {
-                let port = ports[0].clone();
-
-                let endpoint = match daemon_host.default_ip() {
-                    Some(ip) => Endpoint {
-                        ip: Some(ip),
-                        port,
-                        protocol: ApplicationProtocol::Http,
-                        path: None
-                    },
-                    None => anyhow::bail!("Could not resolve endpoint for daemon host {}: no default IP available", daemon_host.id)
-                };
-
-                self.client
-                    .post(format!("{}/api/discovery/initiate", endpoint))
-                    .json(&request)
-                    .send()
-                    .await?              
-            },
-            _ => anyhow::bail!("Daemon service is not enabled on host {}", daemon_host.id)
-        };
+                
+        let response = self.client
+            .post(format!("{}/api/discovery/initiate", endpoint))
+            .json(&request)
+            .send()
+            .await?;
 
         if !response.status().is_success() {
             anyhow::bail!("Failed to send discovery request: HTTP {}", response.status());
@@ -95,33 +78,18 @@ impl DaemonService {
 
     pub async fn send_discovery_cancellation(&self, daemon: &Daemon, session_id: Uuid) -> Result<(), anyhow::Error> {
 
-        let daemon_host = match self.host_service.get_host(&daemon.base.host_id).await? {
-            Some(host) => host,
-            None => return Err(Error::msg(format!("Host '{}' for daemon {} not found", daemon.base.host_id, daemon.id)))
+        let endpoint = Endpoint {
+            ip: Some(daemon.base.ip),
+            port: Port::new_tcp(daemon.base.port),
+            protocol: ApplicationProtocol::Http,
+            path: None
         };
-
-        let response = match daemon_host.get_service(ServiceDiscriminants::NetvisorDaemon) {
-            Some(Service::NetvisorDaemon{ports, ..})  => {
-                let port = ports[0].clone();
-
-                let endpoint = match daemon_host.default_ip() {
-                    Some(ip) => Endpoint {
-                        ip: Some(ip),
-                        port,
-                        protocol: ApplicationProtocol::Http,
-                        path: None
-                    },
-                    None => anyhow::bail!("Could not resolve endpoint for daemon host {}: no default IP available", daemon_host.id)
-                };
                 
-                self.client
-                    .post(format!("{}/api/discovery/cancel", endpoint))
-                    .json(&DaemonDiscoveryCancellationRequest { session_id })
-                    .send()
-                    .await?
-            },
-            _ => anyhow::bail!("Daemon service is not enabled on host {}", daemon_host.id)
-        };
+        let response = self.client
+            .post(format!("{}/api/discovery/cancel", endpoint))
+            .json(&DaemonDiscoveryCancellationRequest { session_id })
+            .send()
+            .await?;
 
         if !response.status().is_success() {
             anyhow::bail!("Failed to send discovery cancellation to daemon {}: HTTP {}", 

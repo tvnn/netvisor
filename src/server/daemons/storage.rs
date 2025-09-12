@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
@@ -27,16 +29,20 @@ impl SqliteDaemonStorage {
 impl DaemonStorage for SqliteDaemonStorage {
     async fn create(&self, daemon: &Daemon) -> Result<()> {
 
+        let ip_str = serde_json::to_string(&daemon.base.ip)?;
+
         sqlx::query(
             r#"
             INSERT INTO daemons (
-                id, host_id,
+                id, host_id, ip, port,
                 last_seen, registered_at
-            ) VALUES (?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&daemon.id)
         .bind(&daemon.base.host_id)
+        .bind(ip_str)
+        .bind(&daemon.base.port)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
@@ -62,25 +68,30 @@ impl DaemonStorage for SqliteDaemonStorage {
             .fetch_all(&self.pool)
             .await?;
 
-        let mut groups = Vec::new();
+        let mut daemons = Vec::new();
         for row in rows {
-            groups.push(row_to_daemon(row)?);
+            daemons.push(row_to_daemon(row)?);
         }
 
-        Ok(groups)
+        Ok(daemons)
     }
 
     async fn update(&self, daemon: &Daemon) -> Result<()> {
 
+        let ip_str = serde_json::to_string(&daemon.base.ip)?;
+
         sqlx::query(
             r#"
             UPDATE daemons SET 
-                host_id = ?, last_seen = ?
+                host_id = ?, ip = ?, port = ?, last_seen = ?
             WHERE id = ?
             "#
         )
         .bind(&daemon.base.host_id)
+        .bind(ip_str)
+        .bind(&daemon.base.port)
         .bind(chrono::Utc::now().to_rfc3339())
+        .bind(&daemon.id)
         .execute(&self.pool)
         .await?;
 
@@ -98,11 +109,16 @@ impl DaemonStorage for SqliteDaemonStorage {
 }
 
 fn row_to_daemon(row: sqlx::sqlite::SqliteRow) -> Result<Daemon> {
+    
+    let ip: IpAddr = serde_json::from_str(&row.get::<String, _>("ip"))?;
+
     Ok(Daemon {
         id: row.get("id"),
         last_seen: row.get("last_seen"),
         registered_at: row.get("registered_at"),
         base: DaemonBase {
+            ip,
+            port: row.get("port"),
             host_id: row.get("host_id"),
         }
     })

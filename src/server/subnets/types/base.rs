@@ -6,7 +6,7 @@ use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use uuid::Uuid;
 
-use crate::server::{hosts::types::base::Host, shared::types::metadata::TypeMetadataProvider};
+use crate::server::{hosts::types::base::Host, shared::{constants::VPN_COLOR, types::metadata::TypeMetadataProvider}};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum SubnetSource {
@@ -21,6 +21,7 @@ pub struct SubnetBase {
     pub description: Option<String>,
     pub dns_resolvers: Vec<Uuid>,    // [primary_dns, secondary_dns, fallback_dns]
     pub gateways: Vec<Uuid>,         // [default_gateway, backup_gateway]
+    pub reverse_proxies: Vec<Uuid>,
     pub hosts: Vec<Uuid>,
     pub subnet_type: SubnetType,
     pub source: SubnetSource
@@ -69,6 +70,7 @@ impl Subnet {
                     subnet_type,
                     dns_resolvers: Vec::new(),
                     gateways: Vec::new(),
+                    reverse_proxies: Vec::new(),
                     hosts: Vec::new(),
                     source: SubnetSource::Discovery(daemon_id)
                 }))
@@ -77,8 +79,15 @@ impl Subnet {
     }
     
     pub fn update_host_relationships(&mut self, host: &Host)  {
-        if host.base.services.iter().any(|c| c.discriminant().can_be_dns_resolver()) { self.base.dns_resolvers.push(host.id) }
-        if host.base.services.iter().any(|c| c.discriminant().can_be_gateway()) { self.base.gateways.push(host.id) }
+        // Remove host from existing relationships if present
+        self.base.dns_resolvers =self.base.dns_resolvers.iter().filter(|dns_host_id| dns_host_id != &&host.id).cloned().collect();
+        self.base.gateways =self.base.gateways.iter().filter(|gateway_host_id| gateway_host_id != &&host.id).cloned().collect();
+        self.base.reverse_proxies =self.base.reverse_proxies.iter().filter(|proxy_host_id| proxy_host_id != &&host.id).cloned().collect();
+        self.base.hosts =self.base.hosts.iter().filter(|host_id| host_id != &&host.id).cloned().collect();
+        
+        if host.base.services.iter().any(|s| s.base.service_type.is_dns_resolver()) { self.base.dns_resolvers.push(host.id) }
+        if host.base.services.iter().any(|s| s.base.service_type.is_gateway()) { self.base.gateways.push(host.id) }
+        if host.base.services.iter().any(|s| s.base.service_type.is_reverse_proxy()) { self.base.reverse_proxies.push(host.id) }
         self.base.hosts.push(host.id)
     }
 }
@@ -172,7 +181,7 @@ impl TypeMetadataProvider for SubnetType {
         match self {
             SubnetType::DockerBridge => "blue",
             SubnetType::Lan => "green",
-            SubnetType::VpnTunnel => "purple",
+            SubnetType::VpnTunnel => VPN_COLOR,
             SubnetType::Unknown => "gray",
         }
     }

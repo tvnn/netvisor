@@ -71,7 +71,7 @@ impl SubnetService {
         let update_futures = hosts
             .iter()
             .filter_map(|n| {
-                let has_subnet = n.base.subnets.iter().find(|s| &s.subnet_id == id).is_some();
+                let has_subnet = n.base.interfaces.iter().find(|i| &i.base.subnet_id == id).is_some();
                 if has_subnet {
                     let updates = HostUpdateRequest {
                         name: None,
@@ -79,7 +79,7 @@ impl SubnetService {
                         description: None,
                         target: None,
                         open_ports: None,
-                        subnets: Some(n.base.subnets.iter().filter(|s| &s.subnet_id != id).cloned().collect()),
+                        interfaces: Some(n.base.interfaces.iter().filter(|i| &i.base.subnet_id != id).cloned().collect()),
                         services: None,
                         groups: None,
                     };

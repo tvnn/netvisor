@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{EnumDiscriminants, EnumIter};
 
+use crate::server::shared::constants::{DNS_COLOR, MEDIA_COLOR, REVERSE_PROXY_COLOR, VPN_COLOR};
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 pub enum ServiceCategory {
     // Infrastructure (always-on, core network services)
@@ -125,17 +127,17 @@ impl ServiceCategory {
 
             // Server Services
             ServiceCategory::Storage => "green",
-            ServiceCategory::Media => "purple",
+            ServiceCategory::Media => MEDIA_COLOR,
             ServiceCategory::HomeAutomation => "blue",
             ServiceCategory::Virtualization => "orange",
             ServiceCategory::Backup => "gray",
             
             // Network Services
-            ServiceCategory::DNS => "yellow",
-            ServiceCategory::VPN => "purple",
+            ServiceCategory::DNS => DNS_COLOR,
+            ServiceCategory::VPN => VPN_COLOR,
             ServiceCategory::Monitoring => "orange",
-            ServiceCategory::AdBlock => "red",
-            ServiceCategory::ReverseProxy => "green",
+            ServiceCategory::AdBlock => DNS_COLOR,
+            ServiceCategory::ReverseProxy => REVERSE_PROXY_COLOR,
 
             // End devices
             ServiceCategory::Workstation => "green",

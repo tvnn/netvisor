@@ -36,7 +36,6 @@ impl ServiceFactory {
 
         let daemon_service = Arc::new(DaemonService::new(
             storage.daemons.clone(),
-            host_service.clone(),
         ));
 
         let topology_service = Arc::new(TopologyService::new(

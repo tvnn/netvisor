@@ -15,7 +15,7 @@ pub fn create_internet_connectivity_host() -> Host {
         name: "Google.com".to_string(),
         hostname: None,
         description: Some("Google.com for connectivity testing".to_string()),
-        subnets: Vec::new(),
+        interfaces: Vec::new(),
         open_ports: Vec::new(),
         services: vec![
             // Service::GenericHttpsWebServer { 
@@ -45,7 +45,7 @@ pub fn create_public_dns_host() -> Host {
         hostname: None,
         description: Some("Cloudflare DNS for DNS resolution testing".to_string()),
         target: host_target .clone(),
-        subnets: Vec::new(),
+        interfaces: Vec::new(),
         open_ports: Vec::new(),
         services: vec![
             // Service::GenericDnsServer { 

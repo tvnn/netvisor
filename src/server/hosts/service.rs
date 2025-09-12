@@ -41,7 +41,7 @@ impl HostService {
                 existing_host.clone()
             }
             None => {
-                let host = self.update_default_subnet_membership(host).await?;
+                let host = self.update_primary_interface(host).await?;
                 self.storage.create(&host).await?;
                 self.update_subnet_host_relationships(&host).await?;
                 host
@@ -84,8 +84,8 @@ impl HostService {
         if let Some(hostname) = updates.hostname {
             host.base.hostname = hostname;
         }  
-        if let Some(subnets) = updates.subnets {
-            host.base.subnets = subnets;
+        if let Some(interfaces) = updates.interfaces {
+            host.base.interfaces = interfaces;
         }
         if let Some(services) = updates.services {
             host.base.services = services;
@@ -95,32 +95,35 @@ impl HostService {
         
         host.updated_at = chrono::Utc::now();
 
-        let host = self.update_default_subnet_membership(host).await?;
+        let host = self.update_primary_interface(host).await?;
 
         self.storage.update(&host).await?;
         Ok((host, subnet_relationship_changes))
     }
 
-    pub async fn update_default_subnet_membership(&self, mut host: Host) -> Result<Host> {
+    pub async fn update_primary_interface(&self, mut host: Host) -> Result<Host> {
         let server_ip = self.utils.get_own_ip_address()?;
-        let subnet_ids: Vec<Uuid> = host.base.subnets.iter().map(|membership| membership.subnet_id).collect();
+        let subnet_ids: Vec<Uuid> = host.base.interfaces.iter().map(|interface| interface.base.subnet_id).collect();
         let subnets = self.subnet_service.get_by_ids(&subnet_ids).await?;
 
-        host.base.subnets.iter_mut().find_map( |sm| {
-            if let Some(cidr) = subnets.iter().find_map(|sub| if sm.subnet_id == sub.id {Some(sub.base.cidr)} else {None}) {
-                if cidr.contains(&server_ip) {
-                    sm.default = true;
-                    return Some(sm.clone())
+        if host.base.interfaces.len() == 1 { 
+            host.base.interfaces[0].base.is_primary = true;
+            return Ok(host)
+        } else {
+            host.base.interfaces.iter_mut().for_each( |interface| {
+                if let Some(cidr) = subnets.iter().find_map(|sub| if interface.base.subnet_id == sub.id {Some(sub.base.cidr)} else {None}) {
+                    if cidr.contains(&server_ip) {
+                        interface.base.is_primary = true;
+                    }
                 }
-            }
-            None
-        });
+            });
 
-        Ok(host)
+            return Ok(host)
+        }
     }
 
     pub async fn update_subnet_host_relationships(&self, host: &Host) -> Result<HostSubnetRelationshipChange, Error> {
-        let subnet_ids: Vec<Uuid> = host.base.subnets.iter().map(|membership| membership.subnet_id).collect();
+        let subnet_ids: Vec<Uuid> = host.base.interfaces.iter().map(|interface| interface.base.subnet_id).collect();
 
         let mut new_gateway: Vec<Subnet> = Vec::new();
         let mut no_longer_gateway: Vec<Subnet>  = Vec::new();
@@ -133,17 +136,13 @@ impl HostService {
 
                 let original_dns_resolver_count = subnet.base.dns_resolvers.len();
                 let original_gateway_count = subnet.base.gateways.len();
-                
-                // Remove host from existing relationships if present
-                subnet.base.dns_resolvers = subnet.base.dns_resolvers.iter().filter(|dns_host_id| dns_host_id != &&host.id).cloned().collect();
-                subnet.base.gateways = subnet.base.gateways.iter().filter(|gateway_host_id| gateway_host_id != &&host.id).cloned().collect();
-                subnet.base.hosts = subnet.base.hosts.iter().filter(|host_id| host_id != &&host.id).cloned().collect();
-                
-                // Add back
+                // let original_reverse_proxy_count = subnet.base.reverse_proxies.len();
+                                
                 subnet.update_host_relationships(host);
 
                 let new_dns_resolver_count = subnet.base.dns_resolvers.len();
                 let new_gateway_count = subnet.base.gateways.len();
+                // let new_reverse_proxy_count = subnet.base.reverse_proxies.len();
 
                 if original_dns_resolver_count < new_dns_resolver_count {new_dns_resolver.push(subnet.clone())} else if original_dns_resolver_count > new_dns_resolver_count {no_longer_dns_resolver.push(subnet.clone())}
                 if original_gateway_count < new_gateway_count {new_gateway.push(subnet.clone())} else if original_gateway_count > new_gateway_count {no_longer_gateway.push(subnet.clone())}

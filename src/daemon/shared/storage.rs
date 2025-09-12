@@ -1,7 +1,7 @@
 use anyhow::{Context, Error, Result};
 use async_fs;
 use serde::{Deserialize, Serialize};
-use std::{path::PathBuf, sync::Arc};
+use std::{net::IpAddr, path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use directories_next::ProjectDirs;
@@ -22,7 +22,7 @@ pub struct CliArgs {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
     // Server connection (CLI/startup config)
-    pub server_ip: Option<String>,
+    pub server_ip: Option<IpAddr>,
     pub server_port: u16,
     
     // Daemon settings (CLI/startup config)
@@ -205,10 +205,15 @@ impl ConfigStore {
         self.save(&config.clone()).await
     }
 
-    pub async fn set_server_ip(&self, ip: String) -> Result<()> {
-        let mut config = self.config.write().await;
-        config.server_ip = Some(ip);
-        self.save(&config.clone()).await
+    // pub async fn set_server_ip(&self, ip: String) -> Result<()> {
+    //     let mut config = self.config.write().await;
+    //     config.server_ip = Some(ip);
+    //     self.save(&config.clone()).await
+    // }
+
+    pub async fn get_server_ip(&self) -> Result<Option<IpAddr>> {
+        let config = self.config.read().await;
+        Ok(config.server_ip)
     }
 
     pub async fn get_server_endpoint(&self) -> Result<String> {

@@ -2,19 +2,18 @@ use std::{net::IpAddr, sync::Arc};
 use anyhow::{Error, Result};
 use cidr::{IpCidr};
 use chrono::{DateTime, Utc};
-use crate::daemon::discovery::service::base::{DaemonDiscoveryService};
-use tokio_util::sync::CancellationToken;
 use strum::{IntoDiscriminant, IntoEnumIterator};
+use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{interfaces::types::base::{Interface, InterfaceBase}, services::types::types::ServiceType}};
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use futures::{future::{try_join_all}, stream::{self, StreamExt}};
 use std::result::Result::Ok;
-use crate::server::hosts::types::base::HostSubnetMembership;
 use crate::{
     daemon::{discovery::{types::base::DiscoveryPhase}, utils::base::{DaemonUtils}},
     server::{
         daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, hosts::types::{
             base::{Host, HostBase}, targets::{IpAddressTargetConfig, HostTarget}
-        }, services::types::{base::{Service, ServiceDiscriminants}, endpoints::EndpointResponse, ports::Port}, shared::types::{metadata::TypeMetadataProvider}, subnets::types::base::{Subnet, SubnetType}
+        }, services::types::{base::{Service}, endpoints::EndpointResponse, ports::Port}, shared::types::{metadata::TypeMetadataProvider}, subnets::types::base::{Subnet, SubnetType}
     },
 };
 
@@ -29,7 +28,7 @@ impl DaemonDiscoveryService {
         let started_at = Utc::now();
         tracing::info!("Starting discovery session {}", session_id);
         
-        let (_, subnets) = self.utils.scan_subnets(daemon_id).await?;
+        let (_, subnets) = self.utils.scan_interfaces(daemon_id, None).await?;
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
 
@@ -284,10 +283,20 @@ impl DaemonDiscoveryService {
 
         // Gather host information
         let hostname = self.utils.get_hostname_for_ip(host_ip).await?;
-        let mac_address = match subnet.base.subnet_type {
+        let mac = match subnet.base.subnet_type {
             SubnetType::VpnTunnel => None, // ARP doesn't work through VPN tunnels
             _ => self.utils.get_mac_address_for_ip(host_ip).await?
         };
+
+        let interfaces = vec!(Interface::new(InterfaceBase{
+            name: "Discovered interface".to_string(),
+            subnet_id: subnet.id,
+            ip_address: host_ip,
+            mac_address: mac,
+            is_primary: true
+        }));
+
+        let interface_bindings = interfaces.iter().map(|i| i.id).collect();
 
         // Create host
         let mut host = Host::new(HostBase {
@@ -297,12 +306,7 @@ impl DaemonDiscoveryService {
                 ip: host_ip,
             }),
             description: Some("Discovered device".to_string()),
-            subnets: vec!(HostSubnetMembership {
-                subnet_id: subnet.id,
-                ip_address: host_ip,
-                mac_address,
-                default: false
-            }),
+            interfaces,
             services: Vec::new(),
             open_ports: Vec::new(),
             groups: Vec::new(),
@@ -310,23 +314,23 @@ impl DaemonDiscoveryService {
 
         let mut unclaimed_ports = open_ports.clone();
         
-        let mut sorted_discriminants: Vec<ServiceDiscriminants> = ServiceDiscriminants::iter()
-            .collect::<Vec<ServiceDiscriminants>>();
+        let mut sorted_service_types: Vec<ServiceType> = ServiceType::iter()
+            .collect::<Vec<ServiceType>>();
         
-        sorted_discriminants.sort_unstable_by_key(|discriminant| {
-            discriminant.to_string().contains("Generic")
+        sorted_service_types.sort_unstable_by_key(|s| {
+            s.discriminant().to_string().contains("Generic")
         });
 
         // Add services from detected ports
-        for discriminant in sorted_discriminants {
-            let non_generic_service_count = host.base.services.iter().filter(|s| !s.discriminant().is_generic_service()).count();
-            // Once a distinct vendor service has been identified, skip other services
-            if discriminant.is_generic_service() && non_generic_service_count > 0 {
+        for service_type in sorted_service_types {
+            let non_generic_service_count = host.base.services.iter().filter(|s| !s.base.service_type.is_generic_service()).count();
+            // Once a non-generic service has been identified, skip generic services
+            if service_type.is_generic_service() && non_generic_service_count > 0 {
                 continue;
             }
-            if let (Some(service), Some(service_ports)) = Service::from_discovery(discriminant, host_ip, &open_ports, &endpoint_responses, &subnet, mac_address) {
-                if !discriminant.is_generic_service() && non_generic_service_count == 0 {
-                    host.base.name = service.discriminant().display_name().to_string();
+            if let (Some(service), Some(service_ports)) = Service::from_discovery(service_type, host_ip, &open_ports, &endpoint_responses, &subnet, mac, &host.id, &interface_bindings) {
+                if !service.base.service_type.is_generic_service() && non_generic_service_count == 0 {
+                    host.base.name = service.base.service_type.display_name().to_string();
                 }
 
                 unclaimed_ports.retain(|p| !service_ports.contains(p));

@@ -2420,6 +2420,7 @@ dependencies = [
  "hashbrown 0.15.4",
  "indexmap",
  "serde",
+ "serde_derive",
 ]
 
 [[package]]

@@ -32,16 +32,17 @@ impl SubnetStorage for SqliteSubnetStorage {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
         let gateways_str = serde_json::to_string(&subnet.base.gateways)?;
         let dns_resolvers_str = serde_json::to_string(&subnet.base.dns_resolvers)?;
+        let reverse_proxies_str = serde_json::to_string(&subnet.base.reverse_proxies)?;
         let hosts_str = serde_json::to_string(&subnet.base.hosts)?;
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
         let subnet_source_str = serde_json::to_string(&subnet.base.source)?;
-
+        
         // Try to insert, ignore if constraint sviolation
         sqlx::query(
             r#"
             INSERT INTO subnets (
-                id, name, description, cidr, hosts, dns_resolvers, gateways, subnet_type, source, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, name, description, cidr, hosts, dns_resolvers, gateways, reverse_proxies, subnet_type, source, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&subnet.id)
@@ -50,7 +51,8 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(&cidr_str)
         .bind(hosts_str)
         .bind(dns_resolvers_str)
-        .bind(&gateways_str)
+        .bind(gateways_str)
+        .bind(reverse_proxies_str)
         .bind(subnet_type_str)
         .bind(subnet_source_str)
         .bind(&subnet.created_at.to_rfc3339())
@@ -111,13 +113,14 @@ impl SubnetStorage for SqliteSubnetStorage {
         let hosts_str = serde_json::to_string(&subnet.base.hosts)?;
         let dns_resolvers_str = serde_json::to_string(&subnet.base.dns_resolvers)?;
         let gateways_str = serde_json::to_string(&subnet.base.gateways)?;
+        let reverse_proxies_str = serde_json::to_string(&subnet.base.reverse_proxies)?;
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
         let subnet_source_str = serde_json::to_string(&subnet.base.source)?;
 
         sqlx::query(
             r#"
             UPDATE subnets SET 
-                name = ?, description = ?, cidr = ?, hosts = ?, dns_resolvers = ?, gateways = ?, subnet_type = ?, source = ?,
+                name = ?, description = ?, cidr = ?, hosts = ?, dns_resolvers = ?, gateways = ?, reverse_proxies = ?, subnet_type = ?, source = ?,
                 updated_at = ?
             WHERE id = ?
             "#
@@ -128,6 +131,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(hosts_str)
         .bind(dns_resolvers_str)
         .bind(gateways_str)
+        .bind(reverse_proxies_str)
         .bind(subnet_type_str)
         .bind(subnet_source_str)
         .bind(&subnet.updated_at.to_rfc3339())
@@ -154,6 +158,7 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet> {
     let hosts: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("hosts"))?;
     let dns_resolvers: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("dns_resolvers"))?;
     let gateways: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("gateways"))?;
+    let reverse_proxies: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("reverse_proxies"))?;
     let subnet_type: SubnetType = serde_json::from_str(&row.get::<String, _>("subnet_type"))?;
     let source: SubnetSource = serde_json::from_str(&row.get::<String, _>("source"))?;
 
@@ -172,6 +177,7 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet> {
             source,
             cidr,
             dns_resolvers,
+            reverse_proxies,
             hosts,
             gateways,
             subnet_type,

@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::server::hosts::types::base::HostSubnetMembership;
-use crate::server::{hosts::types::{base::Host, targets::HostTarget}, services::types::{base::Service, ports::Port}, subnets::types::base::{Subnet}};
+use crate::server::{hosts::types::{base::Host, targets::HostTarget}, interfaces::types::base::Interface, services::types::{base::Service, ports::Port}, subnets::types::base::Subnet};
 
 #[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
 pub struct HostUpdateRequest {
@@ -10,7 +9,7 @@ pub struct HostUpdateRequest {
     pub hostname: Option<Option<String>>,
     pub description: Option<Option<String>>,
     pub target: Option<HostTarget>,
-    pub subnets: Option<Vec<HostSubnetMembership>>,
+    pub interfaces: Option<Vec<Interface>>,
     pub services: Option<Vec<Service>>,
     pub open_ports: Option<Vec<Port>>,
     pub groups: Option<Vec<Uuid>>,
@@ -23,7 +22,7 @@ impl HostUpdateRequest {
             hostname: None,
             description: None,
             target: None,
-            subnets: None,
+            interfaces: None,
             services: None,
             open_ports: None,
             groups: Some(groups),

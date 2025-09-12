@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
 use crate::daemon::utils::base::{create_system_utils, PlatformDaemonUtils};
+use crate::server::utils::base::NetworkUtils;
 use crate::{
     daemon::{shared::storage::ConfigStore}, server::{
         daemons::types::api::{
@@ -89,8 +90,10 @@ impl DaemonRuntimeService {
 
     /// Register daemon with server and return assigned ID
     pub async fn register_with_server(&self, host_id: Uuid, daemon_id: Uuid) -> Result<()> {
+        let daemon_ip = self.utils.get_own_ip_address()?;
+        let daemon_port = self.config_store.get_port().await?;
         tracing::info!("Registering daemon with ID: {}, host ID: {:?}", daemon_id, host_id);
-        let registration_request = DaemonRegistrationRequest {daemon_id, host_id};
+        let registration_request = DaemonRegistrationRequest {daemon_id, host_id, daemon_ip, daemon_port};
 
         let server_target = self.config_store.get_server_endpoint().await?;
 

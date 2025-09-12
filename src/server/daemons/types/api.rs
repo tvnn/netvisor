@@ -1,3 +1,5 @@
+use std::net::IpAddr;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -14,7 +16,9 @@ pub struct DaemonResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonRegistrationRequest {
     pub host_id: Uuid,
-    pub daemon_id: Uuid
+    pub daemon_id: Uuid,
+    pub daemon_ip: IpAddr,
+    pub daemon_port: u16
 }
 
 /// Daemon registration response from server to daemon

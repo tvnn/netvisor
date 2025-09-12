@@ -4,11 +4,10 @@ CREATE TABLE IF NOT EXISTS hosts (
     hostname TEXT,
     description TEXT,
     target TEXT NOT NULL,
-    subnets TEXT,
+    interfaces TEXT,
     services TEXT,
     open_ports TEXT,
     groups TEXT,
-    last_seen TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -26,6 +25,8 @@ CREATE TABLE IF NOT EXISTS host_groups (
 CREATE TABLE IF NOT EXISTS daemons (
     id TEXT PRIMARY KEY,
     host_id TEXT NOT NULL,
+    ip TEXT NOT NULL,
+    port INTEGER NOT NULL,
     registered_at TEXT NOT NULL,
     last_seen TEXT NOT NULL
 );
@@ -40,8 +41,7 @@ CREATE TABLE IF NOT EXISTS subnets (
     hosts TEXT NOT NULL,
     dns_resolvers TEXT NOT NULL,
     gateways TEXT NOT NULL,
+    reverse_proxies TEXT NOT NULL,
     subnet_type TEXT NOT NULL,
     source TEXT NOT NULL
 );
-
-CREATE UNIQUE INDEX IF NOT EXISTS idx_subnets_unique_cidr_gateways ON subnets(cidr, gateways);

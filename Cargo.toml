@@ -88,7 +88,7 @@ rsntp = "4.0.0"
 dhcproto = "0.13.0"
 rand = "0.9.2"
 mac_oui = { version = "0.4.11", features = ["with-db"] }
-petgraph = "0.8.2"
+petgraph = { version = "0.8.2", features = ["serde-1"] }
 petgraph-graphml = "5.0.0"
 
 # Linux/Unix dependencies  
