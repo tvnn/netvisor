@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use uuid::Uuid;
-use crate::server::shared::{constants::{DNS_COLOR, GATEWAY_COLOR, HOST_GROUP_COLOR, MEDIA_COLOR, REVERSE_PROXY_COLOR}, types::metadata::TypeMetadataProvider};
+use crate::server::{hosts::types::base::Host, interfaces::types::base::Interface, shared::{constants::{DNS_COLOR, GATEWAY_COLOR, HOST_COLOR, HOST_GROUP_COLOR, MEDIA_COLOR, REVERSE_PROXY_COLOR}, types::metadata::TypeMetadataProvider}};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Node {
@@ -29,16 +29,25 @@ impl Default for XY {
 }
 
 #[derive(Debug, Clone)]
+pub struct SubnetChild {
+    pub host: Host,
+    pub interface: Option<Interface>,
+    pub node_type: NodeType,
+    pub id: Uuid,
+    pub label: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct SubnetLayout {
-    pub position: XY,
     pub size: XY,
     pub grid_dimensions: XY
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
 pub enum NodeType {
     SubnetNode,
-    HostNode
+    HostNode,
+    InterfaceNode
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -54,6 +63,7 @@ pub enum EdgeType {
     Gateway,           // Host serves as gateway for subnet
     DnsResolution,     // Host provides DNS for subnet
     ReverseProxy,
+    HostInterface, // A host's non-primary interface participates in a different subnet
     HostGroup,     // User-defined logical connection
     MediaStream
 }
@@ -68,7 +78,8 @@ impl TypeMetadataProvider for EdgeType {
             EdgeType::DnsResolution => "DNS Resolution",
             EdgeType::HostGroup => "Host Group",
             EdgeType::ReverseProxy => "Reverse Proxy",
-            EdgeType::MediaStream => "Media Streaming"
+            EdgeType::MediaStream => "Media Streaming",
+            EdgeType::HostInterface => "Host Interface"
         }
     }
     fn category(&self) -> &str {
@@ -80,7 +91,8 @@ impl TypeMetadataProvider for EdgeType {
             EdgeType::DnsResolution => DNS_COLOR,
             EdgeType::HostGroup => HOST_GROUP_COLOR,
             EdgeType::ReverseProxy => REVERSE_PROXY_COLOR,
-            EdgeType::MediaStream => MEDIA_COLOR
+            EdgeType::MediaStream => MEDIA_COLOR,
+            EdgeType::HostInterface => HOST_COLOR
         }
     }
     fn description(&self) -> &str {
@@ -89,7 +101,8 @@ impl TypeMetadataProvider for EdgeType {
             EdgeType::DnsResolution => "",
             EdgeType::HostGroup => "",
             EdgeType::ReverseProxy => "",
-            EdgeType::MediaStream => ""
+            EdgeType::MediaStream => "",
+            EdgeType::HostInterface => ""
         }
     }
     fn icon(&self) -> &str {
