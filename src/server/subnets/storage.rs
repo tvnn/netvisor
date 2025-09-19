@@ -41,7 +41,8 @@ impl SubnetStorage for SqliteSubnetStorage {
         sqlx::query(
             r#"
             INSERT INTO subnets (
-                id, name, description, cidr, hosts, dns_resolvers, gateways, reverse_proxies, subnet_type, source, created_at, updated_at
+                id, name, description, cidr, hosts, dns_resolvers, gateways, 
+                reverse_proxies, subnet_type, source, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
@@ -120,8 +121,8 @@ impl SubnetStorage for SqliteSubnetStorage {
         sqlx::query(
             r#"
             UPDATE subnets SET 
-                name = ?, description = ?, cidr = ?, hosts = ?, dns_resolvers = ?, gateways = ?, reverse_proxies = ?, subnet_type = ?, source = ?,
-                updated_at = ?
+                name = ?, description = ?, cidr = ?, hosts = ?, dns_resolvers = ?, gateways = ?,
+                reverse_proxies = ?, subnet_type = ?, source = ?, updated_at = ?
             WHERE id = ?
             "#
         )

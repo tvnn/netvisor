@@ -1,6 +1,6 @@
 use anyhow::Result;
 use uuid::Uuid;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use crate::server::host_groups::{
     storage::HostGroupStorage,
     types::HostGroup
@@ -10,25 +10,35 @@ use crate::server::hosts::types::api::HostUpdateRequest;
 
 pub struct HostGroupService {
     group_storage: Arc<dyn HostGroupStorage>,
-    host_service: Arc<HostService>,
+    host_service: Arc<Mutex<Option<Arc<HostService>>>>
 }
 
 impl HostGroupService {
     pub fn new(
         group_storage: Arc<dyn HostGroupStorage>,
-        host_service: Arc<HostService>,
     ) -> Self {
         Self {
             group_storage,
-            host_service,
+            host_service: Arc::new(Mutex::new(None))
         }
+    }
+
+    pub fn set_host_service(&self, host_service: Arc<HostService>) {
+        *self.host_service.lock().unwrap() = Some(host_service);
     }
 
     /// Create a new host group
     pub async fn create_group(&self, group: HostGroup) -> Result<HostGroup> {
-        // Validate that all hosts in sequence exist
+
+        let host_service = self.host_service
+            .lock()
+            .unwrap()
+            .as_ref()
+            .expect("Host service not initialized")
+            .clone();
+
         for host_id in &group.base.hosts {
-            if self.host_service.get_host(host_id).await?.is_none() {
+            if host_service.get_host(host_id).await?.is_none() {
                 return Err(anyhow::anyhow!("Host with id '{}' not found", host_id));
             }
         }
@@ -37,7 +47,7 @@ impl HostGroupService {
         
         // Add group reference to all hosts in the sequence
         for host_id in &group.base.hosts {
-            if let Some(host) = self.host_service.get_host(host_id).await? {
+            if let Some(host) = host_service.get_host(host_id).await? {
 
                 if host.base.groups.contains(&group.id) {
                     continue; // Already in group
@@ -46,7 +56,7 @@ impl HostGroupService {
                 groups.push(group.id);
                 let update = HostUpdateRequest::from_group_change(groups);
 
-                self.host_service.update_host(&host.id, update).await?;
+                host_service.update_host(&host.id, update).await?;
             }
         }
 
@@ -67,10 +77,17 @@ impl HostGroupService {
     pub async fn update_group(&self, mut group: HostGroup) -> Result<HostGroup> {
         let now = chrono::Utc::now();
         group.updated_at = now;
+
+        let host_service = self.host_service
+            .lock()
+            .unwrap()
+            .as_ref()
+            .expect("Host service not initialized")
+            .clone();
         
         // Validate that all hosts in sequence exist
         for host_id in &group.base.hosts {
-            if self.host_service.get_host(host_id).await?.is_none() {
+            if host_service.get_host(host_id).await?.is_none() {
                 return Err(anyhow::anyhow!("Host with id '{}' not found", host_id));
             }
         }
@@ -85,13 +102,13 @@ impl HostGroupService {
         // Remove group from hosts no longer in sequence
         for old_host_id in &old_group.base.hosts {
             if !group.base.hosts.contains(old_host_id) {
-                if let Some(host) = self.host_service.get_host(old_host_id).await? {
+                if let Some(host) = host_service.get_host(old_host_id).await? {
                     if !host.base.groups.contains(&group.id) {
                         continue; // Not in group
                     }
                     let groups = host.base.groups.into_iter().filter(|g| g != &group.id).collect();
                     let update = HostUpdateRequest::from_group_change(groups);
-                    self.host_service.update_host(&host.id, update).await?;
+                    host_service.update_host(&host.id, update).await?;
                 }
             }
         }
@@ -99,7 +116,7 @@ impl HostGroupService {
         // Add group to new hosts in sequence
         for new_host_id in &group.base.hosts {
             if !old_group.base.hosts.contains(new_host_id) {
-                if let Some(host) = self.host_service.get_host(new_host_id).await? {
+                if let Some(host) = host_service.get_host(new_host_id).await? {
                     
                     if host.base.groups.contains(&group.id) {
                         continue; // Already in group
@@ -108,7 +125,7 @@ impl HostGroupService {
                     groups.push(group.id);
                     let update = HostUpdateRequest::from_group_change(groups);
 
-                    self.host_service.update_host(&host.id, update).await?;
+                    host_service.update_host(&host.id, update).await?;
                 }
             }
         }
@@ -118,19 +135,27 @@ impl HostGroupService {
 
     /// Delete group
     pub async fn delete_group(&self, id: &Uuid) -> Result<()> {
+
+        let host_service = self.host_service
+            .lock()
+            .unwrap()
+            .as_ref()
+            .expect("Host service not initialized")
+            .clone();
+
         // Get group to find hosts to update
         let group = self.get_group(id).await?
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 
         // Remove group reference from all hosts
         for host_id in &group.base.hosts {
-            if let Some(host) = self.host_service.get_host(host_id).await? {
+            if let Some(host) = host_service.get_host(host_id).await? {
                 if !host.base.groups.contains(&group.id) {
                     continue; // Not in group
                 }
                 let groups = host.base.groups.into_iter().filter(|g| g != &group.id).collect();
                 let update = HostUpdateRequest::from_group_change(groups);
-                self.host_service.update_host(&host.id, update).await?;
+                host_service.update_host(&host.id, update).await?;
             }
         }
 

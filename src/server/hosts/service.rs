@@ -1,30 +1,32 @@
-use anyhow::{Error, Result};
+use anyhow::{anyhow, Error, Result};
 use futures::future::try_join_all;
 use uuid::Uuid;
 use std::{sync::Arc};
 use crate::server::{
-    host_groups::storage::HostGroupStorage, hosts::{
+    host_groups::{service::HostGroupService}, hosts::{
 
         storage::HostStorage,
         types::{
-            api::{HostSubnetRelationshipChange, HostUpdateRequest}, base::{Host, HostBase}
+            api::{HostUpdateRequest}, base::{Host, HostBase}
         }
-    }, subnets::{service::SubnetService, types::base::{Subnet}}, utils::base::{NetworkUtils, ServerNetworkUtils}
+    }, services::service::ServiceService, subnets::{service::SubnetService}, utils::base::ServerNetworkUtils
 };
 
 pub struct HostService {
     storage: Arc<dyn HostStorage>,
-    group_storage: Arc<dyn HostGroupStorage>,
+    host_group_service: Arc<HostGroupService>,
     subnet_service: Arc<SubnetService>,
+    service_service: Arc<ServiceService>,
     utils: ServerNetworkUtils
 }
 
 impl HostService {
-    pub fn new(storage: Arc<dyn HostStorage>, group_storage: Arc<dyn HostGroupStorage>, subnet_service: Arc<SubnetService>, utils: ServerNetworkUtils) -> Self {
+    pub fn new(storage: Arc<dyn HostStorage>, host_group_service: Arc<HostGroupService>, subnet_service: Arc<SubnetService>, service_service: Arc<ServiceService>, utils: ServerNetworkUtils) -> Self {
         Self { 
             storage,
-            group_storage,
+            host_group_service,
             subnet_service,
+            service_service,
             utils
         }
     }
@@ -41,9 +43,8 @@ impl HostService {
                 existing_host.clone()
             }
             None => {
-                let host = self.update_primary_interface(host).await?;
                 self.storage.create(&host).await?;
-                self.update_subnet_host_relationships(&host).await?;
+                self.update_subnet_host_relationships(&host, false).await?;
                 host
             }
         };
@@ -59,15 +60,9 @@ impl HostService {
         self.storage.get_all().await
     }
 
-    pub async fn update_host(&self, id: &Uuid, updates: HostUpdateRequest) -> Result<(Host, HostSubnetRelationshipChange), Error> {
+    pub async fn update_host(&self, id: &Uuid, updates: HostUpdateRequest) -> Result<Host, Error> {
         
-        let mut host = match self.get_host(&id).await? {
-            Some(n) => n,
-            None => {
-                let msg = format!("Host '{}' not found", id);
-                return Err(Error::msg(msg));
-            },
-        };
+        let mut host = self.get_host(&id).await?.ok_or_else(||anyhow!("Host '{}' not found", id))?;
 
         if let Some(name) = updates.name {
             host.base.name = name;
@@ -84,6 +79,9 @@ impl HostService {
         if let Some(hostname) = updates.hostname {
             host.base.hostname = hostname;
         }  
+
+        self.update_subnet_host_relationships(&host, true).await?;
+
         if let Some(interfaces) = updates.interfaces {
             host.base.interfaces = interfaces;
         }
@@ -91,73 +89,34 @@ impl HostService {
             host.base.services = services;
         }
 
-        let subnet_relationship_changes = self.update_subnet_host_relationships(&host).await?;
+        self.update_subnet_host_relationships(&host, false).await?;
         
         host.updated_at = chrono::Utc::now();
 
-        let host = self.update_primary_interface(host).await?;
-
         self.storage.update(&host).await?;
-        Ok((host, subnet_relationship_changes))
+        Ok(host)
     }
 
-    pub async fn update_primary_interface(&self, mut host: Host) -> Result<Host> {
-        let server_ip = self.utils.get_own_ip_address()?;
+    pub async fn update_subnet_host_relationships(&self, host: &Host, remove: bool) -> Result<(), Error> {
         let subnet_ids: Vec<Uuid> = host.base.interfaces.iter().map(|interface| interface.base.subnet_id).collect();
-        let subnets = self.subnet_service.get_by_ids(&subnet_ids).await?;
-
-        if host.base.interfaces.len() == 1 { 
-            host.base.interfaces[0].base.is_primary = true;
-            return Ok(host)
-        } else {
-            host.base.interfaces.iter_mut().for_each( |interface| {
-                if let Some(cidr) = subnets.iter().find_map(|sub| if interface.base.subnet_id == sub.id {Some(sub.base.cidr)} else {None}) {
-                    if cidr.contains(&server_ip) {
-                        interface.base.is_primary = true;
-                    }
-                }
-            });
-
-            return Ok(host)
-        }
-    }
-
-    pub async fn update_subnet_host_relationships(&self, host: &Host) -> Result<HostSubnetRelationshipChange, Error> {
-        let subnet_ids: Vec<Uuid> = host.base.interfaces.iter().map(|interface| interface.base.subnet_id).collect();
-
-        let mut new_gateway: Vec<Subnet> = Vec::new();
-        let mut no_longer_gateway: Vec<Subnet>  = Vec::new();
-        let mut new_dns_resolver: Vec<Subnet> = Vec::new();
-        let mut no_longer_dns_resolver: Vec<Subnet>  = Vec::new();
+        let services = self.service_service.get_services_for_host(&host.id).await?;
 
         if let Ok(mut subnets) = self.subnet_service.get_by_ids(&subnet_ids).await {
-            subnets.iter_mut()
-                .for_each(|subnet| {
+            let subnet_futures: Vec<_> = subnets
+                .iter_mut()
+                .map(|subnet| {
+                        
+                        if remove { subnet.remove_host_relationships(host) }
+                        else { subnet.create_host_relationships(host, services.iter().map(|s| s).collect()) };
+                        
+                        return self.subnet_service.update_subnet(subnet.clone())
+                    }
+                )
+                .collect();
 
-                let original_dns_resolver_count = subnet.base.dns_resolvers.len();
-                let original_gateway_count = subnet.base.gateways.len();
-                // let original_reverse_proxy_count = subnet.base.reverse_proxies.len();
-                                
-                subnet.update_host_relationships(host);
-
-                let new_dns_resolver_count = subnet.base.dns_resolvers.len();
-                let new_gateway_count = subnet.base.gateways.len();
-                // let new_reverse_proxy_count = subnet.base.reverse_proxies.len();
-
-                if original_dns_resolver_count < new_dns_resolver_count {new_dns_resolver.push(subnet.clone())} else if original_dns_resolver_count > new_dns_resolver_count {no_longer_dns_resolver.push(subnet.clone())}
-                if original_gateway_count < new_gateway_count {new_gateway.push(subnet.clone())} else if original_gateway_count > new_gateway_count {no_longer_gateway.push(subnet.clone())}
-            });
-
-            let subnet_futures = subnets.into_iter().map(|subnet| self.subnet_service.update_subnet(subnet));
-            try_join_all(subnet_futures).await?;
+            try_join_all(subnet_futures).await;
         };
-
-        Ok(HostSubnetRelationshipChange {
-            new_gateway,
-            no_longer_gateway,
-            new_dns_resolver,
-            no_longer_dns_resolver,
-        })
+        Ok(())
     }
 
     pub async fn delete_host(&self, id: &Uuid) -> Result<()> {
@@ -186,14 +145,14 @@ impl HostService {
 
         try_join_all(update_futures).await?;
 
-        let all_groups = self.group_storage.get_all().await?;
+        let all_groups = self.host_group_service.get_all_groups().await?;
     
         // Remove host from all groups that contain it
         for mut group in all_groups {
             if group.base.hosts.contains(&id) {
                 group.base.hosts.retain(|seq_id| seq_id != id);
                 group.updated_at = chrono::Utc::now();
-                self.group_storage.update(&group).await?;
+                self.host_group_service.update_group(group).await?;
             }
         }
 

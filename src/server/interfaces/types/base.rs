@@ -8,8 +8,7 @@ pub struct InterfaceBase {
     pub subnet_id: Uuid,
     pub ip_address: IpAddr,
     pub mac_address: Option<MacAddress>,
-    pub name: String,
-    pub is_primary: bool
+    pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -27,12 +26,3 @@ impl Interface {
         }
     }
 }
-
-
-// impl Interface {
-//     pub fn from_host(host: Host, ) {
-//         Self {
-
-//         }
-//     }
-// }

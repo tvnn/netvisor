@@ -7,9 +7,7 @@ use crate::server::{hosts::types::base::Host, interfaces::types::base::Interface
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Node {
     pub id: Uuid,
-    pub label: String,
-    pub color: String,
-    pub icon: String,
+    pub label: Option<String>,
     pub node_type: NodeType,
     pub parent_id: Option<Uuid>,
     pub position: XY,
@@ -29,18 +27,45 @@ impl Default for XY {
 }
 
 #[derive(Debug, Clone)]
+pub struct NodeLayout {
+    pub size: XY,
+    pub grid_position: XY
+}
+
+#[derive(Debug, Clone)]
 pub struct SubnetChild {
     pub host: Host,
     pub interface: Option<Interface>,
     pub node_type: NodeType,
     pub id: Uuid,
-    pub label: String,
+    pub label: Option<String>,
+    pub size: SubnetChildNodeSize,
+    pub services: Vec<Uuid>
 }
 
 #[derive(Debug, Clone)]
-pub struct SubnetLayout {
-    pub size: XY,
-    pub grid_dimensions: XY
+pub enum SubnetChildNodeSize {
+    Small,
+    Medium,
+    Large
+}
+
+impl SubnetChildNodeSize {
+    pub fn from_service_count(count: usize) -> Self {
+        match count {
+            0..=2 => SubnetChildNodeSize::Small,
+            3..=5 => SubnetChildNodeSize::Medium,
+            _ => SubnetChildNodeSize::Large
+        }
+    }
+
+    pub fn size(&self) -> XY {
+        match self {
+            SubnetChildNodeSize::Small => XY { x: 75, y: 75 },
+            SubnetChildNodeSize::Medium => XY { x: 100, y: 100 },
+            SubnetChildNodeSize::Large => XY { x: 150, y: 150 },
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -60,12 +85,8 @@ pub struct Edge {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum EdgeType {
-    Gateway,           // Host serves as gateway for subnet
-    DnsResolution,     // Host provides DNS for subnet
-    ReverseProxy,
     HostInterface, // A host's non-primary interface participates in a different subnet
     HostGroup,     // User-defined logical connection
-    MediaStream
 }
 
 impl TypeMetadataProvider for EdgeType {
@@ -74,11 +95,7 @@ impl TypeMetadataProvider for EdgeType {
     }
     fn display_name(&self) -> &str {
         match self {
-            EdgeType::Gateway => "Gateway",
-            EdgeType::DnsResolution => "DNS Resolution",
             EdgeType::HostGroup => "Host Group",
-            EdgeType::ReverseProxy => "Reverse Proxy",
-            EdgeType::MediaStream => "Media Streaming",
             EdgeType::HostInterface => "Host Interface"
         }
     }
@@ -87,21 +104,13 @@ impl TypeMetadataProvider for EdgeType {
     }
     fn color(&self) -> &str {
         match self {
-            EdgeType::Gateway =>GATEWAY_COLOR,
-            EdgeType::DnsResolution => DNS_COLOR,
             EdgeType::HostGroup => HOST_GROUP_COLOR,
-            EdgeType::ReverseProxy => REVERSE_PROXY_COLOR,
-            EdgeType::MediaStream => MEDIA_COLOR,
             EdgeType::HostInterface => HOST_COLOR
         }
     }
     fn description(&self) -> &str {
         match self {
-            EdgeType::Gateway => "",
-            EdgeType::DnsResolution => "",
             EdgeType::HostGroup => "",
-            EdgeType::ReverseProxy => "",
-            EdgeType::MediaStream => "",
             EdgeType::HostInterface => ""
         }
     }

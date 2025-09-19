@@ -1,7 +1,7 @@
 use sqlx::SqlitePool;
 use anyhow::Result;
 
-use crate::{server::hosts::storage::SqliteHostStorage};
+use crate::server::{hosts::storage::SqliteHostStorage, services::storage::{ServiceStorage, SqliteServiceStorage}, shared::storage::seed_data::create_internet_subnet, subnets::storage::{SqliteSubnetStorage, SubnetStorage}};
 use super::seed_data::{create_internet_connectivity_host, create_public_dns_host};
 use crate::server::hosts::storage::HostStorage;
 pub struct DatabaseMigrations;
@@ -24,29 +24,37 @@ impl DatabaseMigrations {
         
         tracing::info!("Database schema initialized successfully");
         
-        Self::seed_default_hosts(pool).await?;
+        Self::seed_default_data(pool).await?;
 
         Ok(())
     }
 
-    async fn seed_default_hosts(pool: &SqlitePool) -> Result<()> {
+    async fn seed_default_data(pool: &SqlitePool) -> Result<()> {
         // Check if hosts already exist
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM hosts")
             .fetch_one(pool)
             .await?;
             
         if count.0 > 0 {
-            tracing::info!("Database already contains hosts, skipping seed data");
+            tracing::info!("Database already contains data, skipping seed data");
             return Ok(());
         }
         
-        tracing::info!("Seeding default hosts...");
+        tracing::info!("Seeding default data...");
         
         // Use actual compiled structs
-        let dns_host = create_public_dns_host();
+        let mut internet_subnet = create_internet_subnet()?;
+        let (dns_host, dns_service) = create_public_dns_host(&internet_subnet);
         let connectivity_host = create_internet_connectivity_host();
+
+        internet_subnet.create_host_relationships(&dns_host, vec!(&dns_service));
+
         let host_storage = SqliteHostStorage::new(pool.clone());
+        let subnet_storage = SqliteSubnetStorage::new(pool.clone());
+        let service_storage = SqliteServiceStorage::new(pool.clone());
         
+        subnet_storage.create(&internet_subnet).await?;
+        service_storage.create(&dns_service).await?;
         host_storage.create(&dns_host).await?;
         host_storage.create(&connectivity_host).await?;
 

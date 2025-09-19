@@ -1,9 +1,7 @@
-use std::{net::{IpAddr}};
-
 use mac_address::{MacAddress};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::server::{hosts::types::targets::HostTarget, interfaces::types::base::Interface, services::types::{base::Service, ports::Port, types::ServiceType}};
+use crate::server::{hosts::types::targets::HostTarget, interfaces::types::base::Interface, services::types::{ports::Port}};
 use uuid::{Uuid};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
@@ -13,7 +11,7 @@ pub struct HostBase {
     pub description: Option<String>,
     pub target: HostTarget,
     pub interfaces: Vec<Interface>,
-    pub services: Vec<Service>,
+    pub services: Vec<Uuid>,
     pub open_ports: Vec<Port>,
     pub groups: Vec<Uuid>,
 }
@@ -66,43 +64,11 @@ impl Host {
         }
     }
 
-    pub fn default_service(&self) -> Option<&Service> {
-        self.base.services.first()
+    pub fn get_interface(&self, interface_id: &Uuid) -> Option<&Interface> {
+        self.base.interfaces.iter().find(|i| &i.id == interface_id)
     }
 
-    pub fn primary_interface(&self) -> Option<&Interface> {
-        self.base.interfaces.iter().find_map(|s| if s.base.is_primary {Some(s)} else {None}).or(self.base.interfaces.first())
-    }
-
-    pub fn default_ip(&self) -> Option<IpAddr> {
-        match self.primary_interface() {
-            Some(subnet) => Some(subnet.base.ip_address),
-            None => None
-        }
-    }
-
-    pub fn add_to_group(&mut self, group_id: Uuid) -> Self {
-        if !self.base.groups.contains(&group_id) {
-            self.base.groups.push(group_id);
-            self.updated_at = chrono::Utc::now();
-        }
-        self.clone()
-    }
-    
-    pub fn remove_from_group(&mut self, group_id: &Uuid) {
-        self.base.groups.retain(|id| id != group_id);
-        self.updated_at = chrono::Utc::now();
-    }
-
-    pub fn has_service(&self, service_type: ServiceType) -> bool{
-        self.base.services.iter().any(|s| s.base.service_type == service_type)
-    }
-
-    pub fn get_service(&self, service_type: ServiceType) -> Option<&Service>{
-        self.base.services.iter().find(|s| s.base.service_type == service_type)
-    }
-
-    pub fn add_service(&mut self, service: Service) {        
-        self.base.services.push(service);
+    pub fn add_service(&mut self, service_id: Uuid) {        
+        self.base.services.push(service_id);
     }
 }

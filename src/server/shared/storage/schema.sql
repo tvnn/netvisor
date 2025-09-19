@@ -45,3 +45,17 @@ CREATE TABLE IF NOT EXISTS subnets (
     subnet_type TEXT NOT NULL,
     source TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS services (
+    id TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    name TEXT NOT NULL,
+    host_id TEXT NOT NULL,
+    ports TEXT NOT NULL,
+    interface_bindings TEXT NOT NULL,
+    service_type TEXT NOT NULL,
+    FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_services_host_id ON services(host_id);

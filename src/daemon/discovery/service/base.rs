@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Error;
 use uuid::Uuid;
 
-use crate::{daemon::{discovery::{manager::DaemonDiscoverySessionManager}, shared::storage::ConfigStore, utils::base::{create_system_utils, PlatformDaemonUtils}}, server::{daemons::types::api::{DaemonDiscoveryUpdate}, hosts::types::{api::{HostUpdateRequest, UpdateHostResponse}, base::Host}, shared::types::api::ApiResponse, subnets::types::base::Subnet}};
+use crate::{daemon::{discovery::manager::DaemonDiscoverySessionManager, shared::storage::ConfigStore, utils::base::{create_system_utils, PlatformDaemonUtils}}, server::{daemons::types::api::DaemonDiscoveryUpdate, hosts::types::{api::{HostUpdateRequest}, base::Host}, services::types::base::Service, shared::types::api::ApiResponse, subnets::types::base::Subnet}};
 
 pub struct DaemonDiscoveryService {
     pub config_store: Arc<ConfigStore>,
@@ -27,7 +27,7 @@ impl DaemonDiscoveryService {
     pub async fn create_host(&self, host: &Host) -> Result<Host, Error> {
         let server_target = self.config_store.get_server_endpoint().await?;
 
-        tracing::info!("Creating host {}", host.base.target.to_string());
+        tracing::info!("Creating host {}", host.base.name);
 
         let response = self.client
             .post(format!("{}/api/hosts", server_target.to_string()))
@@ -65,17 +65,14 @@ impl DaemonDiscoveryService {
             anyhow::bail!("Failed to update host: HTTP {}", response.status());
         }
 
-        let api_response: ApiResponse<UpdateHostResponse> = response.json().await?;
+        let api_response: ApiResponse<Host> = response.json().await?;
 
         if !api_response.success {
             let error_msg = api_response.error.unwrap_or_else(|| "Unknown error".to_string());
             anyhow::bail!("Failed to update host: {}", error_msg);
         }
 
-        Ok(match api_response.data {
-            Some(d) => Some(d.host),
-            None => None
-        })
+        Ok(api_response.data)
     }
 
     pub async fn create_subnet(&self, subnet: &Subnet) -> Result<Subnet, Error> {
@@ -102,6 +99,32 @@ impl DaemonDiscoveryService {
             .ok_or_else(|| anyhow::anyhow!("No subnet data in successful response"))?;
 
         Ok(created_subnet)
+    }
+
+    pub async fn create_service(&self, service: &Service) -> Result<Service, Error> {
+        let server_target = self.config_store.get_server_endpoint().await?;
+
+        let response = self.client
+            .post(format!("{}/api/services", server_target.to_string()))
+            .json(&service)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("Failed to report discovered service: HTTP {}", response.status());
+        }
+
+        let api_response: ApiResponse<Service> = response.json().await?;
+
+        if !api_response.success {
+            let error_msg = api_response.error.unwrap_or_else(|| "Unknown error".to_string());
+            anyhow::bail!("Failed to create service: {}", error_msg);
+        }
+
+        let created_service = api_response.data
+            .ok_or_else(|| anyhow::anyhow!("No service data in successful response"))?;
+
+        Ok(created_service)
     }
 
     /// Report discovery progress to server

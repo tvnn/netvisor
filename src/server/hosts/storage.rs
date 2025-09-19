@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::{hosts::types::{base::{Host, HostBase}, targets::HostTarget}, interfaces::types::base::Interface, services::types::{base::Service, ports::Port}};
+use crate::server::{hosts::types::{base::{Host, HostBase}, targets::HostTarget}, interfaces::types::base::Interface, services::types::{ports::Port}};
 
 #[async_trait]
 pub trait HostStorage: Send + Sync {
@@ -127,7 +127,7 @@ impl HostStorage for SqliteHostStorage {
 
 fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host> {
     // Parse JSON fields safely
-    let services: Vec<Service> = serde_json::from_str(&row.get::<String, _>("services"))?;
+    let services: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("services"))?;
     let groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("groups"))?;
     let interfaces: Vec<Interface> = serde_json::from_str(&row.get::<String, _>("interfaces"))?;
     let target: HostTarget = serde_json::from_str(&row.get::<String, _>("target"))?;

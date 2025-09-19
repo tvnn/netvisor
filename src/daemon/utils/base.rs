@@ -44,7 +44,7 @@ pub trait DaemonUtils: NetworkUtils {
         }
     }
     
-    async fn scan_interfaces(&self, daemon_id: Uuid, server_ip: Option<IpAddr>) -> Result<(Vec<Interface>, Vec<Subnet>)> {
+    async fn scan_interfaces(&self, daemon_id: Uuid) -> Result<(Vec<Interface>, Vec<Subnet>)> {
 
         let interfaces = self.get_own_interfaces();
 
@@ -54,22 +54,19 @@ pub trait DaemonUtils: NetworkUtils {
             .filter(|interface| !interface.is_loopback())
             .flat_map(|interface| {
                 let name = interface.name;
+                tracing::info!("Interface {}, mac {:?}", &name, &interface.mac);
                 interface.ips.iter().filter_map(|ip| {
                     if let Some(subnet) = Subnet::from_discovery(&name, &ip, daemon_id) {
                         let mac_address = match interface.mac {
-                            Some(mac) => Some(MacAddress::new(mac.octets())),
-                            None => None
+                            Some(mac) if !mac.octets().iter().all(|o| *o==0) => Some(MacAddress::new(mac.octets())),
+                            _ => None
                         };
                         return Some((
                             Interface::new(InterfaceBase{
-                                name: name.clone(),
+                                name: Some(name.clone()),
                                 subnet_id: subnet.id,
                                 ip_address: ip.ip(),
-                                mac_address,
-                                is_primary: match server_ip {
-                                    Some(ip) => subnet.base.cidr.contains(&ip),
-                                    None => false
-                                }
+                                mac_address
                             }),
                             subnet
                         ))

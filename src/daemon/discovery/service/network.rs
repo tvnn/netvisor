@@ -12,7 +12,7 @@ use crate::{
     daemon::{discovery::{types::base::DiscoveryPhase}, utils::base::{DaemonUtils}},
     server::{
         daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, hosts::types::{
-            base::{Host, HostBase}, targets::{IpAddressTargetConfig, HostTarget}
+            base::{Host, HostBase}, targets::{HostTarget}
         }, services::types::{base::{Service}, endpoints::EndpointResponse, ports::Port}, shared::types::{metadata::TypeMetadataProvider}, subnets::types::base::{Subnet, SubnetType}
     },
 };
@@ -28,7 +28,7 @@ impl DaemonDiscoveryService {
         let started_at = Utc::now();
         tracing::info!("Starting discovery session {}", session_id);
         
-        let (_, subnets) = self.utils.scan_interfaces(daemon_id, None).await?;
+        let (_, subnets) = self.utils.scan_interfaces(daemon_id).await?;
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
 
@@ -288,23 +288,24 @@ impl DaemonDiscoveryService {
             _ => self.utils.get_mac_address_for_ip(host_ip).await?
         };
 
-        let interfaces = vec!(Interface::new(InterfaceBase{
-            name: "Discovered interface".to_string(),
+        let interface = Interface::new(InterfaceBase{
+            name: Some("Discovered interface".to_string()),
             subnet_id: subnet.id,
             ip_address: host_ip,
             mac_address: mac,
-            is_primary: true
-        }));
+        });
 
-        let interface_bindings = interfaces.iter().map(|i| i.id).collect();
+        let interface_id = interface.id.clone();
+
+        let interfaces = vec!(interface);
+        let interface_bindings = vec!(interface_id);
+        let target = HostTarget::Interface(interface_id);
 
         // Create host
         let mut host = Host::new(HostBase {
             name: hostname.clone().unwrap_or_else(|| host_ip.to_string()),
             hostname,
-            target: HostTarget::IpAddress(IpAddressTargetConfig {
-                ip: host_ip,
-            }),
+            target,
             description: Some("Discovered device".to_string()),
             interfaces,
             services: Vec::new(),
@@ -313,6 +314,8 @@ impl DaemonDiscoveryService {
         });
 
         let mut unclaimed_ports = open_ports.clone();
+        let mut has_non_generic_service: bool = false;
+        let mut has_generic_service: bool = false;
         
         let mut sorted_service_types: Vec<ServiceType> = ServiceType::iter()
             .collect::<Vec<ServiceType>>();
@@ -323,18 +326,23 @@ impl DaemonDiscoveryService {
 
         // Add services from detected ports
         for service_type in sorted_service_types {
-            let non_generic_service_count = host.base.services.iter().filter(|s| !s.base.service_type.is_generic_service()).count();
             // Once a non-generic service has been identified, skip generic services
-            if service_type.is_generic_service() && non_generic_service_count > 0 {
+            if service_type.is_generic_service() && has_generic_service {
                 continue;
             }
-            if let (Some(service), Some(service_ports)) = Service::from_discovery(service_type, host_ip, &open_ports, &endpoint_responses, &subnet, mac, &host.id, &interface_bindings) {
-                if !service.base.service_type.is_generic_service() && non_generic_service_count == 0 {
+            if let (Some(service), Some(service_ports)) = Service::from_discovery(service_type, host_ip, &unclaimed_ports, &endpoint_responses, &subnet, mac, &host.id, &interface_bindings) {
+                if !service.base.service_type.is_generic_service() && !has_non_generic_service {
                     host.base.name = service.base.service_type.display_name().to_string();
+                    has_non_generic_service = true;
+                }
+
+                if service.base.service_type.is_generic_service() {
+                    has_generic_service = true;
                 }
 
                 unclaimed_ports.retain(|p| !service_ports.contains(p));
-                host.add_service(service);
+                self.create_service(&service).await?;
+                host.add_service(service.id);
             }
         };
 

@@ -1,3 +1,5 @@
+use std::net::Ipv4Addr;
+
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
 use pnet::{ipnetwork::IpNetwork};
@@ -6,11 +8,12 @@ use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use uuid::Uuid;
 
-use crate::server::{hosts::types::base::Host, shared::{constants::VPN_COLOR, types::metadata::TypeMetadataProvider}};
+use crate::server::{hosts::types::base::Host, services::types::base::Service, shared::{constants::VPN_COLOR, types::metadata::TypeMetadataProvider}};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum SubnetSource {
     Manual,
+    System,
     Discovery(Uuid)
 }
 
@@ -24,7 +27,23 @@ pub struct SubnetBase {
     pub reverse_proxies: Vec<Uuid>,
     pub hosts: Vec<Uuid>,
     pub subnet_type: SubnetType,
-    pub source: SubnetSource
+    pub source: SubnetSource,
+}
+
+impl Default for SubnetBase {
+    fn default() -> Self {
+        Self {
+            cidr: IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(127, 0, 0, 1), 24).unwrap()),
+            name: "New Subnet".to_string(),
+            description: None,
+            dns_resolvers: Vec::new(),
+            gateways: Vec::new(),
+            reverse_proxies: Vec::new(),
+            hosts: Vec::new(),
+            subnet_type: SubnetType::Unknown,
+            source: SubnetSource::Manual
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -63,8 +82,10 @@ impl Subnet {
                 } 
                 else { (ipv4_network.network(), ipv4_network.prefix()) };
 
+                let cidr = IpCidr::V4(Ipv4Cidr::new(network_addr, prefix_len).ok()?);
+
                 return Some(Subnet::new(SubnetBase {
-                    cidr: IpCidr::V4(Ipv4Cidr::new(network_addr, prefix_len).ok()?),
+                    cidr,
                     description: None,
                     name: interface_name.clone(),
                     subnet_type,
@@ -72,22 +93,30 @@ impl Subnet {
                     gateways: Vec::new(),
                     reverse_proxies: Vec::new(),
                     hosts: Vec::new(),
-                    source: SubnetSource::Discovery(daemon_id)
+                    source: SubnetSource::Discovery(daemon_id),
                 }))
             }
         }
     }
-    
-    pub fn update_host_relationships(&mut self, host: &Host)  {
-        // Remove host from existing relationships if present
-        self.base.dns_resolvers =self.base.dns_resolvers.iter().filter(|dns_host_id| dns_host_id != &&host.id).cloned().collect();
-        self.base.gateways =self.base.gateways.iter().filter(|gateway_host_id| gateway_host_id != &&host.id).cloned().collect();
-        self.base.reverse_proxies =self.base.reverse_proxies.iter().filter(|proxy_host_id| proxy_host_id != &&host.id).cloned().collect();
-        self.base.hosts =self.base.hosts.iter().filter(|host_id| host_id != &&host.id).cloned().collect();
+
+    pub fn remove_host_relationships(&mut self, host: &Host) {
+        let service_ids: &Vec<Uuid> = &host.base.services;
+
+        self.base.dns_resolvers = self.base.dns_resolvers.iter().filter(|dns_service_id| !service_ids.contains(dns_service_id)).cloned().collect();
+        self.base.gateways = self.base.gateways.iter().filter(|gateway_service_id| !service_ids.contains(gateway_service_id)).cloned().collect();
+        self.base.reverse_proxies = self.base.reverse_proxies.iter().filter(|proxy_service_id| !service_ids.contains(proxy_service_id)).cloned().collect();
         
-        if host.base.services.iter().any(|s| s.base.service_type.is_dns_resolver()) { self.base.dns_resolvers.push(host.id) }
-        if host.base.services.iter().any(|s| s.base.service_type.is_gateway()) { self.base.gateways.push(host.id) }
-        if host.base.services.iter().any(|s| s.base.service_type.is_reverse_proxy()) { self.base.reverse_proxies.push(host.id) }
+        self.base.hosts = self.base.hosts.iter().filter(|host_id| **host_id != host.id).cloned().collect();
+    }
+    
+    pub fn create_host_relationships(&mut self, host: &Host, services: Vec<&Service>)  {
+        
+        services.iter().for_each(|s| {
+            if s.base.service_type.is_dns_resolver() { self.base.dns_resolvers.push(s.id) }
+            if s.base.service_type.is_gateway() { self.base.gateways.push(s.id) }
+            if s.base.service_type.is_reverse_proxy() { self.base.reverse_proxies.push(s.id) }
+        });
+
         self.base.hosts.push(host.id)
     }
 }
@@ -113,6 +142,7 @@ pub enum SubnetType {
     Lan,
     VpnTunnel, 
     DockerBridge,
+    Internet,
     Unknown
 }
 
@@ -156,6 +186,7 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::DockerBridge => "Docker Bridge",
             SubnetType::Lan => "Local Area Network",
             SubnetType::VpnTunnel => "VPN Tunnel",
+            SubnetType::Internet => "Internet",
             SubnetType::Unknown => "Unknown",
         }
     }
@@ -165,6 +196,7 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::DockerBridge => "Docker bridge network",
             SubnetType::Lan => "Local area network",
             SubnetType::VpnTunnel => "VPN tunnel network",
+            SubnetType::Internet => "Internet network",
             SubnetType::Unknown => "Unknown network type",
         }
     }
@@ -182,6 +214,7 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::DockerBridge => "blue",
             SubnetType::Lan => "green",
             SubnetType::VpnTunnel => VPN_COLOR,
+            SubnetType::Internet => "gray",
             SubnetType::Unknown => "gray",
         }
     }

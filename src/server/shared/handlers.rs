@@ -1,7 +1,6 @@
 use axum::{routing::get, Json, Router};
 use strum::IntoEnumIterator;
 use std::{sync::Arc};
-use crate::server::hosts::types::targets::HostTarget;
 use crate::server::services::types::types::ServiceType;
 use crate::server::topology::types::base::EdgeType;
 use crate::server::{
@@ -22,9 +21,8 @@ pub fn create_router() -> Router<Arc<AppState>> {
 async fn get_type_registry() -> Json<ApiResponse<TypeRegistry>> {
     let registry = TypeRegistry {
         services: ServiceType::iter().map(|t| t.to_metadata()).collect(),
-        host_targets: HostTarget::iter().map(|t| t.to_metadata()).collect(),
         subnet_types: SubnetType::iter().map(|t| t.to_metadata()).collect(),
-        graph_edge_types: EdgeType::iter().map(|t| t.to_metadata()).collect(),
+        edge_types: EdgeType::iter().map(|t| t.to_metadata()).collect(),
     };
     
     Json(ApiResponse::success(registry))
