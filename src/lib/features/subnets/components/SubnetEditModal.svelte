@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { Network, Router } from 'lucide-svelte';
+  import { Network, Router, Search } from 'lucide-svelte';
   import { createEmptySubnetFormData } from '../store';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
-	import { services, subnet_types } from '$lib/shared/stores/registry';
+	import { serviceTypes, subnetTypes } from '$lib/shared/stores/registry';
 	import { get } from 'svelte/store';
 	import HostSelector from '$lib/shared/components/forms/HostSelector.svelte';
   
@@ -138,7 +138,7 @@
               bind:value={formData.subnet_type}
               class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             >
-              {#each subnet_types.getItems() as subnet_type}
+              {#each subnetTypes.getItems() as subnet_type}
                 <option value="{subnet_type.id}">{subnet_type.display_name}</option>
               {/each}
             </select>
@@ -171,7 +171,7 @@
                 placeholder="Select a DNS server to add..."
                 emptyMessage="No DNS resolvers configured. DNS capable hosts will appear here."
                 serviceMetadataField="can_be_dns_resolver"
-                icon={services.getIconComponent('DNS')}
+                icon={Search}
                 iconColor="text-blue-400"
                 selectedIconColor="text-green-400"
               />

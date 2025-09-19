@@ -1,5 +1,5 @@
-import { writable } from 'svelte/store';
-import type { Host } from "./types/base";
+import { get, writable } from 'svelte/store';
+import type { Host, Interface } from "./types/base";
 import { api } from '../../shared/utils/api';
 import type { HostTarget } from './types/targets';
 import { pushInfo, pushWarning } from '$lib/shared/stores/feedback';
@@ -29,14 +29,8 @@ export async function createHost(data: Host) {
 
 interface UpdateHostResponse {
   host: Host,
-  // capability_test_changes: Record<string, HostCapabilityTestChange>,
   subnet_changes: HostSubnetRelationshipChange
 }
-
-// interface HostCapabilityTestChange {
-//     newly_compatible: string[], 
-//     incompatible: string[]
-// }
 
 interface HostSubnetRelationshipChange {
   new_gateway: Subnet[],
@@ -50,39 +44,8 @@ export async function updateHost(data: Host) {
     `/hosts/${data.id}`,
     hosts,
     (updatedHostResponse, current) => {
+      handleUpdatedHostToast(updatedHostResponse);
       const updatedHost = updatedHostResponse.host;
-
-      // Object.keys(updatedHostResponse.capability_test_changes).forEach(cap => {
-      //   let incompatible = updatedHostResponse.capability_test_changes[cap].incompatible.map(i => testTypes.getDisplay(i))
-      //   let newly_compatible = updatedHostResponse.capability_test_changes[cap].newly_compatible.map(n => testTypes.getDisplay(n))
-      //   incompatible.length > 0 ? pushWarning(`The following tests are no longer compatible with host "${updatedHost.name}" and have been removed: ${incompatible.join(", ")}`) : null
-      //   newly_compatible.length > 0 ? pushInfo(`The following tests are now compatible with host "${updatedHost.name}" and have been added: ${newly_compatible.join(", ")}`) : null
-      // })
-
-      if (updatedHostResponse.subnet_changes.new_dns_resolver.length > 0) {
-        pushInfo(`The following subnets now have host "${updatedHost.name}" set as a DNS resolver: ${
-          updatedHostResponse.subnet_changes.new_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
-        }`)
-      }
-
-      if (updatedHostResponse.subnet_changes.new_gateway.length > 0) {
-        pushInfo(`The following subnets now have host "${updatedHost.name}" set as a gateway: ${
-          updatedHostResponse.subnet_changes.new_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
-        }`)
-      }
-
-      if (updatedHostResponse.subnet_changes.no_longer_dns_resolver.length > 0) {
-        pushWarning(`The following subnets no longer have host "${updatedHost.name}" set as a gateway: ${
-          updatedHostResponse.subnet_changes.no_longer_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
-        }`)
-      }
-
-      if (updatedHostResponse.subnet_changes.no_longer_gateway.length > 0) {
-        pushWarning(`The following subnets no longer have host "${updatedHost.name}" set as a gateway: ${
-          updatedHostResponse.subnet_changes.no_longer_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
-        }`)
-      }
-
       return current.map(n => n.id === data.id ? updatedHost : n)
     },
     { method: 'PUT', body: JSON.stringify(data)},
@@ -98,6 +61,52 @@ export async function deleteHost(id: string) {
   )
 }
 
+export async function consolidateHosts(destination_host_id: string, other_host_id: string) {
+  return await api.request<UpdateHostResponse, Host[]>(
+    `/hosts/${destination_host_id}/consolidate/${other_host_id}`,
+    hosts,
+    (updatedHostResponse, current) => {
+      handleUpdatedHostToast(updatedHostResponse);
+      current = current.filter(g => g.id !== other_host_id);
+      return current.map(h => h.id == destination_host_id ? updatedHostResponse.host : h);
+    },
+    { method: 'PUT'},
+  )
+}
+
+function handleUpdatedHostToast(updatedHostResponse: UpdateHostResponse) {
+  let updatedHost = updatedHostResponse.host
+  // Object.keys(updatedHostResponse.capability_test_changes).forEach(cap => {
+  //   let incompatible = updatedHostResponse.capability_test_changes[cap].incompatible.map(i => testTypes.getDisplay(i))
+  //   let newly_compatible = updatedHostResponse.capability_test_changes[cap].newly_compatible.map(n => testTypes.getDisplay(n))
+  //   incompatible.length > 0 ? pushWarning(`The following tests are no longer compatible with host "${updatedHost.name}" and have been removed: ${incompatible.join(", ")}`) : null
+  //   newly_compatible.length > 0 ? pushInfo(`The following tests are now compatible with host "${updatedHost.name}" and have been added: ${newly_compatible.join(", ")}`) : null
+  // })
+
+  if (updatedHostResponse.subnet_changes.new_dns_resolver.length > 0) {
+    pushInfo(`The following subnets now have host "${updatedHost.name}" set as a DNS resolver: ${
+      updatedHostResponse.subnet_changes.new_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
+    }`)
+  }
+
+  if (updatedHostResponse.subnet_changes.new_gateway.length > 0) {
+    pushInfo(`The following subnets now have host "${updatedHost.name}" set as a gateway: ${
+      updatedHostResponse.subnet_changes.new_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
+    }`)
+  }
+
+  if (updatedHostResponse.subnet_changes.no_longer_dns_resolver.length > 0) {
+    pushWarning(`The following subnets no longer have host "${updatedHost.name}" set as a gateway: ${
+      updatedHostResponse.subnet_changes.no_longer_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
+    }`)
+  }
+
+  if (updatedHostResponse.subnet_changes.no_longer_gateway.length > 0) {
+    pushWarning(`The following subnets no longer have host "${updatedHost.name}" set as a gateway: ${
+      updatedHostResponse.subnet_changes.no_longer_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
+    }`)
+  }
+}
 
 export function createEmptyHostFormData(): Host {
   return {
@@ -115,19 +124,33 @@ export function createEmptyHostFormData(): Host {
     },
     services: [],
     open_ports: [],
-    subnets: [],
-    last_seen: utcTimeZoneSentinel,
+    interfaces: [],
     groups: [],
   };
 }
 
 export function getHostTargetString(target: HostTarget): string {
-  switch (target.type) {
-    case 'IpAddress':
-      return target.config.ip;
-    case 'Hostname':
-      return target.config.hostname;
-    default:
-      return 'Unknown target';
+  return "Unknown Target"
+  // switch (target.type) {
+  //   case 'IpAddress':
+  //     return target.config.ip;
+  //   case 'Hostname':
+  //     return target.config.hostname;
+  //   default:
+  //     return 'Unknown target';
+  // }
+}
+
+export function getHostFromId(id: string): Host | undefined {
+  return get(hosts).find(h => h.id == id)
+}
+
+export function getInterfaceFromId(id: string): Interface | undefined {
+  for (const host of get(hosts)) {
+    const iface = host.interfaces.find(i => i.id == id);
+    if (iface != undefined) {
+      return iface;
+    }
   }
+  return undefined;
 }

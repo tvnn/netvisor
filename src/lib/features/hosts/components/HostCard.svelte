@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CircleQuestionMark, Edit, Radar, Trash2 } from 'lucide-svelte';
+  import { CircleQuestionMark, Edit, Radar, Replace, Trash2 } from 'lucide-svelte';
 	import { getHostTargetString } from '../store';
   import type { Host } from '../types/base';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
@@ -7,10 +7,11 @@
 	import { getDaemonDiscoveryState } from '$lib/features/daemons/store';
   import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
 	import { sessions } from '$lib/features/discovery/store';
-	import { services } from '$lib/shared/stores/registry';
+	import { serviceTypes } from '$lib/shared/stores/registry';
 	import { subnets } from '$lib/features/subnets/store';
 	import { get } from 'svelte/store';
 	import type { HostGroup } from '$lib/features/host_groups/types/base';
+	import { getServicesForHost } from '$lib/features/services/store';
   
   export let host: Host;
   export let daemon: Daemon | null;
@@ -18,6 +19,7 @@
   export let onEdit: (host: Host) => void = () => {};
   export let onDelete: (host: Host) => void = () => {};
   export let onDiscovery: (daemon: Daemon) => void = () => {};
+  export let onConvert: (host: Host) => void = () => {};
   export let discoveryIsRunning: boolean;
   
   // Build connection info
@@ -25,6 +27,8 @@
 
   $: hostIsRunningDiscovery = (discoveryIsRunning && daemon !== null) ? getDaemonDiscoveryState(daemon.id, $sessions) !== null : false;
   $: discoveryData = hostIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;
+
+  $: hostServices = getServicesForHost(host.id);
 
   function getSubnetNameFromId(id: string): string | null {
     return get(subnets).find(s => s.id == id)?.cidr || null
@@ -34,7 +38,7 @@
   $: cardData = {
     title: host.name,
     iconColor: 'text-blue-400',
-    icon: services.getIconComponent(host.services[0]?.service_type.type) || CircleQuestionMark,
+    icon: serviceTypes.getIconComponent(hostServices[0]?.service_type.type) || CircleQuestionMark,
     sections: connectionInfo ? [{
       label: 'Connection',
       value: connectionInfo
@@ -43,10 +47,10 @@
     lists: [
       {
         label: 'Services',
-        items: host.services.map(sv => {
+        items: hostServices.map(sv => {
           return ({
             id: sv.service_type.type,
-            label: services.getDisplay(sv.service_type.type),
+            label: serviceTypes.getDisplay(sv.service_type.type),
             color: 'cyan'
           })
         }),
@@ -83,6 +87,17 @@
         bgHover: 'hover:bg-red-900/20',
         onClick: () => onDelete(host)
       },
+      ...(daemon == null
+        ? [{
+            label: 'Convert to Interface',
+            icon: Replace,
+            color: 'text-gray-400',
+            hoverColor: 'text-white',
+            bgHover: 'hover:bg-gray-700',
+            onClick: () => onConvert(host),
+          }]
+        : []
+      ),
       ...(daemon !== null
         ? [{
             label: 'Run Discovery',

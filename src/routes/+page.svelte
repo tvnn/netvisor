@@ -15,6 +15,7 @@
 	import { getRegistry } from '$lib/shared/stores/registry';
 	import { onDestroy, onMount } from 'svelte';
 	import { getTopology } from '$lib/features/topology/store';
+	import { getServices } from '$lib/features/services/store';
   
   let activeTab = 'hosts';
   let appInitialized = false;
@@ -32,7 +33,8 @@
       getHostGroups(),
       getSubnets(),
       getActiveDiscoverySessions(),
-      getTopology()
+      getTopology(),
+      getServices()
     ]);
 
     setTimeout(() => {

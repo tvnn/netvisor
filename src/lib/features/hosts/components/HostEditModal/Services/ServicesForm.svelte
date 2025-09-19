@@ -5,7 +5,7 @@
   import type { Port, Service } from '$lib/features/services/types/base';
   import { createDefaultService, formatServicePorts } from '$lib/features/services/types/base';
   import type { Host } from '$lib/features/hosts/types/base';
-  import { registry, services } from '$lib/shared/stores/registry';
+  import { registry, serviceTypes } from '$lib/shared/stores/registry';
   import type { TypeMetadata } from '$lib/shared/stores/registry';
 	import type { TagProps } from '$lib/shared/components/data/types';
   
@@ -14,13 +14,13 @@
   
   // Computed values
   $: hostServices = formData.services || [];
-  $: availableServiceTypes = $registry?.services?.filter(service => 
+  $: availableServiceTypes = serviceTypes.getItems().filter(service => 
     service.metadata?.can_be_added !== false
   ).sort((a, b) => a.category.localeCompare(b.category, 'en')) || [];
   
   // Event handlers
   function handleAddService(serviceTypeId: string) {
-    const serviceMetadata = $registry?.services?.find(s => s.id === serviceTypeId);
+    const serviceMetadata = serviceTypes.getItems().find(s => s.id === serviceTypeId);
     if (!serviceMetadata) return;
     
     const defaultPorts = serviceMetadata.metadata?.default_ports || [];
@@ -104,24 +104,16 @@
   }
   
   function getItemIcon(service: Service) {
-    const serviceMetadata = $registry?.services?.find(s => s.id === service.service_type.type);
-    if (serviceMetadata) {
-      return createStyle(null, serviceMetadata.icon).IconComponent;
-    }
-    return createStyle(null, 'Monitor').IconComponent;
+    return serviceTypes.getIcon(service.service_type.type)
   }
   
   function getItemIconColor(service: Service) {
-    const serviceMetadata = $registry?.services?.find(s => s.id === service.service_type.type);
-    if (serviceMetadata) {
-      return createStyle(serviceMetadata.color, null).colors.icon;
-    }
-    return createStyle('gray', null).colors.icon;
+    return serviceTypes.getColorHelper(service.service_type.type).icon
   }
   
   function getItemTags(service: Service) {
     const tags: TagProps[] = [];
-    const serviceMetadata = $registry?.services?.find(s => s.id === service.service_type.type);
+    const serviceMetadata = serviceTypes.getItems().find(s => s.id === service.service_type.type);
     
     // if (serviceMetadata) {
     //   tags.push({
@@ -144,7 +136,7 @@
   
   allowReorder={true}
   placeholder="Select service type to add..."
-  allowItemRemove={(item) => services.getMetadata(item.service_type.type).can_be_added}
+  allowItemRemove={(item) => serviceTypes.getMetadata(item.service_type.type).can_be_added}
   
   {getOptionId}
   {getOptionLabel}

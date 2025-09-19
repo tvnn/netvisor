@@ -5,7 +5,6 @@
   import { required } from 'svelte-forms/validators';
   import type { Host } from '$lib/features/hosts/types/base';
   import { maxLength } from '$lib/shared/components/forms/validators';
-	import { hostTargets } from '$lib/shared/stores/registry';
   
   export let form: any;
   export let formData: Host;
@@ -26,8 +25,6 @@
   $: formData.name = $name.value;
   $: formData.description = $description.value;
   $: formData.hostname = $hostname.value;
-
-  $: targetTypeOptions = hostTargets.getItems().map(t => {return {value:t.id, label: t.display_name, description: t.description, icon: t.icon}});
   
   // Initialize target if needed
   $: if (!formData.target) {

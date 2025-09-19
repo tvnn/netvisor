@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { hostGroups } from '$lib/features/host_groups/store';
-	import { createHost, deleteHost, getHostTargetString, hosts, updateHost } from '../store';
+	import { consolidateHosts, createHost, deleteHost, getHostTargetString, hosts, updateHost } from '../store';
   import HostCard from './HostCard.svelte';
   import type { Host } from '../types/base';
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
@@ -11,10 +11,14 @@
 	import type { Daemon } from '$lib/features/daemons/types/base';
 	import { initiateDiscovery, sessions } from '$lib/features/discovery/store';
 	import HostEditor from './HostEditModal/HostEditor.svelte';
+	import HostConsolidationModal from './HostConsolidationModal.svelte';
 
   let searchTerm = '';
   let showHostEditor = false;
   let editingHost: Host | null = null;
+
+  let otherHost: Host | null = null;
+  let showHostConsolidationModal = false;
 
   $: discoveryIsRunning = $sessions.size > 0;
   
@@ -59,6 +63,11 @@
   function handleRunDiscovery(daemon: Daemon) {
     initiateDiscovery({daemon_id: daemon.id})
   }
+
+  function handleConvert(host: Host) {
+    otherHost = host;
+    showHostConsolidationModal = true;
+  }
   
   function handleDeleteHost(host: Host) {
     if (confirm(`Are you sure you want to delete "${host.name}"?`)) {
@@ -79,6 +88,14 @@
     if (result?.success) {
       showHostEditor = false;
       editingHost = null;
+    }
+  }
+
+  async function handleHostConvert(destination_host_id: string, other_host_id: string) {
+    const result = await consolidateHosts(destination_host_id, other_host_id);
+    if (result?.success) {
+      showHostConsolidationModal = false;
+      otherHost = null;
     }
   }
   
@@ -128,6 +145,7 @@
           onEdit={handleEditHost}
           onDelete={handleDeleteHost}
           onDiscovery={handleRunDiscovery}
+          onConvert={handleConvert}
         />
       {/each}
     </div>
@@ -140,4 +158,11 @@
   onCreate={handleHostCreate}
   onUpdate={handleHostUpdate}
   onClose={handleCloseHostEditor}
+/>
+
+<HostConsolidationModal
+  isOpen={showHostConsolidationModal}
+  otherHost={otherHost}
+  onConvert={handleHostConvert}
+  onClose={() => (showHostConsolidationModal = false)}
 />

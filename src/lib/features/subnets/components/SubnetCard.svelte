@@ -3,7 +3,7 @@
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import { hosts } from '$lib/features/hosts/store';
 	import { get } from 'svelte/store';
-	import { subnet_types } from '$lib/shared/stores/registry';
+	import { subnetTypes } from '$lib/shared/stores/registry';
   
   export let subnet: Subnet;
   export let onEdit: (subnet: Subnet) => void = () => {};
@@ -30,8 +30,8 @@
         label: 'Network Type',
         items: [{
           id: 'type',
-          label: subnet_types.getDisplay(subnet.subnet_type),
-          color: subnet_types.getColorString(subnet.subnet_type)
+          label: subnetTypes.getDisplay(subnet.subnet_type),
+          color: subnetTypes.getColorString(subnet.subnet_type)
         }],
         emptyText: 'No type specified'
       },
@@ -52,6 +52,24 @@
           color: 'green'
         })),
         emptyText: 'No gateways'
+      }] : []),
+      ...(subnet.reverse_proxies && subnet.reverse_proxies.length > 0 ? [{
+        label: 'Reverse Proxies',
+        items: subnet.reverse_proxies.map((rproxyId) => ({
+          id: rproxyId,
+          label: getHostName(rproxyId) || "Unknown Host",
+          color: 'emerald'
+        })),
+        emptyText: 'No reverse proxies'
+      }] : []),
+      ...(subnet.hosts && subnet.hosts.length > 0 ? [{
+        label: 'Hosts',
+        items: subnet.hosts.map((hostId) => ({
+          id: hostId,
+          label: getHostName(hostId) || "Unknown Host",
+          color: 'blue'
+        })),
+        emptyText: 'No hosts'
       }] : [])
     ],
     

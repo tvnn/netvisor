@@ -13,6 +13,9 @@ export interface Endpoint {
 }
 
 export interface Service {
+  id: string,
+  created_at: string,
+  updated_at: string,
   host_id: string;
   service_type: {
     type: string

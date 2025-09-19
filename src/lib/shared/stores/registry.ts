@@ -13,10 +13,9 @@ export interface TypeMetadata {
 }
 
 export interface TypeRegistry {
-  services: TypeMetadata[];
-  host_targets: TypeMetadata[];
+  service_types: TypeMetadata[];
   subnet_types: TypeMetadata[];
-  graph_edge_types: TypeMetadata[];
+  edge_types: TypeMetadata[];
 }
 
 export const registry = writable<TypeRegistry>();
@@ -93,10 +92,9 @@ function createRegistryHelpers<T extends keyof TypeRegistry>(category: T) {
 }
 
 // Create all the helpers
-export const services = createRegistryHelpers('services');
-export const hostTargets = createRegistryHelpers('host_targets');
-export const subnet_types = createRegistryHelpers('subnet_types');
-export const graph_edge_types = createRegistryHelpers('graph_edge_types');
+export const serviceTypes = createRegistryHelpers('service_types');
+export const subnetTypes = createRegistryHelpers('subnet_types');
+export const edgeTypes = createRegistryHelpers('edge_types');
 
 export async function getRegistry() {
   const result = await api.request<TypeRegistry>(
