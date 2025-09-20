@@ -1,15 +1,13 @@
 <script lang="ts">
   import { daemons } from '../daemons/store';
-  import { hosts } from '../hosts/store';
   import { 
 	sessions,
   } from './store';
   import { getDaemonDiscoveryState } from '../daemons/store';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
-	  import { getHostTargetString } from "../hosts/store";
 	import DaemonDiscoveryStatus from './DaemonDiscoveryStatus.svelte';
-	import { type TagProps } from '$lib/shared/components/data/types';
 	import { get } from 'svelte/store';
+	import { DaemonDisplay } from '$lib/shared/components/forms/selection/display/DaemonDisplay.svelte';
 
   let selectedDaemonId: string | null = null;  
   $: discoveryData = getDaemonDiscoveryState(selectedDaemonId, get(sessions));
@@ -40,19 +38,13 @@
         <div class="flex">
             <RichSelect
                 selectedValue={selectedDaemonId}
-                options={$daemons.map((d) => {
-                    let host = $hosts.find(n => n.id === d.host_id)
-                    return {
-                        value: d.id,
-                        label: host?.name || `Daemon ${d.id.substring(0, 8)}`,
-                        description: host ? `on ${getHostTargetString(host?.target)}` : `Daemon ${d.id.substring(0, 8)}`,
-                    }
-                })}
-                getOptionId={(option) => option.value}
+                options={$daemons}
+                placeholder="Select a daemon..."
+                displayComponent={DaemonDisplay}
                 onSelect={handleDaemonSelect} />
         </div>
     {/if}
-    
+
     <div class="flex">
       {#if selectedDaemon}
         <DaemonDiscoveryStatus

@@ -23,7 +23,7 @@
   export let discoveryIsRunning: boolean;
   
   // Build connection info
-  $: connectionInfo = getHostTargetString(host.target)
+  $: connectionInfo = getHostTargetString(host)
 
   $: hostIsRunningDiscovery = (discoveryIsRunning && daemon !== null) ? getDaemonDiscoveryState(daemon.id, $sessions) !== null : false;
   $: discoveryData = hostIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;

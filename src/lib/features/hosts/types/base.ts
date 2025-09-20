@@ -1,5 +1,4 @@
 import type { Port, Service } from "$lib/features/services/types/base";
-import type { HostTarget } from "./targets";
 
 export interface Host {
   id: string;
@@ -10,7 +9,6 @@ export interface Host {
   hostname: string;
   target: HostTarget;
   services: string[];
-  open_ports: Port[]
   interfaces: Interface[];
   groups: string[];
 }
@@ -22,4 +20,18 @@ export interface Interface {
     ip_address?: string,
     mac_address?: string
     is_primary: boolean
+}
+
+export type HostTarget = 
+  | { type: 'Interface'; config: string }  // UUID of interface
+  | { type: 'ExternalIp'; config: string }  // IP Address
+  | { type: 'Hostname' };
+
+// For backwards compatibility during transition
+export interface IpTargetConfig {
+  ip: string;
+}
+
+export interface HostnameTargetConfig {
+  hostname: string;
 }

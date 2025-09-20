@@ -103,7 +103,6 @@
           {form}
           service={selectedItem}
           onChange={(updatedService) => onChange(updatedService)}
-          open_ports={formData.open_ports}
           host_interfaces={formData.interfaces}
         />
       {/if}

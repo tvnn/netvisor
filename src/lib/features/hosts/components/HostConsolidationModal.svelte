@@ -76,7 +76,7 @@
     
   // Get target string for display
   function getDisplayTarget(host: Host): string {
-    return getHostTargetString(host.target);
+    return getHostTargetString(host);
   }
 </script>
 

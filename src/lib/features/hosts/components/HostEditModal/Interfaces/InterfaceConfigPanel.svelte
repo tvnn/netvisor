@@ -2,6 +2,7 @@
   import { field } from 'svelte-forms';
   import { AlertCircle } from 'lucide-svelte';
 	import type { Interface } from '$lib/features/hosts/types/base';
+	import { ipAddress, mac } from '$lib/shared/components/forms/validators';
   
   export let form: any;
   export let iface: Interface | null = null;
@@ -11,45 +12,18 @@
   let ipAddressField: any;
   let macAddressField: any;
   
-    const ipValidator = () => (value: string) => {
-    if (!value) return { name: 'required', valid: false };
-    
-    const ipRegex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
-    if (!ipRegex.test(value)) {
-        return { name: 'invalidIp', valid: false };
-    }
-    
-    const octets = value.split('.').map(Number);
-    if (octets.some(octet => octet < 0 || octet > 255)) {
-        return { name: 'invalidRange', valid: false };
-    }
-    
-    return { name: 'validIp', valid: true };
-    };
-    
-    const macValidator = () => (value: any) => {
-    if (!value) return { name: 'validMac', valid: true }; // Optional field
-    
-    const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
-    if (!macRegex.test(value)) {
-        return { name: 'invalidMac', valid: false };
-    }
-    
-    return { name: 'validMac', valid: true };
-    };
-  
   // Initialize form fields when membership changes
   $: if (iface && subnet) {
     ipAddressField = field(
       `interface_ip_${iface.subnet_id}`,
       iface.ip_address,
-      [ipValidator()]
+      [ipAddress()]
     );
     
     macAddressField = field(
       `interface_mac_${iface.subnet_id}`,
       iface.mac_address || '',
-      [macValidator()]
+      [mac()]
     );
     
     // Register with parent form

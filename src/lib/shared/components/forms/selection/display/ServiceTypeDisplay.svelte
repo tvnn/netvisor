@@ -4,7 +4,7 @@
     getId: (serviceType: TypeMetadata) => serviceType.id,
     getLabel: (serviceType: TypeMetadata) => serviceType.display_name,
     getDescription: (serviceType: TypeMetadata) => serviceType.description,
-    getIcon: (serviceType: TypeMetadata) => serviceType.icon,
+    getIcon: (serviceType: TypeMetadata) => createIconComponent(serviceType.icon),
     getIconColor: (serviceType: TypeMetadata) => serviceType.color,
     getTags: (serviceType: TypeMetadata) => [{
       label: serviceType.category,
@@ -18,6 +18,7 @@
 <script lang="ts">
   import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
 	import type { TypeMetadata } from '$lib/shared/stores/registry';
+	import { createIconComponent } from '$lib/shared/utils/styling';
 	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
   
   type $$Props = DisplayComponentProps<TypeMetadata>;

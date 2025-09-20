@@ -1,16 +1,35 @@
 import type { Validator } from 'svelte-forms';
 
 // IP Address validator
-export const ipAddress = (): Validator => (value: string) => {
+export const ipAddress = (): Validator => (value: any) => {
   if (!value) return { valid: true, name: 'ipAddress' }; // Allow empty if not required
   
   const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+  if (!ipRegex.test(value.trim())) {
+    return { name: 'invalidIp', message: 'Invalid IP address format', valid: false };
+  }
+
+  const octets = value.split('.').map(Number);
+  if (octets.some((octet: number) => octet < 0 || octet > 255)) {
+      return { name: 'invalidIp', message: 'Invalid IP address range', valid: false };
+  }
+
   return {
-    valid: ipRegex.test(value.trim()),
-    name: 'ipAddress',
-    message: 'Please enter a valid IP address'
+    valid: true,
+    name: 'validIp',
   };
 };
+
+  export const mac = (): Validator => (value: any) => {
+    if (!value) return { name: 'validMac', valid: true }; // Optional field
+    
+    const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;
+    if (!macRegex.test(value)) {
+        return { name: 'invalidMac', message: 'Invalid MAC address format', valid: false };
+    }
+    
+    return { name: 'validMac', valid: true };
+  };
 
 // Hostname validator
 export const hostname = (): Validator => (value: string) => {
@@ -55,16 +74,5 @@ export const portRange = (): Validator => (value: number | string) => {
     valid: Number.isInteger(port) && port >= 1 && port <= 65535,
     name: 'portRange',
     message: 'Port must be between 1 and 65535'
-  };
-};
-
-// Capability name validator  
-export const capabilityName = (systemAssigned: boolean | undefined): Validator => (value: string) => {
-  if (systemAssigned) return { valid: true, name: 'capabilityName' };
-  
-  return {
-    valid: Boolean(value && value.trim()),
-    name: 'capabilityName',
-    message: 'Capability name is required'
   };
 };

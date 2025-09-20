@@ -33,9 +33,9 @@
     formData = subnet ? { ...subnet } : createEmptySubnetFormData();
   }
 
-  let dnsServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.can_be_dns_resolver).map(service => service.host_id);
-  let gatewayServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.can_be_dns_resolver).map(service => service.host_id);
-  let reverseProxyServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.can_be_dns_resolver).map(service => service.host_id);
+  let dnsServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.is_dns_resolver).map(service => service.host_id);
+  let gatewayServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.is_gateway).map(service => service.host_id);
+  let reverseProxyServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.is_reverse_proxy).map(service => service.host_id);
   
   // Filter hosts by service capabilities
   $: dnsCapableHosts = $hosts.filter(host => dnsServiceHostIds.includes(host.id));

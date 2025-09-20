@@ -12,7 +12,6 @@
   
   export let form: any;
   export let service: Service | null = null;
-  export let open_ports: Port[] = [];
   export let host_interfaces: Interface[] = [];
   export let onChange: (updatedService: Service) => void = () => {};
   
@@ -56,32 +55,21 @@
     }
   }
 
-  // Get available ports (not already used by this service)
-  $: availablePorts = open_ports.filter(port => 
-    !service?.ports.some(servicePort => 
-      servicePort.number === port.number && servicePort.protocol === port.protocol
-    )
-  );
-
   function handleAddPort(portId: string) {
     if (!service) return;
     
     // Parse the port ID back to find the port
-    const [numberStr, protocol] = portId.split('-');
-    const number = parseInt(numberStr);
+    // const [numberStr, protocol] = portId.split('-');
+    // const number = parseInt(numberStr);
     
-    const selectedPort = open_ports.find(p => 
-      p.number === number && p.protocol === protocol
-    );
+    // if (!selectedPort) return;
     
-    if (!selectedPort) return;
+    // const updatedService = {
+    //   ...service,
+    //   ports: [...service.ports, selectedPort]
+    // };
     
-    const updatedService = {
-      ...service,
-      ports: [...service.ports, selectedPort]
-    };
-    
-    onChange(updatedService);
+    // onChange(updatedService);
   }
   
   function handleRemovePort(index: number) {
@@ -218,11 +206,11 @@
         helpText="Configure which ports this service uses"
         placeholder="Select a port to add"
         allowDuplicates={false}
-        allowItemEdit={() => false}
+        allowItemEdit={() => true}
         allowItemRemove={() => true}
         allowReorder={false}
         
-        options={availablePorts}
+        options={[]}
         items={service.ports}
         
         optionDisplayComponent={PortDisplay}

@@ -24,7 +24,7 @@
   
   $: filteredHosts = $hosts.filter((host: Host) => {
     const searchLower = searchTerm.toLowerCase();
-    const targetString = getHostTargetString(host.target).toLowerCase();
+    const targetString = getHostTargetString(host);
     
     return host.name.toLowerCase().includes(searchLower) ||
           targetString.includes(searchLower) ||

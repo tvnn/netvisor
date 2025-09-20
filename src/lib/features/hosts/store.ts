@@ -1,7 +1,6 @@
 import { get, writable } from 'svelte/store';
-import type { Host, Interface } from "./types/base";
+import type { Host, HostTarget, Interface } from "./types/base";
 import { api } from '../../shared/utils/api';
-import type { HostTarget } from './types/targets';
 import { pushInfo, pushWarning } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
@@ -27,25 +26,11 @@ export async function createHost(data: Host) {
   )
 }
 
-interface UpdateHostResponse {
-  host: Host,
-  subnet_changes: HostSubnetRelationshipChange
-}
-
-interface HostSubnetRelationshipChange {
-  new_gateway: Subnet[],
-  no_longer_gateway: Subnet[],
-  new_dns_resolver: Subnet[],
-  no_longer_dns_resolver: Subnet[]
-}
-
 export async function updateHost(data: Host) {
-  return await api.request<UpdateHostResponse, Host[]>(
+  return await api.request<Host, Host[]>(
     `/hosts/${data.id}`,
     hosts,
-    (updatedHostResponse, current) => {
-      handleUpdatedHostToast(updatedHostResponse);
-      const updatedHost = updatedHostResponse.host;
+    (updatedHost, current) => {
       return current.map(n => n.id === data.id ? updatedHost : n)
     },
     { method: 'PUT', body: JSON.stringify(data)},
@@ -62,50 +47,15 @@ export async function deleteHost(id: string) {
 }
 
 export async function consolidateHosts(destination_host_id: string, other_host_id: string) {
-  return await api.request<UpdateHostResponse, Host[]>(
+  return await api.request<Host, Host[]>(
     `/hosts/${destination_host_id}/consolidate/${other_host_id}`,
     hosts,
-    (updatedHostResponse, current) => {
-      handleUpdatedHostToast(updatedHostResponse);
+    (updatedHost, current) => {
       current = current.filter(g => g.id !== other_host_id);
-      return current.map(h => h.id == destination_host_id ? updatedHostResponse.host : h);
+      return current.map(h => h.id == destination_host_id ? updatedHost : h);
     },
     { method: 'PUT'},
   )
-}
-
-function handleUpdatedHostToast(updatedHostResponse: UpdateHostResponse) {
-  let updatedHost = updatedHostResponse.host
-  // Object.keys(updatedHostResponse.capability_test_changes).forEach(cap => {
-  //   let incompatible = updatedHostResponse.capability_test_changes[cap].incompatible.map(i => testTypes.getDisplay(i))
-  //   let newly_compatible = updatedHostResponse.capability_test_changes[cap].newly_compatible.map(n => testTypes.getDisplay(n))
-  //   incompatible.length > 0 ? pushWarning(`The following tests are no longer compatible with host "${updatedHost.name}" and have been removed: ${incompatible.join(", ")}`) : null
-  //   newly_compatible.length > 0 ? pushInfo(`The following tests are now compatible with host "${updatedHost.name}" and have been added: ${newly_compatible.join(", ")}`) : null
-  // })
-
-  if (updatedHostResponse.subnet_changes.new_dns_resolver.length > 0) {
-    pushInfo(`The following subnets now have host "${updatedHost.name}" set as a DNS resolver: ${
-      updatedHostResponse.subnet_changes.new_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
-    }`)
-  }
-
-  if (updatedHostResponse.subnet_changes.new_gateway.length > 0) {
-    pushInfo(`The following subnets now have host "${updatedHost.name}" set as a gateway: ${
-      updatedHostResponse.subnet_changes.new_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
-    }`)
-  }
-
-  if (updatedHostResponse.subnet_changes.no_longer_dns_resolver.length > 0) {
-    pushWarning(`The following subnets no longer have host "${updatedHost.name}" set as a gateway: ${
-      updatedHostResponse.subnet_changes.no_longer_dns_resolver.map(d => `${d.name} (${d.cidr})`).join(", ")
-    }`)
-  }
-
-  if (updatedHostResponse.subnet_changes.no_longer_gateway.length > 0) {
-    pushWarning(`The following subnets no longer have host "${updatedHost.name}" set as a gateway: ${
-      updatedHostResponse.subnet_changes.no_longer_gateway.map(d => `${d.name} (${d.cidr})`).join(", ")
-    }`)
-  }
 }
 
 export function createEmptyHostFormData(): Host {
@@ -117,28 +67,26 @@ export function createEmptyHostFormData(): Host {
     description: '',
     hostname: '',
     target: {
-      type: 'IpAddress',
-      config: {
-        ip: '127.0.0.1',
-      },
+      type: 'Hostname',
     },
     services: [],
-    open_ports: [],
     interfaces: [],
     groups: [],
   };
 }
 
-export function getHostTargetString(target: HostTarget): string {
-  return "Unknown Target"
-  // switch (target.type) {
-  //   case 'IpAddress':
-  //     return target.config.ip;
-  //   case 'Hostname':
-  //     return target.config.hostname;
-  //   default:
-  //     return 'Unknown target';
-  // }
+export function getHostTargetString(host: Host): string {
+  switch (host.target.type) {
+    case 'Interface':
+      let iface = getInterfaceFromId(host.target.config);
+      return iface ? iface.ip_address || iface.mac_address || iface.name : 'Unknown interface';
+    case 'ExternalIp':
+      return host.target.config || 'Unknown external IP';
+    case 'Hostname':
+      return host.hostname;
+    default:
+      return 'Unknown target';
+  }
 }
 
 export function getHostFromId(id: string): Host | undefined {

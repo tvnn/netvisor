@@ -6,18 +6,7 @@
   export const HostDisplay: EntityDisplayComponent<Host> = {
     getId: (host: Host) => host.id,
     getLabel: (host: Host) => host.name,
-    getDescription: (host: Host) => {
-      const parts = [];
-      if (host.target.type === 'IpAddress') {
-        parts.push(host.target.config.ip);
-      } else if (host.target.type === 'Hostname') {
-        parts.push(host.target.config.hostname);
-      }
-      if (host.description) {
-        parts.push(host.description);
-      }
-      return parts.join(' • ');
-    },
+    getDescription: (host: Host) => getHostTargetString(host),
     getIcon: () => Network,
     getIconColor: () => 'text-blue-400',
     getTags: (host: Host) => {
@@ -25,7 +14,7 @@
       let services = get(getServicesForHost(host.id))
 
       return services.map(service => ({
-        label: service.service_type.type,
+        label: serviceTypes.getDisplay(service.service_type.type),
         color: serviceTypes.getColorString(service.service_type.type)
       }));
     },
@@ -39,6 +28,7 @@
 	import { get } from 'svelte/store';
 	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
 	import ListSelectItem from '../ListSelectItem.svelte';
+	import { getHostTargetString } from '$lib/features/hosts/store';
   
   type $$Props = DisplayComponentProps<Host>;
   
