@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{EnumDiscriminants, EnumIter};
 
-use crate::server::shared::constants::{DNS_COLOR, MEDIA_COLOR, REVERSE_PROXY_COLOR, VPN_COLOR};
+use crate::server::shared::{constants::Entity, types::metadata::EntityMetadataProvider};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 pub enum ServiceCategory {
@@ -84,7 +84,7 @@ impl ServiceCategory {
         match self {
             // Infrastructure (always-on, core network services)
             ServiceCategory::NetworkCore => "Network",
-            ServiceCategory::NetworkAccess => "EthernetPort",
+            ServiceCategory::NetworkAccess => "Router",
             ServiceCategory::NetworkSecurity => "BrickWallShield",
 
             // Server Services
@@ -94,12 +94,12 @@ impl ServiceCategory {
             ServiceCategory::Virtualization => "MonitorCog",
             
             // Network Services
-            ServiceCategory::DNS => "Search",
-            ServiceCategory::VPN => "VenetianMask",
+            ServiceCategory::DNS => Entity::Dns.icon(),
+            ServiceCategory::VPN => Entity::Vpn.icon(),
             ServiceCategory::Monitoring => "Activity",
             ServiceCategory::AdBlock => "ShieldCheck",
             ServiceCategory::Backup => "DatabaseBackup",
-            ServiceCategory::ReverseProxy => "Split",
+            ServiceCategory::ReverseProxy => Entity::ReverseProxy.icon(),
 
             // End devices
             ServiceCategory::Workstation => "Monitor",
@@ -127,17 +127,17 @@ impl ServiceCategory {
 
             // Server Services
             ServiceCategory::Storage => "green",
-            ServiceCategory::Media => MEDIA_COLOR,
+            ServiceCategory::Media => Entity::Media.color(),
             ServiceCategory::HomeAutomation => "blue",
             ServiceCategory::Virtualization => "orange",
             ServiceCategory::Backup => "gray",
             
             // Network Services
-            ServiceCategory::DNS => DNS_COLOR,
-            ServiceCategory::VPN => VPN_COLOR,
+            ServiceCategory::DNS => Entity::Dns.color(),
+            ServiceCategory::VPN => Entity::Vpn.color(),
             ServiceCategory::Monitoring => "orange",
-            ServiceCategory::AdBlock => DNS_COLOR,
-            ServiceCategory::ReverseProxy => REVERSE_PROXY_COLOR,
+            ServiceCategory::AdBlock => Entity::Dns.color(),
+            ServiceCategory::ReverseProxy => Entity::ReverseProxy.color(),
 
             // End devices
             ServiceCategory::Workstation => "green",

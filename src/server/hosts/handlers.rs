@@ -7,7 +7,7 @@ use axum::{
 use uuid::Uuid;
 use std::{sync::Arc};
 use crate::server::{
-        config::AppState, hosts::types::{api::{HostUpdateRequest}, base::Host}, shared::types::api::{ApiError, ApiResponse, ApiResult}
+        config::AppState, hosts::types::{api::HostUpdateRequest, base::Host}, shared::types::api::{ApiError, ApiResponse, ApiResult}
     };
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -57,38 +57,15 @@ async fn update_host(
 
 async fn consolidate_hosts(
     State(state): State<Arc<AppState>>,
-    Path(destination_host_id): Path<Uuid>,
-    Path(other_host_id): Path<Uuid>,
+    Path((destination_host_id, other_host_id)): Path<(Uuid, Uuid)>,
 ) -> ApiResult<Json<ApiResponse<Host>>> {
 
     let host_service = &state.services.host_service;
-    let service_service = &state.services.service_service;
-
+    
     let destination_host = host_service.get_host(&destination_host_id).await?.ok_or_else(|| ApiError::not_found("Could not find host"))?;
     let other_host = host_service.get_host(&other_host_id).await?.ok_or_else(|| ApiError::not_found("Could not find host to convert"))?;
-    
-    let mut other_host_services = service_service.get_services_for_host(&other_host_id).await?;
-    other_host_services.iter_mut().for_each(|s| s.base.host_id = destination_host_id);
 
-    let update_request = HostUpdateRequest {
-        name: None,
-        hostname: None,
-        description: None,
-        target: None,
-        interfaces: Some([destination_host.base.interfaces, other_host.base.interfaces].concat()),
-        services: Some([destination_host.base.services, other_host_services.iter().map(|s| s.id).collect()].concat()),
-        open_ports: None,
-        groups: None,
-    };
-
-    service_service.update_multiple_services(other_host_services).await?;
-
-    let updated_host = host_service.update_host(
-        &destination_host_id, 
-        update_request, 
-        ).await?;
-
-    host_service.delete_host(&other_host_id).await?;
+    let updated_host = host_service.consolidate_hosts(destination_host, other_host).await?;
     
     Ok(Json(ApiResponse::success(updated_host)))
 }

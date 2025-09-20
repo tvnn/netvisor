@@ -1,12 +1,56 @@
-pub const HOST_COLOR: &str = "blue";
-pub const SERVICE_COLOR: &str = "indigo";
-pub const INTERFACE_COLOR: &str = "purple";
+use strum_macros::{Display, EnumDiscriminants, EnumIter};
 
-pub const MEDIA_COLOR: &str = "teal";
-pub const DNS_COLOR: &str = "emerald";
-pub const VPN_COLOR: &str = "green";
-pub const GATEWAY_COLOR: &str = "yellow";
-pub const REVERSE_PROXY_COLOR: &str = "cyan";
+use crate::server::shared::types::metadata::EntityMetadataProvider;
 
-pub const SUBNET_COLOR: &str = "orange";
-pub const HOST_GROUP_COLOR: &str = "rose";
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumDiscriminants, EnumIter)]
+#[strum_discriminants(derive(Display))]
+pub enum Entity {
+    Host,
+    Service,
+    Interface,
+    Subnet,
+    HostGroup,
+    Topology,
+
+    Media,
+    Dns,
+    Vpn,
+    Gateway,
+    ReverseProxy,
+}
+
+impl EntityMetadataProvider for Entity {
+    fn color(&self) -> &'static str {
+        match self {
+            Entity::Host => "blue",
+            Entity::Service => "indigo",
+            Entity::Interface => "purple",
+
+            Entity::Media => "teal",
+            Entity::Dns => "emerald",
+            Entity::Vpn => "green",
+            Entity::Gateway => "yellow",
+            Entity::ReverseProxy => "cyan",
+
+            Entity::Subnet => "orange",
+            Entity::HostGroup => "rose",
+            Entity::Topology => "pink"
+        }
+    }
+
+    fn icon(&self) -> &'static str {
+        match self {
+            Entity::Host => "Server",
+            Entity::Service => "Layers",
+            Entity::Interface => "EthernetPort",
+            Entity::Media => "Music",
+            Entity::Dns => "Search",
+            Entity::Vpn => "HatGlasses",
+            Entity::Gateway => "Router",
+            Entity::ReverseProxy => "Split",
+            Entity::Subnet => "Network",
+            Entity::HostGroup => "Group",
+            Entity::Topology => "ChartNetwork"
+        }
+    }
+}

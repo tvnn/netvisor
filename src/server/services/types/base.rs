@@ -32,6 +32,15 @@ impl Default for ServiceBase {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, Eq, PartialEq)]
+pub struct ServiceUpdateRequest {
+    pub host_id: Option<Uuid>,
+    pub service_type: Option<ServiceType>,
+    pub name: Option<String>,
+    pub ports: Option<Vec<Port>>,
+    pub interface_bindings: Option<Vec<Uuid>>
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Service {
     pub id: Uuid,
@@ -92,11 +101,6 @@ impl Service {
             let ports: Vec<Port> = result.into_iter().filter_map(|p| p).collect();
             let ports_for_return = ports.clone();
             let name = service_type.display_name().to_string();
-
-            let service_type = match service_type {
-                ServiceType::NetvisorDaemon { .. } => ServiceType::NetvisorDaemon { daemon_id: Uuid::nil() },
-                other => other
-            };
 
             let service = Service::new(ServiceBase { host_id: *host_id, service_type, name, ports, interface_bindings: interface_bindings.clone() });
             

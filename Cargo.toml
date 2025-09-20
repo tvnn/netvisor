@@ -2,7 +2,7 @@
 name = "netvisor-server"
 version = "0.1.0"
 edition = "2021"
-description = "HTTP API server for NetVisor network diagnostics"
+description = "NetVisor HTTP API server"
 
 [[bin]]
 name = "daemon"
@@ -90,6 +90,7 @@ rand = "0.9.2"
 mac_oui = { version = "0.4.11", features = ["with-db"] }
 petgraph = { version = "0.8.2", features = ["serde-1"] }
 petgraph-graphml = "5.0.0"
+itertools = "0.14.0"
 
 # Linux/Unix dependencies  
 [target.'cfg(target_os = "linux")'.dependencies]

@@ -1,15 +1,16 @@
 use anyhow::{anyhow, Error, Result};
 use futures::future::try_join_all;
+use itertools::Itertools;
 use uuid::Uuid;
 use std::{sync::Arc};
 use crate::server::{
-    host_groups::{service::HostGroupService}, hosts::{
+    host_groups::service::HostGroupService, hosts::{
 
         storage::HostStorage,
         types::{
-            api::{HostUpdateRequest}, base::{Host, HostBase}
+            api::HostUpdateRequest, base::{Host, HostBase}
         }
-    }, services::service::ServiceService, subnets::{service::SubnetService}, utils::base::ServerNetworkUtils
+    }, interfaces::types::base::{Interface, InterfaceBase}, services::{service::ServiceService, types::base::{Service, ServiceUpdateRequest}}, subnets::service::SubnetService
 };
 
 pub struct HostService {
@@ -17,17 +18,15 @@ pub struct HostService {
     host_group_service: Arc<HostGroupService>,
     subnet_service: Arc<SubnetService>,
     service_service: Arc<ServiceService>,
-    utils: ServerNetworkUtils
 }
 
 impl HostService {
-    pub fn new(storage: Arc<dyn HostStorage>, host_group_service: Arc<HostGroupService>, subnet_service: Arc<SubnetService>, service_service: Arc<ServiceService>, utils: ServerNetworkUtils) -> Self {
+    pub fn new(storage: Arc<dyn HostStorage>, host_group_service: Arc<HostGroupService>, subnet_service: Arc<SubnetService>, service_service: Arc<ServiceService>) -> Self {
         Self { 
             storage,
             host_group_service,
             subnet_service,
             service_service,
-            utils
         }
     }
 
@@ -38,16 +37,18 @@ impl HostService {
 
         let all_hosts = self.storage.get_all().await?;
 
-        let host_from_storage = match all_hosts.iter().find(|h| host.eq(h)) {
+        let host_from_storage = match all_hosts.into_iter().find(|h| host.eq(h)) {
             Some(existing_host) => {
-                existing_host.clone()
+                self.update_subnet_host_relationships(&existing_host, true).await?;
+                self.consolidate_hosts(existing_host, host).await?
             }
             None => {
                 self.storage.create(&host).await?;
-                self.update_subnet_host_relationships(&host, false).await?;
                 host
             }
         };
+
+        self.update_subnet_host_relationships(&host_from_storage, false).await?;
 
         Ok(host_from_storage)
     }
@@ -63,6 +64,8 @@ impl HostService {
     pub async fn update_host(&self, id: &Uuid, updates: HostUpdateRequest) -> Result<Host, Error> {
         
         let mut host = self.get_host(&id).await?.ok_or_else(||anyhow!("Host '{}' not found", id))?;
+
+        self.update_subnet_host_relationships(&host, true).await?;
 
         if let Some(name) = updates.name {
             host.base.name = name;
@@ -80,8 +83,6 @@ impl HostService {
             host.base.hostname = hostname;
         }  
 
-        self.update_subnet_host_relationships(&host, true).await?;
-
         if let Some(interfaces) = updates.interfaces {
             host.base.interfaces = interfaces;
         }
@@ -97,53 +98,128 @@ impl HostService {
         Ok(host)
     }
 
-    pub async fn update_subnet_host_relationships(&self, host: &Host, remove: bool) -> Result<(), Error> {
-        let subnet_ids: Vec<Uuid> = host.base.interfaces.iter().map(|interface| interface.base.subnet_id).collect();
-        let services = self.service_service.get_services_for_host(&host.id).await?;
+    pub async fn consolidate_hosts(&self, destination_host: Host, other_host: Host) -> Result<Host> {
+        let mut new_interfaces: Vec<Interface> = Vec::new();
+        let other_host_services = self.service_service.get_services_for_host(&other_host.id).await?;
 
+        let other_host_services_updates: Vec<(Service, ServiceUpdateRequest)> = other_host_services.into_iter().map(|s| {
+                                    
+            // Update bindings - check for subnet compatibility, not interface ID matching
+            let updated_interface_bindings = s.base.interface_bindings.iter().filter_map(|binding_id| {
+                
+                // Get the original interface from the other host
+                if let Some(origin_interface) = other_host.get_interface(binding_id) {
+                    
+                    // Check if destination host already has an interface on the same subnet
+                    if let Some(dest_interface) = destination_host.base.interfaces.iter()
+                        .find(|dest_iface| dest_iface.base.subnet_id == origin_interface.base.subnet_id) {
+                        
+                        // Reuse existing destination interface
+                        Some(dest_interface.id)
+                        
+                    } else {
+                        
+                        // Check if we've already decided to create this interface
+                        if let Some(existing_new) = new_interfaces.iter()
+                            .find(|new_iface| new_iface.base.subnet_id == origin_interface.base.subnet_id) {
+                                                    
+                            Some(existing_new.id)
+                            
+                        } else {
+                            
+                            // Create new interface based on origin, but with new ID
+                            let new_interface = Interface::new(InterfaceBase {
+                                name: Some(format!("Migrated from {}", 
+                                    other_host.base.name.clone())),
+                                subnet_id: origin_interface.base.subnet_id,
+                                ip_address: origin_interface.base.ip_address,
+                                mac_address: None,
+                            });
+                            
+                            let interface_id = new_interface.id;
+                            new_interfaces.push(new_interface);
+                            Some(interface_id)
+                        }
+                    }
+                } else {
+                    tracing::warn!("Could not find interface {} on origin host", binding_id);
+                    None
+                }
+            })
+            .collect();
+
+            (
+                s,
+                ServiceUpdateRequest {
+                    host_id: Some(destination_host.id),
+                    interface_bindings: Some(updated_interface_bindings),
+                    service_type: None,
+                    name: None,
+                    ports: None,
+                }
+            )
+        })
+        .collect();
+
+        let update_request = HostUpdateRequest {
+            name: None,
+            hostname: None,
+            description: None,
+            target: None,
+            interfaces: Some([destination_host.base.interfaces, new_interfaces].concat()),
+            services: Some([destination_host.base.services, other_host_services_updates.iter().map(|(s,_)| s.id).collect()].concat()),
+            open_ports: None,
+            groups: None,
+        };
+
+        let service_update_futures = other_host_services_updates.into_iter().map(|(s, update)| {
+            self.service_service.update_service(s, update)
+        });
+
+        try_join_all(service_update_futures).await?;
+
+        let updated_host = self.update_host(
+            &destination_host.id, 
+            update_request, 
+        ).await?;
+
+        self.delete_host(&other_host.id).await?;
+
+        Ok(updated_host)
+    }
+
+    pub async fn update_subnet_host_relationships(&self, host: &Host, remove: bool) -> Result<(), Error>{
+        let subnet_ids: Vec<Uuid> = host.base.interfaces.iter().map(|i| i.base.subnet_id).unique().collect();
+        
         if let Ok(mut subnets) = self.subnet_service.get_by_ids(&subnet_ids).await {
             let subnet_futures: Vec<_> = subnets
                 .iter_mut()
                 .map(|subnet| {
                         
-                        if remove { subnet.remove_host_relationships(host) }
-                        else { subnet.create_host_relationships(host, services.iter().map(|s| s).collect()) };
+                        if remove { subnet.remove_host_relationship(host) }
+                        else { subnet.create_host_relationship(host) };
                         
                         return self.subnet_service.update_subnet(subnet.clone())
                     }
                 )
                 .collect();
 
-            try_join_all(subnet_futures).await;
+            try_join_all(subnet_futures).await?;
         };
         Ok(())
     }
 
     pub async fn delete_host(&self, id: &Uuid) -> Result<()> {
 
-        let mut subnets = self.subnet_service.get_all_subnets().await?;
-        let update_futures = subnets
-            .iter_mut()
-            .filter_map(|s| {
-                let has_host_as_dns = s.base.dns_resolvers.iter().find(|n_id| n_id == &id).is_some();
-                let has_host_as_gateway = s.base.gateways.iter().find(|n_id| n_id == &id).is_some();
-                let has_host = s.base.hosts.iter().find(|n_id| n_id == &id).is_some();
-                if has_host_as_dns {
-                    s.base.dns_resolvers = s.base.dns_resolvers.iter().filter(|n_id| n_id != &id).cloned().collect();
-                }
-                if has_host_as_gateway {
-                    s.base.gateways = s.base.gateways.iter().filter(|n_id| n_id != &id).cloned().collect();
-                }
-                if has_host {
-                    s.base.hosts = s.base.hosts.iter().filter(|n_id| n_id != &id).cloned().collect();
-                }
-                if has_host_as_dns || has_host_as_gateway || has_host {
-                    return Some(self.subnet_service.update_subnet(s.clone()));
-                }
-                None
-            });
+        let host = self.get_host(id).await?.ok_or_else(|| anyhow::anyhow!("Host {} not found", id))?;
 
-        try_join_all(update_futures).await?;
+        let service_deletion_futures = host.base.services.iter().map(|s| {
+            self.service_service.delete_service(s, false)
+        });
+
+        try_join_all(service_deletion_futures).await?;
+        
+        self.update_subnet_host_relationships(&host, true).await?;
 
         let all_groups = self.host_group_service.get_all_groups().await?;
     

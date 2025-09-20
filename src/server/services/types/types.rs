@@ -1,16 +1,15 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter, FromRepr};
 use strum::{IntoDiscriminant};
-use uuid::Uuid;
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::endpoints::{Endpoint};
 use crate::server::services::types::patterns::{Pattern, Vendor};
 use crate::server::services::types::ports::{Port};
+use crate::server::shared::types::metadata::EntityMetadataProvider;
 use crate::server::subnets::types::base::{SubnetType};
 use crate::server::{shared::{types::metadata::TypeMetadataProvider}};
 
 #[derive(Debug, Clone, PartialEq, Eq, FromRepr, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
-#[serde(tag = "type")]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum ServiceType {
     // Services with a single specific port they can generally be identified on
@@ -21,7 +20,7 @@ pub enum ServiceType {
     Proxmox,
     Jellyfin,
     Emby,
-    NetvisorDaemon{daemon_id: Uuid},
+    NetvisorDaemon,
     NetvisorServer,
     Unbound,
     Bind9,
@@ -335,12 +334,17 @@ impl ServiceType {
     }
 }
 
-impl TypeMetadataProvider for ServiceType {
-    fn id(&self) -> String { 
-        self.discriminant().to_string()
-    } 
+impl EntityMetadataProvider for ServiceType {
+    fn color(&self) -> &'static str {
+       self.service_category().color()
+    }
+    fn icon(&self) -> &'static str {
+        self.service_category().icon()
+    }
+}
 
-    fn display_name(&self) -> &str {
+impl TypeMetadataProvider for ServiceType {
+    fn display_name(&self) -> &'static str {
         match self {            
             // DNS Services
             ServiceType::Unbound => "Unbound DNS",
@@ -432,7 +436,7 @@ impl TypeMetadataProvider for ServiceType {
         }
     }
     
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         match self {            
             // VPN Services
             ServiceType::GenericVpnGateway => "Generic VPN service",
@@ -505,7 +509,7 @@ impl TypeMetadataProvider for ServiceType {
             ServiceType::HpPrinter => "HP Printer",
             
             // NetVisor
-            ServiceType::NetvisorDaemon{..} => "NetVisor daemon for enhanced network diagnostics",
+            ServiceType::NetvisorDaemon{..} => "NetVisor daemon",
             ServiceType::NetvisorServer => "NetVisor server for network management",
 
             // IoT
@@ -524,16 +528,8 @@ impl TypeMetadataProvider for ServiceType {
         }
     }
     
-    fn category(&self) -> &str {
+    fn category(&self) -> &'static str {
         self.service_category().category_str()
-    }
-    
-    fn icon(&self) -> &str {
-        self.service_category().icon()
-    }
-    
-    fn color(&self) -> &str {
-       self.service_category().color()
     }
     
     fn metadata(&self) -> serde_json::Value {

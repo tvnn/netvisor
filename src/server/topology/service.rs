@@ -1,11 +1,12 @@
-use std::{collections::{HashMap, HashSet}, sync::Arc};
+use std::{collections::{HashMap}, sync::Arc};
 
 use anyhow::Error;
+use itertools::Itertools;
 use petgraph::{graph::NodeIndex, Graph};
 use uuid::Uuid;
 
 use crate::server::{
-    host_groups::{service::HostGroupService, types::HostGroup}, hosts::{service::HostService, types::base::Host}, services::{service::ServiceService, types::{base::Service, types::ServiceType}}, shared::types::metadata::TypeMetadataProvider, subnets::{service::SubnetService, types::base::{Subnet, SubnetBase}}, topology::types::base::{Edge, EdgeType, Node, NodeLayout, NodeType, SubnetChild, SubnetChildNodeSize, XY}
+    host_groups::{service::HostGroupService, types::HostGroup}, hosts::{service::HostService, types::base::Host}, services::{service::ServiceService, types::base::Service}, subnets::{service::SubnetService, types::base::Subnet}, topology::types::base::{Edge, EdgeType, Node, NodeLayout, NodeType, SubnetChild, SubnetChildNodeSize, SubnetLayout, XY}
 };
 
 const SUBNET_PADDING: XY = XY{x: 50, y: 50};
@@ -42,15 +43,17 @@ impl TopologyService {
 
         // Add nodes to graph
         let mut graph: Graph<Node, Edge> = Graph::new();
-        let node_indices: HashMap<Uuid, NodeIndex> = subnet_nodes.into_iter().chain(child_nodes.into_iter()).map(|node| {
-            let node_id = node.id;
-            let node_idx = graph.add_node(node);
-            (node_id, node_idx)
-        })
-        .collect();
+        let node_indices: HashMap<Uuid, NodeIndex> = subnet_nodes
+            .into_iter()
+            .chain(child_nodes.into_iter())
+            .map(|node| {
+                let node_id = node.id;
+                let node_idx = graph.add_node(node);
+                (node_id, node_idx)
+            })
+            .collect();
         
         // Second pass: add edges
-        self.add_subnet_infra_edges(&mut graph, &node_indices, &subnets);
         self.add_node_group_edges(&mut graph, &node_indices, &host_groups);
         self.add_interface_edges(&mut graph, &node_indices, &hosts);
         
@@ -79,7 +82,7 @@ impl TopologyService {
     }
 
     /// Calculate the size of a container and positions of arbitrarily-sized children in that container
-    fn calculate_container_size_and_child_positions(&self, child_sizes: HashMap<Uuid, XY>, container_grid: &XY, padding: &XY) -> (HashMap<Uuid, XY>, XY) {
+    fn calculate_container_size_and_child_positions(&self, child_sizes: Vec<(Uuid, XY)>, container_grid: &XY, padding: &XY) -> (HashMap<Uuid, XY>, XY) {
         let mut child_positions = HashMap::new();
 
         let mut rows: Vec<Vec<(Uuid, NodeLayout)>> = vec![Vec::new(); container_grid.y];
@@ -109,12 +112,12 @@ impl TopologyService {
 
             current_y += max_height_in_row + padding.y;
             max_x = max_x.max(current_x);
-            max_y = max_y.max(current_y + max_height_in_row);
+            max_y = max_y.max(current_y);
         }
 
         let container_size = XY {
-            x: max_x + padding.x,
-            y: max_y + padding.y
+            x: max_x,
+            y: max_y
         };
 
         (child_positions, container_size)
@@ -126,85 +129,52 @@ impl TopologyService {
         hosts: &[Host],
         subnets: &[Subnet],
         services: &[Service]
-    ) -> (HashMap<Uuid, XY>, Vec<Node>) {
+    ) -> (HashMap<Uuid, SubnetLayout>, Vec<Node>) {
         let children_by_subnet = self.group_children_by_subnet(hosts, services);
         let mut child_nodes = Vec::new();
 
-        let subnet_sizes: HashMap<Uuid, XY> = children_by_subnet.iter().map(|(subnet_id, children)| {
-            let size = self.calculate_subnet_size(*subnet_id, children, subnets, services, &mut child_nodes);
-            (*subnet_id, size)
-        }).collect();
+        let subnet_sizes: HashMap<Uuid, SubnetLayout> = children_by_subnet.iter().map(|(subnet_id, children)| {
+            let (size, infra_width) = self.calculate_subnet_size(*subnet_id, children, subnets, services, &mut child_nodes);
+            (*subnet_id, SubnetLayout{
+                size, infra_width
+            })
+        })
+        .sorted_by_key(|(_, layout)| (layout.size.x*layout.size.y) )
+        .collect();
 
         (subnet_sizes, child_nodes)
     }
 
     fn group_children_by_subnet(&self, hosts: &[Host], services: &[Service]) -> HashMap<Uuid, Vec<SubnetChild>> {
         hosts.iter()
-            .flat_map(|host| {
+            .flat_map(|host| {   
 
-                let services_for_host: Vec<Service> = services.iter().filter(|s| s.base.host_id == host.id).cloned().collect();
+                if host.base.interfaces.len() > 0 {
+                    return host.base.interfaces.iter()
+                        .map(|interface| {
 
-                // Create primary node for host
-                let primary_service: Option<&Service> = services_for_host.iter()
-                    .filter(|s| !s.base.service_type.is_generic_service())
-                    .max_by_key(|s| s.base.interface_bindings.len())
-                    .or_else(||services_for_host.first());
-                
-                let primary_service_interface = primary_service
-                    .as_ref()
-                    .and_then(|p| p.base.interface_bindings.first())
-                    .and_then(|binding| host.get_interface(binding));
+                            let services: Vec<Uuid> = services.iter()
+                                .filter_map(|s| if s.base.interface_bindings.contains(&interface.id) {Some(s.id)} else {None})
+                                .collect();
 
-                let (subnet_id, primary_service_interface_id) = match primary_service_interface {
-                    Some(interface) => (interface.base.subnet_id, interface.id),
-                    None => (self.no_subnet_id, Uuid::nil())
-                };
-
-                let (services_on_primary_interface, other_services): (Vec<_>, Vec<_>) = services_for_host
-                    .iter()
-                    .partition(|s| {
-                        s.base.interface_bindings.iter().any(|binding_id| {
-                            host.get_interface(binding_id)
-                                .map_or(false, |interface| interface.id == primary_service_interface_id)
+                            let subnet_child = SubnetChild {
+                                id: interface.id,
+                                host_id: host.id,
+                                interface_id: Some(interface.id),
+                                size: SubnetChildNodeSize::from_service_count(services.len()),
+                            };
+                            (interface.base.subnet_id, subnet_child)
                         })
-                    });
-
-                let services_on_primary_interface_ids: Vec<Uuid> = services_on_primary_interface.iter().map(|s| s.id).collect();
-
-                let host_node = (subnet_id, SubnetChild {
-                    host: host.clone(),
-                    interface: primary_service_interface.cloned(),
-                    node_type: NodeType::HostNode,
-                    id: host.id,
-                    label: Some(host.base.name.clone()),
-                    size: SubnetChildNodeSize::from_service_count(services_for_host.len()),
-                    services: services_on_primary_interface_ids
-                });
-                
-                // Create interface nodes for non-primary interfaces
-                let mut interface_nodes: Vec<(Uuid, SubnetChild)> = host.base.interfaces.iter()
-                    .filter(|interface| interface.id != primary_service_interface_id)
-                    .map(|interface| {
-
-                        let services: Vec<Uuid> = other_services.iter()
-                            .filter_map(|s| if s.base.interface_bindings.contains(&interface.id) {Some(s.id)} else {None})
-                            .collect();
-
-                        let subnet_child = SubnetChild {
-                            host: host.clone(),
-                            interface: Some(interface.clone()),
-                            node_type: NodeType::InterfaceNode,
-                            id: interface.id,
-                            label: interface.base.name.clone(),
-                            size: SubnetChildNodeSize::from_service_count(services.len()),
-                            services
-                        };
-                        (interface.base.subnet_id, subnet_child)
-                    })
-                    .collect();
-                
-                interface_nodes.push(host_node);
-                interface_nodes
+                        .collect::<Vec<_>>()
+                        .into_iter()
+                } else {
+                    return vec![(self.no_subnet_id, SubnetChild {
+                            id: host.id,
+                            host_id: host.id,
+                            interface_id: None,
+                            size: SubnetChildNodeSize::Small
+                        })].into_iter()
+                }
             })
             .fold(HashMap::new(), |mut acc, (subnet_id, child)| {
                 acc.entry(subnet_id).or_insert_with(Vec::new).push(child);
@@ -219,7 +189,7 @@ impl TopologyService {
         subnets: &[Subnet],
         services: &[Service],
         child_nodes: &mut Vec<Node>
-    ) -> XY {
+    ) -> (XY, usize) {
         // Separate infrastructure from regular nodes
         let (infrastructure_children, regular_children) = if let Some(subnet) = subnets.iter().find(|s| s.id == subnet_id) {
             let infrastructure_host_ids: Vec<Uuid> = subnet.base.gateways.iter()
@@ -229,13 +199,17 @@ impl TopologyService {
                 .map(|s| s.base.host_id)
                 .collect();
 
-            let infrastructure: Vec<_> = children.iter().filter(|c| 
-                c.node_type == NodeType::HostNode && infrastructure_host_ids.contains(&c.host.id)
-            ).collect();
+            let infrastructure: Vec<_> = children
+                .iter()
+                .filter(|c| infrastructure_host_ids.contains(&c.host_id))
+                .sorted_by_key(|c| c.size.size().y )
+                .collect();
             
-            let regular: Vec<_> = children.iter().filter(|c| 
-                c.node_type != NodeType::HostNode || !infrastructure_host_ids.contains(&c.host.id)
-            ).collect();
+            let regular: Vec<_> = children
+                .iter()
+                .filter(|c| !infrastructure_host_ids.contains(&c.host_id))
+                .sorted_by_key(|c| c.size.size().y )
+                .collect();
             
             (infrastructure, regular)
         } else {
@@ -246,7 +220,7 @@ impl TopologyService {
         let (regular_grid_size, regular_grid_dimensions, regular_child_positions) = {
             let regular_grid_dimensions = self.calculate_container_grid_dimensions(regular_children.len());
             let (regular_child_positions, regular_grid_size) = self.calculate_container_size_and_child_positions(
-                regular_children.iter().map(|c| (c.id, c.size.size())).collect(),
+                regular_children.iter().map(|c| (c.id, c.size.size())).collect::<Vec<_>>(),
                 &regular_grid_dimensions,
                 &NODE_PADDING
             );
@@ -260,7 +234,7 @@ impl TopologyService {
             let infra_grid_dimensions = XY { x: infra_cols, y: regular_grid_dimensions.y };
 
             let (infra_child_positions, infra_grid_size) = self.calculate_container_size_and_child_positions(
-                infrastructure_children.iter().map(|c| (c.id, c.size.size())).collect(),
+                infrastructure_children.iter().map(|c| (c.id, c.size.size())).collect::<Vec<_>>(),
                 &infra_grid_dimensions,
                 &NODE_PADDING
             );
@@ -271,11 +245,13 @@ impl TopologyService {
             if let Some(position) = infra_child_positions.get(&child.id) {
                 child_nodes.push(Node { 
                     id: child.id,
-                    node_type: child.node_type.clone(),
-                    label: child.label.clone(),
+                    interface_id: child.interface_id,
+                    host_id: Some(child.host_id),
+                    node_type: NodeType::HostNode,
                     parent_id: Some(subnet_id), 
                     position: position.clone(),
-                    size: child.size.size()
+                    size: child.size.size(),
+                    infra_width: None
                 });
             }
         });
@@ -284,53 +260,52 @@ impl TopologyService {
             if let Some(position) = regular_child_positions.get(&child.id) {
                 // Shift position to the right if there are infra columns
                 let node_position = XY {
-                    x: position.x + if infra_cols > 0 {infra_grid_size.x + NODE_PADDING.x} else {0},
+                    x: position.x + if infra_cols > 0 {infra_grid_size.x} else {0},
                     y: position.y
                 };
                 child_nodes.push(Node { 
                     id: child.id,
-                    node_type: child.node_type.clone(),
-                    label: child.label.clone(),
+                    interface_id: child.interface_id,
+                    host_id: Some(child.host_id),
+                    node_type: NodeType::HostNode,
                     parent_id: Some(subnet_id), 
                     position: node_position,
-                    size: child.size.size()
+                    size: child.size.size(),
+                    infra_width: None
                 });
             };
         });
 
         let total_size = XY {
-            x: regular_grid_size.x + infra_grid_size.x + if infra_grid_size.x > 0 {NODE_PADDING.x} else {0},
+            x: regular_grid_size.x + infra_grid_size.x,
             y: regular_grid_size.y.max(infra_grid_size.y)
         };
 
-        // let total_grid_dimensions = XY {
-        //     x: regular_grid_dimensions.x + infra_grid_dimensions.x,
-        //     y: regular_grid_dimensions.y.max(infra_grid_dimensions.y)
-        // };
-
-        total_size
+        (total_size, infra_grid_size.x)
     }
 
 
     fn create_subnet_nodes(
         &self, 
         subnets: &[Subnet],
-        sizes: &HashMap<Uuid, XY>
+        layouts: &HashMap<Uuid, SubnetLayout>
     ) -> Vec<Node> {
 
         let container_grid_dimensions = self.calculate_container_grid_dimensions(subnets.len()+1);
 
-        let (positions, _) = self.calculate_container_size_and_child_positions(sizes.clone(), &container_grid_dimensions, &SUBNET_PADDING);
+        let (positions, _) = self.calculate_container_size_and_child_positions(layouts.iter().map(|(id,layout)|(*id, layout.size.clone())).collect::<Vec<_>>(), &container_grid_dimensions, &SUBNET_PADDING);
 
-        let no_subnet_node = match (sizes.get(&self.no_subnet_id), positions.get(&self.no_subnet_id)) {
-            (Some(size), Some(position)) => {
+        let no_subnet_node = match (layouts.get(&self.no_subnet_id), positions.get(&self.no_subnet_id)) {
+            (Some(layout), Some(position)) => {
                 Some(Node {
                     id: self.no_subnet_id,
-                    label: None,
                     parent_id: None,
+                    host_id: None,
+                    interface_id: None,
                     node_type: NodeType::SubnetNode,
                     position: position.clone(),
-                    size: size.clone()
+                    size: layout.size.clone(),
+                    infra_width: Some(layout.infra_width.clone())
                 })
             },
             _ => None
@@ -338,14 +313,16 @@ impl TopologyService {
 
         subnets.iter()
             .filter_map(|subnet| {
-                if let (Some(position), Some(size)) = (positions.get(&subnet.id), sizes.get(&subnet.id)) {
+                if let (Some(position), Some(layout)) = (positions.get(&subnet.id), layouts.get(&subnet.id)) {
                     return Some(Node { 
                         id: subnet.id,
-                        label: Some(subnet.base.cidr.to_string()),
                         parent_id: None,
+                        host_id: None,
+                        interface_id: None,
                         node_type: NodeType::SubnetNode,
                         position: position.clone(),
-                        size: size.clone()
+                        size: layout.size.clone(),
+                        infra_width: Some(layout.infra_width.clone())
                     })
                 }
                 None
@@ -354,126 +331,24 @@ impl TopologyService {
             .collect()
     }
 
-    fn calculate_subnet_positions(&self, layouts: &HashMap<Uuid, NodeLayout>, subnets: &[Subnet]) -> HashMap<Uuid, XY> {
-        let mut positions = HashMap::new();
-        let subnet_count = subnets.len() + if layouts.contains_key(&self.no_subnet_id) {1} else {0};
-        let container_grid_dimensions = self.calculate_container_grid_dimensions(subnet_count);
-        
-        // Group subnets by their grid row
-        let mut rows: Vec<Vec<(Uuid, &NodeLayout)>> = vec![Vec::new(); container_grid_dimensions.y];
-
-        // Handle no-subnet case (always at index 0)
-        if let Some(no_subnet_layout) = layouts.get(&self.no_subnet_id) {
-            let grid_pos = self.calculate_child_coordinates_in_grid(&container_grid_dimensions, 0);
-            rows[grid_pos.y].push((self.no_subnet_id, no_subnet_layout));
-        }
-        
-        for (idx, subnet) in subnets.iter().enumerate() {
-            if let Some(layout) = layouts.get(&subnet.id) {
-                let grid_pos = self.calculate_child_coordinates_in_grid(&container_grid_dimensions, idx + 1);
-                rows[grid_pos.y].push((subnet.id, layout));
-            }
-        }
-        
-        let mut current_y = 0;
-        
-        for row in rows {
-            if row.is_empty() {
-                continue;
-            }
-            
-            let mut current_x = 0;
-            let mut max_height_in_row = 0;
-            
-            for (subnet_id, layout) in row {
-                positions.insert(subnet_id, XY { x: current_x, y: current_y });
-                current_x += layout.size.x + SUBNET_PADDING.x;
-                max_height_in_row = max_height_in_row.max(layout.size.y);
-            }
-            
-            current_y += max_height_in_row + SUBNET_PADDING.y;
-        }
-        
-        positions
-    }
-
     // 2nd pass
-    fn add_subnet_infra_edges(&self, graph: &mut Graph<Node, Edge>, node_indices: &HashMap<Uuid, NodeIndex>, subnets: &[Subnet]) {
-        // for subnet in subnets {
-        //     // Gateway edges: Connect gateways to all nodes in their subnet
-        //     for gateway_id in &subnet.base.gateways {
-        //         if let Some(&gateway_idx) = node_indices.get(gateway_id) {
-        //             for host_id in &subnet.base.hosts {
-        //                 if let Some(&host_idx) = node_indices.get(host_id) {
-        //                     if gateway_id != host_id {
-        //                         graph.add_edge(gateway_idx, host_idx, Edge {
-        //                             edge_type: EdgeType::Gateway,
-        //                             source: *host_id,
-        //                             target: *gateway_id,
-        //                         });
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-            
-        //     // DNS edges: Connect DNS servers to nodes they serve
-        //     for dns_id in &subnet.base.dns_resolvers {
-        //         if let Some(&dns_idx) = node_indices.get(dns_id) {
-        //             for host_id in &subnet.base.hosts {
-        //                 if let Some(&host_idx) = node_indices.get(host_id) {
-        //                     if dns_id != host_id {
-        //                         graph.add_edge(dns_idx, host_idx, Edge {
-        //                             edge_type: EdgeType::DnsResolution,
-        //                             source: *host_id,
-        //                             target: *dns_id,
-        //                         });
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-
-        //     // Reverse proxy edges
-        //     for rproxy_id in &subnet.base.reverse_proxies {
-        //         if let Some(&rproxy_idx) = node_indices.get(rproxy_id) {
-        //             for host_id in &subnet.base.hosts {
-        //                 if let Some(&host_idx) = node_indices.get(host_id) {
-        //                     if rproxy_id != host_id {
-        //                         graph.add_edge(rproxy_idx, host_idx, Edge {
-        //                             edge_type: EdgeType::ReverseProxy,
-        //                             source: *host_id,
-        //                             target: *rproxy_id,
-        //                         });
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-    }
-
     fn add_interface_edges(&self, graph: &mut Graph<Node, Edge>, node_indices: &HashMap<Uuid, NodeIndex>, hosts: &[Host]) {
 
-        // hosts.iter().for_each(|host| {
-
-        //     let primary_id = match host.primary_interface() {
-        //         Some(interface) => interface.id,
-        //         None => Uuid::nil()
-        //     };
-            
-        //     host.base.interfaces.iter()
-        //         .filter(|interface| interface.id != primary_id)
-        //         .for_each(|interface| {
-        //             if let (Some(&source_idx), Some(&target_idx)) = (node_indices.get(&interface.id), node_indices.get(&host.id)) {
-        //                 graph.add_edge(source_idx, target_idx, Edge {
-        //                     edge_type: EdgeType::HostInterface,
-        //                     source: host.id,
-        //                     target: interface.id
-        //                 });
-        //             }
-        //         });
-        // });
+        hosts.iter().for_each(|host| {     
+            if let Some(first_interface) = host.base.interfaces.first() {
+                host.base.interfaces.iter()
+                    .filter(|interface| interface.id != first_interface.id)
+                    .for_each(|interface| {
+                        if let (Some(&source_idx), Some(&target_idx)) = (node_indices.get(&interface.id), node_indices.get(&first_interface.id)) {
+                            graph.add_edge(source_idx, target_idx, Edge {
+                                edge_type: EdgeType::HostInterface,
+                                source: host.id,
+                                target: interface.id
+                            });
+                        }
+                    });
+            }
+        });
 
     }
 

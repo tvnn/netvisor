@@ -2,13 +2,13 @@ use std::net::Ipv4Addr;
 
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
+use itertools::Itertools;
 use pnet::{ipnetwork::IpNetwork};
 use serde::{Deserialize, Serialize};
-use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
 use uuid::Uuid;
 
-use crate::server::{hosts::types::base::Host, services::types::base::Service, shared::{constants::VPN_COLOR, types::metadata::TypeMetadataProvider}};
+use crate::server::{hosts::types::base::Host, services::types::base::Service, shared::{constants::{Entity}, types::metadata::{EntityMetadataProvider, TypeMetadataProvider}}};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum SubnetSource {
@@ -99,25 +99,26 @@ impl Subnet {
         }
     }
 
-    pub fn remove_host_relationships(&mut self, host: &Host) {
-        let service_ids: &Vec<Uuid> = &host.base.services;
+    pub fn remove_service_relationships(&mut self, service: &Service) {
+        self.base.dns_resolvers = self.base.dns_resolvers.iter().filter(|dns_service_id| **dns_service_id != service.id).cloned().collect();
+        self.base.gateways = self.base.gateways.iter().filter(|gateway_service_id| **gateway_service_id != service.id).cloned().collect();
+        self.base.reverse_proxies = self.base.reverse_proxies.iter().filter(|proxy_service_id| **proxy_service_id != service.id).cloned().collect();
+    }
 
-        self.base.dns_resolvers = self.base.dns_resolvers.iter().filter(|dns_service_id| !service_ids.contains(dns_service_id)).cloned().collect();
-        self.base.gateways = self.base.gateways.iter().filter(|gateway_service_id| !service_ids.contains(gateway_service_id)).cloned().collect();
-        self.base.reverse_proxies = self.base.reverse_proxies.iter().filter(|proxy_service_id| !service_ids.contains(proxy_service_id)).cloned().collect();
-        
+    pub fn create_service_relationships(&mut self, service: &Service) {
+        if service.base.service_type.is_dns_resolver() { self.base.dns_resolvers.push(service.id) }
+        if service.base.service_type.is_gateway() { self.base.gateways.push(service.id) }
+        if service.base.service_type.is_reverse_proxy() { self.base.reverse_proxies.push(service.id) }
+    }
+
+    pub fn remove_host_relationship(&mut self, host: &Host) {
         self.base.hosts = self.base.hosts.iter().filter(|host_id| **host_id != host.id).cloned().collect();
     }
     
-    pub fn create_host_relationships(&mut self, host: &Host, services: Vec<&Service>)  {
-        
-        services.iter().for_each(|s| {
-            if s.base.service_type.is_dns_resolver() { self.base.dns_resolvers.push(s.id) }
-            if s.base.service_type.is_gateway() { self.base.gateways.push(s.id) }
-            if s.base.service_type.is_reverse_proxy() { self.base.reverse_proxies.push(s.id) }
-        });
-
-        self.base.hosts.push(host.id)
+    pub fn create_host_relationship(&mut self, host: &Host)  {
+        if host.base.interfaces.iter().map(|i| i.base.subnet_id).contains(&self.id) {
+            self.base.hosts.push(host.id)   
+        }
     }
 }
 
@@ -176,12 +177,23 @@ impl SubnetType {
     }
 }
 
-impl TypeMetadataProvider for SubnetType {
-    fn id(&self) -> String {
-        self.discriminant().to_string()
+impl EntityMetadataProvider for SubnetType {
+    fn color(&self) -> &'static str {
+        match self {
+            SubnetType::DockerBridge => "blue",
+            SubnetType::Lan => "green",
+            SubnetType::VpnTunnel => Entity::Vpn.color(),
+            SubnetType::Internet => "gray",
+            SubnetType::Unknown => "gray",
+        }
     }
+    fn icon(&self) -> &'static str {
+        Entity::Subnet.icon()
+    }
+}
 
-    fn display_name(&self) -> &str {
+impl TypeMetadataProvider for SubnetType {
+    fn display_name(&self) -> &'static str {
         match self {
             SubnetType::DockerBridge => "Docker Bridge",
             SubnetType::Lan => "Local Area Network",
@@ -191,7 +203,7 @@ impl TypeMetadataProvider for SubnetType {
         }
     }
 
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         match self {
             SubnetType::DockerBridge => "Docker bridge network",
             SubnetType::Lan => "Local area network",
@@ -199,27 +211,5 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::Internet => "Internet network",
             SubnetType::Unknown => "Unknown network type",
         }
-    }
-
-    fn category(&self) -> &str {
-        "subnet"
-    }
-
-    fn icon(&self) -> &str {
-        "Network"
-    }
-
-    fn color(&self) -> &str {
-        match self {
-            SubnetType::DockerBridge => "blue",
-            SubnetType::Lan => "green",
-            SubnetType::VpnTunnel => VPN_COLOR,
-            SubnetType::Internet => "gray",
-            SubnetType::Unknown => "gray",
-        }
-    }
-
-    fn metadata(&self) -> serde_json::Value {
-        serde_json::json!({})
     }
 }

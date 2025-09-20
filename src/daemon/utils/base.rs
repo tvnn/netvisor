@@ -48,13 +48,10 @@ pub trait DaemonUtils: NetworkUtils {
 
         let interfaces = self.get_own_interfaces();
 
-        tracing::debug!("Found {} network interfaces", interfaces.len());
-
         let (memberships, subnets): (Vec<Interface>, Vec<Subnet>) = interfaces.into_iter()
             .filter(|interface| !interface.is_loopback())
             .flat_map(|interface| {
                 let name = interface.name;
-                tracing::info!("Interface {}, mac {:?}", &name, &interface.mac);
                 interface.ips.iter().filter_map(|ip| {
                     if let Some(subnet) = Subnet::from_discovery(&name, &ip, daemon_id) {
                         let mac_address = match interface.mac {

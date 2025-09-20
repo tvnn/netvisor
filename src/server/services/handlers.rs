@@ -7,7 +7,7 @@ use axum::{
 use uuid::Uuid;
 use std::{sync::Arc};
 use crate::server::{
-        config::AppState, services::types::base::Service, shared::types::api::{ApiError, ApiResponse, ApiResult}
+        config::AppState, services::types::base::{Service, ServiceUpdateRequest}, shared::types::api::{ApiError, ApiResponse, ApiResult}
     };
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -33,9 +33,9 @@ async fn create_service(
 async fn get_all_services(
     State(state): State<Arc<AppState>>,
 ) -> ApiResult<Json<ApiResponse<Vec<Service>>>> {
-    let service = &state.services.service_service;
+    let service_service = &state.services.service_service;
     
-    let subnets = service.get_all_services().await?;
+    let subnets = service_service.get_all_services().await?;
     
     Ok(Json(ApiResponse::success(subnets)))
 }
@@ -43,16 +43,13 @@ async fn get_all_services(
 async fn update_service(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    Json(request): Json<Service>,
+    Json(request): Json<ServiceUpdateRequest>,
 ) -> ApiResult<Json<ApiResponse<Service>>> {
-    let service = &state.services.service_service;
-    
-    let mut subnet = service.get_service(&id).await?
-        .ok_or_else(|| ApiError::not_found(&format!("Service '{}' not found", &id)))?;
+    let service_service = &state.services.service_service;
 
-    subnet.base = request.base;
+    let service = service_service.get_service(&id).await?.ok_or_else(||ApiError::not_found(&format!("Service {} not found", id)))?;
 
-    let updated_subnet = service.update_service(subnet).await?;
+    let updated_subnet = service_service.update_service(service, request).await?;
     
     Ok(Json(ApiResponse::success(updated_subnet)))
 }
@@ -61,14 +58,14 @@ async fn delete_service(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
 ) -> ApiResult<Json<ApiResponse<()>>> {
-    let service = &state.services.service_service;
+    let service_service = &state.services.service_service;
     
     // Check if host exists
-    if service.get_service(&id).await?.is_none() {
+    if service_service.get_service(&id).await?.is_none() {
         return Err(ApiError::not_found(&format!("Service '{}' not found", &id)));
     }
     
-    service.delete_service(&id).await?;
+    service_service.delete_service(&id, true).await?;
     
     Ok(Json(ApiResponse::success(())))
 }

@@ -1,42 +1,106 @@
 use serde::Serialize;
+use strum::IntoDiscriminant;
+use std::fmt::Display;
 
 #[derive(Serialize, Debug, Clone)]
-pub struct TypeRegistry {
+pub struct MetadataRegistry {
     pub service_types: Vec<TypeMetadata>,
     pub subnet_types: Vec<TypeMetadata>,
-    pub edge_types: Vec<TypeMetadata>
+    pub edge_types: Vec<TypeMetadata>,
+    pub entities: Vec<EntityMetadata>
 }
 
 #[derive(Serialize, Debug, Clone)]
 pub struct TypeMetadata {
-    pub id: String,           // "VpnTunnel", "VpnServer", "SshAccess"
-    pub display_name: String, // "VPN Tunnel", "VPN Server", "SSH Access"  
-    pub description: String,  // Full description
-    pub category: String,     // "VPN", "Infrastructure", "Remote Access"
-    pub icon: String,         // "shield", "server", "terminal"
-    pub color: String,        // "text-orange-400"
-    pub metadata: serde_json::Value, // Type-specific extra data
+    pub id: String,
+    pub display_name: Option<&'static str>,
+    pub description: Option<&'static str>,
+    pub category: Option<&'static str>,
+    pub icon: Option<&'static str>,
+    pub color: Option<&'static str>,
+    pub metadata: Option<serde_json::Value>,
 }
 
-// Universal trait for all domain entities
-pub trait TypeMetadataProvider {
-    fn id(&self) -> String;
-    fn display_name(&self) -> &str;
-    fn description(&self) -> &str;
-    fn category(&self) -> &str;
-    fn icon(&self) -> &str;
-    fn color(&self) -> &str;
-    fn metadata(&self) -> serde_json::Value;
-    
+#[derive(Serialize, Debug, Clone)]
+pub struct EntityMetadata {
+    pub id: String,
+    pub color: &'static str,
+    pub icon: &'static str
+}
+
+pub trait MetadataProvider<T>: IntoDiscriminant
+where 
+    <Self as IntoDiscriminant>::Discriminant: Display
+{
+    fn id(&self) -> String {
+        self.discriminant().to_string()
+    }
+    fn to_metadata(&self) -> T;
+}
+
+pub trait EntityMetadataProvider: MetadataProvider<EntityMetadata> + IntoDiscriminant
+where 
+    <Self as IntoDiscriminant>::Discriminant: Display
+{
+    fn color(&self) -> &'static str;
+    fn icon(&self) -> &'static str;
+}
+
+// TypeMetadataProvider now extends EntityMetadataProvider
+pub trait TypeMetadataProvider: EntityMetadataProvider + MetadataProvider<TypeMetadata> + IntoDiscriminant
+where 
+    <Self as IntoDiscriminant>::Discriminant: Display
+{
+    fn display_name(&self) -> &'static str;
+    fn description(&self) -> &'static str {
+        ""
+    }
+    fn category(&self) -> &'static str {
+        ""
+    }
+    fn metadata(&self) -> serde_json::Value {
+        serde_json::json!({})
+    }
+}
+
+// Blanket implementation for EntityMetadata
+impl<T> MetadataProvider<EntityMetadata> for T 
+where 
+    T: EntityMetadataProvider + IntoDiscriminant,
+    <T as IntoDiscriminant>::Discriminant: Display
+{
+    fn to_metadata(&self) -> EntityMetadata {
+        EntityMetadata { 
+            id: self.id(), 
+            color: self.color(),
+            icon: self.icon()
+        }
+    }
+}
+
+// Blanket implementation for TypeMetadata
+impl<T> MetadataProvider<TypeMetadata> for T 
+where 
+    T: TypeMetadataProvider + IntoDiscriminant,
+    <T as IntoDiscriminant>::Discriminant: Display
+{
     fn to_metadata(&self) -> TypeMetadata {
+        let id = <T as MetadataProvider<TypeMetadata>>::id(self);
+        let display_name = self.display_name();
+        let description = self.description();
+        let category = self.category();
+        let icon = self.icon();
+        let color = self.color();
+        let metadata = self.metadata();
+
         TypeMetadata {
-            id: self.id(),
-            display_name: self.display_name().to_string(),
-            description: self.description().to_string(),
-            category: self.category().to_string(),
-            icon: self.icon().to_string(),
-            color: self.color().to_string(),
-            metadata: self.metadata(),
+            id,
+            display_name: (!display_name.is_empty()).then_some(display_name),
+            description: (!description.is_empty()).then_some(description),
+            category: (!category.is_empty()).then_some(category),
+            icon: (!icon.is_empty()).then_some(icon),
+            color: (!color.is_empty()).then_some(color),
+            metadata: (!metadata.as_object().map_or(false, |obj| obj.is_empty())).then_some(metadata)
         }
     }
 }

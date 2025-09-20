@@ -1,6 +1,6 @@
 use anyhow::{Error, Result};
 use futures::future::try_join_all;
-use crate::{daemon::{self, discovery::service::base::DaemonDiscoveryService}, server::{services::types::{base::ServiceBase, ports::Port, types::ServiceType}, utils::base::NetworkUtils}};
+use crate::{daemon::{discovery::service::base::DaemonDiscoveryService}, server::{services::types::{base::ServiceBase, ports::Port, types::ServiceType}, utils::base::NetworkUtils}};
 use std::{result::Result::Ok};
 use crate::{
     daemon::{utils::base::{DaemonUtils}},
@@ -33,7 +33,7 @@ impl DaemonDiscoveryService {
 
         let (target, interface_bindings) = if let Some(interface) = server_subnet_interface {
             (HostTarget::Interface(interface.id), vec!(interface.id))
-        } else if interfaces.len() > 0 {
+        } else if !interfaces.is_empty() {
             (HostTarget::Interface(interfaces[0].id), vec!(interfaces[0].id))
         } else {
             (HostTarget::Hostname, vec!())
@@ -47,7 +47,7 @@ impl DaemonDiscoveryService {
         let host_base = HostBase {
             name: hostname.clone().unwrap_or(format!("Netvisor-Daemon-{}", local_ip)),
             hostname,
-            description: Some("NetVisor daemon for network diagnostics".to_string()),
+            description: Some("NetVisor daemon".to_string()),
             target,
             services: Vec::new(),
             interfaces,
@@ -57,7 +57,7 @@ impl DaemonDiscoveryService {
 
         let mut host = Host::new(host_base);
 
-        let service_type = ServiceType::NetvisorDaemon{daemon_id};
+        let service_type = ServiceType::NetvisorDaemon;
         let mut daemon_service = Service::new(ServiceBase { 
             name: service_type.display_name().to_string(), 
             service_type,

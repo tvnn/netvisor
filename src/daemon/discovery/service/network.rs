@@ -2,8 +2,7 @@ use std::{net::IpAddr, sync::Arc};
 use anyhow::{Error, Result};
 use cidr::{IpCidr};
 use chrono::{DateTime, Utc};
-use serde_json::ser;
-use strum::{IntoDiscriminant, IntoEnumIterator};
+use strum::{IntoEnumIterator};
 use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{interfaces::types::base::{Interface, InterfaceBase}, services::types::types::ServiceType}};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
@@ -299,7 +298,7 @@ impl DaemonDiscoveryService {
         };
 
         let interface = Interface::new(InterfaceBase{
-            name: Some("Discovered interface".to_string()),
+            name: None,
             subnet_id: subnet.id,
             ip_address: host_ip,
             mac_address: mac,
@@ -325,30 +324,17 @@ impl DaemonDiscoveryService {
 
         let mut services = Vec::new();
         let mut unclaimed_ports = open_ports.clone();
-        let mut has_non_generic_service: bool = false;
-        let mut has_generic_service: bool = false;
         
         let mut sorted_service_types: Vec<ServiceType> = ServiceType::iter()
             .collect::<Vec<ServiceType>>();
-        
-        sorted_service_types.sort_unstable_by_key(|s| {
-            s.discriminant().to_string().contains("Generic")
-        });
+
+        sorted_service_types.sort_unstable_by_key(|s| s.is_generic_service());
 
         // Add services from detected ports
         for service_type in sorted_service_types {
-            // Once a non-generic service has been identified, skip generic services
-            if service_type.is_generic_service() && has_generic_service {
-                continue;
-            }
             if let (Some(service), Some(service_ports)) = Service::from_discovery(service_type, host_ip, &unclaimed_ports, &endpoint_responses, &subnet, mac, &host.id, &interface_bindings) {
-                if !service.base.service_type.is_generic_service() && !has_non_generic_service {
+                if !service.base.service_type.is_generic_service() {
                     host.base.name = service.base.service_type.display_name().to_string();
-                    has_non_generic_service = true;
-                }
-
-                if service.base.service_type.is_generic_service() {
-                    has_generic_service = true;
                 }
 
                 unclaimed_ports.retain(|p| !service_ports.contains(p));

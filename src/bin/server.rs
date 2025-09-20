@@ -13,7 +13,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[derive(Parser)]
 #[command(name = "netvisor-server")]
-#[command(about = "NetVisor network diagnostics server")]
+#[command(about = "NetVisor server")]
 struct Cli {
     /// Configuration file path
     #[arg(short, long, default_value = "netvisor.toml")]

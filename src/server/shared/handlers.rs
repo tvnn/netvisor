@@ -2,6 +2,8 @@ use axum::{routing::get, Json, Router};
 use strum::IntoEnumIterator;
 use std::{sync::Arc};
 use crate::server::services::types::types::ServiceType;
+use crate::server::shared::constants::{Entity};
+use crate::server::shared::types::metadata::{MetadataProvider, MetadataRegistry};
 use crate::server::topology::types::base::EdgeType;
 use crate::server::{
         config::AppState, 
@@ -12,7 +14,7 @@ use crate::server::{
         services::handlers as service_handlers,
         hosts::{handlers as host_handlers}, 
         subnets::{handlers as subnet_handlers, types::base::SubnetType},
-        shared::types::{api::ApiResponse, metadata::{TypeMetadataProvider, TypeRegistry}}, 
+        shared::types::{api::ApiResponse}, 
     };
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -27,11 +29,12 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .nest("/api/services", service_handlers::create_router())
 }
 
-async fn get_type_registry() -> Json<ApiResponse<TypeRegistry>> {
-    let registry = TypeRegistry {
+async fn get_type_registry() -> Json<ApiResponse<MetadataRegistry>> {
+    let registry = MetadataRegistry {
         service_types: ServiceType::iter().map(|t| t.to_metadata()).collect(),
         subnet_types: SubnetType::iter().map(|t| t.to_metadata()).collect(),
         edge_types: EdgeType::iter().map(|t| t.to_metadata()).collect(),
+        entities: Entity::iter().map(|e| e.to_metadata()).collect()
     };
     
     Json(ApiResponse::success(registry))
