@@ -183,7 +183,7 @@
           helpText="Select which network interfaces this service is bound to"
           placeholder="Select an interface to bind..."
           emptyMessage="No interfaces bound to this service. Add one to get started."
-          allowReorder={false}
+          allowReorder={true}
           allowDuplicates={false}
           allowItemEdit={() => false}
           allowItemRemove={() => true}

@@ -7,7 +7,7 @@
   import type { Port, Service } from '$lib/features/services/types/base';
   import type { Host } from '$lib/features/hosts/types/base';
   import { serviceTypes } from '$lib/shared/stores/registry';
-  import { getServicesForHost, updateHostServices } from '$lib/features/services/store';
+  import { createDefaultService, getServicesForHost, updateHostServices } from '$lib/features/services/store';
   import type { TypeMetadata } from '$lib/shared/stores/registry';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
@@ -18,7 +18,6 @@
   // Local state for managing services during editing
   let currentServices: Service[] = [];
   let servicesToDelete: string[] = [];
-  let hasChanges = false;
   
   // Get current services for this host
   $: hostServicesStore = getServicesForHost(formData.id);
@@ -40,17 +39,9 @@
     
     const defaultPorts = serviceMetadata.metadata?.default_ports || [];
     
-    const newService: Partial<Service> = {
-      // No ID yet - will be assigned by backend
-      host_id: formData.id,
-      service_type: { type: serviceTypeId },
-      name: serviceMetadata.display_name,
-      ports: [...defaultPorts],
-      interface_bindings: formData.interfaces.length > 0 ? [formData.interfaces[0].id] : []
-    };
+    const newService: Service = createDefaultService(serviceTypeId, formData.id, serviceTypes.getDisplay(serviceTypeId), defaultPorts)
     
     currentServices = [...currentServices, newService as Service];
-    hasChanges = true;
   }
   
   function handleServiceChange(service: Service, index: number) {
@@ -58,7 +49,6 @@
       const updatedServices = [...currentServices];
       updatedServices[index] = service;
       currentServices = updatedServices;
-      hasChanges = true;
     }
   }
   
@@ -71,27 +61,16 @@
     }
     
     currentServices = currentServices.filter((_, i) => i !== index);
-    hasChanges = true;
   }
   
   // Save changes when parent form is submitted
   export async function saveServices() {
-    if (hasChanges) {
-      await updateHostServices(formData.id, currentServices, servicesToDelete);
-      hasChanges = false;
-      servicesToDelete = [];
-    }
+    await updateHostServices(formData.id, currentServices, servicesToDelete);
+    servicesToDelete = [];
   }
 </script>
 
-<div class="space-y-6">
-  <div class="flex items-center justify-between">
-    <h3 class="text-lg font-medium text-white">Services</h3>
-    {#if hasChanges}
-      <span class="text-sm text-yellow-400">● Unsaved changes</span>
-    {/if}
-  </div>
-  
+<div class="space-y-6">  
   <ListConfigEditor
     {form}
     bind:items={currentServices}

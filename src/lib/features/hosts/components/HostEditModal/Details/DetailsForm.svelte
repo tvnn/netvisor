@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Globe, Server, FileText, Tag as TagIcon, AlertCircle, TargetIcon } from 'lucide-svelte';
+  import { AlertCircle } from 'lucide-svelte';
   import { field } from 'svelte-forms';
   import { required } from 'svelte-forms/validators';
   import type { Host } from '$lib/features/hosts/types/base';

@@ -2,6 +2,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { Endpoint, Port, Service } from './types/base';
+import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
 export const services = writable<Service[]>([]);
 
@@ -88,12 +89,17 @@ export async function updateHostServices(hostId: string, servicesToUpdate: Servi
 }
 
 // Helper functions for working with services and the TypeRegistry
-export function createDefaultService(serviceType: string, serviceName?: string, defaultPorts?: Port[], defaultEndpoints?: Endpoint[]) {
-  // return {
-  //   service_type: serviceType,
-  //   name: serviceName || serviceType,
-  //   ports: defaultPorts ? [...defaultPorts] : [],
-  // };
+export function createDefaultService(serviceType: string, host_id: string, serviceName?: string, defaultPorts?: Port[]): Service {
+  return {
+    id: uuidv4Sentinel,
+    created_at: utcTimeZoneSentinel,
+    updated_at: utcTimeZoneSentinel,
+    host_id,
+    service_type: {type: serviceType},
+    name: serviceName || serviceType,
+    ports: defaultPorts ? [...defaultPorts] : [],
+    interface_bindings: []
+  };
 }
 
 export function getServiceDisplayName(service: Service): string {
