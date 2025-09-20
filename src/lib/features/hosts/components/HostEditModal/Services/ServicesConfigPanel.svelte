@@ -4,11 +4,12 @@
   import { AlertCircle, AlertTriangle } from 'lucide-svelte';
   import type { Service, Port } from '$lib/features/services/types/base';
   import type { Interface } from '$lib/features/hosts/types/base';
-  import { registry, serviceTypes } from '$lib/shared/stores/registry';
+  import { entities, registry, serviceTypes } from '$lib/shared/stores/registry';
   import Tag from '$lib/shared/components/data/Tag.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
   import { PortDisplay } from '$lib/shared/components/forms/selection/display/PortDisplay.svelte';
 	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
+	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
   
   export let form: any;
   export let service: Service | null = null;
@@ -18,7 +19,7 @@
   let serviceNameField: any;
   
   // Get service metadata from registry - use serviceTypes helper for consistency
-  $: serviceMetadata = service ? serviceTypes.getItem(service.service_type.type) : null;
+  $: serviceMetadata = service ? serviceTypes.getItem(service.service_type) : null;
   
   // Validators
   const serviceNameValidator = () => (value: string) => {
@@ -31,14 +32,14 @@
   // Initialize form fields when service changes
   $: if (service && serviceMetadata) {
     serviceNameField = field(
-      `service_name_${service.service_type.type}`,
+      `service_name_${service.service_type}`,
       service.name,
       [serviceNameValidator()]
     );
         
     // Register with parent form
     if (form) {
-      form[`service_name_${service.service_type.type}`] = serviceNameField;
+      form[`service_name_${service.service_type}`] = serviceNameField;
     }
   }
   
@@ -83,11 +84,13 @@
     onChange(updatedService);
   }
   
-  // Interface binding management for the new architecture
+  // Interface binding management
   function handleAddInterface(interfaceId: string) {
     if (!service) return;
-    
-    // Don't add duplicate interfaces
+        
+    // Validate interface exists in host_interfaces
+    const interfaceExists = host_interfaces.find(iface => iface.id === interfaceId);
+    if (!interfaceExists) return;
     if (service.interface_bindings.includes(interfaceId)) return;
     
     const updatedService = {
@@ -101,23 +104,37 @@
   function handleRemoveInterface(index: number) {
     if (!service) return;
     
+    if (index < 0 || index >= service.interface_bindings.length) return;
+    
+    const removedInterfaceId = service.interface_bindings[index];
     const updatedService = {
       ...service,
       interface_bindings: service.interface_bindings.filter((_, i) => i !== index)
     };
-    
+        
     onChange(updatedService);
   }
   
-  // Get bound interfaces for display
+  // Reactive statement for bound interfaces
   $: boundInterfaces = service ? 
-    service.interface_bindings.map(id => host_interfaces.find(iface => iface.id === id)).filter(Boolean) as Interface[] : 
+    service.interface_bindings
+      .map(id => {
+        const iface = host_interfaces.find(iface => iface.id === id);
+        if (!iface) {
+          console.warn(`⚠️ Interface binding ${id} not found in host interfaces for service ${service.name}`);
+        }
+        return iface;
+      })
+      .filter(Boolean) as Interface[] : 
     [];
   
-  // Available interfaces (not already bound)
-  $: availableInterfaces = host_interfaces.filter(iface => 
-    !service?.interface_bindings.includes(iface.id)
-  );
+  // Reactive statement for available interfaces
+  $: availableInterfaces = host_interfaces.filter(iface => {
+    const isAlreadyBound = service?.interface_bindings.includes(iface.id) || false;
+    return !isAlreadyBound;
+  });
+  
+  let colorHelper = entities.getColorHelper("Service")
 </script>
 
 {#if service && serviceMetadata}
@@ -146,7 +163,7 @@
             type="text"
             bind:value={$serviceNameField.value}
             class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
-                   focus:outline-none focus:ring-2 focus:ring-blue-500
+                   focus:outline-none focus:ring-2
                    {$serviceNameField.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
             placeholder="Enter a descriptive name..."
           />
@@ -186,17 +203,14 @@
           onRemove={handleRemoveInterface}
           onEdit={() => {}}
         />
+
+        <!-- Warning for no bindings -->
+        {#if service.interface_bindings.length === 0}
+          <InlineWarning title="No Interface Bindings" body="This service has no interface bindings, which may cause issues with visualization. Consider binding it to at least one interface." />
+        {/if}
       </div>
     {:else}
-      <div class="p-4 bg-gray-800/50 rounded-lg">
-        <div class="flex items-center gap-2 text-yellow-400 mb-2">
-          <AlertTriangle size={16} />
-          <span class="text-sm font-medium">No interfaces available</span>
-        </div>
-        <p class="text-xs text-gray-400">
-          Add network interfaces to the host first, then bind services to specific interfaces.
-        </p>
-      </div>
+      <InlineWarning title="No Interfaces Available" body="Add network interfaces to the host first, then bind services to specific interfaces." />
     {/if}
     
     <!-- Ports Configuration using ListManager -->

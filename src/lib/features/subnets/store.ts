@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
@@ -63,4 +63,8 @@ export function createEmptySubnetFormData(): Subnet {
     reverse_proxies: [],
     source: 'Manual'
   };
+}
+
+export function getSubnetFromId(id: string) {
+  return get(subnets).find(s => s.id == id);
 }

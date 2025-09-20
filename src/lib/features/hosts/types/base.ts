@@ -19,7 +19,6 @@ export interface Interface {
     name: string,
     ip_address?: string,
     mac_address?: string
-    is_primary: boolean
 }
 
 export type HostTarget = 

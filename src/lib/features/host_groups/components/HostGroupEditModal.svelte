@@ -4,6 +4,8 @@
   import EditModal from '$lib/shared/components/forms/EditModal.svelte';
   import HostManager from './HostManager.svelte';
   import type { HostGroup } from '../types/base';
+	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
+	import { entities } from '$lib/shared/stores/registry';
   
   export let group: HostGroup | null = null;
   export let isOpen = false;
@@ -63,6 +65,8 @@
   // Dynamic labels based on create/edit mode
   $: saveLabel = isEditing ? 'Update Group' : 'Create Group';
   $: cancelLabel = 'Cancel';
+
+  let colorHelper = entities.getColorHelper("HostGroup");
 </script>
 
 <EditModal
@@ -80,9 +84,7 @@
 >
   <!-- Header icon -->
   <svelte:fragment slot="header-icon">
-    <div class="p-2 bg-purple-600/20 rounded-lg">
-      <Users class="w-5 h-5 text-purple-400" />
-    </div>
+    <ModalHeaderIcon icon={entities.getIconComponent("HostGroup")} color={colorHelper.string}/>
   </svelte:fragment>
   
   <!-- Content -->
@@ -104,7 +106,7 @@
               bind:value={formData.name}
               placeholder="e.g., Production Servers, Web Cluster"
               required
-              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent"
             />
           </div>
           
@@ -118,7 +120,7 @@
               bind:value={formData.description}
               placeholder="Optional description of this host group..."
               rows="3"
-              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent resize-none"
             ></textarea>
           </div>
         </div>

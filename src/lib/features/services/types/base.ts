@@ -17,9 +17,8 @@ export interface Service {
   created_at: string,
   updated_at: string,
   host_id: string;
-  service_type: {
-    type: string
-  };
+  service_type: string;
+  service_type_config?: Record<string, any>,
   name: string;
   ports: Port[];
   interface_bindings: string[];

@@ -1,10 +1,10 @@
   interface TopologyNodeData {
-    color: string;
-    icon: string;
     id: string;
-    label: string;
     node_type: string;
     parent_id: string | null;
+    host_id: string | null;
+    infra_width: number | null;
+    interface_id: string | null;
     position: { x: number; y: number };
     size: { x: number; y: number };
   }

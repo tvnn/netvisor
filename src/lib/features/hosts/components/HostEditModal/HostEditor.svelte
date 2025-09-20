@@ -6,7 +6,9 @@
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import InterfacesForm from './Interfaces/InterfacesForm.svelte';
 	import ServicesForm from './Services/ServicesForm.svelte';
-	import { registry } from '$lib/shared/stores/registry';
+	import { entities, registry } from '$lib/shared/stores/registry';
+	import type { Service } from '$lib/features/services/types/base';
+	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
   
   export let host: Host | null = null;
   export let isOpen = false;
@@ -17,6 +19,8 @@
   
   let loading = false;
   let deleting = false;
+  
+  let currentHostServices: Service[] = [];
   
   // Tab management
   let activeTab = 'details';
@@ -70,9 +74,9 @@
     formData = host ? { ...host } : createEmptyHostFormData();
     activeTab = 'details'; // Reset to first tab
   }
-  
+
   async function handleSubmit() {
-    // Clean up the data before sending
+    // Clean up the host data
     const hostData: Host = {
       ...formData,
       name: formData.name.trim(),
@@ -81,16 +85,37 @@
     
     loading = true;
     try {
+      // First, save/update the host
       if (isEditing && host) {
         await onUpdate(host.id, hostData);
       } else {
         await onCreate(hostData);
       }
+      
+      // Then save individual services (for editing only)
+      if (isEditing && currentHostServices.length > 0) {        
+        // Import updateService function directly
+        const { updateService } = await import('$lib/features/services/store');
+        
+        // Update each service individually
+        const updatePromises = currentHostServices.map(async (service) => {          
+          try {
+            await updateService(service.id, service);
+          } catch (error) {
+            throw error;
+          }
+        });
+        
+        await Promise.all(updatePromises);
+      }
+      
+    } catch (error) {
+      throw error;
     } finally {
       loading = false;
     }
   }
-  
+
   async function handleDelete() {
     if (onDelete && host) {
       deleting = true;
@@ -142,9 +167,7 @@
 >
   <!-- Header icon -->
   <svelte:fragment slot="header-icon">
-    <div class="p-2 bg-blue-600/20 rounded-lg">
-      <Server class="w-5 h-5 text-blue-400" />
-    </div>
+    <ModalHeaderIcon icon={Server} color={entities.getColorString("Host")}/>
   </svelte:fragment>
   
   <!-- Content -->
@@ -167,20 +190,7 @@
             >
               <div class="flex items-center gap-2">
                 <svelte:component this={tab.icon} class="w-4 h-4" />
-                <span>{tab.label}</span>
-                
-                <!-- Show capability count indicator -->
-                {#if tab.id === 'services' && formData.services.length > 0}
-                  <span class="ml-1 px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded-full">
-                    {formData.services.length}
-                  </span>
-                {/if}
-
-                {#if tab.id === 'interfaces' && formData.interfaces.length > 0}
-                  <span class="ml-1 px-1.5 py-0.5 text-xs bg-blue-600 text-white rounded-full">
-                    {formData.interfaces.length}
-                  </span>
-                {/if}
+                {tab.label}
               </div>
             </button>
           {/each}
@@ -188,34 +198,42 @@
       </div>
     {/if}
     
-    <!-- Tab content -->
-    <div class="flex-1 overflow-hidden min-h-0">
+    <!-- Tab Content -->
+    <div class="flex-1 overflow-auto">
+      <!-- Details Tab -->
       {#if activeTab === 'details'}
-        <div class="h-full overflow-auto">
-          <div class="p-6">
-            {#if !isEditing}
-              <div class="mb-6">
-                <h3 class="text-lg font-medium text-white mb-2">Host Details</h3>
-                <p class="text-sm text-gray-400">
-                  Configure basic information about this host including its connection details and metadata.
-                </p>
-              </div>
-            {/if}
-            
+        <div class="h-full">
+          {#if !isEditing}
+            <!-- Create flow description -->
+            <div class="p-6 bg-blue-900/10 border-b border-blue-800/30">
+              <h3 class="text-lg font-medium text-blue-300 mb-2">
+                {tabs.find(t => t.id === activeTab)?.label}
+              </h3>
+              <p class="text-blue-200/80 text-sm">
+                {tabs.find(t => t.id === activeTab)?.description}
+              </p>
+            </div>
+          {/if}
+          
+          <div class="flex-1 relative">
             <DetailsForm 
               {form}
-              bind:formData={formData}
-            />
+              bind:formData={formData}/>
           </div>
         </div>
-        
-      {:else if activeTab === 'services'}
-        <div class="h-full overflow-hidden">
+      {/if}
+      
+      <!-- Services Tab -->
+      {#if activeTab === 'services'}
+        <div class="h-full">
           {#if !isEditing}
-            <div class="p-6 pb-4 border-b border-gray-700 flex-shrink-0">
-              <h3 class="text-lg font-medium text-white mb-2">Capabilities & Monitoring</h3>
-              <p class="text-sm text-gray-400">
-                Define what services this host provides.
+            <!-- Create flow description -->
+            <div class="p-6 bg-blue-900/10 border-b border-blue-800/30">
+              <h3 class="text-lg font-medium text-blue-300 mb-2">
+                {tabs.find(t => t.id === activeTab)?.label}
+              </h3>
+              <p class="text-blue-200/80 text-sm">
+                {tabs.find(t => t.id === activeTab)?.description}
               </p>
             </div>
           {/if}
@@ -224,16 +242,22 @@
             <ServicesForm 
               {form}
               bind:formData={formData}
-            />
+              bind:currentServices={currentHostServices}/>
           </div>
         </div>
-      {:else if activeTab == 'interfaces'}
-      <div class="h-full overflow-hidden">
+      {/if}
+      
+      <!-- Interfaces Tab -->
+      {#if activeTab === 'interfaces'}
+        <div class="h-full">
           {#if !isEditing}
-            <div class="p-6 pb-4 border-b border-gray-700 flex-shrink-0">
-              <h3 class="text-lg font-medium text-white mb-2">Interfaces</h3>
-              <p class="text-sm text-gray-400">
-                Select the subnets that this host is a member of.
+            <!-- Create flow description -->
+            <div class="p-6 bg-blue-900/10 border-b border-blue-800/30">
+              <h3 class="text-lg font-medium text-blue-300 mb-2">
+                {tabs.find(t => t.id === activeTab)?.label}
+              </h3>
+              <p class="text-blue-200/80 text-sm">
+                {tabs.find(t => t.id === activeTab)?.description}
               </p>
             </div>
           {/if}

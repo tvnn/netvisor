@@ -64,7 +64,7 @@
     initiateDiscovery({daemon_id: daemon.id})
   }
 
-  function handleConvert(host: Host) {
+  function handleStartConsolidate(host: Host) {
     otherHost = host;
     showHostConsolidationModal = true;
   }
@@ -91,7 +91,7 @@
     }
   }
 
-  async function handleHostConvert(destination_host_id: string, other_host_id: string) {
+  async function handleConsolidateHosts(destination_host_id: string, other_host_id: string) {
     const result = await consolidateHosts(destination_host_id, other_host_id);
     if (result?.success) {
       showHostConsolidationModal = false;
@@ -145,7 +145,7 @@
           onEdit={handleEditHost}
           onDelete={handleDeleteHost}
           onDiscovery={handleRunDiscovery}
-          onConvert={handleConvert}
+          onConsolidate={handleStartConsolidate}
         />
       {/each}
     </div>
@@ -163,6 +163,6 @@
 <HostConsolidationModal
   isOpen={showHostConsolidationModal}
   otherHost={otherHost}
-  onConvert={handleHostConvert}
+  onConsolidate={handleConsolidateHosts}
   onClose={() => (showHostConsolidationModal = false)}
 />

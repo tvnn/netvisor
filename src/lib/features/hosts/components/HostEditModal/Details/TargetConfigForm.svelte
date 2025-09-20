@@ -5,6 +5,7 @@
   import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
 	import { field } from 'svelte-forms';
   import { ipAddress } from '$lib/shared/components/forms/validators';
+	import { entities } from '$lib/shared/stores/registry';
 
   export let form: any;
   export let formData: Host;
@@ -92,12 +93,9 @@
     );
     form[`target_ip`] = ipAddressField;
   }
-</script>
 
-<h4 class="text-md font-medium text-white mb-4 flex items-center gap-2">
-  <TargetIcon class="w-5 h-5" />
-  Connection Target
-</h4>
+  let colorHelper = entities.getColorHelper("Host")
+</script>
 
 <div class="flex gap-6 items-start">
   <!-- Target Type Selection -->
@@ -111,7 +109,7 @@
       value={formData.target?.type || 'Interface'}
       on:change={handleTargetTypeChange}
       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
-              focus:outline-none focus:ring-2 focus:ring-blue-500"
+              focus:outline-none focus:ring-2"
     >
       {#each targetTypes as targetType}
         <option disabled={targetType.disabled} value={targetType.value}>{targetType.label}</option>
@@ -168,7 +166,7 @@
                   type="text"
                   bind:value={formData.target.config}
                   class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
-                        focus:outline-none focus:ring-2 focus:ring-blue-500
+                        focus:outline-none focus:ring-2
                         {$ipAddressField.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
                   placeholder="1.1.1.1"
                 />

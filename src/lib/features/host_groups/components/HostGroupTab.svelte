@@ -19,14 +19,6 @@
     editingGroup = group;
     showGroupEditor = true;
   }
-
-  // function handleExecuteDiagnostics(group: HostGroup) {
-  //   let data = {
-  //     group_id: group.id,
-  //     trigger_reason: "Manual"
-  //   }
-  //   executeDiagnostics(group.id, data);
-  // }
   
   function handleDeleteGroup(group: HostGroup) {
     if (confirm(`Are you sure you want to delete "${group.name}"?`)) {

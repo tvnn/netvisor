@@ -4,9 +4,9 @@
   export const ServiceDisplay: EntityDisplayComponent<Service> = {
     getId: (service: Service) => service.id,
     getLabel: (service: Service) => service.name,
-    getDescription: (service: Service) => serviceTypes.getDisplay(service.service_type.type),
-    getIcon: (service: Service) => serviceTypes.getIconComponent(service.service_type.type),
-    getIconColor: (service: Service) => serviceTypes.getColorHelper(service.service_type.type).icon,
+    getDescription: (service: Service) => serviceTypes.getDisplay(service.service_type),
+    getIcon: (service: Service) => serviceTypes.getIconComponent(service.service_type),
+    getIconColor: (service: Service) => serviceTypes.getColorHelper(service.service_type).icon,
     getTags: (service: Service) => {
 
       const tags: TagProps[] = [];

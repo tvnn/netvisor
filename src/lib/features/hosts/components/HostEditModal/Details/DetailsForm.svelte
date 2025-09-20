@@ -6,6 +6,7 @@
   import type { Host } from '$lib/features/hosts/types/base';
   import { maxLength } from '$lib/shared/components/forms/validators';
   import TargetConfigForm from './TargetConfigForm.svelte';
+	import { entities } from '$lib/shared/stores/registry';
   
   export let form: any;
   export let formData: Host;
@@ -34,9 +35,11 @@
       config: ''
     };
   }
+
+  let colorHelper = entities.getColorHelper("Host")
 </script>
 
-<div class="space-y-8">    
+<div class="space-y-6 p-6">    
   <div class="grid grid-cols-2 gap-6">
     <!-- Name -->
     <div class="space-y-2">
@@ -49,7 +52,7 @@
         type="text"
         bind:value={$name.value}
         class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
-               focus:outline-none focus:ring-2 focus:ring-blue-500
+               focus:outline-none focus:ring-2
                {$name.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
         placeholder="Enter a descriptive name for this host..."
       />
@@ -74,7 +77,7 @@
         type="text"
         bind:value={$hostname.value}
         class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
-               focus:outline-none focus:ring-2 focus:ring-blue-500"
+               focus:outline-none focus:ring-2"
         placeholder="api.example.com"
       />
       <p class="text-xs text-gray-400">
@@ -93,7 +96,7 @@
       bind:value={$description.value}
       rows="3"
       class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
-              focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical
+              focus:outline-none focus:ring-2 resize-vertical
               {$description.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
       placeholder="Optional description of this host's role or purpose..."
     ></textarea>

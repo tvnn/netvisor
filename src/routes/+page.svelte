@@ -19,9 +19,38 @@
   
   let activeTab = 'hosts';
   let appInitialized = false;
+
+  // Valid tab names for validation
+  const validTabs = ['hosts', 'subnets', 'groups', 'topology'];
+  
+  // Function to get initial tab from URL hash
+  function getInitialTab(): string {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.substring(1); // Remove the #
+      return validTabs.includes(hash) ? hash : 'hosts';
+    }
+    return 'hosts';
+  }
   
   function handleTabChange(tab: string) {
-    activeTab = tab;
+    if (validTabs.includes(tab)) {
+      activeTab = tab;
+      
+      // Update URL hash without triggering page reload
+      if (typeof window !== "undefined") {
+        window.location.hash = tab;
+      }
+    }
+  }
+
+  // Function to handle browser navigation (back/forward)
+  function handleHashChange() {
+    if (typeof window !== "undefined") {
+      const hash = window.location.hash.substring(1);
+      if (validTabs.includes(hash) && hash !== activeTab) {
+        activeTab = hash;
+      }
+    }
   }
 
   let registryLoaded = false;
@@ -29,6 +58,13 @@
   let subnetsLoaded = false;
 
   onMount(async () => {
+    // Set initial tab from URL hash
+    activeTab = getInitialTab();
+    
+    // Listen for hash changes (browser back/forward)
+    if (typeof window !== "undefined") {
+      window.addEventListener('hashchange', handleHashChange);
+    }
     // Load initial data
     await getRegistry().then(() => registryLoaded = true);
 
@@ -49,35 +85,40 @@
 
   onDestroy(() => {
     stopDiscoveryPolling();
+
+    if (typeof window !== "undefined") {
+      window.removeEventListener('hashchange', handleHashChange);
+    }
   });
 
   $: dataReady = registryLoaded && servicesLoaded && subnetsLoaded;
 </script>
+{#if dataReady}
+  <div class="min-h-screen bg-gray-900 text-white flex">
+    <!-- Sidebar -->
+    <Sidebar {activeTab} onTabChange={handleTabChange} />
+    
+    <!-- Main Content -->
+    <main class="flex-1 overflow-auto">
+      <div class="p-8">
+        {#if (appInitialized && $loading)}
+          <Loading />
+        {:else if activeTab === 'hosts'}
+          <HostTab />
+        {:else if activeTab === 'subnets'}
+          <SubnetTab />
+        {:else if activeTab === 'groups'}
+          <HostGroupTab />
+        {:else if activeTab === 'topology'}
+          <TopologyTab />
+        {/if}
+      </div>
 
-<div class="min-h-screen bg-gray-900 text-white flex">
-  <!-- Sidebar -->
-  <Sidebar {activeTab} onTabChange={handleTabChange} />
-  
-  <!-- Main Content -->
-  <main class="flex-1 overflow-auto">
-    <div class="p-8">
-      {#if !dataReady || (appInitialized && $loading)}
-        <Loading />
-      {:else if activeTab === 'hosts'}
-        <HostTab />
-      {:else if activeTab === 'subnets'}
-        <SubnetTab />
-      {:else if activeTab === 'groups'}
-        <HostGroupTab />
-      {:else if activeTab === 'topology'}
-        <TopologyTab />
-      {/if}
-    </div>
+      <Toast />
 
-    <Toast />
-
-  </main>
-</div>
+    </main>
+  </div>
+{/if}
 
 <style>
   :global(html) {

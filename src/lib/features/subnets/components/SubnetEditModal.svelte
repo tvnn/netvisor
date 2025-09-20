@@ -3,11 +3,13 @@
   import { createEmptySubnetFormData } from '../store';
   import EditModal from '$lib/shared/components/forms/EditModal.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-  import { serviceTypes, subnetTypes } from '$lib/shared/stores/registry';
+  import { entities, serviceTypes, subnetTypes } from '$lib/shared/stores/registry';
   import { hosts } from '$lib/features/hosts/store';
   import type { Host } from '$lib/features/hosts/types/base';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
 	import { services } from '$lib/features/services/store';
+	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
+	import { ServiceAsHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceAsHostDisplay.svelte';
   
   export let subnet: Subnet | null = null;
   export let isOpen = false;
@@ -33,40 +35,19 @@
     formData = subnet ? { ...subnet } : createEmptySubnetFormData();
   }
 
-  let dnsServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.is_dns_resolver).map(service => service.host_id);
-  let gatewayServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.is_gateway).map(service => service.host_id);
-  let reverseProxyServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.is_reverse_proxy).map(service => service.host_id);
+  let dnsServices = $services.filter(service => serviceTypes.getMetadata(service.service_type)?.is_dns_resolver);
+  let gatewayServices = $services.filter(service => serviceTypes.getMetadata(service.service_type)?.is_gateway);
+  let reverseProxyServices = $services.filter(service => serviceTypes.getMetadata(service.service_type)?.is_reverse_proxy);
+      
+  // Available services (filtered out already selected)
+  $: availableDns = dnsServices.filter(service => !formData.dns_resolvers?.includes(service.id));
+  $: selectedDns = $services.filter(s => formData.dns_resolvers.includes(s.id))
   
-  // Filter hosts by service capabilities
-  $: dnsCapableHosts = $hosts.filter(host => dnsServiceHostIds.includes(host.id));
-  $: gatewayCapableHosts = $hosts.filter(host => gatewayServiceHostIds.includes(host.id));
-  $: reverseProxyCapableHosts = $hosts.filter(host => reverseProxyServiceHostIds.includes(host.id));
+  $: availableGateways = gatewayServices.filter(service => !formData.gateways?.includes(service.id));
+  $: selectedGateways = $services.filter(s => formData.gateways.includes(s.id))
   
-  // Convert IDs to host objects for display
-  $: selectedDnsResolvers = formData.dns_resolvers?.map(id => 
-    $hosts.find(h => h.id === id)
-  ).filter(Boolean) as Host[] || [];
-  
-  $: selectedGateways = formData.gateways?.map(id => 
-    $hosts.find(h => h.id === id)
-  ).filter(Boolean) as Host[] || [];
-  
-  $: selectedReverseProxies = formData.reverse_proxies?.map(id => 
-    $hosts.find(h => h.id === id)
-  ).filter(Boolean) as Host[] || [];
-  
-  // Available hosts (filtered out already selected)
-  $: availableDnsHosts = dnsCapableHosts.filter(host => 
-    !formData.dns_resolvers?.includes(host.id)
-  );
-  
-  $: availableGatewayHosts = gatewayCapableHosts.filter(host => 
-    !formData.gateways?.includes(host.id)
-  );
-  
-  $: availableReverseProxyHosts = reverseProxyCapableHosts.filter(host => 
-    !formData.reverse_proxies?.includes(host.id)
-  );
+  $: availableReverseProxies = reverseProxyServices.filter(service => !formData.reverse_proxies?.includes(service.id));
+  $: selectedReverseProxies = $services.filter(s => formData.reverse_proxies.includes(s.id))
   
   async function handleSubmit() {
     // Clean up the data before sending
@@ -136,6 +117,8 @@
   // Dynamic labels based on create/edit mode
   $: saveLabel = isEditing ? 'Update Subnet' : 'Create Subnet';
   $: cancelLabel = 'Cancel';
+
+  let colorHelper = entities.getColorHelper("Subnet");
 </script>
 
 <EditModal
@@ -153,9 +136,7 @@
 >
   <!-- Header icon -->
   <svelte:fragment slot="header-icon">
-    <div class="p-2 bg-orange-600/20 rounded-lg">
-      <Network class="w-5 h-5 text-orange-400" />
-    </div>
+    <ModalHeaderIcon icon={entities.getIconComponent("Subnet")} color={colorHelper.string}/>
   </svelte:fragment>
   
   <!-- Content -->
@@ -177,7 +158,7 @@
               bind:value={formData.name}
               placeholder="e.g., Home LAN, VPN Network"
               required
-              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent"
             />
           </div>
           
@@ -192,7 +173,7 @@
               bind:value={formData.cidr}
               placeholder="e.g., 192.168.1.0/24, 10.0.0.0/8"
               required
-              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent"
             />
             <p class="mt-1 text-sm text-gray-400">
               Network address and prefix length (e.g., 192.168.1.0/24)
@@ -207,7 +188,7 @@
             <select
               id="subnet_type"
               bind:value={formData.subnet_type}
-              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:border-transparent"
             >
               {#each subnetTypes.getItems() as subnet_type}
                 <option value="{subnet_type.id}">{subnet_type.display_name}</option>
@@ -225,7 +206,7 @@
               bind:value={formData.description}
               placeholder="Optional description of this subnet..."
               rows="3"
-              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent resize-none"
             ></textarea>
           </div>
         </div>
@@ -242,12 +223,12 @@
                 emptyMessage="No DNS resolvers configured. DNS capable hosts will appear here."
                 allowReorder={false}
                 
-                options={availableDnsHosts}
-                items={selectedDnsResolvers}
+                options={availableDns}
+                items={selectedDns}
                 allowItemEdit={() => false}
                 
-                optionDisplayComponent={HostDisplay}
-                itemDisplayComponent={HostDisplay}
+                optionDisplayComponent={ServiceAsHostDisplay}
+                itemDisplayComponent={ServiceAsHostDisplay}
                 
                 onAdd={handleAddDnsResolver}
                 onRemove={handleRemoveDnsResolver}
@@ -269,12 +250,12 @@
                 emptyMessage="No gateways configured. Gateway-capable hosts will appear here."
                 allowReorder={false}
                 
-                options={availableGatewayHosts}
+                options={availableGateways}
                 items={selectedGateways}
                 allowItemEdit={() => false}
                 
-                optionDisplayComponent={HostDisplay}
-                itemDisplayComponent={HostDisplay}
+                optionDisplayComponent={ServiceAsHostDisplay}
+                itemDisplayComponent={ServiceAsHostDisplay}
                 
                 onAdd={handleAddGateway}
                 onRemove={handleRemoveGateway}
@@ -296,12 +277,12 @@
                 emptyMessage="No reverse proxies configured. Reverse proxy-capable hosts will appear here."
                 allowReorder={false}
                 
-                options={availableReverseProxyHosts}
+                options={availableReverseProxies}
                 items={selectedReverseProxies}
                 allowItemEdit={() => false}
                 
-                optionDisplayComponent={HostDisplay}
-                itemDisplayComponent={HostDisplay}
+                optionDisplayComponent={ServiceAsHostDisplay}
+                itemDisplayComponent={ServiceAsHostDisplay}
                 
                 onAdd={handleAddReverseProxy}
                 onRemove={handleRemoveReverseProxy}

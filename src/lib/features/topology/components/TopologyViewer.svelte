@@ -19,7 +19,6 @@
   // Import custom node components
   import SubnetNode from './SubnetNode.svelte';
   import HostNode from './HostNode.svelte';
-	import InterfaceNode from './InterfaceNode.svelte';
 
   // Define custom edge data type
   interface CustomEdgeData extends Record<string, unknown> {
@@ -31,7 +30,6 @@
   const nodeTypes = {
     SubnetNode: SubnetNode,
     HostNode: HostNode,
-    InterfaceNode: InterfaceNode
   };
 
   // Stores
@@ -50,25 +48,24 @@
   async function loadTopologyData() {    
     try {
       if ($topology?.nodes && $topology?.edges) {
-        const flowNodes: Node[] = $topology.nodes.map((node: any): Node => {
+        const flowNodes: Node[] = $topology.nodes.map((node): Node => {
           return {
             id: node.id,
             type: node.node_type,
             position: { x: node.position.x, y: node.position.y },
-            parentId: node.parent_id || undefined,
-            extent: (node.parent_id ? "parent" : undefined),
             width: node.size.x,
             height: node.size.y,
+            parentId: node.parent_id || undefined,
+            extent: (node.parent_id ? "parent" : undefined),
             data: {
-              label: node.label,
               id: node.id,
+              host_id: node.host_id,
+              interface_id: node.interface_id,
+              infra_width: node.infra_width,
               nodeType: node.node_type,
-              color: node.color,
-              icon: node.icon,
               parentId: node.parent_id,
               width: node.size.x,
               height: node.size.y,
-              IconComponent: createIconComponent(node.icon),
             },
           };
         });

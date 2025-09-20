@@ -3,6 +3,7 @@
   import { AlertCircle } from 'lucide-svelte';
 	import type { Interface } from '$lib/features/hosts/types/base';
 	import { ipAddress, mac } from '$lib/shared/components/forms/validators';
+	import { entities } from '$lib/shared/stores/registry';
   
   export let form: any;
   export let iface: Interface | null = null;
@@ -47,6 +48,8 @@
       onChange(updatedIface);
     }
   }
+
+  let colorHelper = entities.getColorHelper("Host")
 </script>
 
 {#if iface && subnet}
@@ -75,7 +78,7 @@
             type="text"
             bind:value={$ipAddressField.value}
             class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
-                   focus:outline-none focus:ring-2 focus:ring-blue-500
+                   focus:outline-none focus:ring-2
                    {$ipAddressField.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
             placeholder="192.168.1.100"
           />
@@ -102,7 +105,7 @@
             type="text"
             bind:value={$macAddressField.value}
             class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
-                   focus:outline-none focus:ring-2 focus:ring-blue-500
+                   focus:outline-none focus:ring-2
                    {$macAddressField.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
             placeholder="00:1B:44:11:3A:B7"
           />

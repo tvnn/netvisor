@@ -7,7 +7,7 @@
 	import { getDaemonDiscoveryState } from '$lib/features/daemons/store';
   import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
 	import { sessions } from '$lib/features/discovery/store';
-	import { serviceTypes } from '$lib/shared/stores/registry';
+	import { entities, serviceTypes } from '$lib/shared/stores/registry';
 	import { subnets } from '$lib/features/subnets/store';
 	import { get } from 'svelte/store';
 	import type { HostGroup } from '$lib/features/host_groups/types/base';
@@ -19,7 +19,7 @@
   export let onEdit: (host: Host) => void = () => {};
   export let onDelete: (host: Host) => void = () => {};
   export let onDiscovery: (daemon: Daemon) => void = () => {};
-  export let onConvert: (host: Host) => void = () => {};
+  export let onConsolidate: (host: Host) => void = () => {};
   export let discoveryIsRunning: boolean;
   
   // Build connection info
@@ -28,7 +28,7 @@
   $: hostIsRunningDiscovery = (discoveryIsRunning && daemon !== null) ? getDaemonDiscoveryState(daemon.id, $sessions) !== null : false;
   $: discoveryData = hostIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;
 
-  $: hostServices = get(getServicesForHost(host.id));
+  $: hostServices = getServicesForHost(host.id);
 
   function getSubnetNameFromId(id: string): string | null {
     return get(subnets).find(s => s.id == id)?.cidr || null
@@ -37,8 +37,8 @@
   // Build card data
   $: cardData = {
     title: host.name,
-    iconColor: 'text-blue-400',
-    icon: serviceTypes.getIconComponent(hostServices[0]?.service_type.type) || CircleQuestionMark,
+    iconColor: entities.getColorHelper("Host").icon,
+    icon: serviceTypes.getIconComponent(hostServices[0]?.service_type) || entities.getIconComponent("Host"),
     sections: connectionInfo ? [{
       label: 'Connection',
       value: connectionInfo
@@ -49,20 +49,20 @@
         label: 'Services',
         items: hostServices.map(sv => {
           return ({
-            id: sv.service_type.type,
-            label: serviceTypes.getDisplay(sv.service_type.type),
-            color: 'cyan'
+            id: sv.service_type,
+            label: serviceTypes.getDisplay(sv.service_type),
+            color: entities.getColorHelper("Service").string
           })
         }),
         emptyText: 'No services assigned'
       },
       {
         label: 'Subnets',
-        items: host.interfaces.filter(sub => getSubnetNameFromId(sub.subnet_id) != null).map(sub => {
+        items: host.interfaces.map(sub => {
           return ({
             id: sub.subnet_id,
             label: getSubnetNameFromId(sub.subnet_id) || "Unknown Subnet",
-            color: 'orange'
+            color: entities.getColorHelper("Subnet").string
           })
         }),
         emptyText: 'No subnets assigned'
@@ -72,7 +72,7 @@
         items: groupInfo.map((group: HostGroup, i) => ({
           id: host?.groups ? host.groups[i] : group.name,
           label: group.name,
-          color: 'purple'
+          color: entities.getColorHelper("HostGroup").string
         })),
         emptyText: 'No groups assigned'
       }
@@ -89,12 +89,12 @@
       },
       ...(daemon == null
         ? [{
-            label: 'Convert to Interface',
+            label: 'Consolidate',
             icon: Replace,
             color: 'text-gray-400',
             hoverColor: 'text-white',
             bgHover: 'hover:bg-gray-700',
-            onClick: () => onConvert(host),
+            onClick: () => onConsolidate(host),
           }]
         : []
       ),

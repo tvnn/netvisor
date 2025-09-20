@@ -3,7 +3,8 @@
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import { hosts } from '$lib/features/hosts/store';
 	import { get } from 'svelte/store';
-	import { subnetTypes } from '$lib/shared/stores/registry';
+	import { entities, subnetTypes } from '$lib/shared/stores/registry';
+	import { getServiceHost, services } from '$lib/features/services/store';
   
   export let subnet: Subnet;
   export let onEdit: (subnet: Subnet) => void = () => {};
@@ -17,8 +18,8 @@
   $: cardData = {
     title: subnet.name,
     subtitle: subnet.cidr,
-    iconColor: 'text-orange-400',
-    icon: Network,
+    iconColor: entities.getColorHelper("Subnet").icon,
+    icon: entities.getIconComponent("Subnet"),
     
     sections: subnet.description ? [{
       label: 'Description',
@@ -35,42 +36,42 @@
         }],
         emptyText: 'No type specified'
       },
-      ...(subnet.dns_resolvers && subnet.dns_resolvers.length > 0 ? [{
+      {
         label: 'DNS Resolvers',
         items: subnet.dns_resolvers.map((resolverId) => ({
           id: resolverId,
-          label: getHostName(resolverId) || "Unknown Host",
-          color: 'yellow'
+          label: getServiceHost(resolverId)?.name || "Unknown Host",
+          color: entities.getColorString("Dns")
         })),
         emptyText: 'No DNS resolvers'
-      }] : []),
-      ...(subnet.gateways && subnet.gateways.length > 0 ? [{
+      },
+      {
         label: 'Gateways',
         items: subnet.gateways.map((gatewayId) => ({
           id: gatewayId,
-          label: getHostName(gatewayId) || "Unknown Host",
-          color: 'green'
+          label: getServiceHost(gatewayId)?.name || "Unknown Host",
+          color: entities.getColorString("Gateway")
         })),
         emptyText: 'No gateways'
-      }] : []),
-      ...(subnet.reverse_proxies && subnet.reverse_proxies.length > 0 ? [{
+      },
+      {
         label: 'Reverse Proxies',
         items: subnet.reverse_proxies.map((rproxyId) => ({
           id: rproxyId,
-          label: getHostName(rproxyId) || "Unknown Host",
-          color: 'emerald'
+          label: getServiceHost(rproxyId)?.name || "Unknown Host",
+          color: entities.getColorString("ReverseProxy")
         })),
         emptyText: 'No reverse proxies'
-      }] : []),
-      ...(subnet.hosts && subnet.hosts.length > 0 ? [{
+      },
+      {
         label: 'Hosts',
         items: subnet.hosts.map((hostId) => ({
           id: hostId,
           label: getHostName(hostId) || "Unknown Host",
-          color: 'blue'
+          color: entities.getColorString("Host")
         })),
         emptyText: 'No hosts'
-      }] : [])
+      }
     ],
     
     actions: [

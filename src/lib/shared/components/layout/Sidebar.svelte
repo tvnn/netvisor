@@ -1,14 +1,14 @@
 <script lang="ts">
-  import { ChartNetwork, Group, Network, Server, Workflow } from 'lucide-svelte';
+	import { entities } from '$lib/shared/stores/registry';
   
   export let activeTab: string = 'hosts';
   export let onTabChange: (tab: string) => void;
   
   const navItems = [
-    { id: 'hosts', label: 'Hosts', icon: Server },
-    { id: 'subnets', label: 'Subnets', icon: Network },
-    { id: 'groups', label: 'Groups', icon: Group },
-    { id: 'topology', label: 'Topology', icon: ChartNetwork },
+    { id: 'hosts', label: 'Hosts', icon: entities.getIconComponent("Host") },
+    { id: 'subnets', label: 'Subnets', icon: entities.getIconComponent("Subnet") },
+    { id: 'groups', label: 'Groups', icon: entities.getIconComponent("HostGroup") },
+    { id: 'topology', label: 'Topology', icon: entities.getIconComponent("Topology") },
   ];
 </script>
 
@@ -16,7 +16,6 @@
   <!-- Logo/Brand -->
   <div class="p-6 border-b border-gray-700">
     <h1 class="text-xl font-bold text-white">NetVisor</h1>
-    <p class="text-sm text-gray-400">Network Diagnostics</p>
   </div>
   
   <!-- Navigation -->

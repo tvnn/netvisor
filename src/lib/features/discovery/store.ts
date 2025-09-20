@@ -5,6 +5,7 @@ import type { DaemonDiscoveryUpdate, InitiateDiscoveryRequest } from './types/ap
 import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 import { getHosts } from '../hosts/store';
 import { getSubnets } from '../subnets/store';
+import { getServices } from '../services/store';
 
 // daemon_id to latest update
 export const sessions = writable<Map<string, DaemonDiscoveryUpdate>>(new Map());
@@ -18,8 +19,9 @@ export function startDiscoveryPolling() {
     onPoll: async () => {
       Promise.all([
         await getActiveDiscoverySessions(),
+        await getServices(),
+        await getSubnets(),
         await getHosts(),
-        await getSubnets()
       ])
     },
     onError: (pollingError) => {

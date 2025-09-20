@@ -4,6 +4,7 @@
   import { hosts } from '$lib/features/hosts/store';
   import { get } from 'svelte/store';
   import type { HostGroup } from '../types/base';
+	import { entities } from '$lib/shared/stores/registry';
   
   export let group: HostGroup;
   export let onEdit: (group: HostGroup) => void = () => {};
@@ -17,8 +18,8 @@
   $: cardData = {
     title: group.name,
     subtitle: `${group.hosts.length} host${group.hosts.length === 1 ? '' : 's'} in group`,
-    iconColor: 'text-purple-400',
-    icon: Users,
+    iconColor: entities.getColorHelper("HostGroup").icon,
+    icon: entities.getIconComponent("HostGroup"),
     
     sections: group.description ? [{
       label: 'Description',
@@ -31,7 +32,7 @@
         items: group.hosts.map((hostId) => ({
           id: hostId,
           label: getHostName(hostId) || "Unknown Host",
-          color: 'blue'
+          color: entities.getColorString("Host")
         })),
         emptyText: 'No hosts in group'
       }
