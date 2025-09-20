@@ -1,10 +1,13 @@
 <script lang="ts">
   import { Network, Router, Search } from 'lucide-svelte';
   import { createEmptySubnetFormData } from '../store';
-	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
-	import { serviceTypes, subnetTypes } from '$lib/shared/stores/registry';
-	import { get } from 'svelte/store';
-	import HostSelector from '$lib/shared/components/forms/HostSelector.svelte';
+  import EditModal from '$lib/shared/components/forms/EditModal.svelte';
+  import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
+  import { serviceTypes, subnetTypes } from '$lib/shared/stores/registry';
+  import { hosts } from '$lib/features/hosts/store';
+  import type { Host } from '$lib/features/hosts/types/base';
+	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
+	import { services } from '$lib/features/services/store';
   
   export let subnet: Subnet | null = null;
   export let isOpen = false;
@@ -29,6 +32,41 @@
   function resetForm() {
     formData = subnet ? { ...subnet } : createEmptySubnetFormData();
   }
+
+  let dnsServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.can_be_dns_resolver).map(service => service.host_id);
+  let gatewayServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.can_be_dns_resolver).map(service => service.host_id);
+  let reverseProxyServiceHostIds = $services.filter(service => serviceTypes.getMetadata(service.service_type.type)?.can_be_dns_resolver).map(service => service.host_id);
+  
+  // Filter hosts by service capabilities
+  $: dnsCapableHosts = $hosts.filter(host => dnsServiceHostIds.includes(host.id));
+  $: gatewayCapableHosts = $hosts.filter(host => gatewayServiceHostIds.includes(host.id));
+  $: reverseProxyCapableHosts = $hosts.filter(host => reverseProxyServiceHostIds.includes(host.id));
+  
+  // Convert IDs to host objects for display
+  $: selectedDnsResolvers = formData.dns_resolvers?.map(id => 
+    $hosts.find(h => h.id === id)
+  ).filter(Boolean) as Host[] || [];
+  
+  $: selectedGateways = formData.gateways?.map(id => 
+    $hosts.find(h => h.id === id)
+  ).filter(Boolean) as Host[] || [];
+  
+  $: selectedReverseProxies = formData.reverse_proxies?.map(id => 
+    $hosts.find(h => h.id === id)
+  ).filter(Boolean) as Host[] || [];
+  
+  // Available hosts (filtered out already selected)
+  $: availableDnsHosts = dnsCapableHosts.filter(host => 
+    !formData.dns_resolvers?.includes(host.id)
+  );
+  
+  $: availableGatewayHosts = gatewayCapableHosts.filter(host => 
+    !formData.gateways?.includes(host.id)
+  );
+  
+  $: availableReverseProxyHosts = reverseProxyCapableHosts.filter(host => 
+    !formData.reverse_proxies?.includes(host.id)
+  );
   
   async function handleSubmit() {
     // Clean up the data before sending
@@ -60,6 +98,39 @@
         deleting = false;
       }
     }
+  }
+  
+  // Event handlers for DNS resolvers
+  function handleAddDnsResolver(hostId: string) {
+    if (!formData.dns_resolvers?.includes(hostId)) {
+      formData.dns_resolvers = [...(formData.dns_resolvers || []), hostId];
+    }
+  }
+  
+  function handleRemoveDnsResolver(index: number) {
+    formData.dns_resolvers = formData.dns_resolvers?.filter((_, i) => i !== index) || [];
+  }
+  
+  // Event handlers for gateways
+  function handleAddGateway(hostId: string) {
+    if (!formData.gateways?.includes(hostId)) {
+      formData.gateways = [...(formData.gateways || []), hostId];
+    }
+  }
+  
+  function handleRemoveGateway(index: number) {
+    formData.gateways = formData.gateways?.filter((_, i) => i !== index) || [];
+  }
+  
+  // Event handlers for reverse proxies
+  function handleAddReverseProxy(hostId: string) {
+    if (!formData.reverse_proxies?.includes(hostId)) {
+      formData.reverse_proxies = [...(formData.reverse_proxies || []), hostId];
+    }
+  }
+  
+  function handleRemoveReverseProxy(index: number) {
+    formData.reverse_proxies = formData.reverse_proxies?.filter((_, i) => i !== index) || [];
   }
   
   // Dynamic labels based on create/edit mode
@@ -164,16 +235,23 @@
           <div class="border-t border-gray-700 pt-6">
             <h3 class="text-lg font-medium text-white mb-4">DNS Resolvers</h3>
             <div class="bg-gray-800/50 rounded-lg p-4">
-              <HostSelector
-                bind:selectedIds={formData.dns_resolvers}
+              <ListManager
                 label="DNS Resolvers"
                 helpText="Select hosts that provide DNS resolution services for this subnet"
                 placeholder="Select a DNS server to add..."
                 emptyMessage="No DNS resolvers configured. DNS capable hosts will appear here."
-                serviceMetadataField="can_be_dns_resolver"
-                icon={Search}
-                iconColor="text-blue-400"
-                selectedIconColor="text-green-400"
+                allowReorder={false}
+                
+                options={availableDnsHosts}
+                items={selectedDnsResolvers}
+                allowItemEdit={() => false}
+                
+                optionDisplayComponent={HostDisplay}
+                itemDisplayComponent={HostDisplay}
+                
+                onAdd={handleAddDnsResolver}
+                onRemove={handleRemoveDnsResolver}
+                onEdit={() => {}}
               />
             </div>
           </div>
@@ -184,16 +262,23 @@
           <div class="border-t border-gray-700 pt-6">
             <h3 class="text-lg font-medium text-white mb-4">Gateways</h3>
             <div class="bg-gray-800/50 rounded-lg p-4">
-              <HostSelector
-                bind:selectedIds={formData.gateways}
+              <ListManager
                 label="Gateways"
                 helpText="Select hosts that provide gateway/routing services for this subnet"
                 placeholder="Select a gateway to add..."
                 emptyMessage="No gateways configured. Gateway-capable hosts will appear here."
-                serviceMetadataField="can_be_gateway"
-                icon={Router}
-                iconColor="text-orange-400"
-                selectedIconColor="text-green-400"
+                allowReorder={false}
+                
+                options={availableGatewayHosts}
+                items={selectedGateways}
+                allowItemEdit={() => false}
+                
+                optionDisplayComponent={HostDisplay}
+                itemDisplayComponent={HostDisplay}
+                
+                onAdd={handleAddGateway}
+                onRemove={handleRemoveGateway}
+                onEdit={() => {}}
               />
             </div>
           </div>
@@ -204,16 +289,23 @@
           <div class="border-t border-gray-700 pt-6">
             <h3 class="text-lg font-medium text-white mb-4">Reverse Proxies</h3>
             <div class="bg-gray-800/50 rounded-lg p-4">
-              <HostSelector
-                bind:selectedIds={formData.reverse_proxies}
+              <ListManager
                 label="Reverse Proxies"
                 helpText="Select hosts that provide reverse proxy services for this subnet"
                 placeholder="Select a reverse proxy to add..."
                 emptyMessage="No reverse proxies configured. Reverse proxy-capable hosts will appear here."
-                serviceMetadataField="is_reverse_proxy"
-                icon={Router}
-                iconColor="text-orange-400"
-                selectedIconColor="text-green-400"
+                allowReorder={false}
+                
+                options={availableReverseProxyHosts}
+                items={selectedReverseProxies}
+                allowItemEdit={() => false}
+                
+                optionDisplayComponent={HostDisplay}
+                itemDisplayComponent={HostDisplay}
+                
+                onAdd={handleAddReverseProxy}
+                onRemove={handleRemoveReverseProxy}
+                onEdit={() => {}}
               />
             </div>
           </div>

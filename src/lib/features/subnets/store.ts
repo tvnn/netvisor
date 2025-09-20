@@ -60,6 +60,7 @@ export function createEmptySubnetFormData(): Subnet {
     dns_resolvers: [],
     gateways: [],
     hosts: [],
+    reverse_proxies: [],
     source: 'Manual'
   };
 }

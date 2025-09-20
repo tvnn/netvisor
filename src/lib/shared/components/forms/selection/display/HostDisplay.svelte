@@ -1,0 +1,48 @@
+<script lang="ts" context="module">
+  import { Network } from 'lucide-svelte';
+  import type { Host } from '$lib/features/hosts/types/base';
+  import { serviceTypes } from '$lib/shared/stores/registry';
+  
+  export const HostDisplay: EntityDisplayComponent<Host> = {
+    getId: (host: Host) => host.id,
+    getLabel: (host: Host) => host.name,
+    getDescription: (host: Host) => {
+      const parts = [];
+      if (host.target.type === 'IpAddress') {
+        parts.push(host.target.config.ip);
+      } else if (host.target.type === 'Hostname') {
+        parts.push(host.target.config.hostname);
+      }
+      if (host.description) {
+        parts.push(host.description);
+      }
+      return parts.join(' • ');
+    },
+    getIcon: () => Network,
+    getIconColor: () => 'text-blue-400',
+    getTags: (host: Host) => {
+
+      let services = get(getServicesForHost(host.id))
+
+      return services.map(service => ({
+        label: service.service_type.type,
+        color: serviceTypes.getColorString(service.service_type.type)
+      }));
+    },
+    getIsDisabled: () => false,
+    getCategory: () => null
+  };
+</script>
+
+<script lang="ts">
+	import { getServicesForHost } from '$lib/features/services/store';
+	import { get } from 'svelte/store';
+	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
+	import ListSelectItem from '../ListSelectItem.svelte';
+  
+  type $$Props = DisplayComponentProps<Host>;
+  
+  export let item: Host;
+</script>
+
+<ListSelectItem item={item} displayComponent={HostDisplay} />

@@ -28,7 +28,7 @@
   $: hostIsRunningDiscovery = (discoveryIsRunning && daemon !== null) ? getDaemonDiscoveryState(daemon.id, $sessions) !== null : false;
   $: discoveryData = hostIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;
 
-  $: hostServices = getServicesForHost(host.id);
+  $: hostServices = get(getServicesForHost(host.id));
 
   function getSubnetNameFromId(id: string): string | null {
     return get(subnets).find(s => s.id == id)?.cidr || null

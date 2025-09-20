@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { Server } from 'lucide-svelte';
   import { hosts } from '$lib/features/hosts/store';
-  import { getHostTargetString } from '$lib/features/hosts/store';
-  import ListManager from '$lib/shared/components/forms/ListManager.svelte';
+  import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
   import type { Host } from '$lib/features/hosts/types/base';
+	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
   
   export let form: any;
   export let hostIds: string[] = [];
@@ -15,19 +14,6 @@
   $: selectedHosts = hostIds.map(id => 
     $hosts.find(h => h.id === id)
   ).filter(Boolean) as Host[];
-  
-  // Display functions for available hosts (dropdown options)
-  function getOptionId(host: Host): string {
-    return host.id;
-  }
-  
-  function getOptionLabel(host: Host): string {
-    return host.name;
-  }
-  
-  function getOptionDescription(host: Host): string {
-    return getHostTargetString(host.target);
-  }
   
   // Event handlers
   function handleAdd(hostId: string) {
@@ -67,17 +53,8 @@
   items={selectedHosts}
   allowItemEdit={() => false}
   
-  {getOptionId}
-  {getOptionLabel}
-  {getOptionDescription}
-  getOptionIcon={() => Server}
-  getOptionIconColor={() => 'text-blue-400'}
-  
-  getItemId={getOptionId}
-  getItemLabel={getOptionLabel}
-  getItemDescription={getOptionDescription}
-  getItemIcon={() => Server}
-  getItemIconColor={() => 'text-blue-400'}
+  optionDisplayComponent={HostDisplay}
+  itemDisplayComponent={HostDisplay}
   
   onAdd={handleAdd}
   onRemove={handleRemove}

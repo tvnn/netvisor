@@ -1,11 +1,12 @@
 <script lang="ts">
   import { Network, ArrowRight, AlertTriangle, CheckCircle } from 'lucide-svelte';
-  import SingleHostSelector from '$lib/shared/components/forms/SingleHostSelector.svelte';
+  import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
   import type { Host } from '../types/base';
   import { hosts } from '../store';
   import { getHostTargetString } from '../store';
-	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
-	import HostListItem from '$lib/shared/components/forms/HostListItem.svelte';
+  import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
+	import EntityDisplay from '$lib/shared/components/forms/selection/display/EntityDisplayWrapper.svelte';
+	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
   
   export let otherHost: Host | null = null;
   export let isOpen = false;
@@ -15,6 +16,11 @@
   let selectedDestinationHostId = '';
   let loading = false;
   let showPreview = false;
+  
+  // Get available hosts (excluding the source host)
+  $: availableHosts = otherHost 
+    ? $hosts.filter(host => host.id !== otherHost.id)
+    : $hosts;
   
   // Get the selected target host
   $: selectedTargetHost = selectedDestinationHostId 
@@ -60,6 +66,10 @@
     }
   }
   
+  function handleHostSelect(hostId: string) {
+    selectedDestinationHostId = hostId;
+  }
+  
   // Generate a preview interface name
   $: previewInterfaceName = otherHost ? 
     `${otherHost.name.toLowerCase().replace(/\s+/g, '_')}_interface` : '';
@@ -92,17 +102,18 @@
         <!-- Source host info -->
         <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
           {#if otherHost}
-            <HostListItem host={otherHost}/>
+            <EntityDisplay item={otherHost} displayComponent={HostDisplay} />
           {/if}
         </div>
 
-        <!-- Target selection using SingleHostSelector -->
-        <SingleHostSelector
+        <!-- Target selection -->
+        <RichSelect
           label="Select Target Host to Add Interface To:"
           placeholder="Choose a host to convert the interface to"
-          bind:selectedId={selectedDestinationHostId}
-          excludeIds={otherHost ? [otherHost.id] : []}
-          onSelect={() => {}}
+          selectedValue={selectedDestinationHostId}
+          options={availableHosts}
+          onSelect={handleHostSelect}
+          displayComponent={HostDisplay}
         />
       </div>
     {:else}
@@ -117,7 +128,7 @@
         <div class="flex items-center justify-center gap-4 py-4">
           {#if otherHost}
             <!-- Source host -->
-            <HostListItem host={otherHost}/>
+            <EntityDisplay item={otherHost} displayComponent={HostDisplay} />
 
             <!-- Arrow -->
             <div class="flex items-center gap-2 px-4">

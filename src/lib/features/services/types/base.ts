@@ -24,24 +24,3 @@ export interface Service {
   ports: Port[];
   interface_bindings: string[];
 }
-
-// Helper functions for working with services and the TypeRegistry
-export function createDefaultService(serviceType: string, serviceName?: string, defaultPorts?: Port[], defaultEndpoints?: Endpoint[]) {
-  // return {
-  //   service_type: serviceType,
-  //   name: serviceName || serviceType,
-  //   ports: defaultPorts ? [...defaultPorts] : [],
-  // };
-}
-
-export function getServiceDisplayName(service: Service): string {
-  return service.name || service.service_type.type;
-}
-
-export function formatServicePorts(ports: Port[]): string {
-  if (!ports || ports.length === 0) return "No ports";
-  
-  return ports.map(p => 
-    `${p.number}${p.protocol == 'Tcp' ? '/tcp' : '/udp'}`
-  ).join(', ');
-}

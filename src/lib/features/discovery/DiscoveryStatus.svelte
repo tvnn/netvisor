@@ -5,7 +5,7 @@
 	sessions,
   } from './store';
   import { getDaemonDiscoveryState } from '../daemons/store';
-	import RichSelect from '$lib/shared/components/forms/RichSelect.svelte';
+	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	  import { getHostTargetString } from "../hosts/store";
 	import DaemonDiscoveryStatus from './DaemonDiscoveryStatus.svelte';
 	import { type TagProps } from '$lib/shared/components/data/types';

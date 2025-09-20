@@ -1,44 +1,34 @@
-<script lang="ts">
+<script lang="ts" generics="T">
   import { ChevronDown } from 'lucide-svelte';
-	import Tag from '../data/Tag.svelte';
-	import ListSelectItem from './ListSelectItem.svelte';
-	import type { TagProps } from '../data/types';
+  import ListSelectItem from './ListSelectItem.svelte';
+	import type { EntityDisplayComponent } from './types';
   
   export let label: string = '';
   export let selectedValue: string | null = '';
-  export let options: any[] = [];
+  export let options: T[] = [];
   export let placeholder: string = 'Select an option...';
   export let required: boolean = false;
   export let disabled: boolean = false;
   export let error: string | null = null;
   export let onSelect: (value: string) => void;
-  export let getOptionId: (item: any) => string;
-
-  export let getOptionIcon: (item: any) => any | null = (item) => null;
-  export let getOptionIconColor: (item: any) => string | null = (item) => null;
-  export let getOptionTags: (item: any) => TagProps[] = (item) => [];
-  export let getOptionLabel: (item: any) => string | null = (item) => null
-  export let getOptionDescription: (item: any) => string | null = (item) => null
-  export let getOptionIsDisabled: (item: any) => boolean = (item) => false
-  export let getOptionCategory: (item: any) => string | null = (item) => null;
-
   export let showDescriptionUnderDropdown: boolean = false;
+  export let displayComponent: EntityDisplayComponent<T>;
   
   let isOpen = false;
   let dropdownElement: HTMLDivElement;
   
-  $: selectedItem = options.find(i => getOptionId(i) === selectedValue);
+  $: selectedItem = options.find(i => displayComponent.getId(i) === selectedValue);
   
-  // Group options by category when getOptionCategory is provided
+  // Group options by category when getCategory is provided
   $: groupedOptions = (() => {
-    if (!getOptionCategory) {
+    if (!displayComponent.getCategory) {
       return [{ category: null, options: options }];
     }
     
-    const groups = new Map<string | null, any[]>();
+    const groups = new Map<string | null, T[]>();
     
     options.forEach(option => {
-      const category = getOptionCategory(option);
+      const category = displayComponent.getCategory!(option);
       if (!groups.has(category)) {
         groups.set(category, []);
       }
@@ -57,8 +47,8 @@
   
   function handleSelect(value: string) {
     try {
-      const item = options.find(i => getOptionId(i) === value);
-      if (item && !getOptionIsDisabled(item)) {
+      const item = options.find(i => displayComponent.getId(i) === value);
+      if (item && !displayComponent.getIsDisabled?.(item)) {
         isOpen = false;  // Close dropdown first
         onSelect(value); // Then call the handler
       }
@@ -110,11 +100,7 @@
         {#if selectedItem}
           <ListSelectItem
             item={selectedItem}
-            getIcon={getOptionIcon}
-            getIconColor={getOptionIconColor}
-            getTags={getOptionTags}
-            getLabel={getOptionLabel}
-            getDescription={getOptionDescription} />
+            {displayComponent} />
         {:else}
           <span class="text-gray-400">{placeholder}</span>
         {/if}
@@ -124,10 +110,10 @@
     </button>
     
     <!-- Description below trigger (optional) -->
-    {#if selectedItem && getOptionDescription(selectedItem) && showDescriptionUnderDropdown}
+    {#if selectedItem && displayComponent.getDescription?.(selectedItem) && showDescriptionUnderDropdown}
       <div class="mt-2">
         <p class="text-sm text-gray-400">
-          {getOptionDescription(selectedItem)}
+          {displayComponent.getDescription(selectedItem)}
         </p>
       </div>
     {/if}
@@ -159,22 +145,18 @@
               on:click={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!getOptionIsDisabled(option)) {
-                  handleSelect(getOptionId(option));
+                if (!displayComponent.getIsDisabled?.(option)) {
+                  handleSelect(displayComponent.getId(option));
                 }
               }}
               class="w-full px-3 py-3 text-left transition-colors 
                      {!isLastInGroup || !isLastGroup ? 'border-b border-gray-600' : ''}
-                     {getOptionIsDisabled(option) ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-600'}"
-              disabled={getOptionIsDisabled(option)}
+                     {displayComponent.getIsDisabled?.(option) ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-600'}"
+              disabled={displayComponent.getIsDisabled?.(option)}
             >
               <ListSelectItem
                 item={option}
-                getIcon={getOptionIcon}
-                getIconColor={getOptionIconColor}
-                getTags={getOptionTags}
-                getLabel={getOptionLabel}
-                getDescription={getOptionDescription} />
+                {displayComponent} />
             </button>
           {/each}
         {/each}

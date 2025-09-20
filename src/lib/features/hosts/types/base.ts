@@ -9,7 +9,7 @@ export interface Host {
   description: string;
   hostname: string;
   target: HostTarget;
-  services: Service[];
+  services: string[];
   open_ports: Port[]
   interfaces: Interface[];
   groups: string[];

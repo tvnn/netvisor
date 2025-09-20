@@ -1,11 +1,8 @@
 <script lang="ts" generics="T, V">
   import { ArrowUp, ArrowDown, Trash2, Plus, Edit } from 'lucide-svelte';
   import RichSelect from './RichSelect.svelte';
-	import Tag from '../data/Tag.svelte';
-	import ListSelectItem from './ListSelectItem.svelte';
-	import type { TagProps } from '../data/types';
-	import { get } from 'svelte/store';
-  
+  import ListSelectItem from './ListSelectItem.svelte';
+	import type { EntityDisplayComponent } from './types';
 
   // Global
   export let label: string;
@@ -20,32 +17,16 @@
 
   // Options (dropdown)
   export let options: V[] = [];
-  export let getOptionId: (item: V) => string;
-
-  // Options display
-  export let getOptionIcon: (item: V) => any | null = (item) => null;
-  export let getOptionIconColor: (item: V) => string | null = (item) => null;
-  export let getOptionTags: (item: V) => TagProps[] = (item) => [];
-  export let getOptionLabel: (item: V) => string | null = (item) => null
-  export let getOptionDescription: (item: V) => string | null = (item) => null
-  export let getOptionIsDisabled: (item: V) => boolean = (item) => false
-  export let getOptionCategory: (item: any) => string | null = (item) => null;
+  export let optionDisplayComponent: EntityDisplayComponent<V>;
 
   // Items
   export let items: T[] = [];
-  export let getItemId: (item: T) => string;
+  export let itemDisplayComponent: EntityDisplayComponent<T>;
 
   // Item interaction
   export let allowDuplicates: boolean = false;
   export let allowItemEdit: ((item: T) => boolean) = (item) => true;
   export let allowItemRemove: ((item: T) => boolean) = (item) => true;
-
-  // Item display
-  export let getItemIcon: (item: T) => any | null = (item) => null;
-  export let getItemIconColor: (item: T) => string | null = (item) => null;
-  export let getItemTags: (item: T) => TagProps[] = (item) => [];
-  export let getItemLabel: (item: T) => string | null = (item) => null;
-  export let getItemDescription: (item: T) => string | null = (item) => null;
   
   // Interaction handlers
   export let onEdit: (item: T, index: number) => void = () => {};
@@ -54,8 +35,9 @@
   export let onMoveDown: (fromIndex: number, toIndex: number) => void = () => {};
   export let onRemove: (index: number) => void = () => {};
 
-  
+  // Internal state
   let selectedOptionId = '';
+  let editingIndex: number = -1;
   
   $: computedEmptyMessage = emptyMessage || `No ${label.toLowerCase()} added yet`;
   
@@ -64,7 +46,7 @@
       // Check for duplicates only if allowDuplicates is false
       if (!allowDuplicates) {
         const isDuplicate = items.some(item => {
-          const itemId = getItemId(item);
+          const itemId = itemDisplayComponent.getId(item);
           return itemId === selectedOptionId;
         });
         
@@ -102,17 +84,13 @@
     }
   }
 
-
   function handleSelectChange(value: string) {
-      console.log('handleSelectChange called with:', value);
-      selectedOptionId = value;
-      // Automatically add the item when something is selected in direct add mode
-      if (value && allowDirectAdd) {
-        console.log('Auto-calling addItem()');
-        addItem();
-      }
+    selectedOptionId = value;
+    // Automatically add the item when something is selected in direct add mode
+    if (value && allowDirectAdd) {
+      addItem();
     }
-
+  }
 </script>
 
 <div>
@@ -152,14 +130,7 @@
             {options}
             {placeholder}
             onSelect={handleSelectChange}
-            {getOptionId}
-            {getOptionIcon}
-            {getOptionIconColor}
-            {getOptionLabel}
-            {getOptionDescription}
-            {getOptionTags}
-            {getOptionIsDisabled}
-            {getOptionCategory}
+            displayComponent={optionDisplayComponent}
           />
         </div>
       </div>
@@ -181,33 +152,54 @@
               ? 'bg-blue-900/20 border-blue-500 hover:bg-blue-900/30 hover:border-blue-400' 
               : 'bg-gray-700/20 border-gray-600 hover:bg-gray-700/30 hover:border-gray-500'
           }"
-          on:click={() => allowItemEdit(item) && onEdit(item, index)}
+          on:click={() => allowItemEdit(item) && !itemDisplayComponent.supportsInlineEdit && onEdit(item, index)}
           tabindex={allowItemEdit(item) ? 0 : -1}
           role={allowItemEdit(item) ? 'button' : undefined}
         >
           
-          <!-- Use slot if provided, otherwise default to ListSelectItem -->
+          <!-- Use slot if provided, otherwise check for inline editing -->
           <slot name="item" {item} {index}>
-            <ListSelectItem
-              item={item}
-              getIcon={getItemIcon}
-              getIconColor={getItemIconColor}
-              getTags={getItemTags}
-              getLabel={getItemLabel}
-              getDescription={getItemDescription} />
+            {#if editingIndex === index && itemDisplayComponent.supportsInlineEdit && itemDisplayComponent.renderInlineEdit}
+              {@const inlineEditConfig = itemDisplayComponent.renderInlineEdit(item, (updates) => {
+                const updatedItem = { ...item, ...updates };
+                items[index] = updatedItem;
+                items = items; // Trigger reactivity
+              })}
+              <svelte:component 
+                this={inlineEditConfig.component} 
+                {...inlineEditConfig.props} 
+              />
+            {:else}
+              <ListSelectItem
+                {item}
+                displayComponent={itemDisplayComponent} />
+            {/if}
           </slot>
           
           <!-- Action Buttons -->
           <div class="flex items-center gap-1">
             {#if allowItemEdit(item)}
-              <button
-                type="button"
-                on:click|stopPropagation={() => onEdit(item, index)}
-                class="p-1 text-gray-400 hover:text-white transition-colors"
-                title="Edit"
-              >
-                <Edit size={16} />
-              </button>
+              {#if itemDisplayComponent.supportsInlineEdit}
+                <button
+                  type="button"
+                  on:click|stopPropagation={() => {
+                    editingIndex = editingIndex === index ? -1 : index;
+                  }}
+                  class="p-1 text-gray-400 hover:text-white transition-colors"
+                  title={editingIndex === index ? "Done editing" : "Edit"}
+                >
+                  <Edit size={16} />
+                </button>
+              {:else}
+                <button
+                  type="button"
+                  on:click|stopPropagation={() => onEdit(item, index)}
+                  class="p-1 text-gray-400 hover:text-white transition-colors"
+                  title="Edit"
+                >
+                  <Edit size={16} />
+                </button>
+              {/if}
             {/if}
             
             {#if allowReorder}

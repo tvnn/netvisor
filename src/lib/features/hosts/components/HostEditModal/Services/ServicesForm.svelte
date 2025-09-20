@@ -1,171 +1,133 @@
 <script lang="ts">
-  import ListConfigEditor from '$lib/shared/components/forms/ListConfigEditor.svelte';
+  import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
+  import ListConfigEditor from '$lib/shared/components/forms/selection/ListConfigEditor.svelte';
+  import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
   import ServicesConfigPanel from './ServicesConfigPanel.svelte';
-  import { createStyle } from '$lib/shared/utils/styling';
   import type { Port, Service } from '$lib/features/services/types/base';
-  import { createDefaultService, formatServicePorts } from '$lib/features/services/types/base';
   import type { Host } from '$lib/features/hosts/types/base';
-  import { registry, serviceTypes } from '$lib/shared/stores/registry';
+  import { serviceTypes } from '$lib/shared/stores/registry';
+  import { getServicesForHost, updateHostServices } from '$lib/features/services/store';
   import type { TypeMetadata } from '$lib/shared/stores/registry';
-	import type { TagProps } from '$lib/shared/components/data/types';
+	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
+	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
   
   export let form: any;
   export let formData: Host;
   
-  // Computed values
-  $: hostServices = formData.services || [];
-  $: availableServiceTypes = serviceTypes.getItems().filter(service => 
+  // Local state for managing services during editing
+  let currentServices: Service[] = [];
+  let servicesToDelete: string[] = [];
+  let hasChanges = false;
+  
+  // Get current services for this host
+  $: hostServicesStore = getServicesForHost(formData.id);
+  
+  // Initialize services when component mounts or host changes
+  $: if ($hostServicesStore) {
+    currentServices = [...$hostServicesStore];
+  }
+  
+  // Available service types for adding
+  $: availableServiceTypes = serviceTypes.getItems()?.filter(service => 
     service.metadata?.can_be_added !== false
   ).sort((a, b) => a.category.localeCompare(b.category, 'en')) || [];
   
   // Event handlers
   function handleAddService(serviceTypeId: string) {
-    const serviceMetadata = serviceTypes.getItems().find(s => s.id === serviceTypeId);
+    const serviceMetadata = serviceTypes.getItems()?.find(s => s.id === serviceTypeId);
     if (!serviceMetadata) return;
     
     const defaultPorts = serviceMetadata.metadata?.default_ports || [];
-    const defaultEndpoints = serviceMetadata.metadata?.default_endpoints || [];
     
-    // const newService = createDefaultService(
-    //   formData.id  
-    //   serviceTypeId, 
-    //   serviceMetadata.display_name,
-    //   defaultPorts,
-    //   defaultEndpoints
-    // );
+    const newService: Partial<Service> = {
+      // No ID yet - will be assigned by backend
+      host_id: formData.id,
+      service_type: { type: serviceTypeId },
+      name: serviceMetadata.display_name,
+      ports: [...defaultPorts],
+      interface_bindings: formData.interfaces.length > 0 ? [formData.interfaces[0].id] : []
+    };
     
-    // formData.services = [...hostServices, newService];
+    currentServices = [...currentServices, newService as Service];
+    hasChanges = true;
   }
   
   function handleServiceChange(service: Service, index: number) {
-    if (index >= 0 && index < hostServices.length) {
-      const updatedServices = [...hostServices];
+    if (index >= 0 && index < currentServices.length) {
+      const updatedServices = [...currentServices];
       updatedServices[index] = service;
-      formData.services = updatedServices;
+      currentServices = updatedServices;
+      hasChanges = true;
     }
   }
   
   function handleRemoveService(index: number) {
-    formData.services = hostServices.filter((_, i) => i !== index);
-  }
-  
-  // Display functions for options (available service types)
-  function getOptionId(serviceMetadata: TypeMetadata): string {
-    return serviceMetadata.id;
-  }
-
-  function getOptionCategory(serviceMetadata: TypeMetadata): string {
-    return serviceMetadata.category;
-  }
-  
-  function getOptionLabel(serviceMetadata: TypeMetadata): string {
-    return serviceMetadata.display_name;
-  }
-  
-  function getOptionDescription(serviceMetadata: TypeMetadata): string {
-    return serviceMetadata.description;
-  }
-  
-  function getOptionIcon(serviceMetadata: TypeMetadata) {
-    return createStyle(null, serviceMetadata.icon).IconComponent;
-  }
-  
-  function getOptionIconColor(serviceMetadata: TypeMetadata) {
-    return createStyle(serviceMetadata.color, null).colors.icon;
-  }
-  
-  function getOptionTags(serviceMetadata: TypeMetadata) {
-    const tags = [];
-    // const defaultPorts = serviceMetadata.metadata?.default_ports || [];
-    // if (defaultPorts.length > 0) {
-    //   const portTags = defaultPorts.map((p: Port) => {
-    //     return {
-    //       label: `${p.number}${p.tcp && p.udp ? '/tcp+udp' : p.tcp ? '/tcp' : '/udp'}`,
-    //       color:"blue"
-    //     }}
-    //   );
-    //   tags.push(...portTags)
-    // }
+    const serviceToRemove = currentServices[index];
     
-    return [];
-  }
-  
-  // Display functions for items (current services)
-  function getItemId(service: Service): string {
-    return `${service.service_type.type}_${service.name}`;
-  }
-  
-  function getItemLabel(service: Service): string {
-    return service.name;
-  }
-  
-  function getItemDescription(service: Service): string {    
-    return [`${formatServicePorts(service.ports)}`].filter(Boolean).join(' • ');
-  }
-  
-  function getItemIcon(service: Service) {
-    return serviceTypes.getIcon(service.service_type.type)
-  }
-  
-  function getItemIconColor(service: Service) {
-    return serviceTypes.getColorHelper(service.service_type.type).icon
-  }
-  
-  function getItemTags(service: Service) {
-    const tags: TagProps[] = [];
-    const serviceMetadata = serviceTypes.getItems().find(s => s.id === service.service_type.type);
+    // If service has an ID, mark it for deletion
+    if (serviceToRemove.id) {
+      servicesToDelete = [...servicesToDelete, serviceToRemove.id];
+    }
     
-    // if (serviceMetadata) {
-    //   tags.push({
-    //     label: serviceMetadata.category,
-    //     color: serviceMetadata.color
-    //   });
-    // }
-        
-    return tags;
+    currentServices = currentServices.filter((_, i) => i !== index);
+    hasChanges = true;
+  }
+  
+  // Save changes when parent form is submitted
+  export async function saveServices() {
+    if (hasChanges) {
+      await updateHostServices(formData.id, currentServices, servicesToDelete);
+      hasChanges = false;
+      servicesToDelete = [];
+    }
   }
 </script>
 
-<ListConfigEditor
-  {form}
-  bind:items={formData.services}
-  options={availableServiceTypes}
-  label="Services"
-  helpText="Configure services running on this host"
-  emptyMessage="No services configured. Add one to get started."
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <h3 class="text-lg font-medium text-white">Services</h3>
+    {#if hasChanges}
+      <span class="text-sm text-yellow-400">● Unsaved changes</span>
+    {/if}
+  </div>
   
-  allowReorder={true}
-  placeholder="Select service type to add..."
-  allowItemRemove={(item) => serviceTypes.getMetadata(item.service_type.type).can_be_added}
-  
-  {getOptionId}
-  {getOptionLabel}
-  {getOptionDescription}
-  {getOptionIcon}
-  {getOptionIconColor}
-  {getOptionTags}
-  {getOptionCategory}
-  
-  {getItemId}
-  {getItemLabel}
-  {getItemDescription}
-  {getItemIcon}
-  {getItemIconColor}
-  {getItemTags}
-  
-  onAdd={handleAddService}
-  onRemove={handleRemoveService}
-  onChange={handleServiceChange}
->
-  <ServicesConfigPanel
-    slot="config"
-    let:selectedItem
-    let:selectedIndex
-    let:onChange
-    
+  <ListConfigEditor
     {form}
-    service={selectedItem}
-    onChange={(updatedService) => onChange(updatedService)}
-    open_ports={formData.open_ports}
-  />
-</ListConfigEditor>
+    bind:items={currentServices}
+  >
+    <svelte:fragment slot="list" let:items let:onEdit let:highlightedIndex>
+      <ListManager
+        label="Services"
+        helpText="Services define what this host provides to the network."
+        placeholder="Select service type to add..."
+        emptyMessage="No services configured yet. Add one to get started."
+        allowReorder={true}
+        
+        options={availableServiceTypes}
+        {items}
+        allowItemRemove={() => true}
+        
+        optionDisplayComponent={ServiceTypeDisplay}
+        itemDisplayComponent={ServiceDisplay}
+        
+        onAdd={handleAddService}
+        onRemove={handleRemoveService}
+        {onEdit}
+        {highlightedIndex}
+      />
+    </svelte:fragment>
+    
+    <svelte:fragment slot="config" let:selectedItem let:onChange>
+      {#if selectedItem}
+        <ServicesConfigPanel
+          {form}
+          service={selectedItem}
+          onChange={(updatedService) => onChange(updatedService)}
+          open_ports={formData.open_ports}
+          host_interfaces={formData.interfaces}
+        />
+      {/if}
+    </svelte:fragment>
+  </ListConfigEditor>
+</div>

@@ -24,17 +24,22 @@
     activeTab = tab;
   }
 
+  let registryLoaded = false;
+  let servicesLoaded = false;
+  let subnetsLoaded = false;
+
   onMount(async () => {
     // Load initial data
+    await getRegistry().then(() => registryLoaded = true);
+
     await Promise.all([
-      getRegistry(),
       getHosts(),
       getDaemons(),
       getHostGroups(),
-      getSubnets(),
+      getSubnets().then(() => subnetsLoaded = true),
       getActiveDiscoverySessions(),
       getTopology(),
-      getServices()
+      getServices().then(() => servicesLoaded = true)
     ]);
 
     setTimeout(() => {
@@ -45,6 +50,8 @@
   onDestroy(() => {
     stopDiscoveryPolling();
   });
+
+  $: dataReady = registryLoaded && servicesLoaded && subnetsLoaded;
 </script>
 
 <div class="min-h-screen bg-gray-900 text-white flex">
@@ -54,7 +61,7 @@
   <!-- Main Content -->
   <main class="flex-1 overflow-auto">
     <div class="p-8">
-      {#if appInitialized && $loading}
+      {#if !dataReady || (appInitialized && $loading)}
         <Loading />
       {:else if activeTab === 'hosts'}
         <HostTab />
