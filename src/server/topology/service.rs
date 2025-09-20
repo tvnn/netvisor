@@ -89,7 +89,7 @@ impl TopologyService {
             rows[grid_position.y].push((id, NodeLayout {size, grid_position}));
         }
 
-        let mut current_y = 0;
+        let mut current_y = padding.y;
         let mut max_x = 0;
         let mut max_y = 0;
 
@@ -98,7 +98,7 @@ impl TopologyService {
                 continue;
             }
 
-            let mut current_x = 0;
+            let mut current_x = padding.x;
             let mut max_height_in_row = 0;
 
             for (id, layout) in row {

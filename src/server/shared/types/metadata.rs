@@ -2,7 +2,7 @@ use serde::Serialize;
 
 #[derive(Serialize, Debug, Clone)]
 pub struct TypeRegistry {
-    pub services: Vec<TypeMetadata>,
+    pub service_types: Vec<TypeMetadata>,
     pub subnet_types: Vec<TypeMetadata>,
     pub edge_types: Vec<TypeMetadata>
 }

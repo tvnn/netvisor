@@ -58,4 +58,4 @@ CREATE TABLE IF NOT EXISTS services (
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_services_host_id ON services(host_id);
+CREATE INDEX IF NOT EXISTS idx_services_host_id ON services(host_id)

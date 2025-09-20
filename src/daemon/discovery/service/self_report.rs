@@ -1,6 +1,6 @@
 use anyhow::{Error, Result};
 use futures::future::try_join_all;
-use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{services::types::{base::ServiceBase, ports::Port, types::ServiceType}, utils::base::NetworkUtils}};
+use crate::{daemon::{self, discovery::service::base::DaemonDiscoveryService}, server::{services::types::{base::ServiceBase, ports::Port, types::ServiceType}, utils::base::NetworkUtils}};
 use std::{result::Result::Ok};
 use crate::{
     daemon::{utils::base::{DaemonUtils}},
@@ -58,18 +58,21 @@ impl DaemonDiscoveryService {
         let mut host = Host::new(host_base);
 
         let service_type = ServiceType::NetvisorDaemon{daemon_id};
-
-        let daemon_service = self.create_service(&Service::new(ServiceBase { 
+        let mut daemon_service = Service::new(ServiceBase { 
             name: service_type.display_name().to_string(), 
             service_type,
             ports: vec!(own_port),
             host_id: host.id,
             interface_bindings
-        })).await?;
-
+        });
+        
         host.add_service(daemon_service.id);
 
         let created_host = self.create_host(&host).await?;
+
+        daemon_service.base.host_id = created_host.id; // Update host ID to the one assigned by the server
+
+        self.create_service(&daemon_service).await?;
 
         tracing::info!("Created host with local IP: {}, Hostname: {:?}", local_ip, host.base.hostname);
 

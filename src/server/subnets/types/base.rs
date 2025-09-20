@@ -124,13 +124,13 @@ impl Subnet {
 impl PartialEq for Subnet {
     fn eq(&self, other: &Self) -> bool {
         let cidr_match = &self.base.cidr == &other.base.cidr;
-        let sources_match = match (&self.base.source, &other.base.source) {
-            (SubnetSource::Discovery(daemon_id), SubnetSource::Discovery(other_daemon_id))  => {
-                daemon_id == other_daemon_id
-            },
-            _ => false
-        };
-        cidr_match && sources_match
+        // let sources_match = match (&self.base.source, &other.base.source) {
+        //     (SubnetSource::Discovery(daemon_id), SubnetSource::Discovery(other_daemon_id))  => {
+        //         daemon_id == other_daemon_id
+        //     },
+        //     _ => false
+        // };
+        cidr_match
     }
 }
 

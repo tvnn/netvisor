@@ -2,6 +2,7 @@ use std::{net::IpAddr, sync::Arc};
 use anyhow::{Error, Result};
 use cidr::{IpCidr};
 use chrono::{DateTime, Utc};
+use serde_json::ser;
 use strum::{IntoDiscriminant, IntoEnumIterator};
 use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{interfaces::types::base::{Interface, InterfaceBase}, services::types::types::ServiceType}};
 use tokio_util::sync::CancellationToken;
@@ -162,14 +163,23 @@ impl DaemonDiscoveryService {
                 
                 if let Ok(Some((open_ports, endpoint_responses))) = self.scan_host(ip, scanned_count, cancel).await {
                     
-                    if let Ok(Some(host)) = self.process_host(
+                    if let Ok(Some((host, mut services))) = self.process_host(
                         ip,
                         subnet,
                         open_ports,
                         endpoint_responses,
                     ).await {
                         discovered_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        return Ok::<std::option::Option<Host>, Error>(self.create_host(&host).await.ok())
+                        if let Ok(created_host) = self.create_host(&host).await {
+
+                            let services_futures = services.iter_mut().map(|service| {
+                                service.base.host_id = created_host.id;
+                                self.create_service(service)
+                            });
+                            let _ = try_join_all(services_futures).await;
+                            return Ok::<Option<Host>, Error>(Some(created_host))
+                        }
+                        return Ok(None);
                     }
                 }
                 Ok(None)
@@ -275,7 +285,7 @@ impl DaemonDiscoveryService {
         subnet: Subnet,
         open_ports: Vec<Port>,
         endpoint_responses: Vec<EndpointResponse>,
-    ) -> Result<Option<Host>, Error> {
+    ) -> Result<Option<(Host, Vec<Service>)>, Error> {
         
         if open_ports.is_empty() && endpoint_responses.is_empty() {
             return Ok(None); // Skip hosts with no interesting services
@@ -313,6 +323,7 @@ impl DaemonDiscoveryService {
             groups: Vec::new(),
         });
 
+        let mut services = Vec::new();
         let mut unclaimed_ports = open_ports.clone();
         let mut has_non_generic_service: bool = false;
         let mut has_generic_service: bool = false;
@@ -341,15 +352,15 @@ impl DaemonDiscoveryService {
                 }
 
                 unclaimed_ports.retain(|p| !service_ports.contains(p));
-                self.create_service(&service).await?;
                 host.add_service(service.id);
+                services.push(service);
             }
         };
 
         host.base.open_ports = unclaimed_ports;
         
         tracing::info!("Processed host for host {} with {} open ports", host_ip, open_ports.len());
-        Ok(Some(host))
+        Ok(Some((host, services)))
     }
 
     /// Figure out what order to scan IPs in given allocation patterns

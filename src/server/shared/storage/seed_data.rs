@@ -1,28 +1,10 @@
 use std::net::{IpAddr, Ipv4Addr};
-use anyhow::Error;
-use cidr::{IpCidr, Ipv4Cidr};
 
 use crate::server::{
     hosts::types::{
         base::{Host, HostBase}, targets::HostTarget,
-    }, interfaces::types::base::{Interface, InterfaceBase}, services::types::{base::{Service, ServiceBase}, ports::Port, types::ServiceType}, subnets::types::base::{Subnet, SubnetBase, SubnetSource, SubnetType}
+    }, services::types::{base::{Service, ServiceBase}, ports::Port, types::ServiceType}
 };
-
-pub fn create_internet_subnet() -> Result<Subnet, Error> {
-    let base = SubnetBase {
-        name: "Internet".to_string(),
-        cidr: IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(0, 0, 0, 0), 0)?),
-        subnet_type: SubnetType::Internet,
-        description: Some("Internet subnet for external connectivity".to_string()),
-        dns_resolvers: Vec::new(),
-        gateways: Vec::new(),
-        reverse_proxies: Vec::new(),
-        hosts: Vec::new(),
-        source: SubnetSource::System,
-    };
-
-    Ok(Subnet::new(base))
-}
 
 pub fn create_internet_connectivity_host() -> Host {
 
@@ -40,21 +22,14 @@ pub fn create_internet_connectivity_host() -> Host {
     Host::new(base)
 }
 
-pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
-
-    let interface = Interface::new(InterfaceBase {
-        subnet_id: internet_subnet.id,
-        ip_address: IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)),
-        mac_address: None,
-        name: Some("Cloudflare DNS".to_string()),
-    });
+pub fn create_public_dns_host() -> (Host, Service) {
 
     let base = HostBase {
         name: "Cloudflare".to_string(),
         hostname: None,
         description: Some("Cloudflare DNS for DNS resolution testing".to_string()),
-        target: HostTarget::Hostname,
-        interfaces: vec!(interface.clone()),
+        target: HostTarget::ExternalIp(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1))),
+        interfaces: Vec::new(),
         open_ports: Vec::new(),
         services: Vec::new(),
         groups: Vec::new(),
@@ -67,7 +42,7 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
         name: "Cloudflare DNS".to_string(),
         service_type: ServiceType::GenericDnsServer,
         ports: vec!(Port::DNS_UDP, Port::DNS_TCP),
-        interface_bindings: vec!(interface.id)
+        interface_bindings: Vec::new()
     });
 
     host.add_service(dns_service.id);

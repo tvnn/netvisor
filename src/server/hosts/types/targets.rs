@@ -1,12 +1,13 @@
+use std::net::IpAddr;
+
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use strum_macros::{EnumIter, EnumDiscriminants, Display};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
-#[strum_discriminants(derive(Display, EnumIter))]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag="type", content="config")]
 pub enum HostTarget {
     Interface(Uuid),
+    ExternalIp(IpAddr),
     Hostname
 }
 
