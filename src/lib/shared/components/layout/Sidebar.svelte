@@ -7,7 +7,7 @@
   const navItems = [
     { id: 'hosts', label: 'Hosts', icon: entities.getIconComponent("Host") },
     { id: 'subnets', label: 'Subnets', icon: entities.getIconComponent("Subnet") },
-    { id: 'groups', label: 'Groups', icon: entities.getIconComponent("HostGroup") },
+    { id: 'groups', label: 'Groups', icon: entities.getIconComponent("Group") },
     { id: 'topology', label: 'Topology', icon: entities.getIconComponent("Topology") },
   ];
 </script>

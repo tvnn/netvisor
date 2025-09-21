@@ -1,7 +1,7 @@
 import { get, writable } from 'svelte/store';
 import type { Host, HostTarget, Interface } from "./types/base";
 import { api } from '../../shared/utils/api';
-import { pushInfo, pushWarning } from '$lib/shared/stores/feedback';
+import { pushInfo, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 
 export const hosts = writable<Host[]>([]);
@@ -47,11 +47,15 @@ export async function deleteHost(id: string) {
 }
 
 export async function consolidateHosts(destination_host_id: string, other_host_id: string) {
+
+  let other_host_name = getHostFromId(other_host_id)?.name;
+
   return await api.request<Host, Host[]>(
     `/hosts/${destination_host_id}/consolidate/${other_host_id}`,
     hosts,
     (updatedHost, current) => {
       current = current.filter(g => g.id !== other_host_id);
+      pushSuccess(`Consolidated host "${other_host_name}" into host "${updatedHost.name}"`)
       return current.map(h => h.id == destination_host_id ? updatedHost : h);
     },
     { method: 'PUT'},

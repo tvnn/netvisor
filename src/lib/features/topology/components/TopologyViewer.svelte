@@ -12,7 +12,7 @@
   import type { Node, Edge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { topology } from '../store';
-  import { edgeTypes } from '$lib/shared/stores/registry';
+  import { edgeTypes, entities } from '$lib/shared/stores/registry';
   import { createIconComponent } from '$lib/shared/utils/styling';
   import { pushError } from '$lib/shared/stores/feedback';
   
@@ -70,10 +70,11 @@
           };
         });
 
-        const flowEdges: Edge[] = $topology.edges.map(([sourceIdx, targetIdx, edgeData]: [number, number, any], index: number): Edge => {
+        const flowEdges: Edge[] = $topology.edges.map(([sourceIdx, targetIdx, edgeData]: [number, number, TopologyEdgeData], index: number): Edge => {
           const edgeType = edgeData.edge_type as string;
-          const edgeColor = edgeTypes.getColorHelper(edgeType).bg;
           const edgeLabel = edgeTypes.getDisplay(edgeType);
+
+          let edgeColorHelper = edgeTypes.getColorHelper(edgeType);
           
           const customData: CustomEdgeData = {
             edgeType: edgeType,
@@ -84,12 +85,8 @@
             id: `edge-${index}`,
             source: edgeData.source,
             target: edgeData.target,
-            type: 'smoothstep',
-            style: `stroke-width: 2px;`,
-            markerEnd: {
-              type: MarkerType.ArrowClosed,
-              color: edgeColor
-            },
+            type: 'default',
+            style: `stroke: ${edgeColorHelper.rgb}; stroke-width: 2px;`,
             data: customData
           };
         });
@@ -113,7 +110,6 @@
   }
 </script>
 
-<!-- Svelte Flow Component - Full height -->
 <div class="w-full h-[calc(100vh-200px)] bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
   <SvelteFlow 
     nodes={$nodes} 
@@ -125,7 +121,6 @@
     nodesDraggable={true}
     nodesConnectable={false}
     elementsSelectable={true}
-    class="bg-gray-900"
   >
     <Background 
       variant={BackgroundVariant.Dots}
@@ -138,12 +133,6 @@
       showZoom={true}
       showFitView={true}
       class="!bg-gray-800 !border !border-gray-600 !rounded !shadow-lg [&_button]:!bg-gray-700 [&_button]:!border-gray-600 [&_button]:!text-gray-100 [&_button:hover]:!bg-gray-600"
-    />
-    
-    <MiniMap 
-      nodeColor="#4B5563"
-      maskColor="rgba(31, 41, 55, 0.8)"
-      class="!bg-gray-800 !border !border-gray-600"
     />
   </SvelteFlow>
 </div>

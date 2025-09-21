@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { hostGroups } from '$lib/features/host_groups/store';
-	import { consolidateHosts, createHost, deleteHost, getHostTargetString, hosts, updateHost } from '../store';
   import HostCard from './HostCard.svelte';
   import type { Host } from '../types/base';
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
@@ -12,6 +10,8 @@
 	import { initiateDiscovery, sessions } from '$lib/features/discovery/store';
 	import HostEditor from './HostEditModal/HostEditor.svelte';
 	import HostConsolidationModal from './HostConsolidationModal.svelte';
+	import { consolidateHosts, createHost, deleteHost, getHostTargetString, hosts, updateHost } from '../store';
+	import { groups } from '$lib/features/groups/store';
 
   let searchTerm = '';
   let showHostEditor = false;
@@ -32,7 +32,7 @@
   });
 
   $: groupInfoMap = new Map(
-  $hostGroups.map(group => [
+  $groups.map(group => [
     group.id, 
     {
       name: group.name,

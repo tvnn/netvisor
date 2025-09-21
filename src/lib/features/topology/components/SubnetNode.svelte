@@ -18,7 +18,6 @@
         ${grayColorHelper.bg} ${grayColorHelper.text} 
         border-2 ${grayColorHelper.border} 
         rounded-xl text-sm font-semibold text-center 
-        opacity-90
         transition-all duration-200
         ${selected ? `ring-2 ${subnetColorHelper.ring} ring-opacity-75` : ''}
         shadow-lg
@@ -26,7 +25,7 @@
     
     let infraClasses = $derived(`
         ${grayColorHelper.bg}
-        opacity-80
+        opacity-50
         `.trim().replace(/\s+/g, ' '));
         
     let nodeStyle = $derived(`width: ${width}px; height: ${height}px;`);

@@ -104,9 +104,9 @@
         {/if}
         
         <!-- Connection handles -->
-        <Handle type="target" position={Position.Left} class={`hidden !bg-${colorHelper.string}-500 !border-${colorHelper.string}-600`} />    
-        <Handle type="source" position={Position.Right} class={`hidden !bg-${colorHelper.string}-500 !border-${colorHelper.string}-600`} />    
-        <Handle type="target" position={Position.Top} class={`hidden !bg-${colorHelper.string}-500 !border-${colorHelper.string}-600`} />    
-        <Handle type="source" position={Position.Bottom} class={`hidden !bg-${colorHelper.string}-500 !border-${colorHelper.string}-600`} />    
+        <Handle type="target" position={Position.Left} style={`opacity: 0`} />    
+        <Handle type="source" position={Position.Right} style={`opacity: 0`} />    
+        <Handle type="target" position={Position.Top} style={`opacity: 0`} />    
+        <Handle type="source" position={Position.Bottom} style={`opacity: 0`} />    
     </div>
 {/if}

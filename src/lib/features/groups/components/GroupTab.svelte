@@ -1,41 +1,41 @@
 <script lang="ts">
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
-	import { createHostGroup, deleteHostGroup, hostGroups, updateHostGroup } from '../store';
-	import type { HostGroup } from '../types/base';
-	import HostGroupCard from './HostGroupCard.svelte';
-	import HostGroupEditModal from './HostGroupEditModal.svelte';
+	import { createGroup, deleteGroup, groups, updateGroup } from '../store';
+	import type { Group } from '../types/base';
+	import GroupCard from './GroupCard.svelte';
+	import GroupEditModal from './GroupEditModal.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import { loading } from '$lib/shared/stores/feedback';
   
   let showGroupEditor = false;
-  let editingGroup: HostGroup | null = null;
+  let editingGroup: Group | null = null;
     
   function handleCreateGroup() {
     editingGroup = null;
     showGroupEditor = true;
   }
   
-  function handleEditGroup(group: HostGroup) {
+  function handleEditGroup(group: Group) {
     editingGroup = group;
     showGroupEditor = true;
   }
   
-  function handleDeleteGroup(group: HostGroup) {
+  function handleDeleteGroup(group: Group) {
     if (confirm(`Are you sure you want to delete "${group.name}"?`)) {
-      deleteHostGroup(group.id);
+      deleteGroup(group.id);
     }
   }
   
-  async function handleGroupCreate(data: HostGroup) {
-    const result = await createHostGroup(data);
+  async function handleGroupCreate(data: Group) {
+    const result = await createGroup(data);
     if (result?.success) {
       showGroupEditor = false;
       editingGroup = null;
     }
   }
   
-  async function handleGroupUpdate(id: string, data: HostGroup) {
-    const result = await updateHostGroup(data);
+  async function handleGroupUpdate(id: string, data: Group) {
+    const result = await updateGroup(data);
     if (result?.success) {
       showGroupEditor = false;
       editingGroup = null;
@@ -51,7 +51,7 @@
 <div class="space-y-6">
   <TabHeader
     title="Groups"
-    subtitle="Create host groups to define logical network groups for visualization"
+    subtitle="Create groups to define logical network groups for visualization"
     buttons={[
       {
         onClick: handleCreateGroup,
@@ -60,27 +60,18 @@
     ]}
     />
 
-  <!-- {#if $hostGroups.length > 0}
-    <SummaryStats 
-      totalStatLabel="Total Groups"
-      totalStatValue={$hostGroups.length}
-      goodStatLabel="Auto-Diagnostic"
-      goodStatValue={$hostGroups.filter(g => g.auto_diagnostic_enabled).length}
-    />
-  {/if} -->
-
-  {#if $hostGroups.length === 0 && !$loading}
+  {#if $groups.length === 0 && !$loading}
     <!-- Empty state -->
     <EmptyState 
-      title="No host groups configured yet"
-      subtitle="Host groups define clusters or paths of nodes for visualization"
+      title="No groups configured yet"
+      subtitle="Groups define clusters or paths of nodes for visualization"
       onClick={handleCreateGroup}
-      cta="Create your first host group"/>
+      cta="Create your first group"/>
   {:else}
-    <!-- Host Groups Grid -->
+    <!-- Groups Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {#each $hostGroups as group (group.id)}
-      <HostGroupCard
+      {#each $groups as group (group.id)}
+      <GroupCard
         {group}
         onEdit={() => handleEditGroup(group)}
         onDelete={() => handleDeleteGroup(group)}
@@ -91,7 +82,7 @@
 </div>
 
 <!-- Modal -->
-<HostGroupEditModal
+<GroupEditModal
   isOpen={showGroupEditor}
   group={editingGroup}
   onCreate={handleGroupCreate}

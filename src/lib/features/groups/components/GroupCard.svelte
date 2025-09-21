@@ -3,12 +3,13 @@
   import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
   import { hosts } from '$lib/features/hosts/store';
   import { get } from 'svelte/store';
-  import type { HostGroup } from '../types/base';
+  import type { Group } from '../types/base';
 	import { entities } from '$lib/shared/stores/registry';
+	import { getServiceById } from '$lib/features/services/store';
   
-  export let group: HostGroup;
-  export let onEdit: (group: HostGroup) => void = () => {};
-  export let onDelete: (group: HostGroup) => void = () => {};
+  export let group: Group;
+  export let onEdit: (group: Group) => void = () => {};
+  export let onDelete: (group: Group) => void = () => {};
     
   function getHostName(id: string): string | null {
     return get(hosts).find(h => h.id === id)?.name || null;
@@ -17,9 +18,9 @@
   // Build card data
   $: cardData = {
     title: group.name,
-    subtitle: `${group.hosts.length} host${group.hosts.length === 1 ? '' : 's'} in group`,
-    iconColor: entities.getColorHelper("HostGroup").icon,
-    icon: entities.getIconComponent("HostGroup"),
+    subtitle: `${group.services.length} host${group.services.length === 1 ? '' : 's'} in group`,
+    iconColor: entities.getColorHelper("Group").icon,
+    icon: entities.getIconComponent("Group"),
     
     sections: group.description ? [{
       label: 'Description',
@@ -28,13 +29,13 @@
     
     lists: [
       {
-        label: 'Hosts',
-        items: group.hosts.map((hostId) => ({
-          id: hostId,
-          label: getHostName(hostId) || "Unknown Host",
-          color: entities.getColorString("Host")
+        label: 'Services',
+        items: group.services.map((serviceId) => ({
+          id: serviceId,
+          label: getServiceById(serviceId)?.name || "Unknown Service",
+          color: entities.getColorString("Service")
         })),
-        emptyText: 'No hosts in group'
+        emptyText: 'No services in group'
       }
     ],
     

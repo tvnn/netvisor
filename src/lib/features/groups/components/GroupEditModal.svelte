@@ -1,16 +1,18 @@
 <script lang="ts">
   import { Users } from 'lucide-svelte';
-  import { createEmptyHostGroupFormData } from '../store';
+  import { createEmptyGroupFormData } from '../store';
   import EditModal from '$lib/shared/components/forms/EditModal.svelte';
-  import HostManager from './HostManager.svelte';
-  import type { HostGroup } from '../types/base';
+  import type { Group } from '../types/base';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { entities } from '$lib/shared/stores/registry';
+	import { services } from '$lib/features/services/store';
+	import { ServiceDisplay }  from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
+	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
   
-  export let group: HostGroup | null = null;
+  export let group: Group | null = null;
   export let isOpen = false;
-  export let onCreate: (data: HostGroup) => Promise<void> | void;
-  export let onUpdate: (id: string, data: HostGroup) => Promise<void> | void;
+  export let onCreate: (data: Group) => Promise<void> | void;
+  export let onUpdate: (id: string, data: Group) => Promise<void> | void;
   export let onClose: () => void;
   export let onDelete: ((id: string) => Promise<void> | void) | null = null;
   
@@ -18,9 +20,12 @@
   let deleting = false;
   
   $: isEditing = group !== null;
-  $: title = isEditing ? `Edit ${group?.name}` : 'Create Host Group';
+  $: title = isEditing ? `Edit ${group?.name}` : 'Create Group';
+
+  $: selectableServices = $services.filter(service => !formData.services.includes(service.id))
+  $: selectedServices = $services.filter(service => formData.services.includes(service.id))
   
-  let formData: HostGroup = createEmptyHostGroupFormData();
+  let formData: Group = createEmptyGroupFormData();
   
   // Initialize form data when group changes or modal opens
   $: if (isOpen) {
@@ -28,12 +33,36 @@
   }
   
   function resetForm() {
-    formData = group ? { ...group } : createEmptyHostGroupFormData();
+    formData = group ? { ...group } : createEmptyGroupFormData();
+  }
+
+  function handleAdd(serviceId: string) {
+    if (!formData.services.includes(serviceId)) {
+      formData.services = [...formData.services, serviceId];
+    }
+  }
+  
+  function handleRemove(index: number) {
+    formData.services = formData.services.filter((_, i) => i !== index);
+  }
+  
+  function handleMoveUp(fromIndex: number, toIndex: number) {
+    const newServiceIds = [...formData.services];
+    const [movedService] = newServiceIds.splice(fromIndex, 1);
+    newServiceIds.splice(toIndex, 0, movedService);
+    formData.services = newServiceIds;
+  }
+  
+  function handleMoveDown(fromIndex: number, toIndex: number) {
+    const newServiceIds = [...formData.services];
+    const [movedService] = newServiceIds.splice(fromIndex, 1);
+    newServiceIds.splice(toIndex, 0, movedService);
+    formData.services = newServiceIds;
   }
   
   async function handleSubmit() {
     // Clean up the data before sending
-    const groupData: HostGroup = {
+    const groupData: Group = {
       ...formData,
       name: formData.name.trim(),
       description: formData.description?.trim() || '',
@@ -66,7 +95,7 @@
   $: saveLabel = isEditing ? 'Update Group' : 'Create Group';
   $: cancelLabel = 'Cancel';
 
-  let colorHelper = entities.getColorHelper("HostGroup");
+  let colorHelper = entities.getColorHelper("Group");
 </script>
 
 <EditModal
@@ -84,7 +113,7 @@
 >
   <!-- Header icon -->
   <svelte:fragment slot="header-icon">
-    <ModalHeaderIcon icon={entities.getIconComponent("HostGroup")} color={colorHelper.string}/>
+    <ModalHeaderIcon icon={entities.getIconComponent("Group")} color={colorHelper.string}/>
   </svelte:fragment>
   
   <!-- Content -->
@@ -118,7 +147,7 @@
             <textarea
               id="description"
               bind:value={formData.description}
-              placeholder="Optional description of this host group..."
+              placeholder="Optional description of this group..."
               rows="3"
               class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent resize-none"
             ></textarea>
@@ -130,9 +159,25 @@
           <div class="border-t border-gray-700 pt-6">
             <h3 class="text-lg font-medium text-white mb-4">Hosts</h3>
             <div class="bg-gray-800/50 rounded-lg p-4">
-              <HostManager
-                {form}
-                bind:hostIds={formData.hosts}
+              <ListManager
+                label="Services"
+                helpText="Select services to include in this group"
+                placeholder="Select a service to add..."
+                emptyMessage="No services selected."
+                allowReorder={true}
+                
+                options={selectableServices}
+                items={selectedServices}
+                allowItemEdit={() => false}
+                
+                optionDisplayComponent={ServiceDisplay}
+                itemDisplayComponent={ServiceDisplay}
+                
+                onAdd={handleAdd}
+                onRemove={handleRemove}
+                onMoveUp={handleMoveUp}
+                onMoveDown={handleMoveDown}
+                onEdit={() => {}}
               />
             </div>
           </div>

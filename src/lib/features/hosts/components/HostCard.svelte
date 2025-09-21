@@ -10,9 +10,9 @@
 	import { entities, serviceTypes } from '$lib/shared/stores/registry';
 	import { subnets } from '$lib/features/subnets/store';
 	import { get } from 'svelte/store';
-	import type { HostGroup } from '$lib/features/host_groups/types/base';
+	import type { Group } from '$lib/features/groups/types/base';
 	import { getServicesForHost } from '$lib/features/services/store';
-  
+
   export let host: Host;
   export let daemon: Daemon | null;
   export let groupInfo: any[] = [];
@@ -69,10 +69,10 @@
       },
       {
         label: 'Groups',
-        items: groupInfo.map((group: HostGroup, i) => ({
+        items: groupInfo.map((group: Group, i) => ({
           id: host?.groups ? host.groups[i] : group.name,
           label: group.name,
-          color: entities.getColorHelper("HostGroup").string
+          color: entities.getColorHelper("Group").string
         })),
         emptyText: 'No groups assigned'
       }

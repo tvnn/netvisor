@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { getDaemons } from '$lib/features/daemons/store';
 	import { getActiveDiscoverySessions, stopDiscoveryPolling } from '$lib/features/discovery/store';
-	import HostGroupTab from '$lib/features/host_groups/components/HostGroupTab.svelte';
-	import { getHostGroups } from '$lib/features/host_groups/store';
+	import GroupTab from '$lib/features/groups/components/GroupTab.svelte';
+	import { getGroups } from '$lib/features/groups/store';
 	import HostTab from '$lib/features/hosts/components/HostTab.svelte';
   import TopologyTab from '$lib/features/topology/components/TopologyTab.svelte';
 	import { getHosts } from '$lib/features/hosts/store';
@@ -71,7 +71,7 @@
     await Promise.all([
       getHosts(),
       getDaemons(),
-      getHostGroups(),
+      getGroups(),
       getSubnets().then(() => subnetsLoaded = true),
       getActiveDiscoverySessions(),
       getTopology(),
@@ -108,7 +108,7 @@
         {:else if activeTab === 'subnets'}
           <SubnetTab />
         {:else if activeTab === 'groups'}
-          <HostGroupTab />
+          <GroupTab />
         {:else if activeTab === 'topology'}
           <TopologyTab />
         {/if}

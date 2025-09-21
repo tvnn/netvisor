@@ -8,19 +8,6 @@ import type { Host } from '../hosts/types/base';
 
 export const services = writable<Service[]>([]);
 
-// Reactive helper to get services for a specific host
-export function getServicesForHost(host_id: string): Service[] {
-  
-  let host = get(hosts).find(h => h.id == host_id);
-
-  if (host){
-    const serviceMap = new Map(get(services).map(s => [s.id, s]));
-    return host.services.map(id => serviceMap.get(id)).filter(s => s != undefined)
-  } else {
-    return []
-  }
-}
-
 // Create a new service
 export async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at'>) {
   return await api.request<Service, Service[]>(
@@ -105,6 +92,10 @@ export function createDefaultService(serviceType: string, host_id: string, servi
   };
 }
 
+export function getServiceById(service_id: string): Service | null {
+  return get(services).find(s => s.id == service_id) || null;
+}
+
 export function getServiceHost(service_id: string): Host | null {
   let service = get(services).find(s => s.id == service_id);
   if (service){
@@ -113,6 +104,19 @@ export function getServiceHost(service_id: string): Host | null {
   }
   return null
 }
+
+export function getServicesForHost(host_id: string): Service[] {
+  
+  let host = get(hosts).find(h => h.id == host_id);
+
+  if (host){
+    const serviceMap = new Map(get(services).map(s => [s.id, s]));
+    return host.services.map(id => serviceMap.get(id)).filter(s => s != undefined)
+  } else {
+    return []
+  }
+}
+
 
 export function getServiceDisplayName(service: Service): string {
   return service.name || service.service_type;
