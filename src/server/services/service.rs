@@ -2,13 +2,14 @@ use anyhow::{Error, Result};
 use futures::future::{try_join_all};
 use uuid::Uuid;
 use std::sync::{Arc, OnceLock};
-use crate::server::{hosts::{service::HostService, types::{api::HostUpdateRequest}}, services::{storage::ServiceStorage, types::base::{Service, ServiceUpdateRequest}}, subnets::service::SubnetService
+use crate::server::{groups::service::GroupService, hosts::{service::HostService, types::api::HostUpdateRequest}, services::{storage::ServiceStorage, types::base::{Service, ServiceUpdateRequest}}, subnets::service::SubnetService
 };
 
 pub struct ServiceService {
     storage: Arc<dyn ServiceStorage>,
     subnet_service: Arc<SubnetService>,
-    host_service: OnceLock<Arc<HostService>>
+    host_service: OnceLock<Arc<HostService>>,
+    group_service: OnceLock<Arc<GroupService>>
 }
 
 impl ServiceService {
@@ -16,12 +17,17 @@ impl ServiceService {
         Self { 
             storage,
             subnet_service,
-            host_service: OnceLock::new()
+            host_service: OnceLock::new(),
+            group_service: OnceLock::new()
         }
     }
 
     pub fn set_host_service(&self, host_service: Arc<HostService>) -> Result<(), Arc<HostService>>{
         self.host_service.set(host_service)
+    }
+
+     pub fn set_group_service(&self, group_service: Arc<GroupService>) -> Result<(), Arc<GroupService>>{
+        self.group_service.set(group_service)
     }
 
     pub async fn create_service(&self, service: Service) -> Result<Service> {
@@ -111,8 +117,20 @@ impl ServiceService {
 
     pub async fn delete_service(&self, id: &Uuid, update_host: bool) -> Result<()> {
 
+        let group_service = self.group_service.get().ok_or_else(|| anyhow::anyhow!("Group service not initialized"))?;
         let service = self.get_service(&id).await?.ok_or_else(|| anyhow::anyhow!("Service {} not found", id))?;
         self.update_subnet_service_relationships(&service, true).await?;
+
+        let all_groups = group_service.get_all_groups().await?;
+    
+        // Remove service from all groups that contain it
+        for mut group in all_groups {
+            if group.base.service_bindings.iter().any(|sb| sb.service_id == *id) {
+                group.base.service_bindings.retain(|sb| sb.service_id != *id);
+                group.updated_at = chrono::Utc::now();
+                group_service.update_group(group).await?;
+            }
+        }
 
         if update_host {
             let host_service = self.host_service.get().ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;

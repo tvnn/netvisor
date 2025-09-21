@@ -27,17 +27,17 @@ impl GroupService {
     /// Create a new group
     pub async fn create_group(&self, group: Group) -> Result<Group> {
 
-        for service_id in &group.base.services {
-            if self.service_service.get_service(service_id).await?.is_none() {
-                return Err(anyhow::anyhow!("Service with id '{}' not found", service_id));
+        for binding in &group.base.service_bindings {
+            if self.service_service.get_service(&binding.service_id).await?.is_none() {
+                return Err(anyhow::anyhow!("Service with id '{}' not found", &binding.service_id));
             }
         }
 
         self.group_storage.create(&group).await?;
         
         // Add group reference to all services in the sequence
-        for service_id in &group.base.services {
-            if let Some(service) = self.service_service.get_service(service_id).await? {
+        for binding in &group.base.service_bindings {
+            if let Some(service) = self.service_service.get_service(&binding.service_id).await? {
 
                 if service.base.groups.contains(&group.id) {
                     continue; // Already in group
@@ -69,9 +69,9 @@ impl GroupService {
         group.updated_at = now;
         
         // Validate that all services in sequence exist
-        for service_id in &group.base.services {
-            if self.service_service.get_service(service_id).await?.is_none() {
-                return Err(anyhow::anyhow!("Host with id '{}' not found", service_id));
+        for binding in &group.base.service_bindings {
+            if self.service_service.get_service(&binding.service_id).await?.is_none() {
+                return Err(anyhow::anyhow!("Host with id '{}' not found", &binding.service_id));
             }
         }
 
@@ -83,9 +83,9 @@ impl GroupService {
 
         // Update group references
         // Remove group from services no longer in sequence
-        for old_service_id in &old_group.base.services {
-            if !group.base.services.contains(old_service_id) {
-                if let Some(service) = self.service_service.get_service(old_service_id).await? {
+        for old_binding in &old_group.base.service_bindings {
+            if !group.base.service_bindings.contains(old_binding) {
+                if let Some(service) = self.service_service.get_service(&old_binding.service_id).await? {
                     if !service.base.groups.contains(&group.id) {
                         continue; // Not in group
                     }
@@ -97,9 +97,9 @@ impl GroupService {
         }
 
         // Add group to new services in sequence
-        for new_service_id in &group.base.services {
-            if !old_group.base.services.contains(new_service_id) {
-                if let Some(service) = self.service_service.get_service(new_service_id).await? {
+        for new_binding in &group.base.service_bindings {
+            if !old_group.base.service_bindings.contains(new_binding) {
+                if let Some(service) = self.service_service.get_service(&new_binding.service_id).await? {
                     
                     if service.base.groups.contains(&group.id) {
                         continue; // Already in group
@@ -124,8 +124,8 @@ impl GroupService {
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 
         // Remove group reference from all hosts
-        for service_id in &group.base.services {
-            if let Some(service) = self.service_service.get_service(service_id).await? {
+        for binding in &group.base.service_bindings {
+            if let Some(service) = self.service_service.get_service(&binding.service_id).await? {
                 if !service.base.groups.contains(&group.id) {
                     continue; // Not in group
                 }

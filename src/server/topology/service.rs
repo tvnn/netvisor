@@ -54,7 +54,7 @@ impl TopologyService {
             .collect();
         
         // Second pass: add edges
-        self.add_group_edges(&mut graph, &node_indices, &groups, &services);
+        self.add_group_edges(&mut graph, &node_indices, &groups);
         self.add_interface_edges(&mut graph, &node_indices, &hosts);
         
         Ok(graph)
@@ -374,20 +374,18 @@ impl TopologyService {
         graph: &mut Graph<Node, Edge>, 
         node_indices: &HashMap<Uuid, NodeIndex>, 
         groups: &[Group],
-        services: &[Service]
     ) {
         for host_group in groups {
-            let group_service_ids = &host_group.base.services;
+            let bindings = &host_group.base.service_bindings;
             
             // Create sequential edges within each group (path-like connections)
-            for window in group_service_ids.windows(2) {
-
+            for window in bindings.windows(2) {
                 if let (Some(&source_idx), Some(&target_idx)) = 
-                    (node_indices.get(&window[0]), node_indices.get(&window[1])) {
+                    (node_indices.get(&window[0].interface_id), node_indices.get(&window[1].interface_id)) {
                     graph.add_edge(source_idx, target_idx, Edge {
                         edge_type: EdgeType::Group,
-                        source: window[0],
-                        target: window[1],
+                        source: window[0].interface_id,
+                        target: window[1].interface_id,
                         source_handle: EdgeHandle::Top,
                         target_handle: EdgeHandle::Bottom
                     });

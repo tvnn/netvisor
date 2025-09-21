@@ -39,7 +39,7 @@ impl ServiceStorage for SqliteServiceStorage {
             r#"
             INSERT INTO services (
                 id, name, host_id, service_type, ports, interface_bindings, groups, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&service.id)

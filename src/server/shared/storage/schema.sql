@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS groups (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    services TEXT NOT NULL,
+    service_bindings TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );

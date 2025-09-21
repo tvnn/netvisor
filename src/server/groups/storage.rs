@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::groups::types::{GroupBase,Group};
+use crate::server::groups::types::{Group, GroupBase, ServiceBinding};
 
 #[async_trait]
 pub trait GroupStorage: Send + Sync {
@@ -26,12 +26,12 @@ impl SqliteGroupStorage {
 #[async_trait]
 impl GroupStorage for SqliteGroupStorage {
     async fn create(&self, group: &Group) -> Result<()> {
-        let services_json = serde_json::to_string(&group.base.services)?;
+        let services_json = serde_json::to_string(&group.base.service_bindings)?;
 
         sqlx::query(
             r#"
             INSERT INTO groups (
-                id, name, description, services,
+                id, name, description, service_bindings,
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?)
             "#
@@ -74,12 +74,12 @@ impl GroupStorage for SqliteGroupStorage {
     }
 
     async fn update(&self, group: &Group) -> Result<()> {
-        let services_json = serde_json::to_string(&group.base.services)?;
+        let services_json = serde_json::to_string(&group.base.service_bindings)?;
 
         sqlx::query(
             r#"
             UPDATE groups SET 
-                name = ?, description = ?, services = ?, 
+                name = ?, description = ?, service_bindings = ?, 
                 updated_at = ?
             WHERE id = ?
             "#
@@ -106,7 +106,7 @@ impl GroupStorage for SqliteGroupStorage {
 }
 
 fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group> {
-    let services: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("services"))?;
+    let service_bindings: Vec<ServiceBinding> = serde_json::from_str(&row.get::<String, _>("service_bindings"))?;
 
     Ok(Group {
         id: row.get("id"),
@@ -115,7 +115,7 @@ fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group> {
         base: GroupBase {
             name: row.get("name"),
             description: row.get("description"),
-            services,
+            service_bindings,
         }  
     })
 }

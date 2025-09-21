@@ -217,17 +217,6 @@ impl HostService {
         
         self.update_subnet_host_relationships(&host, true).await?;
 
-        let all_groups = self.host_group_service.get_all_groups().await?;
-    
-        // Remove host from all groups that contain it
-        for mut group in all_groups {
-            if group.base.services.contains(&id) {
-                group.base.services.retain(|seq_id| seq_id != id);
-                group.updated_at = chrono::Utc::now();
-                self.host_group_service.update_group(group).await?;
-            }
-        }
-
         self.storage.delete(id).await
     }
 }

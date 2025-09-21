@@ -37,7 +37,7 @@ impl HostStorage for SqliteHostStorage {
                 id, name, hostname, target, description,
                 services, interfaces, open_ports,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(&host.id)
