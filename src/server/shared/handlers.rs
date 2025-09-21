@@ -20,7 +20,7 @@ use crate::server::{
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
         .nest("/api/hosts", host_handlers::create_router())
-        .route("/api/registry", get(get_type_registry))
+        .route("/api/metadata", get(get_metadata_registry))
         .nest("/api/groups", group_handlers::create_router())
         .nest("/api/daemons", daemon_handlers::create_router())
         .nest("/api/discovery", discovery_handlers::create_router())
@@ -29,7 +29,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .nest("/api/services", service_handlers::create_router())
 }
 
-async fn get_type_registry() -> Json<ApiResponse<MetadataRegistry>> {
+async fn get_metadata_registry() -> Json<ApiResponse<MetadataRegistry>> {
     let registry = MetadataRegistry {
         service_types: ServiceType::iter().map(|t| t.to_metadata()).collect(),
         subnet_types: SubnetType::iter().map(|t| t.to_metadata()).collect(),

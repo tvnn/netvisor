@@ -4,7 +4,7 @@ use itertools::Itertools;
 use uuid::Uuid;
 use std::{sync::Arc};
 use crate::server::{
-    groups::service::GroupService, hosts::{
+    hosts::{
 
         storage::HostStorage,
         types::{
@@ -15,16 +15,14 @@ use crate::server::{
 
 pub struct HostService {
     storage: Arc<dyn HostStorage>,
-    host_group_service: Arc<GroupService>,
     subnet_service: Arc<SubnetService>,
     service_service: Arc<ServiceService>,
 }
 
 impl HostService {
-    pub fn new(storage: Arc<dyn HostStorage>, host_group_service: Arc<GroupService>, subnet_service: Arc<SubnetService>, service_service: Arc<ServiceService>) -> Self {
+    pub fn new(storage: Arc<dyn HostStorage>, subnet_service: Arc<SubnetService>, service_service: Arc<ServiceService>) -> Self {
         Self { 
             storage,
-            host_group_service,
             subnet_service,
             service_service,
         }
