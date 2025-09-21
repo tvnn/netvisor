@@ -4,7 +4,7 @@
   import { AlertCircle, AlertTriangle } from 'lucide-svelte';
   import type { Service, Port } from '$lib/features/services/types/base';
   import type { Interface } from '$lib/features/hosts/types/base';
-  import { entities, registry, serviceTypes } from '$lib/shared/stores/registry';
+  import { entities, metadata, serviceTypes } from '$lib/shared/stores/metadata';
   import Tag from '$lib/shared/components/data/Tag.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
   import { PortDisplay } from '$lib/shared/components/forms/selection/display/PortDisplay.svelte';
@@ -18,7 +18,7 @@
   
   let serviceNameField: any;
   
-  // Get service metadata from registry - use serviceTypes helper for consistency
+  // Get service metadata - use serviceTypes helper for consistency
   $: serviceMetadata = service ? serviceTypes.getItem(service.service_type) : null;
   
   // Validators

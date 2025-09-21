@@ -17,7 +17,7 @@
 
 <script lang="ts">
   import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
-	import type { TypeMetadata } from '$lib/shared/stores/registry';
+	import type { TypeMetadata } from '$lib/shared/stores/metadata';
 	import { createIconComponent } from '$lib/shared/utils/styling';
 	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
   

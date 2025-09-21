@@ -12,7 +12,7 @@
   import type { Node, Edge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { topology } from '../store';
-  import { edgeTypes, entities } from '$lib/shared/stores/registry';
+  import { edgeTypes, entities } from '$lib/shared/stores/metadata';
   import { createIconComponent } from '$lib/shared/utils/styling';
   import { pushError } from '$lib/shared/stores/feedback';
   
@@ -37,17 +37,15 @@
   let edges = writable<Edge[]>([]);
   let selectedNodeId: string | null = null;
 
-  onMount(async () => {
-    try {
-      await loadTopologyData();
-    } catch (err) {
-      pushError('Failed to load network topology');
-    }
-  });
+  // Add debugging to see what's happening
+  $: if ($topology?.nodes && $topology?.edges) {
+      loadTopologyData();
+  }
 
-  async function loadTopologyData() {    
+  function loadTopologyData() {    
     try {
       if ($topology?.nodes && $topology?.edges) {
+        
         const flowNodes: Node[] = $topology.nodes.map((node): Node => {
           return {
             id: node.id,
@@ -70,12 +68,11 @@
           };
         });
 
-        const flowEdges: Edge[] = $topology.edges.map(([sourceIdx, targetIdx, edgeData]: [number, number, TopologyEdgeData], index: number): Edge => {
+        const flowEdges: Edge[] = $topology.edges.map(([sourceIdx, targetIdx, edgeData]: [number, number, any], index: number): Edge => {
           const edgeType = edgeData.edge_type as string;
           const edgeLabel = edgeTypes.getDisplay(edgeType);
-
           let edgeColorHelper = edgeTypes.getColorHelper(edgeType);
-          
+
           const customData: CustomEdgeData = {
             edgeType: edgeType,
             label: edgeLabel
@@ -91,11 +88,13 @@
           };
         });
 
-        nodes.set(flowNodes);
-        edges.set(flowEdges);
+        setTimeout(() => {
+          nodes.set(flowNodes);
+          edges.set(flowEdges);
+        }, 10);
       }
     } catch (err) {
-      pushError('Failed to parse topology data');
+      pushError(`Failed to parse topology data ${err}`);
     }
   }
 

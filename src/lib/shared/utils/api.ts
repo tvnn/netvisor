@@ -1,5 +1,5 @@
 import type { Writable } from "svelte/store";
-import { loading, pushError } from "../stores/feedback";
+import { pushError } from "../stores/feedback";
 
 const API_BASE = 'http://localhost:60072/api';
 
@@ -19,9 +19,7 @@ class ApiClient {
   ): Promise<ApiResponse<TResponseData> | null> {
     const url = `${API_BASE}${endpoint}`;
     const baseErrorMessage = `Failed to ${options.method || 'load'} from ${endpoint}`;
-    
-    if (!isBackgroundRequest) loading.set(true);
-    
+        
     try {
       const response = await fetch(url, {
         headers: {
@@ -57,8 +55,6 @@ class ApiClient {
     } catch (err) {
       pushError(`${baseErrorMessage}: ${err}`);
       return null;
-    } finally {
-      if (!isBackgroundRequest) loading.set(false);
     }
   }
 }

@@ -1,9 +1,11 @@
 <script lang="ts">
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
-	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
-	import { loading } from '$lib/shared/stores/feedback';
 	import TopologyViewer from './TopologyViewer.svelte';
+	import { loadData } from '$lib/shared/utils/dataLoader';
+	import { getTopology } from '../store';
+
+  const loading = loadData([getTopology]);
 </script>
 
 <div class="space-y-6">
@@ -13,6 +15,9 @@
     subtitle="Generate and view network topology"
     buttons={[]}
      />
-
-    <TopologyViewer />
+    {#if $loading}
+      <Loading/>  
+    {:else}
+      <TopologyViewer />
+    {/if}
 </div>

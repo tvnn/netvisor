@@ -2,7 +2,7 @@
     import { Handle, Position, type NodeProps } from '@xyflow/svelte';
     import { createColorHelper } from '$lib/shared/utils/styling';
 	import { Network } from 'lucide-svelte';
-	import { entities } from '$lib/shared/stores/registry';
+	import { entities } from '$lib/shared/stores/metadata';
 	import { getSubnetFromId, getSubnets } from '$lib/features/subnets/store';
 
     let { id, data, selected, width, height }: NodeProps = $props();

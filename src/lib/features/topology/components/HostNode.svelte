@@ -2,7 +2,7 @@
     import { Handle, Position, type NodeProps } from '@xyflow/svelte';
     import { createColorHelper } from '$lib/shared/utils/styling';
     import { getHostFromId, getHostTargetString } from '$lib/features/hosts/store';
-    import { entities } from '$lib/shared/stores/registry';
+    import { entities } from '$lib/shared/stores/metadata';
     import { getServicesForHost } from '$lib/features/services/store';
 
     let { id, data, selected, width, height }: NodeProps = $props();

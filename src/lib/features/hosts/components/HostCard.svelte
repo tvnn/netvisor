@@ -7,7 +7,7 @@
 	import { getDaemonDiscoveryState } from '$lib/features/daemons/store';
   import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
 	import { sessions } from '$lib/features/discovery/store';
-	import { entities, serviceTypes } from '$lib/shared/stores/registry';
+	import { entities, serviceTypes } from '$lib/shared/stores/metadata';
 	import { subnets } from '$lib/features/subnets/store';
 	import { get } from 'svelte/store';
 	import type { Group } from '$lib/features/groups/types/base';
@@ -15,7 +15,7 @@
 
   export let host: Host;
   export let daemon: Daemon | null;
-  export let groupInfo: any[] = [];
+  export let hostGroups: Group[] = [];
   export let onEdit: (host: Host) => void = () => {};
   export let onDelete: (host: Host) => void = () => {};
   export let onDiscovery: (daemon: Daemon) => void = () => {};
@@ -69,8 +69,8 @@
       },
       {
         label: 'Groups',
-        items: groupInfo.map((group: Group, i) => ({
-          id: host?.groups ? host.groups[i] : group.name,
+        items: hostGroups.map((group: Group, i) => ({
+          id: group.id,
           label: group.name,
           color: entities.getColorHelper("Group").string
         })),

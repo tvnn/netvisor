@@ -6,7 +6,7 @@
   import type { Host } from '$lib/features/hosts/types/base';
   import { maxLength } from '$lib/shared/components/forms/validators';
   import TargetConfigForm from './TargetConfigForm.svelte';
-	import { entities } from '$lib/shared/stores/registry';
+	import { entities } from '$lib/shared/stores/metadata';
   
   export let form: any;
   export let formData: Host;

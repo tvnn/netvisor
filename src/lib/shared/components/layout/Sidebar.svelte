@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { entities } from '$lib/shared/stores/registry';
+	import { entities } from '$lib/shared/stores/metadata';
   
   export let activeTab: string = 'hosts';
   export let onTabChange: (tab: string) => void;

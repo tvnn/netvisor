@@ -4,7 +4,7 @@
   import EditModal from '$lib/shared/components/forms/EditModal.svelte';
   import type { Group, ServiceBinding } from '../types/base';
   import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
-  import { entities } from '$lib/shared/stores/registry';
+  import { entities } from '$lib/shared/stores/metadata';
   import { services } from '$lib/features/services/store';
   import { ServiceBindingDisplay }  from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';

@@ -35,7 +35,7 @@
   import { getServiceHost, getServicesForHost } from '$lib/features/services/store';
   import { HostDisplay } from './HostDisplay.svelte';
   import ListSelectItem from '../ListSelectItem.svelte';
-	import { entities, serviceTypes } from '$lib/shared/stores/registry';
+	import { entities, serviceTypes } from '$lib/shared/stores/metadata';
 	import { getHostTargetString } from '$lib/features/hosts/store';
   
   type $$Props = DisplayComponentProps<Service>;

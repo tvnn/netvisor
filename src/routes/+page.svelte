@@ -1,21 +1,21 @@
 <script lang="ts">
 	import { getDaemons } from '$lib/features/daemons/store';
-	import { getActiveDiscoverySessions, stopDiscoveryPolling } from '$lib/features/discovery/store';
+	import { getActiveDiscoverySessions, startDiscoveryPolling, stopDiscoveryPolling } from '$lib/features/discovery/store';
 	import GroupTab from '$lib/features/groups/components/GroupTab.svelte';
-	import { getGroups } from '$lib/features/groups/store';
+	import { getGroups, groups } from '$lib/features/groups/store';
 	import HostTab from '$lib/features/hosts/components/HostTab.svelte';
   import TopologyTab from '$lib/features/topology/components/TopologyTab.svelte';
-	import { getHosts } from '$lib/features/hosts/store';
+	import { getHosts, hosts } from '$lib/features/hosts/store';
 	import SubnetTab from '$lib/features/subnets/components/SubnetTab.svelte';
-	import { getSubnets } from '$lib/features/subnets/store';
+	import { getSubnets, subnets } from '$lib/features/subnets/store';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import Toast from '$lib/shared/components/feedback/Toast.svelte';
 	import Sidebar from '$lib/shared/components/layout/Sidebar.svelte';
-	import { loading } from '$lib/shared/stores/feedback';
-	import { getRegistry } from '$lib/shared/stores/registry';
+	import { getMetadata } from '$lib/shared/stores/metadata';
 	import { onDestroy, onMount } from 'svelte';
 	import { getTopology } from '$lib/features/topology/store';
-	import { getServices } from '$lib/features/services/store';
+	import { getServices, services } from '$lib/features/services/store';
+	import { watchStores } from '$lib/shared/utils/storeWatcher';
   
   let activeTab = 'hosts';
   let appInitialized = false;
@@ -53,9 +53,7 @@
     }
   }
 
-  let registryLoaded = false;
-  let servicesLoaded = false;
-  let subnetsLoaded = false;
+  let storeWatcherUnsubs: (() => void)[] = [];
 
   onMount(async () => {
     // Set initial tab from URL hash
@@ -66,34 +64,29 @@
       window.addEventListener('hashchange', handleHashChange);
     }
     // Load initial data
-    await getRegistry().then(() => registryLoaded = true);
-
-    await Promise.all([
-      getHosts(),
-      getDaemons(),
-      getGroups(),
-      getSubnets().then(() => subnetsLoaded = true),
-      getActiveDiscoverySessions(),
-      getTopology(),
-      getServices().then(() => servicesLoaded = true)
-    ]);
-
-    setTimeout(() => {
-      appInitialized = true;
-    }, 50);
+    storeWatcherUnsubs = [
+      watchStores([hosts, services], () => {getSubnets()}),
+      watchStores([groups], () => {getServices()}),
+      watchStores([groups, services, subnets, hosts], () => {getTopology()})
+    ].flatMap(w => w)
+    await getMetadata().then(() => appInitialized = true);
+    startDiscoveryPolling();
   });
 
   onDestroy(() => {
     stopDiscoveryPolling();
+
+    storeWatcherUnsubs.forEach(unsub => {
+      unsub()
+    });
 
     if (typeof window !== "undefined") {
       window.removeEventListener('hashchange', handleHashChange);
     }
   });
 
-  $: dataReady = registryLoaded && servicesLoaded && subnetsLoaded;
 </script>
-{#if dataReady}
+{#if appInitialized}
   <div class="min-h-screen bg-gray-900 text-white flex">
     <!-- Sidebar -->
     <Sidebar {activeTab} onTabChange={handleTabChange} />
@@ -101,7 +94,7 @@
     <!-- Main Content -->
     <main class="flex-1 overflow-auto">
       <div class="p-8">
-        {#if (appInitialized && $loading)}
+        {#if (!appInitialized)}
           <Loading />
         {:else if activeTab === 'hosts'}
           <HostTab />

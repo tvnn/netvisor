@@ -1,7 +1,7 @@
 <script lang="ts" context="module">
   import { Server } from 'lucide-svelte';
   import ServiceBindingInlineEditor from './ServiceBindingInlineEditor.svelte';
-  import { entities, serviceTypes } from '$lib/shared/stores/registry';
+  import { entities, serviceTypes } from '$lib/shared/stores/metadata';
   import { getServiceHost, services } from '$lib/features/services/store';
   
   // We'll store the update handler globally so the inline editor can access it

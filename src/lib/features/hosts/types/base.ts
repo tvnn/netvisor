@@ -10,7 +10,6 @@ export interface Host {
   target: HostTarget;
   services: string[];
   interfaces: Interface[];
-  groups: string[];
 }
 
 export interface Interface {

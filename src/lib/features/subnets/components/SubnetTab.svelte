@@ -1,15 +1,19 @@
 <script lang="ts">
-	import { createSubnet, deleteSubnet, subnets, updateSubnet } from '../store';
+	import { createSubnet, deleteSubnet, getSubnets, subnets, updateSubnet } from '../store';
   import SubnetCard from './SubnetCard.svelte';
   import SubnetEditModal from './SubnetEditModal.svelte';
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
-	import { loading } from '$lib/shared/stores/feedback';
+	import { loadData } from '$lib/shared/utils/dataLoader';
+	import { getHosts } from '$lib/features/hosts/store';
+	import { getServices } from '$lib/features/services/store';
 
   let searchTerm = '';
   let showSubnetEditor = false;
   let editingSubnet: Subnet | null = null;
+
+  const loading = loadData([getSubnets, getHosts, getServices]);
   
   $: filteredSubnets = $subnets.filter((subnet: Subnet) => {
     const searchLower = searchTerm.toLowerCase();
@@ -69,9 +73,11 @@
       }
     ]}
      />
-
+  
   <!-- Loading state -->
-  {#if filteredSubnets.length === 0 && !$loading}
+  {#if $loading}
+      <Loading/>
+  {:else if $subnets.length === 0}
     <!-- Empty state -->
     <div class="text-center py-12">
       {#if $subnets.length === 0}

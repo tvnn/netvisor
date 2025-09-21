@@ -6,7 +6,7 @@
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import InterfacesForm from './Interfaces/InterfacesForm.svelte';
 	import ServicesForm from './Services/ServicesForm.svelte';
-	import { entities, registry } from '$lib/shared/stores/registry';
+	import { entities, metadata } from '$lib/shared/stores/metadata';
 	import type { Service } from '$lib/features/services/types/base';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
   
@@ -32,16 +32,16 @@
       description: 'Basic host information and connection details'
     },
     { 
-      id: 'services', 
-      label: 'Services',
-      icon: Server,
-      description: 'Service configuration'
-    },
-    { 
       id: 'interfaces', 
       label: 'Interfaces',
       icon: Network,
       description: 'Network interfaces and subnet membership'
+    },
+    { 
+      id: 'services', 
+      label: 'Services',
+      icon: Server,
+      description: 'Service configuration'
     }
   ];
 

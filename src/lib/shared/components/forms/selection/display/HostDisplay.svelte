@@ -1,7 +1,7 @@
 <script lang="ts" context="module">
   import { Network } from 'lucide-svelte';
   import type { Host } from '$lib/features/hosts/types/base';
-  import { entities, serviceTypes } from '$lib/shared/stores/registry';
+  import { entities, serviceTypes } from '$lib/shared/stores/metadata';
   
   export const HostDisplay: EntityDisplayComponent<Host> = {
     getId: (host: Host) => host.id,

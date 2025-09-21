@@ -1,6 +1,8 @@
 import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
+import { getHosts } from '../hosts/store';
+import { getServices } from '../services/store';
 
 export const subnets = writable<Subnet[]>([]);
 
@@ -15,7 +17,7 @@ export async function getSubnets() {
 }
 
 export async function createSubnet(subnet: Subnet) {
-  return await api.request<Subnet, Subnet[]>(
+  const result = await api.request<Subnet, Subnet[]>(
     '/subnets',
     subnets,
     (response, currentSubnets) => [...currentSubnets, response],
@@ -24,10 +26,12 @@ export async function createSubnet(subnet: Subnet) {
       body: JSON.stringify(subnet)
     }
   );
+
+  return result
 }
 
 export async function updateSubnet(subnet: Subnet) {
-  return await api.request<Subnet, Subnet[]>(
+  const result = await api.request<Subnet, Subnet[]>(
     `/subnets/${subnet.id}`,
     subnets,
     (response, currentSubnets) => 
@@ -37,15 +41,19 @@ export async function updateSubnet(subnet: Subnet) {
       body: JSON.stringify(subnet)
     }
   );
+
+  return result
 }
 
 export async function deleteSubnet(subnetId: string) {
-  return await api.request<void, Subnet[]>(
+  const result = await api.request<void, Subnet[]>(
     `/subnets/${subnetId}`,
     subnets,
     (_, currentSubnets) => currentSubnets.filter(s => s.id !== subnetId),
     { method: 'DELETE' }
   );
+
+  return result
 }
 
 export function createEmptySubnetFormData(): Subnet {

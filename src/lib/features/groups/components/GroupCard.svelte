@@ -4,7 +4,7 @@
   import { hosts } from '$lib/features/hosts/store';
   import { get } from 'svelte/store';
   import type { Group } from '../types/base';
-	import { entities } from '$lib/shared/stores/registry';
+	import { entities } from '$lib/shared/stores/metadata';
 	import { getServiceById } from '$lib/features/services/store';
   
   export let group: Group;

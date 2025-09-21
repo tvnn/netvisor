@@ -5,7 +5,7 @@
   import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
 	import { field } from 'svelte-forms';
   import { ipAddress } from '$lib/shared/components/forms/validators';
-	import { entities } from '$lib/shared/stores/registry';
+	import { entities } from '$lib/shared/stores/metadata';
 
   export let form: any;
   export let formData: Host;

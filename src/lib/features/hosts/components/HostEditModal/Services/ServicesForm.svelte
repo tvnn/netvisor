@@ -6,9 +6,9 @@
   import ServicesConfigPanel from './ServicesConfigPanel.svelte';
   import type { Port, Service } from '$lib/features/services/types/base';
   import type { Host } from '$lib/features/hosts/types/base';
-  import { serviceTypes } from '$lib/shared/stores/registry';
+  import { serviceTypes } from '$lib/shared/stores/metadata';
   import { createDefaultService, getServicesForHost } from '$lib/features/services/store';
-  import type { TypeMetadata } from '$lib/shared/stores/registry';
+  import type { TypeMetadata } from '$lib/shared/stores/metadata';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
   

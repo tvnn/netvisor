@@ -1,11 +1,15 @@
 <script lang="ts">
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
-	import { createGroup, deleteGroup, groups, updateGroup } from '../store';
+	import { createGroup, deleteGroup, getGroups, groups, updateGroup } from '../store';
 	import type { Group } from '../types/base';
 	import GroupCard from './GroupCard.svelte';
 	import GroupEditModal from './GroupEditModal.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
-	import { loading } from '$lib/shared/stores/feedback';
+	import { loadData } from '$lib/shared/utils/dataLoader';
+	import { getServices } from '$lib/features/services/store';
+	import Loading from '$lib/shared/components/feedback/Loading.svelte';
+
+  const loading = loadData([getGroups, getServices]);
   
   let showGroupEditor = false;
   let editingGroup: Group | null = null;
@@ -60,7 +64,9 @@
     ]}
     />
 
-  {#if $groups.length === 0 && !$loading}
+  {#if $loading}
+      <Loading/>
+  {:else if $groups.length === 0}
     <!-- Empty state -->
     <EmptyState 
       title="No groups configured yet"

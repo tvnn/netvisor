@@ -78,7 +78,7 @@ export async function updateHostServices(hostId: string, servicesToUpdate: Servi
   await Promise.all(promises);
 }
 
-// Helper functions for working with services and the TypeRegistry
+// Helper functions for working with services and the MetadataRegistry
 export function createDefaultService(serviceType: string, host_id: string, serviceName?: string, defaultPorts?: Port[]): Service {
   return {
     id: uuidv4Sentinel,

@@ -1,4 +1,4 @@
-// Frontend Service interface that matches the backend Service enum with serde(tag = "type")
+import type { Group } from "$lib/features/groups/types/base";
 
 export interface Port {
   number: number;
@@ -22,4 +22,5 @@ export interface Service {
   name: string;
   ports: Port[];
   interface_bindings: string[];
+  groups: string[];
 }

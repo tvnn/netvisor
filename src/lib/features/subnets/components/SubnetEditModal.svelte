@@ -3,7 +3,7 @@
   import { createEmptySubnetFormData } from '../store';
   import EditModal from '$lib/shared/components/forms/EditModal.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-  import { entities, serviceTypes, subnetTypes } from '$lib/shared/stores/registry';
+  import { entities, serviceTypes, subnetTypes } from '$lib/shared/stores/metadata';
   import { hosts } from '$lib/features/hosts/store';
   import type { Host } from '$lib/features/hosts/types/base';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';

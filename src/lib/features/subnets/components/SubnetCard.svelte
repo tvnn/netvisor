@@ -3,7 +3,7 @@
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import { hosts } from '$lib/features/hosts/store';
 	import { get } from 'svelte/store';
-	import { entities, subnetTypes } from '$lib/shared/stores/registry';
+	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
 	import { getServiceHost, services } from '$lib/features/services/store';
   
   export let subnet: Subnet;

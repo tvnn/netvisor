@@ -17,7 +17,6 @@ export interface ToastAction {
   style?: 'primary' | 'secondary';
 }
 
-export const loading = writable(true);
 export const toastStore = writable<Toast[]>([]);
 
 let toastIdCounter = 0;

@@ -1,5 +1,5 @@
 <script lang="ts" context="module">
-  import { serviceTypes } from '$lib/shared/stores/registry';
+  import { serviceTypes } from '$lib/shared/stores/metadata';
   
   export const ServiceDisplay: EntityDisplayComponent<Service> = {
     getId: (service: Service) => service.id,
