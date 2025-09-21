@@ -16,9 +16,7 @@
 
             const servicesForHost = getServicesForHost(data.host_id as string);
             const servicesOnInterface = servicesForHost.filter(s => 
-                s.interface_bindings.some(b => 
-                    host.interfaces.map(i => i.id).includes(b)
-                )
+                s.interface_bindings.some(b => iface && b == iface.id)
             );
 
             let bodyText: string | null = null;
@@ -33,7 +31,7 @@
                 showServices = true;
             }
 
-            const footerText = iface ? `${iface.name ? iface.name+': ' : ''}${iface.ip_address}` : ""
+            const footerText = iface ? `${iface.name ? iface.name+': ' : ''}${iface.ip_address}` : null
 
             return {
                 footerText,
@@ -74,7 +72,7 @@
                 <div class="w-full space-y-1">
                     {#each nodeData.services as service}
                         <div 
-                            class={`font-semibold text-left text-xs max-w-full truncate`}
+                            class={`text-left text-xs max-w-full truncate`}
                             style="line-height: 1.3;"
                             title={service.name}
                         >
@@ -85,8 +83,7 @@
             {:else}
                 <!-- Show host name as body text -->
                 <div 
-                    class={`font-semibold text-center text-xs max-w-full truncate`}
-                    style="line-height: 1.3;"
+                    class={`text-center text-xs truncate leading-none`}
                     title={nodeData.bodyText}
                 >
                     {nodeData.bodyText}
@@ -96,7 +93,7 @@
         
         <!-- Footer section -->
         {#if nodeData.footerText}
-            <div class={`px-2 py-2 ${colorHelper.bg} border-t ${colorHelper.border} flex items-center justify-center flex-shrink-0`}>
+            <div class={`px-2 py-2 border-t ${colorHelper.border} flex items-center justify-center flex-shrink-0`}>
                 <div class={`text-xs font-medium leading-none truncate ${colorHelper.text}`}>
                     {nodeData.footerText}
                 </div>

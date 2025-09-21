@@ -4,5 +4,10 @@ export interface Group {
   updated_at: string;
   name: string;
   description: string;
-  services: string[];
+  service_bindings: ServiceBinding[];
+}
+
+export interface ServiceBinding {
+  service_id: string;
+  interface_id: string;
 }

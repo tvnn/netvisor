@@ -2,12 +2,13 @@
   import { Users } from 'lucide-svelte';
   import { createEmptyGroupFormData } from '../store';
   import EditModal from '$lib/shared/components/forms/EditModal.svelte';
-  import type { Group } from '../types/base';
-	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
-	import { entities } from '$lib/shared/stores/registry';
-	import { services } from '$lib/features/services/store';
-	import { ServiceDisplay }  from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
-	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
+  import type { Group, ServiceBinding } from '../types/base';
+  import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
+  import { entities } from '$lib/shared/stores/registry';
+  import { services } from '$lib/features/services/store';
+  import { ServiceBindingDisplay }  from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
+  import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
+	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
   
   export let group: Group | null = null;
   export let isOpen = false;
@@ -22,8 +23,13 @@
   $: isEditing = group !== null;
   $: title = isEditing ? `Edit ${group?.name}` : 'Create Group';
 
-  $: selectableServices = $services.filter(service => !formData.services.includes(service.id))
-  $: selectedServices = $services.filter(service => formData.services.includes(service.id))
+  // Get services that are available to add (not already in group)
+  $: selectableServices = $services.filter(service => 
+    !formData.service_bindings.some(binding => binding.service_id === service.id)
+  );
+  
+  // Convert service bindings to the format expected by ListManager
+  $: selectedBindings = formData.service_bindings;
   
   let formData: Group = createEmptyGroupFormData();
   
@@ -37,27 +43,45 @@
   }
 
   function handleAdd(serviceId: string) {
-    if (!formData.services.includes(serviceId)) {
-      formData.services = [...formData.services, serviceId];
-    }
+    const service = $services.find(s => s.id === serviceId);
+    if (!service) return;
+    
+    // Default to first interface binding if available
+    const defaultInterfaceId = service.interface_bindings[0] || '';
+    
+    const newBinding: ServiceBinding = {
+      service_id: serviceId,
+      interface_id: defaultInterfaceId
+    };
+    
+    formData.service_bindings = [...formData.service_bindings, newBinding];
   }
   
   function handleRemove(index: number) {
-    formData.services = formData.services.filter((_, i) => i !== index);
+    formData.service_bindings = formData.service_bindings.filter((_, i) => i !== index);
   }
   
   function handleMoveUp(fromIndex: number, toIndex: number) {
-    const newServiceIds = [...formData.services];
-    const [movedService] = newServiceIds.splice(fromIndex, 1);
-    newServiceIds.splice(toIndex, 0, movedService);
-    formData.services = newServiceIds;
+    const newBindings = [...formData.service_bindings];
+    const [movedBinding] = newBindings.splice(fromIndex, 1);
+    newBindings.splice(toIndex, 0, movedBinding);
+    formData.service_bindings = newBindings;
   }
   
   function handleMoveDown(fromIndex: number, toIndex: number) {
-    const newServiceIds = [...formData.services];
-    const [movedService] = newServiceIds.splice(fromIndex, 1);
-    newServiceIds.splice(toIndex, 0, movedService);
-    formData.services = newServiceIds;
+    const newBindings = [...formData.service_bindings];
+    const [movedBinding] = newBindings.splice(fromIndex, 1);
+    newBindings.splice(toIndex, 0, movedBinding);
+    formData.service_bindings = newBindings;
+  }
+  
+  function handleEdit(item: ServiceBinding, index: number) {
+    // This callback is used for simple edit operations
+    // For inline editing, the updates come through the renderInlineEdit onUpdate
+    // We need to handle binding updates when the interface selection changes
+    const updatedBindings = [...formData.service_bindings];
+    updatedBindings[index] = item;
+    formData.service_bindings = updatedBindings;
   }
   
   async function handleSubmit() {
@@ -133,7 +157,7 @@
               id="name"
               type="text"
               bind:value={formData.name}
-              placeholder="e.g., Production Servers, Web Cluster"
+              placeholder="e.g., DNS Resolution Path, Web Access Chain"
               required
               class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent"
             />
@@ -147,37 +171,40 @@
             <textarea
               id="description"
               bind:value={formData.description}
-              placeholder="Optional description of this group..."
+              placeholder="Describe the data flow or purpose of this service chain..."
               rows="3"
               class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent resize-none"
             ></textarea>
           </div>
         </div>
 
-        <!-- Hosts Section -->
+        <!-- Services Section -->
         <div class="space-y-4">
           <div class="border-t border-gray-700 pt-6">
-            <h3 class="text-lg font-medium text-white mb-4">Hosts</h3>
+            <h3 class="text-lg font-medium text-white mb-2">Service Chain</h3>
+            <p class="text-sm text-gray-400 mb-4">
+              Define the sequence of services in this data flow path. Each service can be configured with a specific interface binding.
+            </p>
             <div class="bg-gray-800/50 rounded-lg p-4">
               <ListManager
                 label="Services"
-                helpText="Select services to include in this group"
+                helpText="Select services and configure their interface bindings for this chain"
                 placeholder="Select a service to add..."
-                emptyMessage="No services selected."
+                emptyMessage="No services in this chain yet."
                 allowReorder={true}
                 
                 options={selectableServices}
-                items={selectedServices}
-                allowItemEdit={() => false}
+                items={selectedBindings}
+                allowItemEdit={() => true}
                 
                 optionDisplayComponent={ServiceDisplay}
-                itemDisplayComponent={ServiceDisplay}
+                itemDisplayComponent={ServiceBindingDisplay}
                 
                 onAdd={handleAdd}
                 onRemove={handleRemove}
                 onMoveUp={handleMoveUp}
                 onMoveDown={handleMoveDown}
-                onEdit={() => {}}
+                onEdit={handleEdit}
               />
             </div>
           </div>

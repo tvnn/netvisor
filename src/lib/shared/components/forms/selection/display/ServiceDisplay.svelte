@@ -22,7 +22,14 @@
       return tags;
     },
     getIsDisabled: () => false,
-    getCategory: () => null
+    getCategory: () => null,
+    supportsInlineEdit: true,
+    renderInlineEdit: (service: Service, onUpdate: (updates: any) => void) => {
+      return {
+        component: ServiceBindingInterfaceEditor,
+        props: { service, onUpdate }
+      };
+    }
   };
 </script>
 
@@ -32,6 +39,7 @@
 	import type { Service } from '$lib/features/services/types/base';
 	import type { TagProps } from '$lib/shared/components/data/types';
 	import { formatServicePorts } from '$lib/features/services/store';
+	import ServiceBindingInterfaceEditor from './ServiceBindingInlineEditor.svelte';
   
   type $$Props = DisplayComponentProps<Service>;
   

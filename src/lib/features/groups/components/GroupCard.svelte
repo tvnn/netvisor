@@ -18,7 +18,7 @@
   // Build card data
   $: cardData = {
     title: group.name,
-    subtitle: `${group.services.length} host${group.services.length === 1 ? '' : 's'} in group`,
+    subtitle: `${group.service_bindings.length} service${group.service_bindings.length === 1 ? '' : 's'} in group`,
     iconColor: entities.getColorHelper("Group").icon,
     icon: entities.getIconComponent("Group"),
     
@@ -30,9 +30,9 @@
     lists: [
       {
         label: 'Services',
-        items: group.services.map((serviceId) => ({
-          id: serviceId,
-          label: getServiceById(serviceId)?.name || "Unknown Service",
+        items: group.service_bindings.map(s => ({
+          id: s.service_id,
+          label: getServiceById(s.service_id)?.name || "Unknown Service",
           color: entities.getColorString("Service")
         })),
         emptyText: 'No services in group'

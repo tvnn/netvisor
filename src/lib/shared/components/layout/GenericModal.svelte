@@ -61,7 +61,7 @@
     tabindex="-1"
   >
     <!-- Modal content -->
-    <div class="bg-gray-900 rounded-lg shadow-2xl border border-gray-700 w-full {sizeClasses[size]} max-h-[95vh] flex flex-col">
+    <div class="bg-gray-900 rounded-lg shadow-2xl border border-gray-700 w-full {sizeClasses[size]} {size === 'full' ? 'h-[95vh]' : 'max-h-[95vh]'} flex flex-col">
       <!-- Header -->
       <div class="flex items-center justify-between p-6 border-b border-gray-700 shrink-0">
         <div class="flex items-center gap-3">

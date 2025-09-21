@@ -46,7 +46,7 @@ export function createEmptyGroupFormData(): Group {
     id: uuidv4Sentinel,
     name: '',
     description: '',
-    services: [],
+    service_bindings: [],
     created_at: utcTimeZoneSentinel,
     updated_at: utcTimeZoneSentinel
   };
