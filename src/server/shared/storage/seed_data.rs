@@ -16,7 +16,6 @@ pub fn create_internet_connectivity_host() -> Host {
         open_ports: Vec::new(),
         services: Vec::new(),
         target: HostTarget::Hostname,
-        groups: Vec::new(),
     };
     
     Host::new(base)
@@ -32,7 +31,6 @@ pub fn create_public_dns_host() -> (Host, Service) {
         interfaces: Vec::new(),
         open_ports: Vec::new(),
         services: Vec::new(),
-        groups: Vec::new(),
     };
 
     let mut host = Host::new(base);
@@ -42,7 +40,8 @@ pub fn create_public_dns_host() -> (Host, Service) {
         name: "Cloudflare DNS".to_string(),
         service_type: ServiceType::GenericDnsServer,
         ports: vec!(Port::DNS_UDP, Port::DNS_TCP),
-        interface_bindings: Vec::new()
+        interface_bindings: Vec::new(),
+        groups: Vec::new()
     });
 
     host.add_service(dns_service.id);

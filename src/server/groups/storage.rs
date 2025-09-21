@@ -2,36 +2,36 @@ use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::host_groups::types::{HostGroupBase,HostGroup};
+use crate::server::groups::types::{GroupBase,Group};
 
 #[async_trait]
-pub trait HostGroupStorage: Send + Sync {
-    async fn create(&self, group: &HostGroup) -> Result<()>;
-    async fn get_by_id(&self, id: &Uuid) -> Result<Option<HostGroup>>;
-    async fn get_all(&self) -> Result<Vec<HostGroup>>;
-    async fn update(&self, group: &HostGroup) -> Result<()>;
+pub trait GroupStorage: Send + Sync {
+    async fn create(&self, group: &Group) -> Result<()>;
+    async fn get_by_id(&self, id: &Uuid) -> Result<Option<Group>>;
+    async fn get_all(&self) -> Result<Vec<Group>>;
+    async fn update(&self, group: &Group) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
 }
 
-pub struct SqliteHostGroupStorage {
+pub struct SqliteGroupStorage {
     pool: SqlitePool,
 }
 
-impl SqliteHostGroupStorage {
+impl SqliteGroupStorage {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait]
-impl HostGroupStorage for SqliteHostGroupStorage {
-    async fn create(&self, group: &HostGroup) -> Result<()> {
-        let hosts_json = serde_json::to_string(&group.base.hosts)?;
+impl GroupStorage for SqliteGroupStorage {
+    async fn create(&self, group: &Group) -> Result<()> {
+        let services_json = serde_json::to_string(&group.base.services)?;
 
         sqlx::query(
             r#"
-            INSERT INTO host_groups (
-                id, name, description, hosts,
+            INSERT INTO groups (
+                id, name, description, services,
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?)
             "#
@@ -39,7 +39,7 @@ impl HostGroupStorage for SqliteHostGroupStorage {
         .bind(&group.id)
         .bind(&group.base.name)
         .bind(&group.base.description)
-        .bind(hosts_json)
+        .bind(services_json)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
@@ -48,45 +48,45 @@ impl HostGroupStorage for SqliteHostGroupStorage {
         Ok(())
     }
 
-    async fn get_by_id(&self, id: &Uuid) -> Result<Option<HostGroup>> {
-        let row = sqlx::query("SELECT * FROM host_groups WHERE id = ?")
+    async fn get_by_id(&self, id: &Uuid) -> Result<Option<Group>> {
+        let row = sqlx::query("SELECT * FROM groups WHERE id = ?")
             .bind(id)
             .fetch_optional(&self.pool)
             .await?;
 
         match row {
-            Some(row) => Ok(Some(row_to_host_group(row)?)),
+            Some(row) => Ok(Some(row_to_group(row)?)),
             None => Ok(None),
         }
     }
 
-    async fn get_all(&self) -> Result<Vec<HostGroup>> {
-        let rows = sqlx::query("SELECT * FROM host_groups ORDER BY name")
+    async fn get_all(&self) -> Result<Vec<Group>> {
+        let rows = sqlx::query("SELECT * FROM groups ORDER BY name")
             .fetch_all(&self.pool)
             .await?;
 
         let mut groups = Vec::new();
         for row in rows {
-            groups.push(row_to_host_group(row)?);
+            groups.push(row_to_group(row)?);
         }
 
         Ok(groups)
     }
 
-    async fn update(&self, group: &HostGroup) -> Result<()> {
-        let hosts_json = serde_json::to_string(&group.base.hosts)?;
+    async fn update(&self, group: &Group) -> Result<()> {
+        let services_json = serde_json::to_string(&group.base.services)?;
 
         sqlx::query(
             r#"
-            UPDATE host_groups SET 
-                name = ?, description = ?, hosts = ?, 
+            UPDATE groups SET 
+                name = ?, description = ?, services = ?, 
                 updated_at = ?
             WHERE id = ?
             "#
         )
         .bind(&group.base.name)
         .bind(&group.base.description)
-        .bind(hosts_json)
+        .bind(services_json)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(&group.id)
         .execute(&self.pool)
@@ -96,7 +96,7 @@ impl HostGroupStorage for SqliteHostGroupStorage {
     }
 
     async fn delete(&self, id: &Uuid) -> Result<()> {
-        sqlx::query("DELETE FROM host_groups WHERE id = ?")
+        sqlx::query("DELETE FROM groups WHERE id = ?")
             .bind(id)
             .execute(&self.pool)
             .await?;
@@ -105,17 +105,17 @@ impl HostGroupStorage for SqliteHostGroupStorage {
     }
 }
 
-fn row_to_host_group(row: sqlx::sqlite::SqliteRow) -> Result<HostGroup> {
-    let hosts: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("hosts"))?;
+fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group> {
+    let services: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("services"))?;
 
-    Ok(HostGroup {
+    Ok(Group {
         id: row.get("id"),
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
-        base: HostGroupBase {
+        base: GroupBase {
             name: row.get("name"),
             description: row.get("description"),
-            hosts,
+            services,
         }  
     })
 }

@@ -17,7 +17,8 @@ pub struct ServiceBase {
     pub service_type: ServiceType,
     pub name: String,
     pub ports: Vec<Port>,
-    pub interface_bindings: Vec<Uuid>
+    pub interface_bindings: Vec<Uuid>,
+    pub groups: Vec<Uuid>
 }
 
 impl Default for ServiceBase {
@@ -27,7 +28,8 @@ impl Default for ServiceBase {
             service_type: ServiceType::Unknown,
             name: String::new(),
             ports: Vec::new(),
-            interface_bindings: Vec::new()
+            interface_bindings: Vec::new(),
+            groups: Vec::new()
         }
     }
 }
@@ -38,7 +40,21 @@ pub struct ServiceUpdateRequest {
     pub service_type: Option<ServiceType>,
     pub name: Option<String>,
     pub ports: Option<Vec<Port>>,
-    pub interface_bindings: Option<Vec<Uuid>>
+    pub interface_bindings: Option<Vec<Uuid>>,
+    pub groups: Option<Vec<Uuid>>
+}
+
+impl ServiceUpdateRequest {
+    pub fn from_group_change(groups: Vec<Uuid>) -> Self {
+        Self {
+            host_id: None,
+            service_type: None,
+            name: None,
+            ports: None,
+            interface_bindings: None,
+            groups: Some(groups)
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -102,7 +118,7 @@ impl Service {
             let ports_for_return = ports.clone();
             let name = service_type.display_name().to_string();
 
-            let service = Service::new(ServiceBase { host_id: *host_id, service_type, name, ports, interface_bindings: interface_bindings.clone() });
+            let service = Service::new(ServiceBase { host_id: *host_id, service_type, name, ports, interface_bindings: interface_bindings.clone(), groups: Vec::new() });
             
             return (Some(service), Some(ports_for_return))
         } else {

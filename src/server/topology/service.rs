@@ -6,7 +6,7 @@ use petgraph::{graph::NodeIndex, Graph};
 use uuid::Uuid;
 
 use crate::server::{
-    host_groups::{service::HostGroupService, types::HostGroup}, hosts::{service::HostService, types::base::Host}, services::{service::ServiceService, types::base::Service}, subnets::{service::SubnetService, types::base::Subnet}, topology::types::base::{Edge, EdgeType, Node, NodeLayout, NodeType, SubnetChild, SubnetChildNodeSize, SubnetLayout, XY}
+    groups::{service::GroupService, types::Group}, hosts::{service::HostService, types::base::Host}, services::{service::ServiceService, types::base::Service}, subnets::{service::SubnetService, types::base::Subnet}, topology::types::base::{Edge, EdgeHandle, EdgeType, Node, NodeLayout, NodeType, SubnetChild, SubnetChildNodeSize, SubnetLayout, XY}
 };
 
 const SUBNET_PADDING: XY = XY{x: 50, y: 50};
@@ -15,17 +15,17 @@ const NODE_PADDING: XY = XY{x: 25, y: 25};
 pub struct TopologyService {
     host_service: Arc<HostService>,
     subnet_service: Arc<SubnetService>,
-    host_group_service: Arc<HostGroupService>,
+    group_service: Arc<GroupService>,
     service_service: Arc<ServiceService>,
     no_subnet_id: Uuid,
 }
 
 impl TopologyService {
-    pub fn new(host_service: Arc<HostService>, subnet_service: Arc<SubnetService>, host_group_service: Arc<HostGroupService>, service_service: Arc<ServiceService>) -> Self {
+    pub fn new(host_service: Arc<HostService>, subnet_service: Arc<SubnetService>, group_service: Arc<GroupService>, service_service: Arc<ServiceService>) -> Self {
         Self { 
             host_service,
             subnet_service,
-            host_group_service,
+            group_service,
             service_service,
             no_subnet_id: Uuid::nil()
         }
@@ -34,7 +34,7 @@ impl TopologyService {
     pub async fn build_graph(&self) -> Result<Graph<Node, Edge>, Error> {
         let hosts = self.host_service.get_all_hosts().await?;
         let subnets = self.subnet_service.get_all_subnets().await?;
-        let host_groups = self.host_group_service.get_all_groups().await?;
+        let groups = self.group_service.get_all_groups().await?;
         let services = self.service_service.get_all_services().await?;
                 
         // First pass: create nodes with positions, determining layout from bottom up
@@ -54,7 +54,7 @@ impl TopologyService {
             .collect();
         
         // Second pass: add edges
-        self.add_node_group_edges(&mut graph, &node_indices, &host_groups);
+        self.add_group_edges(&mut graph, &node_indices, &groups, &services);
         self.add_interface_edges(&mut graph, &node_indices, &hosts);
         
         Ok(graph)
@@ -291,43 +291,58 @@ impl TopologyService {
         layouts: &HashMap<Uuid, SubnetLayout>
     ) -> Vec<Node> {
 
-        let container_grid_dimensions = self.calculate_container_grid_dimensions(subnets.len()+1);
+        // Collect all subnet entries (including no_subnet) and sort by size
+        let mut all_subnet_entries: Vec<(Uuid, &SubnetLayout)> = layouts.iter()
+            .map(|(id, layout)| (*id, layout))
+            .collect();
+        
+        // Sort by size (smallest first) - same logic as in create_subnet_child_nodes
+        all_subnet_entries.sort_by_key(|(_, layout)| layout.size.x * layout.size.y);
 
-        let (positions, _) = self.calculate_container_size_and_child_positions(layouts.iter().map(|(id,layout)|(*id, layout.size.clone())).collect::<Vec<_>>(), &container_grid_dimensions, &SUBNET_PADDING);
+        let container_grid_dimensions = self.calculate_container_grid_dimensions(all_subnet_entries.len());
 
-        let no_subnet_node = match (layouts.get(&self.no_subnet_id), positions.get(&self.no_subnet_id)) {
-            (Some(layout), Some(position)) => {
-                Some(Node {
-                    id: self.no_subnet_id,
-                    parent_id: None,
-                    host_id: None,
-                    interface_id: None,
-                    node_type: NodeType::SubnetNode,
-                    position: position.clone(),
-                    size: layout.size.clone(),
-                    infra_width: Some(layout.infra_width.clone())
-                })
-            },
-            _ => None
-        };
+        let (positions, _) = self.calculate_container_size_and_child_positions(
+            all_subnet_entries.iter().map(|(id, layout)| (*id, layout.size.clone())).collect::<Vec<_>>(), 
+            &container_grid_dimensions, 
+            &SUBNET_PADDING
+        );
 
-        subnets.iter()
-            .filter_map(|subnet| {
-                if let (Some(position), Some(layout)) = (positions.get(&subnet.id), layouts.get(&subnet.id)) {
-                    return Some(Node { 
-                        id: subnet.id,
-                        parent_id: None,
-                        host_id: None,
-                        interface_id: None,
-                        node_type: NodeType::SubnetNode,
-                        position: position.clone(),
-                        size: layout.size.clone(),
-                        infra_width: Some(layout.infra_width.clone())
-                    })
+        // Create all nodes (including no_subnet) from the sorted list
+        all_subnet_entries.iter()
+            .filter_map(|(subnet_id, layout)| {
+                if let Some(position) = positions.get(subnet_id) {
+                    let node_type = NodeType::SubnetNode;
+                    
+                    // Handle no_subnet case
+                    if *subnet_id == self.no_subnet_id {
+                        return Some(Node {
+                            id: *subnet_id,
+                            parent_id: None,
+                            host_id: None,
+                            interface_id: None,
+                            node_type,
+                            position: position.clone(),
+                            size: layout.size.clone(),
+                            infra_width: Some(layout.infra_width)
+                        });
+                    }
+                    
+                    // Handle regular subnet case
+                    if subnets.iter().any(|s| s.id == *subnet_id) {
+                        return Some(Node { 
+                            id: *subnet_id,
+                            parent_id: None,
+                            host_id: None,
+                            interface_id: None,
+                            node_type,
+                            position: position.clone(),
+                            size: layout.size.clone(),
+                            infra_width: Some(layout.infra_width)
+                        });
+                    }
                 }
                 None
             })
-            .chain(no_subnet_node.into_iter())
             .collect()
     }
 
@@ -341,9 +356,11 @@ impl TopologyService {
                     .for_each(|interface| {
                         if let (Some(&source_idx), Some(&target_idx)) = (node_indices.get(&interface.id), node_indices.get(&first_interface.id)) {
                             graph.add_edge(source_idx, target_idx, Edge {
-                                edge_type: EdgeType::HostInterface,
-                                source: host.id,
-                                target: interface.id
+                                edge_type: EdgeType::Interface,
+                                source: first_interface.id,
+                                target: interface.id,
+                                source_handle: EdgeHandle::Top,
+                                target_handle: EdgeHandle::Bottom
                             });
                         }
                     });
@@ -352,23 +369,27 @@ impl TopologyService {
 
     }
 
-    fn add_node_group_edges(
+    fn add_group_edges(
         &self, 
         graph: &mut Graph<Node, Edge>, 
         node_indices: &HashMap<Uuid, NodeIndex>, 
-        host_groups: &[HostGroup]
+        groups: &[Group],
+        services: &[Service]
     ) {
-        for host_group in host_groups {
-            let group_host_ids = &host_group.base.hosts;
+        for host_group in groups {
+            let group_service_ids = &host_group.base.services;
             
             // Create sequential edges within each group (path-like connections)
-            for window in group_host_ids.windows(2) {
+            for window in group_service_ids.windows(2) {
+
                 if let (Some(&source_idx), Some(&target_idx)) = 
                     (node_indices.get(&window[0]), node_indices.get(&window[1])) {
                     graph.add_edge(source_idx, target_idx, Edge {
-                        edge_type: EdgeType::HostGroup,
+                        edge_type: EdgeType::Group,
                         source: window[0],
-                        target: window[1]
+                        target: window[1],
+                        source_handle: EdgeHandle::Top,
+                        target_handle: EdgeHandle::Bottom
                     });
                 }
             }

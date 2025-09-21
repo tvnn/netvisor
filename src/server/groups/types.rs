@@ -4,24 +4,24 @@ use uuid::Uuid;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HostGroupBase {
+pub struct GroupBase {
     pub name: String,
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
-    pub hosts: Vec<Uuid>,  // Ordered diagnostic sequence
+    pub services: Vec<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HostGroup {
+pub struct Group {
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     #[serde(flatten)]
-    pub base: HostGroupBase,
+    pub base: GroupBase,
 }
 
-impl HostGroup {
-    pub fn new(base: HostGroupBase) -> Self {
+impl Group {
+    pub fn new(base: GroupBase) -> Self {
         let now = chrono::Utc::now();
         Self {
             id: uuid::Uuid::new_v4(),
@@ -32,10 +32,10 @@ impl HostGroup {
     }
 
     pub fn from_name(name: String) -> Self {
-        let base = HostGroupBase {
+        let base = GroupBase {
             name,
             description: None,
-            hosts: Vec::new(),
+            services: Vec::new(),
         };
 
         Self::new(base)

@@ -9,7 +9,7 @@ pub enum Entity {
     Service,
     Interface,
     Subnet,
-    HostGroup,
+    Group,
     Topology,
 
     Media,
@@ -33,7 +33,7 @@ impl EntityMetadataProvider for Entity {
             Entity::ReverseProxy => "cyan",
 
             Entity::Subnet => "orange",
-            Entity::HostGroup => "rose",
+            Entity::Group => "rose",
             Entity::Topology => "pink"
         }
     }
@@ -49,7 +49,7 @@ impl EntityMetadataProvider for Entity {
             Entity::Gateway => "Router",
             Entity::ReverseProxy => "Split",
             Entity::Subnet => "Network",
-            Entity::HostGroup => "Group",
+            Entity::Group => "Group",
             Entity::Topology => "ChartNetwork"
         }
     }

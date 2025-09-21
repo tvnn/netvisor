@@ -1,25 +1,25 @@
-use anyhow::Result;
+use anyhow::{Result};
 use futures::future::try_join_all;
 use uuid::Uuid;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, OnceLock};
 use crate::server::{hosts::{service::HostService, types::api::HostUpdateRequest}, subnets::{storage::SubnetStorage, types::base::Subnet}
 };
 
 pub struct SubnetService {
     storage: Arc<dyn SubnetStorage>,
-    host_service: Arc<Mutex<Option<Arc<HostService>>>>
+    host_service: OnceLock<Arc<HostService>>
 }
 
 impl SubnetService {
     pub fn new(storage: Arc<dyn SubnetStorage>) -> Self {
         Self { 
             storage,
-            host_service: Arc::new(Mutex::new(None))
+            host_service: OnceLock::new()
         }
     }
     
-    pub fn set_host_service(&self, host_service: Arc<HostService>) {
-        *self.host_service.lock().unwrap() = Some(host_service);
+    pub fn set_host_service(&self, host_service: Arc<HostService>) -> Result<(), Arc<HostService>> {
+        self.host_service.set(host_service)
     }
 
     /// Create a new subnet
@@ -60,12 +60,7 @@ impl SubnetService {
 
     pub async fn delete_subnet(&self, id: &Uuid) -> Result<()> {
 
-        let host_service = self.host_service
-            .lock()
-            .unwrap()
-            .as_ref()
-            .expect("Host service not initialized")
-            .clone();
+        let host_service = self.host_service.get().ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
 
         let hosts = host_service.get_all_hosts().await?;
         let update_futures = hosts
@@ -81,7 +76,6 @@ impl SubnetService {
                         open_ports: None,
                         interfaces: Some(n.base.interfaces.iter().filter(|i| &i.base.subnet_id != id).cloned().collect()),
                         services: None,
-                        groups: None,
                     };
                     return Some(host_service.update_host(&n.id, updates));
                 }

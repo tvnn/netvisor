@@ -2,12 +2,12 @@
 use std::sync::Arc;
 use anyhow::Result;
 use crate::server::{
-    daemons::service::DaemonService, host_groups::service::HostGroupService, hosts::service::HostService, services::service::ServiceService, shared::types::storage::StorageFactory, subnets::service::SubnetService, topology::service::TopologyService
+    daemons::service::DaemonService, groups::service::GroupService, hosts::service::HostService, services::service::ServiceService, shared::types::storage::StorageFactory, subnets::service::SubnetService, topology::service::TopologyService
 };
 
 pub struct ServiceFactory {
     pub host_service: Arc<HostService>,
-    pub host_group_service: Arc<HostGroupService>,
+    pub host_group_service: Arc<GroupService>,
     pub subnet_service: Arc<SubnetService>,
     pub daemon_service: Arc<DaemonService>,
     pub topology_service: Arc<TopologyService>,
@@ -21,7 +21,7 @@ impl ServiceFactory {
 
         let subnet_service = Arc::new(SubnetService::new(storage.subnets.clone()));
         let service_service = Arc::new(ServiceService::new(storage.services.clone(), subnet_service.clone()));
-        let host_group_service = Arc::new(HostGroupService::new(storage.host_groups.clone()));
+        let host_group_service = Arc::new(GroupService::new(storage.host_groups.clone(), service_service.clone()));
 
         let host_service = Arc::new(HostService::new(
             storage.hosts.clone(),
@@ -30,8 +30,8 @@ impl ServiceFactory {
             service_service.clone(),
         ));
 
-        subnet_service.set_host_service(host_service.clone());
-        service_service.set_host_service(host_service.clone());
+        let _ = subnet_service.set_host_service(host_service.clone());
+        let _ = service_service.set_host_service(host_service.clone());
 
         let topology_service = Arc::new(TopologyService::new(
             host_service.clone(),

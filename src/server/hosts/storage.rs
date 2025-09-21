@@ -27,7 +27,6 @@ impl SqliteHostStorage {
 impl HostStorage for SqliteHostStorage {
     async fn create(&self, host: &Host) -> Result<()> {
         let services_str = serde_json::to_string(&host.base.services)?;
-        let groups_str = serde_json::to_string(&host.base.groups)?;
         let interfaces_str = serde_json::to_string(&host.base.interfaces)?;
         let target_str = serde_json::to_string(&host.base.target)?;
         let open_ports_str = serde_json::to_string(&host.base.open_ports)?;
@@ -36,7 +35,7 @@ impl HostStorage for SqliteHostStorage {
             r#"
             INSERT INTO hosts (
                 id, name, hostname, target, description,
-                services, groups, interfaces, open_ports,
+                services, interfaces, open_ports,
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
@@ -47,7 +46,6 @@ impl HostStorage for SqliteHostStorage {
         .bind(target_str)
         .bind(&host.base.description)
         .bind(services_str)
-        .bind(groups_str)
         .bind(interfaces_str)
         .bind(open_ports_str)
         .bind(&host.created_at.to_rfc3339())
@@ -85,7 +83,6 @@ impl HostStorage for SqliteHostStorage {
 
     async fn update(&self, host: &Host) -> Result<()> {
         let services_str = serde_json::to_string(&host.base.services)?;
-        let groups_str = serde_json::to_string(&host.base.groups)?;
         let interfaces_str = serde_json::to_string(&host.base.interfaces)?;
         let target_str = serde_json::to_string(&host.base.target)?;
         let open_ports_str = serde_json::to_string(&host.base.open_ports)?;
@@ -94,7 +91,7 @@ impl HostStorage for SqliteHostStorage {
             r#"
             UPDATE hosts SET 
                 name = ?, hostname = ?, description = ?,
-                target = ?, interfaces = ?, open_ports = ?, services = ?, groups = ?,
+                target = ?, interfaces = ?, open_ports = ?, services = ?,
                 updated_at = ?
             WHERE id = ?
             "#
@@ -106,7 +103,6 @@ impl HostStorage for SqliteHostStorage {
         .bind(interfaces_str)
         .bind(open_ports_str)
         .bind(services_str)
-        .bind(groups_str)
         .bind(&host.updated_at)
         .bind(&host.id)
         .execute(&self.pool)
@@ -128,7 +124,6 @@ impl HostStorage for SqliteHostStorage {
 fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host> {
     // Parse JSON fields safely
     let services: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("services"))?;
-    let groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("groups"))?;
     let interfaces: Vec<Interface> = serde_json::from_str(&row.get::<String, _>("interfaces"))?;
     let target: HostTarget = serde_json::from_str(&row.get::<String, _>("target"))?;
     let open_ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("open_ports"))?;
@@ -149,7 +144,6 @@ fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host> {
             description: row.get("description"),
             services,
             open_ports,
-            groups,
             interfaces,
         }        
     })

@@ -4,7 +4,7 @@ use itertools::Itertools;
 use uuid::Uuid;
 use std::{sync::Arc};
 use crate::server::{
-    host_groups::service::HostGroupService, hosts::{
+    groups::service::GroupService, hosts::{
 
         storage::HostStorage,
         types::{
@@ -15,13 +15,13 @@ use crate::server::{
 
 pub struct HostService {
     storage: Arc<dyn HostStorage>,
-    host_group_service: Arc<HostGroupService>,
+    host_group_service: Arc<GroupService>,
     subnet_service: Arc<SubnetService>,
     service_service: Arc<ServiceService>,
 }
 
 impl HostService {
-    pub fn new(storage: Arc<dyn HostStorage>, host_group_service: Arc<HostGroupService>, subnet_service: Arc<SubnetService>, service_service: Arc<ServiceService>) -> Self {
+    pub fn new(storage: Arc<dyn HostStorage>, host_group_service: Arc<GroupService>, subnet_service: Arc<SubnetService>, service_service: Arc<ServiceService>) -> Self {
         Self { 
             storage,
             host_group_service,
@@ -76,9 +76,6 @@ impl HostService {
         if let Some(target) = updates.target {
             host.base.target = target;
         }
-        if let Some(groups) = updates.groups {
-            host.base.groups = groups;
-        }
         if let Some(hostname) = updates.hostname {
             host.base.hostname = hostname;
         }  
@@ -129,8 +126,7 @@ impl HostService {
                             
                             // Create new interface based on origin, but with new ID
                             let new_interface = Interface::new(InterfaceBase {
-                                name: Some(format!("Migrated from {}", 
-                                    other_host.base.name.clone())),
+                                name: origin_interface.base.name.clone(),
                                 subnet_id: origin_interface.base.subnet_id,
                                 ip_address: origin_interface.base.ip_address,
                                 mac_address: None,
@@ -156,6 +152,7 @@ impl HostService {
                     service_type: None,
                     name: None,
                     ports: None,
+                    groups: None
                 }
             )
         })
@@ -169,7 +166,6 @@ impl HostService {
             interfaces: Some([destination_host.base.interfaces, new_interfaces].concat()),
             services: Some([destination_host.base.services, other_host_services_updates.iter().map(|(s,_)| s.id).collect()].concat()),
             open_ports: None,
-            groups: None,
         };
 
         let service_update_futures = other_host_services_updates.into_iter().map(|(s, update)| {
@@ -225,8 +221,8 @@ impl HostService {
     
         // Remove host from all groups that contain it
         for mut group in all_groups {
-            if group.base.hosts.contains(&id) {
-                group.base.hosts.retain(|seq_id| seq_id != id);
+            if group.base.services.contains(&id) {
+                group.base.services.retain(|seq_id| seq_id != id);
                 group.updated_at = chrono::Utc::now();
                 self.host_group_service.update_group(group).await?;
             }

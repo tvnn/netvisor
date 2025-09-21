@@ -1,14 +1,14 @@
 use anyhow::{Error, Result};
 use futures::future::{try_join_all};
 use uuid::Uuid;
-use std::{sync::{Arc, Mutex}};
+use std::sync::{Arc, OnceLock};
 use crate::server::{hosts::{service::HostService, types::{api::HostUpdateRequest}}, services::{storage::ServiceStorage, types::base::{Service, ServiceUpdateRequest}}, subnets::service::SubnetService
 };
 
 pub struct ServiceService {
     storage: Arc<dyn ServiceStorage>,
     subnet_service: Arc<SubnetService>,
-    host_service: Arc<Mutex<Option<Arc<HostService>>>>
+    host_service: OnceLock<Arc<HostService>>
 }
 
 impl ServiceService {
@@ -16,12 +16,12 @@ impl ServiceService {
         Self { 
             storage,
             subnet_service,
-            host_service: Arc::new(Mutex::new(None))
+            host_service: OnceLock::new()
         }
     }
 
-    pub fn set_host_service(&self, host_service: Arc<HostService>) {
-        *self.host_service.lock().unwrap() = Some(host_service);
+    pub fn set_host_service(&self, host_service: Arc<HostService>) -> Result<(), Arc<HostService>>{
+        self.host_service.set(host_service)
     }
 
     pub async fn create_service(&self, service: Service) -> Result<Service> {
@@ -54,6 +54,10 @@ impl ServiceService {
             service.base.service_type = service_type;
         };
 
+        if let Some(groups) = updates.groups {
+            service.base.groups = groups;
+        }
+
         if let Some(name) = updates.name {
             service.base.name = name;
         };
@@ -75,12 +79,7 @@ impl ServiceService {
     }
 
     pub async fn update_subnet_service_relationships(&self, service: &Service, remove: bool) -> Result<(), Error> {
-        let host_service = self.host_service
-            .lock()
-            .unwrap()
-            .as_ref()
-            .expect("Host service not initialized")
-            .clone();
+        let host_service = self.host_service.get().ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
 
         let subnet_ids: Vec<Uuid> = match host_service.get_host(&service.base.host_id).await? {
             Some(host) => {
@@ -116,12 +115,7 @@ impl ServiceService {
         self.update_subnet_service_relationships(&service, true).await?;
 
         if update_host {
-            let host_service = self.host_service
-                .lock()
-                .unwrap()
-                .as_ref()
-                .expect("Host service not initialized")
-                .clone();
+            let host_service = self.host_service.get().ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
 
             let host = host_service.get_host(&service.base.host_id).await?.ok_or_else(|| anyhow::anyhow!("Host {} not found", service.base.host_id))?;
 
@@ -133,7 +127,6 @@ impl ServiceService {
                 interfaces: None,
                 services: Some(host.base.services.iter().filter(|s| *s != id).cloned().collect()),
                 open_ports: None,
-                groups: None,
             };
 
             host_service.update_host(&host.id, host_update).await?;

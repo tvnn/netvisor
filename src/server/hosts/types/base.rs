@@ -13,7 +13,6 @@ pub struct HostBase {
     pub interfaces: Vec<Interface>,
     pub services: Vec<Uuid>,
     pub open_ports: Vec<Port>,
-    pub groups: Vec<Uuid>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]

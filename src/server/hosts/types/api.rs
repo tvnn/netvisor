@@ -12,20 +12,4 @@ pub struct HostUpdateRequest {
     pub interfaces: Option<Vec<Interface>>,
     pub services: Option<Vec<Uuid>>,
     pub open_ports: Option<Vec<Port>>,
-    pub groups: Option<Vec<Uuid>>,
-}
-
-impl HostUpdateRequest {
-    pub fn from_group_change(groups: Vec<Uuid>) -> Self {
-        Self {
-            name: None,
-            hostname: None,
-            description: None,
-            target: None,
-            interfaces: None,
-            services: None,
-            open_ports: None,
-            groups: Some(groups),
-        }
-    }
 }

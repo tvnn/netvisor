@@ -10,7 +10,7 @@ use crate::server::{
         daemons::handlers as daemon_handlers, 
         topology::handlers as topology_handlers, 
         discovery::handlers as discovery_handlers, 
-        host_groups::handlers as group_handlers, 
+        groups::handlers as group_handlers, 
         services::handlers as service_handlers,
         hosts::{handlers as host_handlers}, 
         subnets::{handlers as subnet_handlers, types::base::SubnetType},
@@ -21,7 +21,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
         .nest("/api/hosts", host_handlers::create_router())
         .route("/api/registry", get(get_type_registry))
-        .nest("/api/host_groups", group_handlers::create_router())
+        .nest("/api/groups", group_handlers::create_router())
         .nest("/api/daemons", daemon_handlers::create_router())
         .nest("/api/discovery", discovery_handlers::create_router())
         .nest("/api/subnets", subnet_handlers::create_router())

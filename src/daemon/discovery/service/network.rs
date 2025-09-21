@@ -319,7 +319,6 @@ impl DaemonDiscoveryService {
             interfaces,
             services: Vec::new(),
             open_ports: Vec::new(),
-            groups: Vec::new(),
         });
 
         let mut services = Vec::new();

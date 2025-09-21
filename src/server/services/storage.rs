@@ -12,7 +12,6 @@ pub trait ServiceStorage: Send + Sync {
     async fn get_all(&self) -> Result<Vec<Service>>;
     async fn get_services_for_host(&self, host_id: &Uuid) -> Result<Vec<Service>>;
     async fn update(&self, service: &Service) -> Result<()>;
-    async fn update_multiple(&self, services: &Vec<Service>) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
 }
 
@@ -33,12 +32,13 @@ impl ServiceStorage for SqliteServiceStorage {
         let service_type_str = serde_json::to_string(&service.base.service_type)?;
         let ports_str = serde_json::to_string(&service.base.ports)?;
         let interface_bindings_str = serde_json::to_string(&service.base.interface_bindings)?;
+        let groups_str = serde_json::to_string(&service.base.groups)?;
         
         // Try to insert, ignore if constraint sviolation
         sqlx::query(
             r#"
             INSERT INTO services (
-                id, name, host_id, service_type, ports, interface_bindings, created_at, updated_at
+                id, name, host_id, service_type, ports, interface_bindings, groups, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
@@ -48,6 +48,7 @@ impl ServiceStorage for SqliteServiceStorage {
         .bind(service_type_str)
         .bind(ports_str)
         .bind(interface_bindings_str)
+        .bind(groups_str)
         .bind(&service.created_at.to_rfc3339())
         .bind(&service.updated_at.to_rfc3339())
         .execute(&self.pool)
@@ -101,11 +102,12 @@ impl ServiceStorage for SqliteServiceStorage {
         let service_type_str = serde_json::to_string(&service.base.service_type)?;
         let ports_str = serde_json::to_string(&service.base.ports)?;
         let interface_bindings_str = serde_json::to_string(&service.base.interface_bindings)?;
+        let groups_str = serde_json::to_string(&service.base.groups)?;
 
         sqlx::query(
             r#"
             UPDATE services SET 
-                name = ?, host_id = ?, service_type = ?, ports = ?, interface_bindings = ?, updated_at = ?
+                name = ?, host_id = ?, service_type = ?, ports = ?, interface_bindings = ?, groups = ?, updated_at = ?
             WHERE id = ?
             "#
         )
@@ -114,45 +116,12 @@ impl ServiceStorage for SqliteServiceStorage {
         .bind(service_type_str)
         .bind(ports_str)
         .bind(interface_bindings_str)
+        .bind(groups_str)
         .bind(&service.updated_at.to_rfc3339())
         .bind(&service.id)
         .execute(&self.pool)
         .await?;
 
-        Ok(())
-    }
-
-    async fn update_multiple(&self, services: &Vec<Service>) -> Result<()> {
-        if services.is_empty() {
-            return Ok(());
-        }
-
-        let mut tx = self.pool.begin().await?;
-
-        for service in services {
-            let service_type_str = serde_json::to_string(&service.base.service_type)?;
-            let ports_str = serde_json::to_string(&service.base.ports)?;
-            let interface_bindings_str = serde_json::to_string(&service.base.interface_bindings)?;
-
-            sqlx::query(
-                r#"
-                UPDATE services SET 
-                    name = ?, host_id = ?, service_type = ?, ports = ?, interface_bindings = ?, updated_at = ?
-                WHERE id = ?
-                "#
-            )
-            .bind(&service.base.name)
-            .bind(&service.base.host_id)
-            .bind(service_type_str)
-            .bind(ports_str)
-            .bind(interface_bindings_str)
-            .bind(&service.updated_at.to_rfc3339())
-            .bind(&service.id)
-            .execute(&mut *tx)
-            .await?;
-        }
-
-        tx.commit().await?;
         Ok(())
     }
 
@@ -171,6 +140,7 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service> {
     let service_type: ServiceType = serde_json::from_str(&row.get::<String, _>("service_type"))?;
     let ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("ports"))?;
     let interface_bindings: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("interface_bindings"))?;
+    let groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("groups"))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -186,7 +156,8 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service> {
             host_id: row.get("host_id"),
             service_type,
             ports,
-            interface_bindings
+            interface_bindings,
+            groups
         }        
     })
 }

@@ -6,7 +6,7 @@ use axum::{
 };
 use uuid::Uuid;
 use std::sync::Arc;
-use crate::server::{config::AppState, host_groups::{types::{HostGroup}}, shared::types::api::{ApiError, ApiResponse, ApiResult}};
+use crate::server::{config::AppState, groups::{types::{Group}}, shared::types::api::{ApiError, ApiResponse, ApiResult}};
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
@@ -18,11 +18,11 @@ pub fn create_router() -> Router<Arc<AppState>> {
 
 async fn create_host_group(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<HostGroup>,
-) -> ApiResult<Json<ApiResponse<HostGroup>>> {
+    Json(request): Json<Group>,
+) -> ApiResult<Json<ApiResponse<Group>>> {
     let service = &state.services.host_group_service;
     
-    let group = HostGroup::new(request.base);
+    let group = Group::new(request.base);
     
     let created_group = service.create_group(group).await?;
     
@@ -31,7 +31,7 @@ async fn create_host_group(
 
 async fn get_all_host_groups(
     State(state): State<Arc<AppState>>,
-) -> ApiResult<Json<ApiResponse<Vec<HostGroup>>>> {
+) -> ApiResult<Json<ApiResponse<Vec<Group>>>> {
     let service = &state.services.host_group_service;
     
     let groups = service.get_all_groups().await?;
@@ -42,8 +42,8 @@ async fn get_all_host_groups(
 async fn update_host_group(
     State(state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    Json(request): Json<HostGroup>,
-) -> ApiResult<Json<ApiResponse<HostGroup>>> {
+    Json(request): Json<Group>,
+) -> ApiResult<Json<ApiResponse<Group>>> {
     let service = &state.services.host_group_service;
     
     let mut group = service.get_group(&id).await?

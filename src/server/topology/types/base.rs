@@ -81,28 +81,38 @@ pub struct SubnetLayout {
 pub struct Edge {
     pub source: Uuid,
     pub target: Uuid,
-    pub edge_type: EdgeType
+    pub edge_type: EdgeType,
+    pub source_handle: EdgeHandle,
+    pub target_handle: EdgeHandle
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum EdgeHandle {
+    Top,
+    Bottom,
+    Left,
+    Right
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum EdgeType {
-    HostInterface, // Connecting hosts with interfaces in multiple subnets
-    HostGroup,     // User-defined logical connection
+    Interface, // Connecting hosts with interfaces in multiple subnets
+    Group,     // User-defined logical connection
 }
 
 impl EntityMetadataProvider for EdgeType {
     fn color(&self) -> &'static str {
         match self {
-            EdgeType::HostGroup => Entity::HostGroup.color(),
-            EdgeType::HostInterface => Entity::Interface.color()
+            EdgeType::Group => Entity::Group.color(),
+            EdgeType::Interface => Entity::Host.color()
         }
     }
     
     fn icon(&self) -> &'static str {
         match self {
-            EdgeType::HostGroup => Entity::HostGroup.icon(),
-            EdgeType::HostInterface => Entity::Interface.icon()
+            EdgeType::Group => Entity::Group.icon(),
+            EdgeType::Interface => Entity::Host.icon()
         }
     }
 }
@@ -110,8 +120,8 @@ impl EntityMetadataProvider for EdgeType {
 impl TypeMetadataProvider for EdgeType {
     fn display_name(&self) -> &'static str {
         match self {
-            EdgeType::HostGroup => "Host Group",
-            EdgeType::HostInterface => "Host Interface"
+            EdgeType::Group => "Host Group",
+            EdgeType::Interface => "Host Interface"
         }
     }
 }

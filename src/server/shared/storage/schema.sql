@@ -7,17 +7,15 @@ CREATE TABLE IF NOT EXISTS hosts (
     interfaces TEXT,
     services TEXT,
     open_ports TEXT,
-    groups TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS host_groups (
+CREATE TABLE IF NOT EXISTS groups (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    hosts TEXT NOT NULL,
-    auto_diagnostic_enabled BOOLEAN DEFAULT true,
+    services TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -52,6 +50,7 @@ CREATE TABLE IF NOT EXISTS services (
     updated_at TEXT NOT NULL,
     name TEXT NOT NULL,
     host_id TEXT NOT NULL,
+    groups TEXT,
     ports TEXT NOT NULL,
     interface_bindings TEXT NOT NULL,
     service_type TEXT NOT NULL,

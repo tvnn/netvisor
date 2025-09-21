@@ -51,7 +51,6 @@ impl DaemonDiscoveryService {
             target,
             services: Vec::new(),
             interfaces,
-            groups: Vec::new(),
             open_ports: Vec::new(),
         };
 
@@ -63,7 +62,8 @@ impl DaemonDiscoveryService {
             service_type,
             ports: vec!(own_port),
             host_id: host.id,
-            interface_bindings
+            interface_bindings,
+            groups: Vec::new()
         });
         
         host.add_service(daemon_service.id);
