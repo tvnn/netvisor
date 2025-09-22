@@ -5,11 +5,10 @@
   import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
 	import { field } from 'svelte-forms';
   import { ipAddress } from '$lib/shared/components/forms/validators';
-	import { entities } from '$lib/shared/stores/metadata';
+	import { required } from 'svelte-forms/validators';
 
   export let form: any;
   export let formData: Host;
-  export let target: HostTarget;
 
   // Form fields
   let selectedInterfaceId: string = '';
@@ -89,12 +88,10 @@
     ipAddressField = field(
       `target_ip`,
       formData.target.config || '',
-      [ipAddress()]
+      [ipAddress(), required()]
     );
     form[`target_ip`] = ipAddressField;
   }
-
-  let colorHelper = entities.getColorHelper("Host")
 </script>
 
 <div class="flex gap-6 items-start">

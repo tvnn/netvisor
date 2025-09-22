@@ -63,8 +63,10 @@
     if (typeof window !== "undefined") {
       window.addEventListener('hashchange', handleHashChange);
     }
+
     // Load initial data
     storeWatcherUnsubs = [
+      watchStores([hosts], () => {getServices()}),  
       watchStores([hosts, services], () => {getSubnets()}),
       watchStores([groups], () => {getServices()}),
       watchStores([groups, services, subnets, hosts], () => {getTopology()})

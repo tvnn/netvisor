@@ -1,4 +1,9 @@
-import type { Port, Service } from "$lib/features/services/types/base";
+import type { Service } from "$lib/features/services/types/base";
+
+export interface HostWithServicesRequest {
+  host: Host,
+  services: Service[]
+}
 
 export interface Host {
   id: string;

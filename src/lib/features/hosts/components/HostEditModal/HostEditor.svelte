@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Server, Settings, Shield, Info, Network } from 'lucide-svelte';
-  import type { Host } from "$lib/features/hosts/types/base";
+  import type { Host, HostWithServicesRequest } from "$lib/features/hosts/types/base";
   import { createEmptyHostFormData } from "$lib/features/hosts/store";
   import DetailsForm from './Details/DetailsForm.svelte';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
@@ -9,11 +9,12 @@
 	import { entities, metadata } from '$lib/shared/stores/metadata';
 	import type { Service } from '$lib/features/services/types/base';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
+	import { getServicesForHost } from '$lib/features/services/store';
   
   export let host: Host | null = null;
   export let isOpen = false;
-  export let onCreate: (data: Host) => Promise<void> | void;
-  export let onUpdate: (id: string, data: Host) => Promise<void> | void;
+  export let onCreate: (data: HostWithServicesRequest) => Promise<void> | void;
+  export let onUpdate: (data: HostWithServicesRequest) => Promise<void> | void;
   export let onClose: () => void;
   export let onDelete: ((id: string) => Promise<void> | void) | null = null;
   
@@ -70,45 +71,24 @@
   }
   
   function resetForm() {
-    // Work directly with Host - no conversion needed
     formData = host ? { ...host } : createEmptyHostFormData();
+    if (host && host.id) {
+      currentHostServices = getServicesForHost(host.id);
+    } else {
+      currentHostServices = [];
+    }
     activeTab = 'details'; // Reset to first tab
   }
 
   async function handleSubmit() {
-    // Clean up the host data
-    const hostData: Host = {
-      ...formData,
-      name: formData.name.trim(),
-      description: formData.description?.trim() || '',
-    };
     
     loading = true;
     try {
-      // First, save/update the host
       if (isEditing && host) {
-        await onUpdate(host.id, hostData);
+        await onUpdate({host: formData, services: currentHostServices});
       } else {
-        await onCreate(hostData);
-      }
-      
-      // Then save individual services (for editing only)
-      if (isEditing && currentHostServices.length > 0) {        
-        // Import updateService function directly
-        const { updateService } = await import('$lib/features/services/store');
-        
-        // Update each service individually
-        const updatePromises = currentHostServices.map(async (service) => {          
-          try {
-            await updateService(service.id, service);
-          } catch (error) {
-            throw error;
-          }
-        });
-        
-        await Promise.all(updatePromises);
-      }
-      
+        await onCreate({host: formData, services: currentHostServices});
+      }      
     } catch (error) {
       throw error;
     } finally {

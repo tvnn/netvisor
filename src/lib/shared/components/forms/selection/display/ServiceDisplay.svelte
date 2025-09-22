@@ -23,13 +23,6 @@
     },
     getIsDisabled: () => false,
     getCategory: () => null,
-    supportsInlineEdit: true,
-    renderInlineEdit: (service: Service, onUpdate: (updates: any) => void) => {
-      return {
-        component: ServiceBindingInterfaceEditor,
-        props: { service, onUpdate }
-      };
-    }
   };
 </script>
 

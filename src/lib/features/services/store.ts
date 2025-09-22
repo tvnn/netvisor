@@ -88,7 +88,8 @@ export function createDefaultService(serviceType: string, host_id: string, servi
     service_type: serviceType,
     name: serviceName || serviceType,
     ports: defaultPorts ? [...defaultPorts] : [],
-    interface_bindings: []
+    interface_bindings: [],
+    groups: []
   };
 }
 
@@ -117,6 +118,15 @@ export function getServicesForHost(host_id: string): Service[] {
   }
 }
 
+export function serviceHasInterfaceOnSubnet(service: Service, subnetId: string): boolean {
+  const host = getServiceHost(service.id);
+  if (!host) return false;
+  
+  return service.interface_bindings.some(bindingId => {
+    const iface = host.interfaces.find(iface => iface.id === bindingId);
+    return iface && iface.subnet_id === subnetId;
+  });
+}
 
 export function getServiceDisplayName(service: Service): string {
   return service.name || service.service_type;

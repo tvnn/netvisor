@@ -14,15 +14,10 @@
   
   export let form: any;
   export let formData: Host;
-  
-  // This will be bound to the parent HostEditor component
   export let currentServices: Service[] = [];
   
   let listConfigEditorRef: any;
-  
-  // Get current services for this host
-  $: currentServices = getServicesForHost(formData.id);
-    
+      
   // Available service types for adding
   $: availableServiceTypes = serviceTypes.getItems()?.filter(service => 
     service.metadata?.can_be_added !== false
@@ -44,7 +39,6 @@
     currentServices = currentServices.filter((_, i) => i !== index);
   }
   
-  // Handle service changes - this will be called by ListConfigEditor through onChange prop
   function handleServiceChange(service: Service, index: number) {    
     if (index >= 0 && index < currentServices.length) {
       const updatedServices = [...currentServices];

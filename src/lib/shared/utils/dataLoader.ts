@@ -6,7 +6,7 @@ export function loadData(loaders: (() => Promise<any>)[]) {
 
   const loadingTimeout = setTimeout(() => {
     loading.set(true)
-  }, 250);
+  }, 500);
   
   // Start loading immediately
   (async () => {

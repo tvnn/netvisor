@@ -1,8 +1,9 @@
 import { get, writable } from 'svelte/store';
-import type { Host, HostTarget, Interface } from "./types/base";
+import type { Host, HostTarget, HostWithServicesRequest, Interface } from "./types/base";
 import { api } from '../../shared/utils/api';
 import { pushInfo, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
+import { getServices } from '../services/store';
 
 export const hosts = writable<Host[]>([]);
 export const polling = writable(false);
@@ -17,21 +18,23 @@ export async function getHosts() {
   )
 }
 
-export async function createHost(data: Host) {
-  return await api.request<Host, Host[]>(
+export async function createHost(data: HostWithServicesRequest) {
+  const result = await api.request<Host, Host[]>(
     '/hosts',
     hosts,
     (host, current) => [...current, host],
     { method: 'POST', body: JSON.stringify(data)},
   )
+
+  return result
 }
 
-export async function updateHost(data: Host) {
+export async function updateHost(data: HostWithServicesRequest) {
   return await api.request<Host, Host[]>(
-    `/hosts/${data.id}`,
+    `/hosts`,
     hosts,
     (updatedHost, current) => {
-      return current.map(n => n.id === data.id ? updatedHost : n)
+      return current.map(n => n.id === data.host.id ? updatedHost : n)
     },
     { method: 'PUT', body: JSON.stringify(data)},
   )
@@ -75,7 +78,6 @@ export function createEmptyHostFormData(): Host {
     },
     services: [],
     interfaces: [],
-    groups: [],
   };
 }
 

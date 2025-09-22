@@ -4,6 +4,7 @@
 	import type { Interface } from '$lib/features/hosts/types/base';
 	import { ipAddress, mac } from '$lib/shared/components/forms/validators';
 	import { entities } from '$lib/shared/stores/metadata';
+	import { required } from 'svelte-forms/validators';
   
   export let form: any;
   export let iface: Interface | null = null;
@@ -18,7 +19,7 @@
     ipAddressField = field(
       `interface_ip_${iface.subnet_id}`,
       iface.ip_address,
-      [ipAddress()]
+      [required(), ipAddress()]
     );
     
     macAddressField = field(

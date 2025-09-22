@@ -1,6 +1,6 @@
 <script lang="ts">
   import HostCard from './HostCard.svelte';
-  import type { Host } from '../types/base';
+  import type { Host, HostWithServicesRequest } from '../types/base';
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
@@ -76,7 +76,7 @@
     }
   }
   
-  async function handleHostCreate(data: Host) {
+  async function handleHostCreate(data: HostWithServicesRequest) {
     const result = await createHost(data);
     if (result?.success) {
       showHostEditor = false;
@@ -84,7 +84,7 @@
     }
   }
   
-  async function handleHostUpdate(id: string, data: any) {
+  async function handleHostUpdate(data: HostWithServicesRequest) {
     const result = await updateHost(data);
     if (result?.success) {
       showHostEditor = false;

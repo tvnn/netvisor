@@ -32,7 +32,7 @@ export async function createSubnet(subnet: Subnet) {
 
 export async function updateSubnet(subnet: Subnet) {
   const result = await api.request<Subnet, Subnet[]>(
-    `/subnets/${subnet.id}`,
+    `/subnets`,
     subnets,
     (response, currentSubnets) => 
       currentSubnets.map(s => s.id === subnet.id ? response : s),

@@ -7,7 +7,7 @@
   import { hosts } from '$lib/features/hosts/store';
   import type { Host } from '$lib/features/hosts/types/base';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
-	import { services } from '$lib/features/services/store';
+	import { serviceHasInterfaceOnSubnet, services } from '$lib/features/services/store';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { ServiceAsHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceAsHostDisplay.svelte';
   
@@ -35,9 +35,23 @@
     formData = subnet ? { ...subnet } : createEmptySubnetFormData();
   }
 
-  let dnsServices = $services.filter(service => serviceTypes.getMetadata(service.service_type)?.is_dns_resolver);
-  let gatewayServices = $services.filter(service => serviceTypes.getMetadata(service.service_type)?.is_gateway);
-  let reverseProxyServices = $services.filter(service => serviceTypes.getMetadata(service.service_type)?.is_reverse_proxy);
+  $: dnsServices = $services.filter(service => {
+    const isDnsResolver = serviceTypes.getMetadata(service.service_type)?.is_dns_resolver;
+    const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
+    return isDnsResolver && hasInterfaceOnSubnet;
+  });
+
+  $: gatewayServices = $services.filter(service => {
+    const isGateway = serviceTypes.getMetadata(service.service_type)?.is_gateway;
+    const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
+    return isGateway && hasInterfaceOnSubnet;
+  });
+
+  $: reverseProxyServices = $services.filter(service => {
+    const isReverseProxy = serviceTypes.getMetadata(service.service_type)?.is_reverse_proxy;
+    const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
+    return isReverseProxy && hasInterfaceOnSubnet;
+  });
       
   // Available services (filtered out already selected)
   $: availableDns = dnsServices.filter(service => !formData.dns_resolvers?.includes(service.id));
