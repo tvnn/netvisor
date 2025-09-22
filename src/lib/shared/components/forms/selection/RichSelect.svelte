@@ -19,42 +19,7 @@
   let dropdownElement: HTMLDivElement;
   let triggerElement: HTMLButtonElement;
   let dropdownPosition = { top: 0, left: 0, width: 0 };
-  let openUpward = false; // Track direction separately
-  let scrollableParents: Element[] = [];
-  
-  // Find all scrollable parent elements
-  function findScrollableParents(element: Element): Element[] {
-    const parents: Element[] = [];
-    let parent = element.parentElement;
-    
-    while (parent && parent !== document.body) {
-      const overflow = window.getComputedStyle(parent).overflow;
-      if (overflow === 'auto' || overflow === 'scroll' || overflow === 'hidden') {
-        parents.push(parent);
-      }
-      parent = parent.parentElement;
-    }
-    
-    return parents;
-  }
-  
-  // Add scroll listeners to all scrollable parents
-  function addScrollListeners() {
-    if (!triggerElement) return;
-    
-    scrollableParents = findScrollableParents(triggerElement);
-    scrollableParents.forEach(parent => {
-      parent.addEventListener('scroll', handleScroll, { passive: true });
-    });
-  }
-  
-  // Remove scroll listeners
-  function removeScrollListeners() {
-    scrollableParents.forEach(parent => {
-      parent.removeEventListener('scroll', handleScroll);
-    });
-    scrollableParents = [];
-  }
+  let openUpward = false;
   
   $: selectedItem = options.find(i => displayComponent.getId(i) === selectedValue);
   
@@ -84,27 +49,22 @@
     return sortedEntries.map(([category, options]) => ({ category, options }));
   })();
   
-  async function updateDropdownPosition() {
+  // Simple one-time positioning when dropdown opens
+  async function calculatePosition() {
     if (!triggerElement) return;
     
     await tick();
     const rect = triggerElement.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
-    const gap = 4;
+    const dropdownHeight = 384; // max-h-96 = 24rem = 384px
+    const gap = 1; // Minimal gap to prevent overlap
     
-    // Calculate available space above and below
-    const spaceBelow = viewportHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    
-    // Determine if we should open upward
-    // Only switch to upward if there's significantly more space above
-    const minSpaceNeeded = 200;
-    openUpward = spaceBelow < minSpaceNeeded && spaceAbove > spaceBelow + 100;
+    // Simple logic: if not enough space below, open upward
+    const spaceBelow = viewportHeight - rect.bottom - gap;
+    openUpward = spaceBelow < dropdownHeight && rect.top > spaceBelow;
     
     dropdownPosition = {
-      top: openUpward 
-        ? rect.top - gap // Position above trigger, will use transform to move it up
-        : rect.bottom + gap, // Position below trigger
+      top: openUpward ? rect.top - gap : rect.bottom + gap,
       left: rect.left,
       width: rect.width
     };
@@ -116,11 +76,9 @@
     if (!disabled) {
       if (!isOpen) {
         isOpen = true;
-        await updateDropdownPosition();
-        addScrollListeners();
+        await calculatePosition(); // Calculate once when opening
       } else {
         isOpen = false;
-        removeScrollListeners();
       }
     }
   }
@@ -129,14 +87,12 @@
     try {
       const item = options.find(i => displayComponent.getId(i) === value);
       if (item && !displayComponent.getIsDisabled?.(item)) {
-        isOpen = false;  // Close dropdown first
-        removeScrollListeners(); // Clean up listeners
-        onSelect(value); // Then call the handler
+        isOpen = false;
+        onSelect(value);
       }
     } catch (e) {
       console.warn('Error in handleSelect:', e);
       isOpen = false;
-      removeScrollListeners();
     }
   }
   
@@ -144,39 +100,14 @@
     if (dropdownElement && !dropdownElement.contains(event.target as Node) &&
         triggerElement && !triggerElement.contains(event.target as Node)) {
       isOpen = false;
-      removeScrollListeners();
     }
   }
-  
-  // Update position on scroll/resize
-  function handleWindowChange() {
-    if (isOpen) {
-      updateDropdownPosition();
-    }
-  }
-  
-  // Handle scroll events specifically - need to update position immediately
-  function handleScroll() {
-    if (isOpen) {
-      updateDropdownPosition();
-    }
-  }
-  
-  // Clean up listeners on component destroy
-  import { onDestroy } from 'svelte';
-  
-  onDestroy(() => {
-    removeScrollListeners();
-  });
 </script>
 
-<svelte:window 
-  on:click={handleClickOutside} 
-  on:scroll={handleScroll}
-  on:resize={handleWindowChange}
-/>
+<!-- Only handle outside clicks -->
+<svelte:window on:click={handleClickOutside} />
 
-<div class="">
+<div class="relative">
   <!-- Label -->
   {#if label}
     <div class="block text-sm font-medium text-gray-300">
@@ -187,55 +118,52 @@
     </div>
   {/if}
   
-  <!-- Dropdown Container -->
-  <div class="relative">
-    <!-- Dropdown Trigger -->
-    <button
-      bind:this={triggerElement}
-      type="button"
-      on:click={handleToggle}
-      class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
-             focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between
-             {error ? 'border-red-500' : ''}
-             {disabled ? 'opacity-50 cursor-not-allowed' : ''}"
-      {disabled}
-    >
-      <div class="flex items-center gap-3 flex-1 min-w-0">
-        {#if selectedItem}
-          <ListSelectItem
-            item={selectedItem}
-            {displayComponent} />
-        {:else}
-          <span class="text-gray-400">{placeholder}</span>
-        {/if}
-      </div>
-      
-      <ChevronDown class="w-4 h-4 text-gray-400 transition-transform flex-shrink-0 {isOpen ? 'rotate-180' : ''}" />
-    </button>
+  <!-- Dropdown Trigger -->
+  <button
+    bind:this={triggerElement}
+    type="button"
+    on:click={handleToggle}
+    class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white 
+           focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between
+           {error ? 'border-red-500' : ''}
+           {disabled || options.length == 0 ? 'opacity-50 cursor-not-allowed' : ''}"
+    disabled={disabled || options.length == 0}
+  >
+    <div class="flex items-center gap-3 flex-1 min-w-0">
+      {#if selectedItem}
+        <ListSelectItem
+          item={selectedItem}
+          {displayComponent} />
+      {:else}
+        <span class="text-gray-400">{options.length == 0 ? 'No options available' : placeholder}</span>
+      {/if}
+    </div>
     
-    <!-- Description below trigger (optional) -->
-    {#if selectedItem && displayComponent.getDescription?.(selectedItem) && showDescriptionUnderDropdown}
-      <div class="mt-2">
-        <p class="text-sm text-gray-400">
-          {displayComponent.getDescription(selectedItem)}
-        </p>
-      </div>
-    {/if}
-    
-    <!-- Error Message -->
-    {#if error}
-      <div class="flex items-center gap-2 text-red-400 text-sm mt-1">
-        <span>{error}</span>
-      </div>
-    {/if}
-  </div>
+    <ChevronDown class="w-4 h-4 text-gray-400 transition-transform flex-shrink-0 {isOpen ? 'rotate-180' : ''}" />
+  </button>
+  
+  <!-- Description below trigger (optional) -->
+  {#if selectedItem && displayComponent.getDescription?.(selectedItem) && showDescriptionUnderDropdown}
+    <div class="mt-2">
+      <p class="text-sm text-gray-400">
+        {displayComponent.getDescription(selectedItem)}
+      </p>
+    </div>
+  {/if}
+  
+  <!-- Error Message -->
+  {#if error}
+    <div class="flex items-center gap-2 text-red-400 text-sm mt-1">
+      <span>{error}</span>
+    </div>
+  {/if}
 </div>
 
-<!-- Portal dropdown to document.body -->
+<!-- Portal dropdown - positioned once, no scroll tracking -->
 {#if isOpen && !disabled}
   <div 
     bind:this={dropdownElement}
-    class="fixed z-[9999] bg-gray-700 border border-gray-600 rounded-md shadow-lg max-h-96 overflow-y-auto"
+    class="fixed z-[9999] bg-gray-700 border border-gray-600 rounded-md shadow-lg max-h-96 overflow-y-auto scroll-smooth"
     style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px; width: {dropdownPosition.width}px;
            {openUpward ? 'transform: translateY(-100%);' : ''}"
   >

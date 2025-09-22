@@ -86,7 +86,7 @@
       </div>
 
       <!-- Content slot -->
-      <div class="flex-1 overflow-auto min-h-0">
+      <div class="flex-1 overflow-auto min-h-0 scroll-smooth">
         <slot />
       </div>
 

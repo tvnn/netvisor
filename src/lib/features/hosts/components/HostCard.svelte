@@ -11,7 +11,7 @@
 	import { subnets } from '$lib/features/subnets/store';
 	import { get } from 'svelte/store';
 	import type { Group } from '$lib/features/groups/types/base';
-	import { getServicesForHost } from '$lib/features/services/store';
+	import { getServicesForHost, services } from '$lib/features/services/store';
 
   export let host: Host;
   export let daemon: Daemon | null;
@@ -28,7 +28,11 @@
   $: hostIsRunningDiscovery = (discoveryIsRunning && daemon !== null) ? getDaemonDiscoveryState(daemon.id, $sessions) !== null : false;
   $: discoveryData = hostIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;
 
-  $: hostServices = getServicesForHost(host.id);
+  $: hostServices = (() => {
+    // Force reactivity to services store
+    $services; 
+    return getServicesForHost(host.id);
+  })();
 
   function getSubnetNameFromId(id: string): string | null {
     return get(subnets).find(s => s.id == id)?.cidr || null

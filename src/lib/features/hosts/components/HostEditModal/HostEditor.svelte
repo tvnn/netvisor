@@ -2,7 +2,7 @@
   import { Server, Settings, Shield, Info, Network } from 'lucide-svelte';
   import type { Host, HostWithServicesRequest } from "$lib/features/hosts/types/base";
   import { createEmptyHostFormData } from "$lib/features/hosts/store";
-  import DetailsForm from './Details/DetailsForm.svelte';
+  import DetailsForm from './Details/HostDetailsForm.svelte';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import InterfacesForm from './Interfaces/InterfacesForm.svelte';
 	import ServicesForm from './Services/ServicesForm.svelte';
@@ -61,6 +61,7 @@
   }
   
   $: isEditing = host !== null;
+  $: isOnLastTab = currentTabIndex == tabs.length
   $: title = isEditing ? `Edit ${host?.name}` : 'Create Host';
   
   let formData: Host = createEmptyHostFormData();
@@ -139,17 +140,19 @@
   {deleting}
   {saveLabel}
   {cancelLabel}
+  {isOnLastTab}
   onSave={handleFormSubmit}
   onCancel={showCancel ? handleFormCancel : null}
   onDelete={isEditing ? handleDelete : null}
   size="full"
+  let:formApi
   let:form
 >
   <!-- Header icon -->
   <svelte:fragment slot="header-icon">
     <ModalHeaderIcon icon={Server} color={entities.getColorString("Host")}/>
   </svelte:fragment>
-  
+
   <!-- Content -->
   <div class="h-full flex flex-col min-h-0">
     <!-- Tab Navigation (only show for editing) -->
@@ -197,6 +200,7 @@
           
           <div class="flex-1 relative">
             <DetailsForm 
+              {formApi}
               {form}
               bind:formData={formData}/>
           </div>
@@ -220,6 +224,7 @@
           
           <div class="flex-1 relative">
             <ServicesForm 
+              {formApi}
               {form}
               bind:formData={formData}
               bind:currentServices={currentHostServices}/>
@@ -244,6 +249,7 @@
           
           <div class="flex-1 relative">
             <InterfacesForm 
+              {formApi}
               {form}
               bind:formData={formData}/>
           </div>

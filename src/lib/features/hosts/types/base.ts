@@ -1,4 +1,4 @@
-import type { Service } from "$lib/features/services/types/base";
+import type { Port, Service } from "$lib/features/services/types/base";
 
 export interface HostWithServicesRequest {
   host: Host,
@@ -14,6 +14,7 @@ export interface Host {
   hostname: string;
   target: HostTarget;
   services: string[];
+  open_ports: Port[];
   interfaces: Interface[];
 }
 

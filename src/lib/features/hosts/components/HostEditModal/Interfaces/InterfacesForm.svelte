@@ -7,15 +7,14 @@
   import { v4 as uuidv4 } from 'uuid';
 	import { SubnetDisplay } from '$lib/shared/components/forms/selection/display/SubnetDisplay.svelte';
 	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
+	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
   
-  export let form: any;
+  export let formApi: FormApi;
+  export let form: FormType;
   export let formData: Host;
   
   // Computed values
   $: interfaces = formData.interfaces || [];
-  $: availableSubnets = $subnets.filter(s => 
-    !interfaces.find(iface => iface.subnet_id === s.id)
-  );
   
   // Helper function to find subnet by ID
   function findSubnetById(subnetId: string) {
@@ -33,18 +32,9 @@
       subnet_id: subnetId,
       ip_address: undefined,
       mac_address: undefined,
-      is_primary: false
     };
     
     formData.interfaces = [...interfaces, newInterface];
-  }
-  
-  function handleInterfaceChange(iface: Interface, index: number) {
-    if (index >= 0 && index < interfaces.length) {
-      const updatedInterfaces = [...interfaces];
-      updatedInterfaces[index] = iface;
-      formData.interfaces = updatedInterfaces;
-    }
   }
   
   function handleRemoveInterface(index: number) {
@@ -53,7 +43,6 @@
 </script>
 
 <ListConfigEditor
-  {form}
   bind:items={formData.interfaces}
 >
   <svelte:fragment slot="list" let:items let:onEdit let:highlightedIndex>
@@ -64,7 +53,7 @@
       emptyMessage="No interfaces configured. Add one to get started."
       allowReorder={false}
       
-      options={availableSubnets}
+      options={$subnets}
       {items}
       
       optionDisplayComponent={SubnetDisplay}
@@ -78,13 +67,22 @@
   </svelte:fragment>
   
   <svelte:fragment slot="config" let:selectedItem let:onChange>
-    {#if selectedItem}
+    {@const subnet = selectedItem ? findSubnetById(selectedItem.subnet_id) : null}
+    {#if selectedItem && subnet}
       <InterfaceConfigPanel
+        {formApi}
         {form}
         iface={selectedItem}
-        subnet={findSubnetById(selectedItem.subnet_id)}
+        subnet={subnet}
         onChange={(updatedInterface) => onChange(updatedInterface)}
       />
+    {:else}
+      <div class="flex-1 min-h-0 flex items-center justify-center text-gray-400">
+        <div class="text-center">
+          <div class="text-lg mb-2">No interface selected</div>
+          <div class="text-sm">Select an interface from the list to configure it</div>
+        </div>
+      </div>
     {/if}
   </svelte:fragment>
 </ListConfigEditor>

@@ -10,44 +10,44 @@
   import { PortDisplay } from '$lib/shared/components/forms/selection/display/PortDisplay.svelte';
 	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
+	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
+	import { required } from 'svelte-forms/validators';
+	import { onMount } from 'svelte';
+	import { pushWarning } from '$lib/shared/stores/feedback';
+	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
+	import { maxLength } from '$lib/shared/components/forms/validators';
+	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
   
-  export let form: any;
-  export let service: Service | null = null;
+  export let formApi: FormApi;
+  export let form: FormType;
+  export let service: Service;
   export let host_interfaces: Interface[] = [];
   export let onChange: (updatedService: Service) => void = () => {};
   
-  let serviceNameField: any;
-  
-  // Get service metadata - use serviceTypes helper for consistency
+  let currentServiceId: string = service.id;
+
+  const getNameField = () => {
+    return field(
+      `service_name_${currentServiceId}`,
+      service.name,
+      [required(), maxLength(100)]
+    );
+  }
+
+  let nameField = getNameField();
+
   $: serviceMetadata = service ? serviceTypes.getItem(service.service_type) : null;
   
-  // Validators
-  const serviceNameValidator = () => (value: string) => {
-    if (!value || value.trim().length === 0) {
-      return { name: 'required', valid: false };
-    }
-    return { name: 'valid', valid: true };
-  };
-  
-  // Initialize form fields when service changes
-  $: if (service && serviceMetadata) {
-    serviceNameField = field(
-      `service_name_${service.service_type}`,
-      service.name,
-      [serviceNameValidator()]
-    );
-        
-    // Register with parent form
-    if (form) {
-      form[`service_name_${service.service_type}`] = serviceNameField;
-    }
-  }
-  
+  $: if (service.id !== currentServiceId) {
+    currentServiceId = service.id
+    nameField = getNameField();
+  }    
+
   // Update service when field values change
-  $: if (service && serviceNameField && $serviceNameField) {
+  $: if ($nameField) {
     const updatedService: Service = {
       ...service,
-      name: $serviceNameField.value,
+      name: $nameField.value,
     };
     
     // Only trigger onChange if values actually changed
@@ -56,21 +56,21 @@
     }
   }
 
-  function handleAddPort(portId: string) {
+  function handleCreateNewPort() {
     if (!service) return;
     
-    // Parse the port ID back to find the port
-    // const [numberStr, protocol] = portId.split('-');
-    // const number = parseInt(numberStr);
+    // Create a new port with default values in editing state
+    const newPort: Port = {
+      number: 80,  // Default port number
+      protocol: 'Tcp'  // Default protocol
+    };
     
-    // if (!selectedPort) return;
+    const updatedService = {
+      ...service,
+      ports: [...service.ports, newPort]
+    };
     
-    // const updatedService = {
-    //   ...service,
-    //   ports: [...service.ports, selectedPort]
-    // };
-    
-    // onChange(updatedService);
+    onChange(updatedService);
   }
   
   function handleRemovePort(index: number) {
@@ -121,7 +121,7 @@
       .map(id => {
         const iface = host_interfaces.find(iface => iface.id === id);
         if (!iface) {
-          console.warn(`⚠️ Interface binding ${id} not found in host interfaces for service ${service.name}`);
+          pushWarning(`⚠️ Interface binding ${id} not found in host interfaces for service ${service.name}`);
         }
         return iface;
       })
@@ -133,56 +133,31 @@
     const isAlreadyBound = service?.interface_bindings.includes(iface.id) || false;
     return !isAlreadyBound;
   });
-  
-  let colorHelper = entities.getColorHelper("Service")
+
 </script>
 
 {#if service && serviceMetadata}
   <div class="space-y-6">
-    <!-- Service Info -->
-    <div class="flex gap-3 items-center">
-      <h3 class="text-lg font-medium text-white">{serviceMetadata.display_name}</h3>
-      <Tag
-        label={serviceMetadata.category}
-        color={serviceMetadata.color}/>
-    </div>
     
-    <p class="text-sm text-gray-400">{serviceMetadata.description}</p>  
-    <div class="border-b border-gray-600"></div>
+    <ConfigHeader title={service.name} subtitle={serviceMetadata.display_name} description={serviceMetadata.description} />
 
     <!-- Basic Configuration -->
     <div class="space-y-4">
       <!-- Service Name Field -->
-      {#if serviceNameField}
-        <div class="space-y-2">
-          <label for="service_name" class="block text-sm font-medium text-gray-300">
-            Service Name <span class="text-red-400">*</span>
-          </label>
-          <input
-            id="service_name"
-            type="text"
-            bind:value={$serviceNameField.value}
-            class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
-                   focus:outline-none focus:ring-2
-                   {$serviceNameField.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
+      {#if nameField}
+        <TextInput 
+            label="Name" 
+            id="service_name_{service.id}" 
+            {formApi}
+            required={true}
             placeholder="Enter a descriptive name..."
-          />
-          {#if $serviceNameField.errors.length > 0}
-            <div class="flex items-center gap-2 text-red-400">
-              <AlertCircle size={16} />
-              <p class="text-xs">{$serviceNameField.errors[0]}</p>
-            </div>
-          {/if}
-          <p class="text-xs text-gray-400">
-            Give this service a meaningful name like "Main Web Server" or "Internal API"
-          </p>
-        </div>
+            field={nameField}/>
       {/if}
     </div>
     
     <!-- Interface Bindings -->
-    {#if host_interfaces.length > 0}
-      <div class="space-y-4">
+    <div class="space-y-4">
+      {#key service.id}
         <ListManager
           label="Interface Bindings"
           helpText="Select which network interfaces this service is bound to"
@@ -203,15 +178,8 @@
           onRemove={handleRemoveInterface}
           onEdit={() => {}}
         />
-
-        <!-- Warning for no bindings -->
-        {#if service.interface_bindings.length === 0}
-          <InlineWarning title="No Interface Bindings" body="This service has no interface bindings, which may cause issues with visualization. Consider binding it to at least one interface." />
-        {/if}
-      </div>
-    {:else}
-      <InlineWarning title="No Interfaces Available" body="Add network interfaces to the host first, then bind services to specific interfaces." />
-    {/if}
+      {/key}
+    </div>
     
     <!-- Ports Configuration using ListManager -->
     <div class="space-y-4">
@@ -219,10 +187,12 @@
         label="Ports"
         helpText="Configure which ports this service uses"
         placeholder="Select a port to add"
+        createNewLabel="New Port"
         allowDuplicates={false}
         allowItemEdit={() => true}
         allowItemRemove={() => true}
         allowReorder={false}
+        allowCreateNew={true}
         
         options={[]}
         items={service.ports}
@@ -230,7 +200,7 @@
         optionDisplayComponent={PortDisplay}
         itemDisplayComponent={PortDisplay}
         
-        onAdd={handleAddPort}
+        onCreateNew={handleCreateNewPort}
         onRemove={handleRemovePort}
         onEdit={() => {}}
       />

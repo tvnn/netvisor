@@ -1,7 +1,6 @@
 <script lang="ts" generics="TItem">
   // Core data
   export let items: TItem[] = [];
-  export let form: any;
   
   // Layout configuration  
   export let listPanelWidth: string = 'w-2/5';

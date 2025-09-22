@@ -1,4 +1,6 @@
-  interface TopologyNodeData {
+import type { Position } from "@xyflow/svelte";
+
+  export interface TopologyNodeData {
     id: string;
     node_type: string;
     parent_id: string | null;
@@ -7,17 +9,27 @@
     interface_id: string | null;
     position: { x: number; y: number };
     size: { x: number; y: number };
+    subnet_label: string | null;
   }
 
-  interface TopologyEdgeData {
+  export interface TopologyEdgeData {
     edge_type: string;
     source: string;
     target: string;
+    source_handle: EdgeHandle,
+    target_handle: EdgeHandle
   }
 
-  interface TopologyResponse {
+  export interface TopologyResponse {
     edge_property: string;
     edges: Array<[number, number, TopologyEdgeData]>;
     node_holes: any[];
     nodes: TopologyNodeData[];
+  }
+
+  export enum EdgeHandle {
+    Top = "Top",
+    Right = "Right",
+    Bottom = "Bottom", 
+    Left = "Left"
   }

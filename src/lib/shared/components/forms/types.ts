@@ -1,27 +1,14 @@
+import { field, form } from "svelte-forms";
+import { required } from "svelte-forms/validators";
 
-export interface ConfigField {
-  id: string;
-  label: string;
-  field_type: {
-    base_type: string;
-    constraints: Record<string, any>;
-    options?: any[];
-  };
-  required: boolean;
-  default_value?: any;
-  help_text?: string;
-  placeholder?: string;
-  advanced: boolean;
-}
+let dummyField = field('dummy', 'a', [required()]);
+let dummyForm = form()
 
-export interface RichSelectTag {
-  text: string;
-  textColor: string;
-  bgColor: string;
-}
+export type FormType = typeof dummyForm;
 
-export interface ValidationMessage {
-  message: string;
-  field_id?: string;
-  severity: 'Error' | 'Warning' | 'Info';
+export type FieldType = typeof dummyField;
+
+export interface FormApi {
+  registerField: (id: string, field: (typeof dummyField)) => void,
+  unregisterField: (id: string) => void
 }

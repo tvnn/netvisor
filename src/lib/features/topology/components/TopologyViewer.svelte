@@ -9,9 +9,9 @@
     BackgroundVariant,
     MarkerType
   } from '@xyflow/svelte';
-  import type { Node, Edge } from '@xyflow/svelte';
+  import { type Node, type Edge, Position, type Position as PositionType } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
-  import { topology } from '../store';
+  import { getDistanceToNode, getNextHandle, topology } from '../store';
   import { edgeTypes, entities } from '$lib/shared/stores/metadata';
   import { createIconComponent } from '$lib/shared/utils/styling';
   import { pushError } from '$lib/shared/stores/feedback';
@@ -19,6 +19,7 @@
   // Import custom node components
   import SubnetNode from './SubnetNode.svelte';
   import HostNode from './HostNode.svelte';
+	import { EdgeHandle, type TopologyEdgeData } from '../types/base';
 
   // Define custom edge data type
   interface CustomEdgeData extends Record<string, unknown> {
@@ -53,6 +54,7 @@
             position: { x: node.position.x, y: node.position.y },
             width: node.size.x,
             height: node.size.y,
+            expandParent: true,
             parentId: node.parent_id || undefined,
             extent: (node.parent_id ? "parent" : undefined),
             data: {
@@ -64,24 +66,29 @@
               parentId: node.parent_id,
               width: node.size.x,
               height: node.size.y,
+              subnet_label: node.subnet_label
             },
           };
         });
 
-        const flowEdges: Edge[] = $topology.edges.map(([sourceIdx, targetIdx, edgeData]: [number, number, any], index: number): Edge => {
+        const flowEdges: Edge[] = $topology.edges.map(([sourceIdx, targetIdx, edgeData]: [number, number, TopologyEdgeData], index: number): Edge => {
           const edgeType = edgeData.edge_type as string;
           const edgeLabel = edgeTypes.getDisplay(edgeType);
           let edgeColorHelper = edgeTypes.getColorHelper(edgeType);
 
           const customData: CustomEdgeData = {
             edgeType: edgeType,
-            label: edgeLabel
+            label: edgeLabel,
+            sourceHandle: edgeData.source_handle,
+            targetHandle: edgeData.target_handle
           };
 
           return {
             id: `edge-${index}`,
             source: edgeData.source,
             target: edgeData.target,
+            sourceHandle: edgeData.source_handle.toString(),
+            targetHandle: edgeData.target_handle.toString(),
             type: 'default',
             style: `stroke: ${edgeColorHelper.rgb}; stroke-width: 2px;`,
             data: customData
@@ -91,7 +98,7 @@
         setTimeout(() => {
           nodes.set(flowNodes);
           edges.set(flowEdges);
-        }, 10);
+        }, 50);
       }
     } catch (err) {
       pushError(`Failed to parse topology data ${err}`);
@@ -104,8 +111,55 @@
     console.log('Node clicked:', node);
   }
 
-  function onEdgeClick({ edge, event }: { edge: Edge; event: MouseEvent }) {
-    console.log('Edge clicked:', edge);
+  function onEdgeClick({ edge, event }: { edge: Edge; event: MouseEvent }) {    
+    // Get click coordinates relative to the flow canvas
+    const clickX = event.clientX;
+    const clickY = event.clientY;
+    
+    // Find source and target nodes
+    const sourceNode = $nodes.find(n => n.id === edge.source);
+    const targetNode = $nodes.find(n => n.id === edge.target);
+    
+    if (!sourceNode || !targetNode) {
+      console.warn('Could not find source or target node for edge');
+      return;
+    }
+
+    // Calculate which node the click was closer to
+    const distanceToSource = getDistanceToNode(clickX, clickY, sourceNode);
+    const distanceToTarget = getDistanceToNode(clickX, clickY, targetNode);
+    const isCloserToSource = distanceToSource < distanceToTarget;    
+
+    // Get current handles from edge data
+    const currentTargetHandle = edge.data?.targetHandle as EdgeHandle || EdgeHandle.Top;
+    const currentSourceHandle = edge.data?.sourceHandle as EdgeHandle || EdgeHandle.Top;
+    
+    // Cycle the appropriate handle
+    let newSourceHandle = currentSourceHandle;
+    let newTargetHandle = currentTargetHandle;
+    
+    if (isCloserToSource) {
+      newSourceHandle = getNextHandle(currentSourceHandle);
+    } else {
+      newTargetHandle = getNextHandle(currentTargetHandle);
+    }
+    
+    // Update the edge in the edges store
+    edges.set($edges.map(e => {
+      if (e.id === edge.id) {
+        return {
+          ...e,
+          sourceHandle: newSourceHandle.toString(),
+          targetHandle: newTargetHandle.toString(),
+          data: {
+            ...e.data,
+            sourceHandle: newSourceHandle,
+            targetHandle: newTargetHandle
+          }
+        };
+      }
+      return e;
+    }));
   }
 </script>
 
@@ -117,6 +171,7 @@
     onnodeclick={onNodeClick}
     onedgeclick={onEdgeClick}
     fitView
+    snapGrid={[25,25]}
     nodesDraggable={true}
     nodesConnectable={false}
     elementsSelectable={true}

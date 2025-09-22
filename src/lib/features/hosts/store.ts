@@ -78,6 +78,7 @@ export function createEmptyHostFormData(): Host {
     },
     services: [],
     interfaces: [],
+    open_ports: []
   };
 }
 

@@ -3,7 +3,7 @@
 	import { createGroup, deleteGroup, getGroups, groups, updateGroup } from '../store';
 	import type { Group } from '../types/base';
 	import GroupCard from './GroupCard.svelte';
-	import GroupEditModal from './GroupEditModal.svelte';
+	import GroupEditModal from './GroupEditModal/GroupEditModal.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import { loadData } from '$lib/shared/utils/dataLoader';
 	import { getServices } from '$lib/features/services/store';

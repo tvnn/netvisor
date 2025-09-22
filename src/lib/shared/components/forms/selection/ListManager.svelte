@@ -10,7 +10,8 @@
   export let placeholder: string = 'Select an item to add';
   export let required: boolean = false;
   export let allowReorder: boolean = true;
-  export let allowDirectAdd: boolean = true;
+  export let allowCreateNew: boolean = false;
+  export let createNewLabel: string = 'Add New';
   export let highlightedIndex: number = -1;
   export let emptyMessage: string = '';
   export let error: string = '';
@@ -29,6 +30,7 @@
   export let allowItemRemove: ((item: T) => boolean) = (item) => true;
   
   // Interaction handlers
+  export let onCreateNew: (() => void) | null = null;
   export let onEdit: (item: T, index: number) => void = () => {};
   export let onAdd: (selectOptionId: string) => void = () => {};
   export let onMoveUp: (fromIndex: number, toIndex: number) => void = () => {};
@@ -86,8 +88,7 @@
 
   function handleSelectChange(value: string) {
     selectedOptionId = value;
-    // Automatically add the item when something is selected in direct add mode
-    if (value && allowDirectAdd) {
+    if (value) {
       addItem();
     }
   }
@@ -107,20 +108,20 @@
       {/if}
     </div>
     
-    {#if !allowDirectAdd}
+    {#if allowCreateNew && onCreateNew}
       <button
         type="button"
-        on:click={() => onAdd(selectedOptionId)}
+        on:click={() => onCreateNew()}
         class="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
       >
         <Plus size={16} />
-        {placeholder}
+        {createNewLabel}
       </button>
     {/if}
   </div>
   
   <!-- Add Item Section with RichSelect -->
-  {#if allowDirectAdd}
+  {#if !allowCreateNew}
     <div class="mb-3 mt-4">
       <div class="flex gap-2">
         <!-- RichSelect Component -->

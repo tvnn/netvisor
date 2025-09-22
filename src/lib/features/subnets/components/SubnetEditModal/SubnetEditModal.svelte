@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Network, Router, Search } from 'lucide-svelte';
-  import { createEmptySubnetFormData } from '../store';
+  import { createEmptySubnetFormData } from '../../store';
   import EditModal from '$lib/shared/components/forms/EditModal.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
   import { entities, serviceTypes, subnetTypes } from '$lib/shared/stores/metadata';
@@ -10,6 +10,7 @@
 	import { serviceHasInterfaceOnSubnet, services } from '$lib/features/services/store';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { ServiceAsHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceAsHostDisplay.svelte';
+	import SubnetDetailsForm from './SubnetDetailsForm.svelte';
   
   export let subnet: Subnet | null = null;
   export let isOpen = false;
@@ -147,6 +148,7 @@
   onDelete={isEditing ? handleDelete : null}
   size="xl"
   let:form
+  let:formApi
 >
   <!-- Header icon -->
   <svelte:fragment slot="header-icon">
@@ -157,73 +159,8 @@
   <div class="h-full flex flex-col overflow-hidden">
     <div class="flex-1 overflow-y-auto">
       <div class="space-y-8 p-6">
-        <!-- Basic Information -->
-        <div class="space-y-4">
-          <h3 class="text-lg font-medium text-white">Subnet Details</h3>
-          
-          <!-- Name -->
-          <div>
-            <label for="name" class="block text-sm font-medium text-gray-300 mb-2">
-              Name <span class="text-red-400">*</span>
-            </label>
-            <input
-              id="name"
-              type="text"
-              bind:value={formData.name}
-              placeholder="e.g., Home LAN, VPN Network"
-              required
-              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent"
-            />
-          </div>
-          
-          <!-- CIDR -->
-          <div>
-            <label for="cidr" class="block text-sm font-medium text-gray-300 mb-2">
-              CIDR <span class="text-red-400">*</span>
-            </label>
-            <input
-              id="cidr"
-              type="text"
-              bind:value={formData.cidr}
-              placeholder="e.g., 192.168.1.0/24, 10.0.0.0/8"
-              required
-              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent"
-            />
-            <p class="mt-1 text-sm text-gray-400">
-              Network address and prefix length (e.g., 192.168.1.0/24)
-            </p>
-          </div>
-          
-          <!-- Subnet Type -->
-          <div>
-            <label for="subnet_type" class="block text-sm font-medium text-gray-300 mb-2">
-              Network Type
-            </label>
-            <select
-              id="subnet_type"
-              bind:value={formData.subnet_type}
-              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:border-transparent"
-            >
-              {#each subnetTypes.getItems() as subnet_type}
-                <option value="{subnet_type.id}">{subnet_type.display_name}</option>
-              {/each}
-            </select>
-          </div>
-          
-          <!-- Description -->
-          <div>
-            <label for="description" class="block text-sm font-medium text-gray-300 mb-2">
-              Description
-            </label>
-            <textarea
-              id="description"
-              bind:value={formData.description}
-              placeholder="Optional description of this subnet..."
-              rows="3"
-              class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:border-transparent resize-none"
-            ></textarea>
-          </div>
-        </div>
+
+        <SubnetDetailsForm {form} {formApi} bind:formData={formData} />
 
         <!-- DNS Resolvers Section -->
         <div class="space-y-4">

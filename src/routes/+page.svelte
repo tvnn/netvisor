@@ -69,7 +69,6 @@
       watchStores([hosts], () => {getServices()}),  
       watchStores([hosts, services], () => {getSubnets()}),
       watchStores([groups], () => {getServices()}),
-      watchStores([groups, services, subnets, hosts], () => {getTopology()})
     ].flatMap(w => w)
     await getMetadata().then(() => appInitialized = true);
     startDiscoveryPolling();

@@ -1,7 +1,9 @@
 <script lang="ts">
   import { AlertCircle } from 'lucide-svelte';
-  import { form as createForm } from 'svelte-forms';
+  import { form as createForm, field} from 'svelte-forms';
 	import GenericModal from '../layout/GenericModal.svelte';
+	import { onMount } from 'svelte';
+	import type { FieldType, FormApi } from './types';
   
   export let title: string = 'Edit';
   export let isOpen: boolean = false;
@@ -15,14 +17,34 @@
   export let loading: boolean = false;
   export let deleting: boolean = false;
   export let onDelete: (() => void) | null = null;
+  export let isOnLastTab: boolean = true;
+
+  // Create a container for fields that child components will populate
+  let formFields: Record<string, FieldType> = {};
   
-  // Create form instance
-  const form = createForm();
+  // Create the actual form reactively based on registered fields
+  $: form = createForm(...(Object.values(formFields)));
+  let formErrors: string[] = [];
+
+  const formApi: FormApi = {
+    registerField: (id: string, field: FieldType) => {
+      if (!formFields[id]) formFields = {...formFields, [id]: field}
+    },
+    unregisterField: (id: string) => {
+      if (formFields[id]) {
+        let newFields = formFields
+        delete newFields[id]
+        formFields = {...newFields}
+      }
+    }
+  }
   
   function handleFormSubmit() {
     // Only submit if form is valid
     if ($form.valid) {
       onSave?.();
+    } else {
+      formErrors = $form.errors
     }
   }
   
@@ -35,10 +57,7 @@
   }
   
   // Disable save button if form validation fails or explicitly disabled
-  $: actualDisableSave = disableSave || !$form.valid || loading || deleting;
-  
-  // Get all form errors for display
-  $: formErrors = $form.errors || [];
+  $: actualDisableSave = disableSave || loading || deleting || (isOnLastTab && !$form.valid);
 </script>
 
 <GenericModal 
@@ -75,7 +94,7 @@
       {/if}
 
       <!-- Form fields slot -->
-      <slot {form} />
+      <slot {form} {formApi} />
     </div>
   </form>
 

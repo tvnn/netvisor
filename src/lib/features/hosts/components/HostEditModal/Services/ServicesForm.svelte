@@ -11,8 +11,10 @@
   import type { TypeMetadata } from '$lib/shared/stores/metadata';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
+	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
   
-  export let form: any;
+  export let formApi: FormApi;
+  export let form: FormType;
   export let formData: Host;
   export let currentServices: Service[] = [];
   
@@ -54,7 +56,6 @@
 
 <div class="space-y-6">  
   <ListConfigEditor
-    {form}
     bind:items={currentServices}
     onChange={handleServiceChange}
     bind:this={listConfigEditorRef}
@@ -84,11 +85,19 @@
     <svelte:fragment slot="config" let:selectedItem let:onChange>
       {#if selectedItem}
         <ServicesConfigPanel
+          {formApi}
           {form}
           service={selectedItem}
           onChange={(updatedService) => onChange(updatedService)}
           host_interfaces={formData.interfaces}
         />
+      {:else}
+        <div class="flex-1 min-h-0 flex items-center justify-center text-gray-400">
+        <div class="text-center">
+          <div class="text-lg mb-2">No service selected</div>
+          <div class="text-sm">Select an service from the list to configure it</div>
+        </div>
+      </div>
       {/if}
     </svelte:fragment>
   </ListConfigEditor>

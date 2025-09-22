@@ -91,32 +91,34 @@
   <div class="p-6">
     {#if !showPreview}
       <!-- Step 1: Target Selection -->
-      <div class="space-y-6">
+      <div>
         <!-- Source host info -->
-        <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+        <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700 mb-6">
           <EntityDisplay item={otherHost} displayComponent={HostDisplay} />
         </div>
 
         <!-- Target selection -->
-        <RichSelect
-          label="Select host which {otherHost?.name} will be consolidated with:"
-          placeholder="Choose a host..."
-          selectedValue={selectedDestinationHostId}
-          options={availableHosts}
-          onSelect={handleHostSelect}
-          displayComponent={HostDisplay}
-        />
+        <div>
+          <RichSelect
+            label="Select host which {otherHost?.name} will be consolidated with:"
+            placeholder="Choose a host..."
+            selectedValue={selectedDestinationHostId}
+            options={availableHosts}
+            onSelect={handleHostSelect}
+            displayComponent={HostDisplay}
+          />
+        </div>
       </div>
     {:else}
       <!-- Step 2: Conversion Preview -->
-      <div class="space-y-6">
-        <div class="text-center">
+      <div>
+        <div class="text-center mb-6">
           <h3 class="text-lg font-medium text-white mb-2">Consolidation Preview</h3>
           <p class="text-gray-400 text-sm">Review the changes before confirming the consolidation.</p>
         </div>
 
         <!-- Details of what will happen -->
-        <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700">
+        <div class="bg-gray-800/50 rounded-lg p-4 border border-gray-700 mb-6">
           <h4 class="text-sm font-medium text-gray-300 mb-3">What will happen:</h4>
           <ul class="space-y-2 text-sm text-gray-400">
             {#if otherHost && selectedTargetHost}
@@ -127,13 +129,13 @@
               {#if otherHost.services?.length > 0}
                 <li class="flex items-start gap-2">
                   <CheckCircle class="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                  <span>Services will be migrated to "{selectedTargetHost.name}".</span>
+                  <span>Services from "{otherHost.name}" will be migrated to "{selectedTargetHost.name}".</span>
                 </li>
               {/if}
               {#if otherHost.interfaces?.length > 0}
                 <li class="flex items-start gap-2">
                   <CheckCircle class="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                  <span>Any interfaces for subnets which do not exist on "{selectedTargetHost.name}" will be created.</span>
+                  <span>Interfaces from "{otherHost.name}" will be migrated to "{selectedTargetHost.name}".</span>
                 </li>
               {/if}
             {/if}
@@ -141,7 +143,9 @@
         </div>
 
         <!-- Warning -->
-        <InlineWarning title="This action cannot be undone" body="The source host will be permanently deleted and converted to an interface. Make sure this is what you want before proceeding." />
+        <div>
+          <InlineWarning title="This action cannot be undone" body="The source host will be permanently deleted and converted to an interface. Make sure this is what you want before proceeding." />
+        </div>
       </div>
     {/if}
   </div>

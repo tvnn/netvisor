@@ -6,15 +6,34 @@
 	import { field } from 'svelte-forms';
   import { ipAddress } from '$lib/shared/components/forms/validators';
 	import { required } from 'svelte-forms/validators';
+	import { onMount } from 'svelte';
+	import type { FieldType, FormApi, FormType } from '$lib/shared/components/forms/types';
 
-  export let form: any;
+  export let formApi: FormApi;
+  export let form: FormType;
   export let formData: Host;
 
-  // Form fields
+  let currentTargetType = formData.target.type
   let selectedInterfaceId: string = '';
-  let ipAddressField: any;
 
-  const targetTypes = [
+  const getIpField = () => {
+    return field(
+      'target_ip',
+      formData.target?.type === 'ExternalIp' ? formData.target.config : '',
+      [ipAddress(), required()],
+      {
+        checkOnInit: false,
+      }
+    )
+  }
+
+  let ipAddressField = getIpField();
+
+  $: hostnameField = form.getField('hostname');
+  $: has_hostname = hostnameField ? $hostnameField.value.length > 0 : false;
+
+  // Form fields
+  $: targetTypes = [
     {
       value: 'Interface',
       label: formData.interfaces.length != 0 ? 'Network Interface' : 'No Network Interfaces Configured',
@@ -24,9 +43,9 @@
     },
     {
       value: 'Hostname',
-      label: formData.hostname.length > 0 ? 'Hostname' : "No Hostname Configured",
+      label: has_hostname ? 'Hostname' : "No Hostname Configured",
       description: 'Connect using the host\'s hostname field', 
-      disabled: formData.hostname.length == 0,
+      disabled: !has_hostname,
       icon: Globe
     },
     {
@@ -37,6 +56,18 @@
       icon: Globe
     }
   ];
+
+  // Update validation when target type changes
+  $: if (formData.target.type != currentTargetType) {
+    currentTargetType = formData.target.type
+    if (formData.target.type === 'ExternalIp') {
+      let ipField = getIpField()
+      formApi.registerField('ip', ipField)
+      ipAddressField = ipField;
+    } else {
+      formApi.unregisterField('ip')
+    }
+  }
 
   // Initialize target if not set
   $: if (!formData.target) {
@@ -49,7 +80,7 @@
   // Handle target type changes
   function handleTargetTypeChange(event: Event) {
     const targetElement = event.target as HTMLSelectElement;
-    const newType = targetElement.value as 'Interface' | 'Hostname';
+    const newType = targetElement.value;
     
     // Reset target config when type changes
     if (newType === 'Interface') {
@@ -81,17 +112,11 @@
     }
   }
 
-  // Update selected interface when target changes
-  $: if (formData.target?.type === 'Interface') {
-    selectedInterfaceId = formData.target.config || '';
-  } else if (formData.target?.type === 'ExternalIp') {
-    ipAddressField = field(
-      `target_ip`,
-      formData.target.config || '',
-      [ipAddress(), required()]
-    );
-    form[`target_ip`] = ipAddressField;
+  // Track IP address changes in formData
+  $: if (formData.target.type == 'ExternalIp') {
+    formData.target.config = $ipAddressField?.value || ''
   }
+
 </script>
 
 <div class="flex gap-6 items-start">
@@ -99,7 +124,6 @@
   <div class="flex flex-col space-y-2 w-1/3">
     <label for="target_type" class="block text-sm font-medium text-gray-300">
       Target Type
-      <span class="text-red-400 ml-1">*</span>
     </label>
     <select
       id="target_type"
@@ -130,7 +154,7 @@
             </label>
             
               <RichSelect
-                selectedValue={selectedInterfaceId}
+                selectedValue={selectedInterfaceId || formData.interfaces[0].id}
                 options={formData.interfaces}
                 placeholder="Select a network interface..."
                 displayComponent={InterfaceDisplay}
@@ -152,16 +176,16 @@
                 <span class="font-mono">{formData.hostname}</span>
               </div>
           </div>
-        {:else if formData.target.type === 'ExternalIp'}
+        {:else if formData.target.type === 'ExternalIp' && $ipAddressField}
           <!-- Hostname Display -->
           <div class="space-y-2">
                 <label for="ip_address" class="block text-sm font-medium text-gray-300">
                   External IP Address <span class="text-red-400">*</span>
                 </label>
                 <input
-                  id="ip_address"
+                  id="target_ip"
                   type="text"
-                  bind:value={formData.target.config}
+                  bind:value={$ipAddressField.value}
                   class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
                         focus:outline-none focus:ring-2
                         {$ipAddressField.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"

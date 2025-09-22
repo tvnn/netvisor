@@ -1,12 +1,12 @@
 <script lang="ts" context="module">
-  import { Network } from 'lucide-svelte';
+  import { Network, Plug } from 'lucide-svelte';
   import PortInlineEditor from './PortInlineEditor.svelte';
   
   export const PortDisplay: EntityDisplayComponent<Port> = {
     getId: (port: Port) => `${port.number}-${port.protocol}`,
     getLabel: (port: Port) => `Port ${port.number}`,
     getDescription: (port: Port) => `${port.protocol.toUpperCase()} protocol`,
-    getIcon: () => Network,
+    getIcon: () => Plug,
     getIconColor: () => 'text-green-400',
     getTags: (port: Port) => [{
       label: port.protocol.toUpperCase(),
