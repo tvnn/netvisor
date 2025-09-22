@@ -105,10 +105,25 @@ impl Subnet {
         self.base.reverse_proxies = self.base.reverse_proxies.iter().filter(|proxy_service_id| **proxy_service_id != service.id).cloned().collect();
     }
 
-    pub fn create_service_relationships(&mut self, service: &Service) {
-        if service.base.service_type.is_dns_resolver() { self.base.dns_resolvers.push(service.id) }
-        if service.base.service_type.is_gateway() { self.base.gateways.push(service.id) }
-        if service.base.service_type.is_reverse_proxy() { self.base.reverse_proxies.push(service.id) }
+    pub fn create_service_relationships(&mut self, service: &Service, host: &Host) {
+        // Only add service relationships if the service has an interface binding on this subnet
+        let has_interface_on_subnet = service.base.interface_bindings.iter()
+            .any(|binding_id| {
+                host.base.interfaces.iter()
+                    .any(|interface| interface.id == *binding_id && interface.base.subnet_id == self.id)
+            });
+        
+        if has_interface_on_subnet {
+            if service.base.service_type.is_dns_resolver() { 
+                self.base.dns_resolvers.push(service.id) 
+            }
+            if service.base.service_type.is_gateway() { 
+                self.base.gateways.push(service.id) 
+            }
+            if service.base.service_type.is_reverse_proxy() { 
+                self.base.reverse_proxies.push(service.id) 
+            }
+        }
     }
 
     pub fn remove_host_relationship(&mut self, host: &Host) {

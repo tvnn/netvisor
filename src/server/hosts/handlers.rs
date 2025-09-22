@@ -4,17 +4,19 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
+use futures::future::try_join_all;
+use itertools::{Itertools, Either};
 use uuid::Uuid;
 use std::{sync::Arc};
 use crate::server::{
-        config::AppState, hosts::types::{api::HostUpdateRequest, base::Host}, shared::types::api::{ApiError, ApiResponse, ApiResult}
+        config::AppState, hosts::types::{api::{HostWithServicesRequest}, base::Host}, services::types::base::Service, shared::types::api::{ApiError, ApiResponse, ApiResult}
     };
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/", post(create_host))
         .route("/", get(get_all_hosts))
-        .route("/:id", put(update_host))
+        .route("/", put(update_host))
         .route("/:id", delete(delete_host))
         .route("/:destination_host/consolidate/:other_host", put(consolidate_hosts))
 
@@ -22,10 +24,27 @@ pub fn create_router() -> Router<Arc<AppState>> {
 
 async fn create_host(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<Host>,
+    Json(request): Json<HostWithServicesRequest>,
 ) -> ApiResult<Json<ApiResponse<Host>>> {
-    let service = &state.services.host_service;
-    let created_host = service.create_host(request.base).await?;
+    let host_service = &state.services.host_service;
+    let service_service = &state.services.service_service;
+
+    let mut host = request.host;
+    let services_to_create: Vec<Service> = request.services.into_iter().map(|s| {
+        let service = Service::new(s.base);
+        host.add_service(service.id);
+        service
+    })
+    .collect();
+
+    let created_host = host_service.create_host(host.base).await?;
+
+    let service_futures = services_to_create.into_iter().map(|mut s| {
+        s.base.host_id = created_host.id;
+        service_service.create_service(s)
+    });
+
+    try_join_all(service_futures).await?;
     
     Ok(Json(ApiResponse::success(created_host)))
 }
@@ -41,15 +60,28 @@ async fn get_all_hosts(
 
 async fn update_host(
     State(state): State<Arc<AppState>>,
-    Path(id): Path<Uuid>,
-    Json(request): Json<HostUpdateRequest>,
+    Json(mut request): Json<HostWithServicesRequest>,
 ) -> ApiResult<Json<ApiResponse<Host>>> {
 
-    let service = &state.services.host_service;
+    let host_service = &state.services.host_service;
+    let service_service = &state.services.service_service;
 
-    let updated_host = service.update_host(
-        &id, 
-        request, 
+    let (create_futures, update_futures): (Vec<_>, Vec<_>) = request.services.into_iter().partition_map(|s| {
+        if s.id == Uuid::nil() {
+            let service = Service::new(s.base);
+            Either::Left(service_service.create_service(service))
+        } else {
+            Either::Right(service_service.update_service(s))
+        }
+    });
+
+    let created_services= try_join_all(create_futures).await?;
+    let updated_services= try_join_all(update_futures).await?;
+    
+    request.host.base.services = created_services.iter().chain(updated_services.iter()).map(|s| s.id).collect();
+
+    let updated_host = host_service.update_host(
+        request.host, 
         ).await?;
     
     Ok(Json(ApiResponse::success(updated_host)))

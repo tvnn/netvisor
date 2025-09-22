@@ -8,9 +8,9 @@ use crate::server::{
 
         storage::HostStorage,
         types::{
-            api::HostUpdateRequest, base::{Host, HostBase}
+            base::{Host, HostBase}
         }
-    }, interfaces::types::base::{Interface, InterfaceBase}, services::{service::ServiceService, types::base::{Service, ServiceUpdateRequest}}, subnets::service::SubnetService
+    }, interfaces::types::base::{Interface, InterfaceBase}, services::{service::ServiceService, types::base::{Service}}, subnets::service::SubnetService
 };
 
 pub struct HostService {
@@ -59,32 +59,11 @@ impl HostService {
         self.storage.get_all().await
     }
 
-    pub async fn update_host(&self, id: &Uuid, updates: HostUpdateRequest) -> Result<Host, Error> {
+    pub async fn update_host(&self, mut host: Host) -> Result<Host, Error> {
         
-        let mut host = self.get_host(&id).await?.ok_or_else(||anyhow!("Host '{}' not found", id))?;
+        let current_host = self.get_host(&host.id).await?.ok_or_else(||anyhow!("Host '{}' not found", host.id))?;
 
-        self.update_subnet_host_relationships(&host, true).await?;
-
-        if let Some(name) = updates.name {
-            host.base.name = name;
-        }
-        if let Some(description) = updates.description {
-            host.base.description = description;
-        }
-        if let Some(target) = updates.target {
-            host.base.target = target;
-        }
-        if let Some(hostname) = updates.hostname {
-            host.base.hostname = hostname;
-        }  
-
-        if let Some(interfaces) = updates.interfaces {
-            host.base.interfaces = interfaces;
-        }
-        if let Some(services) = updates.services {
-            host.base.services = services;
-        }
-
+        self.update_subnet_host_relationships(&current_host, true).await?;
         self.update_subnet_host_relationships(&host, false).await?;
         
         host.updated_at = chrono::Utc::now();
@@ -93,14 +72,14 @@ impl HostService {
         Ok(host)
     }
 
-    pub async fn consolidate_hosts(&self, destination_host: Host, other_host: Host) -> Result<Host> {
+    pub async fn consolidate_hosts(&self, mut destination_host: Host, other_host: Host) -> Result<Host> {
         let mut new_interfaces: Vec<Interface> = Vec::new();
         let other_host_services = self.service_service.get_services_for_host(&other_host.id).await?;
 
-        let other_host_services_updates: Vec<(Service, ServiceUpdateRequest)> = other_host_services.into_iter().map(|s| {
+        let other_host_services_updates: Vec<Service> = other_host_services.into_iter().map(|mut s| {
                                     
             // Update bindings - check for subnet compatibility, not interface ID matching
-            let updated_interface_bindings = s.base.interface_bindings.iter().filter_map(|binding_id| {
+            s.base.interface_bindings = s.base.interface_bindings.iter().filter_map(|binding_id| {
                 
                 // Get the original interface from the other host
                 if let Some(origin_interface) = other_host.get_interface(binding_id) {
@@ -142,40 +121,22 @@ impl HostService {
             })
             .collect();
 
-            (
-                s,
-                ServiceUpdateRequest {
-                    host_id: Some(destination_host.id),
-                    interface_bindings: Some(updated_interface_bindings),
-                    service_type: None,
-                    name: None,
-                    ports: None,
-                    groups: None
-                }
-            )
+            s.base.host_id = destination_host.id;
+
+            s
         })
         .collect();
 
-        let update_request = HostUpdateRequest {
-            name: None,
-            hostname: None,
-            description: None,
-            target: None,
-            interfaces: Some([destination_host.base.interfaces, new_interfaces].concat()),
-            services: Some([destination_host.base.services, other_host_services_updates.iter().map(|(s,_)| s.id).collect()].concat()),
-            open_ports: None,
-        };
+        destination_host.base.interfaces = [destination_host.base.interfaces, new_interfaces].concat();
+        destination_host.base.services = [destination_host.base.services, other_host_services_updates.iter().map(|s| s.id).collect()].concat();
 
-        let service_update_futures = other_host_services_updates.into_iter().map(|(s, update)| {
-            self.service_service.update_service(s, update)
+        let service_update_futures = other_host_services_updates.into_iter().map(|s| {
+            self.service_service.update_service(s)
         });
 
         try_join_all(service_update_futures).await?;
 
-        let updated_host = self.update_host(
-            &destination_host.id, 
-            update_request, 
-        ).await?;
+        let updated_host = self.update_host(destination_host).await?;
 
         self.delete_host(&other_host.id).await?;
 

@@ -2,7 +2,7 @@ use anyhow::{Result};
 use futures::future::try_join_all;
 use uuid::Uuid;
 use std::sync::{Arc, OnceLock};
-use crate::server::{hosts::{service::HostService, types::api::HostUpdateRequest}, subnets::{storage::SubnetStorage, types::base::Subnet}
+use crate::server::{hosts::{service::HostService}, subnets::{storage::SubnetStorage, types::base::Subnet}
 };
 
 pub struct SubnetService {
@@ -64,20 +64,12 @@ impl SubnetService {
 
         let hosts = host_service.get_all_hosts().await?;
         let update_futures = hosts
-            .iter()
-            .filter_map(|n| {
-                let has_subnet = n.base.interfaces.iter().find(|i| &i.base.subnet_id == id).is_some();
+            .into_iter()
+            .filter_map(|mut host| {
+                let has_subnet = host.base.interfaces.iter().find(|i| &i.base.subnet_id == id).is_some();
                 if has_subnet {
-                    let updates = HostUpdateRequest {
-                        name: None,
-                        hostname: None,
-                        description: None,
-                        target: None,
-                        open_ports: None,
-                        interfaces: Some(n.base.interfaces.iter().filter(|i| &i.base.subnet_id != id).cloned().collect()),
-                        services: None,
-                    };
-                    return Some(host_service.update_host(&n.id, updates));
+                    host.base.interfaces = host.base.interfaces.iter().filter(|i| &i.base.subnet_id != id).cloned().collect();
+                    return Some(host_service.update_host(host));
                 }
                 None
             });

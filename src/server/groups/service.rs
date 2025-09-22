@@ -6,7 +6,6 @@ use crate::server::groups::{
     types::Group
 };
 use crate::server::services::service::ServiceService;
-use crate::server::services::types::base::ServiceUpdateRequest;
 
 pub struct GroupService {
     group_storage: Arc<dyn GroupStorage>,
@@ -37,16 +36,14 @@ impl GroupService {
         
         // Add group reference to all services in the sequence
         for binding in &group.base.service_bindings {
-            if let Some(service) = self.service_service.get_service(&binding.service_id).await? {
+            if let Some(mut service) = self.service_service.get_service(&binding.service_id).await? {
 
                 if service.base.groups.contains(&group.id) {
                     continue; // Already in group
                 }
-                let mut groups = service.base.groups.clone();
-                groups.push(group.id);
-                let update = ServiceUpdateRequest::from_group_change(groups);
+                service.base.groups = { service.base.groups.push(group.id); service.base.groups };
 
-                self.service_service.update_service(service, update).await?;
+                self.service_service.update_service(service).await?;
             }
         }
 
@@ -85,13 +82,12 @@ impl GroupService {
         // Remove group from services no longer in sequence
         for old_binding in &old_group.base.service_bindings {
             if !group.base.service_bindings.contains(old_binding) {
-                if let Some(service) = self.service_service.get_service(&old_binding.service_id).await? {
+                if let Some(mut service) = self.service_service.get_service(&old_binding.service_id).await? {
                     if !service.base.groups.contains(&group.id) {
                         continue; // Not in group
                     }
-                    let groups = service.base.groups.iter().filter(|g| *g != &group.id).cloned().collect();
-                    let update = ServiceUpdateRequest::from_group_change(groups);
-                    self.service_service.update_service(service, update).await?;
+                    service.base.groups = service.base.groups.iter().filter(|g| *g != &group.id).cloned().collect();
+                    self.service_service.update_service(service).await?;
                 }
             }
         }
@@ -99,16 +95,14 @@ impl GroupService {
         // Add group to new services in sequence
         for new_binding in &group.base.service_bindings {
             if !old_group.base.service_bindings.contains(new_binding) {
-                if let Some(service) = self.service_service.get_service(&new_binding.service_id).await? {
+                if let Some(mut service) = self.service_service.get_service(&new_binding.service_id).await? {
                     
                     if service.base.groups.contains(&group.id) {
                         continue; // Already in group
                     }
-                    let mut groups = service.base.groups.clone();
-                    groups.push(group.id);
-                    let update = ServiceUpdateRequest::from_group_change(groups);
+                    service.base.groups = { service.base.groups.push(group.id); service.base.groups };
 
-                    self.service_service.update_service(service, update).await?;
+                    self.service_service.update_service(service).await?;
                 }
             }
         }
@@ -125,13 +119,12 @@ impl GroupService {
 
         // Remove group reference from all hosts
         for binding in &group.base.service_bindings {
-            if let Some(service) = self.service_service.get_service(&binding.service_id).await? {
+            if let Some(mut service) = self.service_service.get_service(&binding.service_id).await? {
                 if !service.base.groups.contains(&group.id) {
                     continue; // Not in group
                 }
-                let groups = service.base.groups.iter().filter(|g| *g != &group.id).cloned().collect();
-                let update = ServiceUpdateRequest::from_group_change(groups);
-                self.service_service.update_service(service, update).await?;
+                service.base.groups = service.base.groups.iter().filter(|g| *g != &group.id).cloned().collect();
+                self.service_service.update_service(service).await?;
             }
         }
 

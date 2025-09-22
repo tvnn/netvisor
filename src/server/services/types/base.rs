@@ -44,19 +44,6 @@ pub struct ServiceUpdateRequest {
     pub groups: Option<Vec<Uuid>>
 }
 
-impl ServiceUpdateRequest {
-    pub fn from_group_change(groups: Vec<Uuid>) -> Self {
-        Self {
-            host_id: None,
-            service_type: None,
-            name: None,
-            ports: None,
-            interface_bindings: None,
-            groups: Some(groups)
-        }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Service {
     pub id: Uuid,

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Error;
 use uuid::Uuid;
 
-use crate::{daemon::{discovery::manager::DaemonDiscoverySessionManager, shared::storage::ConfigStore, utils::base::{create_system_utils, PlatformDaemonUtils}}, server::{daemons::types::api::DaemonDiscoveryUpdate, hosts::types::{api::{HostUpdateRequest}, base::Host}, services::types::base::Service, shared::types::api::ApiResponse, subnets::types::base::Subnet}};
+use crate::{daemon::{discovery::manager::DaemonDiscoverySessionManager, shared::storage::ConfigStore, utils::base::{create_system_utils, PlatformDaemonUtils}}, server::{daemons::types::api::DaemonDiscoveryUpdate, hosts::types::{api::{HostWithServicesRequest}, base::Host}, services::types::base::Service, shared::types::api::ApiResponse, subnets::types::base::Subnet}};
 
 pub struct DaemonDiscoveryService {
     pub config_store: Arc<ConfigStore>,
@@ -24,14 +24,17 @@ impl DaemonDiscoveryService {
         }
     }
 
-    pub async fn create_host(&self, host: &Host) -> Result<Host, Error> {
+    pub async fn create_host(&self, host: Host, services: Vec<Service>) -> Result<Host, Error> {
         let server_target = self.config_store.get_server_endpoint().await?;
 
         tracing::info!("Creating host {}", host.base.name);
 
         let response = self.client
             .post(format!("{}/api/hosts", server_target.to_string()))
-            .json(host)
+            .json(&HostWithServicesRequest {
+                host,
+                services
+            })
             .send()
             .await?;
 
@@ -50,29 +53,6 @@ impl DaemonDiscoveryService {
             .ok_or_else(|| anyhow::anyhow!("No host data in successful response"))?;
 
         Ok(created_host)
-    }
-
-    pub async fn update_host(&self, host_id: Uuid, update: &HostUpdateRequest) -> Result<Option<Host>, Error> {
-        let server_target = self.config_store.get_server_endpoint().await?;
-
-        let response = self.client
-            .put(format!("{}/api/hosts/{}", server_target.to_string(), host_id))
-            .json(update)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Failed to update host: HTTP {}", response.status());
-        }
-
-        let api_response: ApiResponse<Host> = response.json().await?;
-
-        if !api_response.success {
-            let error_msg = api_response.error.unwrap_or_else(|| "Unknown error".to_string());
-            anyhow::bail!("Failed to update host: {}", error_msg);
-        }
-
-        Ok(api_response.data)
     }
 
     pub async fn create_subnet(&self, subnet: &Subnet) -> Result<Subnet, Error> {

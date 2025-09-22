@@ -162,20 +162,14 @@ impl DaemonDiscoveryService {
                 
                 if let Ok(Some((open_ports, endpoint_responses))) = self.scan_host(ip, scanned_count, cancel).await {
                     
-                    if let Ok(Some((host, mut services))) = self.process_host(
+                    if let Ok(Some((host, services))) = self.process_host(
                         ip,
                         subnet,
                         open_ports,
                         endpoint_responses,
                     ).await {
                         discovered_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        if let Ok(created_host) = self.create_host(&host).await {
-
-                            let services_futures = services.iter_mut().map(|service| {
-                                service.base.host_id = created_host.id;
-                                self.create_service(service)
-                            });
-                            let _ = try_join_all(services_futures).await;
+                        if let Ok(created_host) = self.create_host(host, services).await {
                             return Ok::<Option<Host>, Error>(Some(created_host))
                         }
                         return Ok(None);

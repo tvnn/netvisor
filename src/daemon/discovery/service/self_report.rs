@@ -54,10 +54,10 @@ impl DaemonDiscoveryService {
             open_ports: Vec::new(),
         };
 
-        let mut host = Host::new(host_base);
+        let host = Host::new(host_base);
 
         let service_type = ServiceType::NetvisorDaemon;
-        let mut daemon_service = Service::new(ServiceBase { 
+        let daemon_service = Service::new(ServiceBase { 
             name: service_type.display_name().to_string(), 
             service_type,
             ports: vec!(own_port),
@@ -66,15 +66,9 @@ impl DaemonDiscoveryService {
             groups: Vec::new()
         });
         
-        host.add_service(daemon_service.id);
+        let created_host = self.create_host(host, vec!(daemon_service)).await?;
 
-        let created_host = self.create_host(&host).await?;
-
-        daemon_service.base.host_id = created_host.id; // Update host ID to the one assigned by the server
-
-        self.create_service(&daemon_service).await?;
-
-        tracing::info!("Created host with local IP: {}, Hostname: {:?}", local_ip, host.base.hostname);
+        tracing::info!("Created host with local IP: {}, Hostname: {:?}", local_ip, created_host.base.hostname);
 
         self.config_store.set_host_id(created_host.id).await?;
         Ok(())
