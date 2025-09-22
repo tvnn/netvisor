@@ -12,7 +12,8 @@ pub struct Node {
     pub host_id: Option<Uuid>,
     pub position: XY,
     pub size: XY,
-    pub infra_width: Option<usize>
+    pub infra_width: Option<usize>,
+    pub subnet_label: Option<String>
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]

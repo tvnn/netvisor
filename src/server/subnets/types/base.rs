@@ -87,7 +87,7 @@ impl Subnet {
                 return Some(Subnet::new(SubnetBase {
                     cidr,
                     description: None,
-                    name: interface_name.clone(),
+                    name: cidr.to_string(),
                     subnet_type,
                     dns_resolvers: Vec::new(),
                     gateways: Vec::new(),

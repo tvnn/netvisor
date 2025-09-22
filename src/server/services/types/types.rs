@@ -365,10 +365,10 @@ impl TypeMetadataProvider for ServiceType {
             ServiceType::Emby => "Emby",
             
             // Network Infrastructure
-            ServiceType::GenericRouter => "Router",
-            ServiceType::GenericSwitch => "Network Switch",
-            ServiceType::GenericAccessPoint => "Access Point",
-            ServiceType::GenericFirewall => "Firewall",
+            ServiceType::GenericRouter => "Generic Router",
+            ServiceType::GenericSwitch => "Generic Network Switch",
+            ServiceType::GenericAccessPoint => "Generic Access Point",
+            ServiceType::GenericFirewall => "Generic Firewall",
             ServiceType::PfSense => "pfSense",
             ServiceType::OpnSense => "OPNsense",
             ServiceType::Fortigate => "FortiGate",
@@ -424,14 +424,14 @@ impl TypeMetadataProvider for ServiceType {
             ServiceType::Workstation => "Workstation",
             
             // Generic Services
-            ServiceType::GenericVpnGateway => "VPN Gateway",
-            ServiceType::GenericHttpWebServer => "HTTP Web Server",
-            ServiceType::GenericHttpsWebServer => "HTTPS Web Server",
-            ServiceType::GenericDnsServer => "DNS Server",
-            ServiceType::GenericDhcpServer => "DHCP Server",
-            ServiceType::GenericPrintServer => "Print Server",
-            ServiceType::GenericNasDevice => "NAS Device",
-            ServiceType::GenericFileServer => "File Server",
+            ServiceType::GenericVpnGateway => "Generic VPN Gateway",
+            ServiceType::GenericHttpWebServer => "Generic HTTP Web Server",
+            ServiceType::GenericHttpsWebServer => "Generic HTTPS Web Server",
+            ServiceType::GenericDnsServer => "Generic DNS Server",
+            ServiceType::GenericDhcpServer => "Generic DHCP Server",
+            ServiceType::GenericPrintServer => "Generic Print Server",
+            ServiceType::GenericNasDevice => "Generic NAS Device",
+            ServiceType::GenericFileServer => "Generic File Server",
             ServiceType::Unknown => "Unknown"
         }
     }

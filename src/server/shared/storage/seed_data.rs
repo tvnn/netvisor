@@ -9,7 +9,7 @@ use crate::server::{
 pub fn create_internet_connectivity_host() -> Host {
 
     let base = HostBase {
-        name: "Google.com".to_string(),
+        name: "Google".to_string(),
         hostname: Some("google.com".to_string()),
         description: Some("Google.com".to_string()),
         interfaces: Vec::new(),

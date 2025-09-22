@@ -4,13 +4,14 @@ use anyhow::Error;
 use itertools::Itertools;
 use petgraph::{graph::NodeIndex, Graph};
 use uuid::Uuid;
+use x509_parser::der_parser::ber::Length;
 
 use crate::server::{
-    groups::{service::GroupService, types::Group}, hosts::{service::HostService, types::base::Host}, services::{service::ServiceService, types::base::Service}, subnets::{service::SubnetService, types::base::Subnet}, topology::types::base::{Edge, EdgeHandle, EdgeType, Node, NodeLayout, NodeType, SubnetChild, SubnetChildNodeSize, SubnetLayout, XY}
+    groups::{service::GroupService, types::Group}, hosts::{service::HostService, types::{base::Host, targets::HostTarget}}, services::{service::ServiceService, types::base::Service}, subnets::{service::SubnetService, types::base::Subnet}, topology::types::base::{Edge, EdgeHandle, EdgeType, Node, NodeLayout, NodeType, SubnetChild, SubnetChildNodeSize, SubnetLayout, XY}
 };
 
-const SUBNET_PADDING: XY = XY{x: 50, y: 50};
-const NODE_PADDING: XY = XY{x: 25, y: 25};
+const SUBNET_PADDING: XY = XY{x: 75, y: 75};
+const NODE_PADDING: XY = XY{x: 50, y: 50};
 
 pub struct TopologyService {
     host_service: Arc<HostService>,
@@ -18,6 +19,7 @@ pub struct TopologyService {
     group_service: Arc<GroupService>,
     service_service: Arc<ServiceService>,
     no_subnet_id: Uuid,
+    wan_id: Uuid
 }
 
 impl TopologyService {
@@ -27,7 +29,8 @@ impl TopologyService {
             subnet_service,
             group_service,
             service_service,
-            no_subnet_id: Uuid::nil()
+            no_subnet_id: Uuid::new_v4(),
+            wan_id: Uuid::new_v4()
         }
     }
 
@@ -168,7 +171,13 @@ impl TopologyService {
                         .collect::<Vec<_>>()
                         .into_iter()
                 } else {
-                    return vec![(self.no_subnet_id, SubnetChild {
+                    let is_wan_node = match (host.base.target.clone(), host.base.interfaces.clone()) {
+                        (HostTarget::ExternalIp(..), _) => true,
+                        (HostTarget::Hostname, interfaces) => interfaces.len() == 0,
+                        (_,_) => false
+                    };
+                    let id = if is_wan_node {self.wan_id} else {self.no_subnet_id};
+                    return vec![(id, SubnetChild {
                             id: host.id,
                             host_id: host.id,
                             interface_id: None,
@@ -251,7 +260,8 @@ impl TopologyService {
                     parent_id: Some(subnet_id), 
                     position: position.clone(),
                     size: child.size.size(),
-                    infra_width: None
+                    infra_width: None,
+                    subnet_label: None
                 });
             }
         });
@@ -271,7 +281,8 @@ impl TopologyService {
                     parent_id: Some(subnet_id), 
                     position: node_position,
                     size: child.size.size(),
-                    infra_width: None
+                    infra_width: None,
+                    subnet_label: None
                 });
             };
         });
@@ -314,7 +325,8 @@ impl TopologyService {
                     let node_type = NodeType::SubnetNode;
                     
                     // Handle no_subnet case
-                    if *subnet_id == self.no_subnet_id {
+                    if *subnet_id == self.no_subnet_id || *subnet_id == self.wan_id {
+                        let label = if *subnet_id == self.no_subnet_id {"No Subnet"} else {"WAN"};
                         return Some(Node {
                             id: *subnet_id,
                             parent_id: None,
@@ -323,7 +335,8 @@ impl TopologyService {
                             node_type,
                             position: position.clone(),
                             size: layout.size.clone(),
-                            infra_width: Some(layout.infra_width)
+                            infra_width: Some(layout.infra_width),
+                            subnet_label: Some(label.to_string())
                         });
                     }
                     
@@ -337,7 +350,8 @@ impl TopologyService {
                             node_type,
                             position: position.clone(),
                             size: layout.size.clone(),
-                            infra_width: Some(layout.infra_width)
+                            infra_width: Some(layout.infra_width),
+                            subnet_label: None
                         });
                     }
                 }
