@@ -3,7 +3,7 @@ use futures::future::{try_join_all};
 use anyhow::anyhow;
 use uuid::Uuid;
 use std::sync::{Arc, OnceLock};
-use crate::server::{groups::service::GroupService, hosts::{service::HostService}, services::{storage::ServiceStorage, types::base::{Service}}, subnets::service::SubnetService
+use crate::server::{groups::service::GroupService, hosts::service::HostService, services::{storage::ServiceStorage, types::base::Service}, shared::types::metadata::TypeMetadataProvider, subnets::service::SubnetService
 };
 
 pub struct ServiceService {
@@ -32,10 +32,24 @@ impl ServiceService {
     }
 
     pub async fn create_service(&self, service: Service) -> Result<Service> {
-        self.storage.create(&service).await?;
-        self.create_subnet_service_relationships(&service).await?;
-        tracing::info!("Created service {}: {} for host {}", service.base.name, service.id, service.base.host_id);
-        Ok(service)
+        let existing_services = self.get_services_for_host(&service.base.host_id).await?;
+        
+        // Check if a similar service already exists
+        let duplicate = existing_services.into_iter().find(|existing| *existing == service);
+        
+        match duplicate {
+            Some(existing_service) => {
+                tracing::info!("Service {} already exists for host {}, skipping creation", 
+                    service.base.service_definition.name(), service.base.host_id);
+                Ok(existing_service.clone())
+            }
+            None => {
+                self.storage.create(&service).await?;
+                tracing::info!("Created service {} for host {}", 
+                    service.base.service_definition.name(), service.base.host_id);
+                Ok(service)
+            }
+        }
     }
 
     pub async fn get_service(&self, id: &Uuid) -> Result<Option<Service>> {

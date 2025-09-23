@@ -3,7 +3,7 @@ use anyhow::{Error, Result};
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
 
-use crate::server::services::types::{base::{Service, ServiceBase}, ports::Port, types::ServiceType};
+use crate::server::services::types::{base::{Service, ServiceBase}, ports::Port, types::ServiceDefinition};
 
 #[async_trait]
 pub trait ServiceStorage: Send + Sync {
@@ -29,7 +29,7 @@ impl SqliteServiceStorage {
 impl ServiceStorage for SqliteServiceStorage {
 
     async fn create(&self, service: &Service) -> Result<()> {
-        let service_type_str = serde_json::to_string(&service.base.service_type)?;
+        let service_def_str = serde_json::to_string(&service.base.service_definition)?;
         let ports_str = serde_json::to_string(&service.base.ports)?;
         let interface_bindings_str = serde_json::to_string(&service.base.interface_bindings)?;
         let groups_str = serde_json::to_string(&service.base.groups)?;
@@ -38,14 +38,14 @@ impl ServiceStorage for SqliteServiceStorage {
         sqlx::query(
             r#"
             INSERT INTO services (
-                id, name, host_id, service_type, ports, interface_bindings, groups, created_at, updated_at
+                id, name, host_id, service_definition, ports, interface_bindings, groups, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(blob_uuid::to_blob(&service.id))
         .bind(&service.base.name)
         .bind(blob_uuid::to_blob(&service.base.host_id))
-        .bind(service_type_str)
+        .bind(service_def_str)
         .bind(ports_str)
         .bind(interface_bindings_str)
         .bind(groups_str)
@@ -99,7 +99,7 @@ impl ServiceStorage for SqliteServiceStorage {
     }
 
     async fn update(&self, service: &Service) -> Result<()> {
-        let service_type_str = serde_json::to_string(&service.base.service_type)?;
+        let service_def_str = serde_json::to_string(&service.base.service_definition)?;
         let ports_str = serde_json::to_string(&service.base.ports)?;
         let interface_bindings_str = serde_json::to_string(&service.base.interface_bindings)?;
         let groups_str = serde_json::to_string(&service.base.groups)?;
@@ -107,13 +107,13 @@ impl ServiceStorage for SqliteServiceStorage {
         sqlx::query(
             r#"
             UPDATE services SET 
-                name = ?, host_id = ?, service_type = ?, ports = ?, interface_bindings = ?, groups = ?, updated_at = ?
+                name = ?, host_id = ?, service_definition = ?, ports = ?, interface_bindings = ?, groups = ?, updated_at = ?
             WHERE id = ?
             "#
         )
         .bind(&service.base.name)
         .bind(blob_uuid::to_blob(&service.base.host_id))
-        .bind(service_type_str)
+        .bind(service_def_str)
         .bind(ports_str)
         .bind(interface_bindings_str)
         .bind(groups_str)
@@ -137,7 +137,7 @@ impl ServiceStorage for SqliteServiceStorage {
 
 fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
     // Parse JSON fields safely
-    let service_type: ServiceType = serde_json::from_str(&row.get::<String, _>("service_type")).or(Err(Error::msg("Failed to deserialize service_type")))?;
+    let service_definition: Box<dyn ServiceDefinition> = serde_json::from_str(&row.get::<String, _>("service_definition")).or(Err(Error::msg("Failed to deserialize service_definition")))?;
     let ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("ports")).or(Err(Error::msg("Failed to deserialize ports")))?;
     let interface_bindings: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("interface_bindings")).or(Err(Error::msg("Failed to deserialize interface_bindings")))?;
     let groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("groups")).or(Err(Error::msg("Failed to deserialize groups")))?;
@@ -154,7 +154,7 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
         base: ServiceBase {
             name: row.get("name"),
             host_id: blob_uuid::to_uuid(row.get("host_id")).or(Err(Error::msg("Failed to deserialize host_id")))?,
-            service_type,
+            service_definition,
             ports,
             interface_bindings,
             groups

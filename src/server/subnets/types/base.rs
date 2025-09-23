@@ -5,10 +5,11 @@ use cidr::{IpCidr, Ipv4Cidr};
 use itertools::Itertools;
 use pnet::{ipnetwork::IpNetwork};
 use serde::{Deserialize, Serialize};
-use strum_macros::{Display, EnumDiscriminants, EnumIter};
+use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
+use crate::server::services::types::types::ServiceDefinitionHelpers;
 use uuid::Uuid;
 
-use crate::server::{hosts::types::base::Host, services::types::base::Service, shared::{constants::{Entity}, types::metadata::{EntityMetadataProvider, TypeMetadataProvider}}};
+use crate::server::{hosts::types::base::Host, services::types::base::Service, shared::{constants::Entity, types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider}}};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum SubnetSource {
@@ -114,13 +115,13 @@ impl Subnet {
             });
         
         if has_interface_on_subnet {
-            if service.base.service_type.is_dns_resolver() { 
+            if service.base.service_definition.is_dns_resolver() { 
                 self.base.dns_resolvers.push(service.id) 
             }
-            if service.base.service_type.is_gateway() { 
+            if service.base.service_definition.is_gateway() { 
                 self.base.gateways.push(service.id) 
             }
-            if service.base.service_type.is_reverse_proxy() { 
+            if service.base.service_definition.is_reverse_proxy() { 
                 self.base.reverse_proxies.push(service.id) 
             }
         }
@@ -152,7 +153,7 @@ impl PartialEq for Subnet {
 
 impl Eq for Subnet {}
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, EnumDiscriminants, EnumIter)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, EnumDiscriminants, EnumIter, IntoStaticStr)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum SubnetType {
     Lan,
@@ -192,6 +193,12 @@ impl SubnetType {
     }
 }
 
+impl HasId for SubnetType {
+    fn id(&self) -> &'static str {
+        self.into()
+    }
+}
+
 impl EntityMetadataProvider for SubnetType {
     fn color(&self) -> &'static str {
         match self {
@@ -208,7 +215,7 @@ impl EntityMetadataProvider for SubnetType {
 }
 
 impl TypeMetadataProvider for SubnetType {
-    fn display_name(&self) -> &'static str {
+    fn name(&self) -> &'static str {
         match self {
             SubnetType::DockerBridge => "Docker Bridge",
             SubnetType::Lan => "Local Area Network",

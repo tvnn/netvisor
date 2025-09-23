@@ -1,8 +1,8 @@
-use strum_macros::{Display, EnumDiscriminants, EnumIter};
+use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::server::shared::types::metadata::EntityMetadataProvider;
+use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumDiscriminants, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumDiscriminants, EnumIter, IntoStaticStr)]
 #[strum_discriminants(derive(Display))]
 pub enum Entity {
     Host,
@@ -17,6 +17,12 @@ pub enum Entity {
     Vpn,
     Gateway,
     ReverseProxy,
+}
+
+impl HasId for Entity {
+    fn id(&self) -> &'static str {
+        self.into()
+    }
 }
 
 impl EntityMetadataProvider for Entity {

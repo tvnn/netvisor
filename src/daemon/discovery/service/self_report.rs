@@ -1,13 +1,13 @@
 use anyhow::{Error, Result};
 use futures::future::try_join_all;
-use crate::{daemon::{discovery::service::base::DaemonDiscoveryService}, server::{services::types::{base::ServiceBase, ports::Port, types::ServiceType}, utils::base::NetworkUtils}};
+use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{services::{definitions::netvisor_daemon::NetvisorDaemon, types::{base::ServiceBase, ports::Port, types::{ServiceDefinition}}}, utils::base::NetworkUtils}};
 use std::{result::Result::Ok};
 use crate::{
     daemon::{utils::base::{DaemonUtils}},
     server::{
         hosts::types::{
             base::{Host, HostBase}, targets::{HostTarget}
-        }, services::types::{base::{Service}}, shared::types::{metadata::TypeMetadataProvider}
+        }, services::types::{base::{Service}}
     },
 };
 
@@ -56,10 +56,10 @@ impl DaemonDiscoveryService {
 
         let host = Host::new(host_base);
 
-        let service_type = ServiceType::NetvisorDaemon;
+        let service_definition = NetvisorDaemon;
         let daemon_service = Service::new(ServiceBase { 
-            name: service_type.display_name().to_string(), 
-            service_type,
+            name: ServiceDefinition::name(&service_definition).to_string(), 
+            service_definition: Box::new(service_definition),
             ports: vec!(own_port),
             host_id: host.id,
             interface_bindings,

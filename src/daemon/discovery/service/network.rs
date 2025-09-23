@@ -2,8 +2,7 @@ use std::{net::IpAddr, sync::Arc};
 use anyhow::{Error, Result};
 use cidr::{IpCidr};
 use chrono::{DateTime, Utc};
-use strum::{IntoEnumIterator};
-use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{interfaces::types::base::{Interface, InterfaceBase}, services::types::types::ServiceType}};
+use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{interfaces::types::base::{Interface, InterfaceBase}, services::{definitions::{vpn_gateway::VpnGateway, web_dashboard::WebDashboard, ServiceDefinitionRegistry}, types::types::{ServiceDefinition, ServiceDefinitionHelpers}}, shared::types::metadata::HasId}};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use futures::{future::{try_join_all}, stream::{self, StreamExt}};
@@ -13,7 +12,7 @@ use crate::{
     server::{
         daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, hosts::types::{
             base::{Host, HostBase}, targets::{HostTarget}
-        }, services::types::{base::{Service}, endpoints::EndpointResponse, ports::Port}, shared::types::{metadata::TypeMetadataProvider}, subnets::types::base::{Subnet, SubnetType}
+        }, services::types::{base::{Service}, endpoints::EndpointResponse, ports::Port}, subnets::types::base::{Subnet, SubnetType}
     },
 };
 
@@ -316,20 +315,35 @@ impl DaemonDiscoveryService {
         });
 
         let mut services = Vec::new();
+        let mut matched_service_definitions = Vec::new();
         let mut unclaimed_ports = open_ports.clone();
         
-        let mut sorted_service_types: Vec<ServiceType> = ServiceType::iter()
-            .collect::<Vec<ServiceType>>();
+        let mut sorted_service_definitions: Vec<Box<dyn ServiceDefinition>> = ServiceDefinitionRegistry::all_service_definitions().into_iter()
+            .collect();
 
-        sorted_service_types.sort_unstable_by_key(|s| s.is_generic_service());
+        sorted_service_definitions.sort_unstable_by_key(|s| {
+            if s.id() == VpnGateway.id() {
+                0 // Needs to go before non-VPN gateways, otherwise will get classified as non-VPN gateway
+            } else if s.is_dns_resolver() || s.is_gateway() || s.is_reverse_proxy() {
+                1  // Highest priority - infra services first
+            } else if s.id() == WebDashboard.id() {
+                3 // Needs to go before other generic services so it can use other service patterns in algorithm
+            }
+            else if s.is_generic() {
+                4  // Lowest priority - generic services last
+            } else {
+                2  // Middle priority - everything else in between
+            }
+        });
 
         // Add services from detected ports
-        for service_type in sorted_service_types {
-            if let (Some(service), Some(service_ports)) = Service::from_discovery(service_type, host_ip, &unclaimed_ports, &endpoint_responses, &subnet, mac, &host.id, &interface_bindings) {
-                if !service.base.service_type.is_generic_service() {
-                    host.base.name = service.base.service_type.display_name().to_string();
+        for service_definition in sorted_service_definitions {
+            if let (Some(service), Some(service_ports)) = Service::from_discovery(service_definition, host_ip, &unclaimed_ports, &endpoint_responses, &subnet, mac, &host.id, &interface_bindings, &matched_service_definitions) {
+                if !service.base.service_definition.is_generic() {
+                    host.base.name = service.base.service_definition.name().to_string();
                 }
 
+                matched_service_definitions.push(service.base.service_definition.clone());
                 unclaimed_ports.retain(|p| !service_ports.contains(p));
                 host.add_service(service.id);
                 services.push(service);

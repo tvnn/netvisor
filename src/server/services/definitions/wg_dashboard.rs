@@ -1,0 +1,24 @@
+use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
+use crate::server::services::types::patterns::Pattern;
+use crate::server::services::types::ports::Port;
+use crate::server::services::types::types::ServiceDefinition;
+use crate::server::services::types::categories::ServiceCategory;
+use crate::server::subnets::types::base::SubnetType;
+
+#[derive(Default, Clone, Eq, PartialEq, Hash)]
+pub struct WgDashboard;
+
+impl ServiceDefinition for WgDashboard {
+    fn name(&self) -> &'static str { "Wireguard Dashboard" }
+    fn description(&self) -> &'static str { "Dashboard for visualizing and managing wireguard clients and server" }
+    fn category(&self) -> ServiceCategory { ServiceCategory::Dashboard }
+
+    fn discovery_pattern(&self) -> Pattern {
+        Pattern::AllOf(vec!(
+            Pattern::AnyPort(vec![Port::new_tcp(10086)]), 
+            Pattern::SubnetIsNotType(SubnetType::VpnTunnel)
+        ))
+    }
+}
+
+inventory::submit!(ServiceDefinitionFactory::new(create_service::<WgDashboard>));

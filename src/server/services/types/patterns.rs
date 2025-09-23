@@ -4,7 +4,7 @@ use anyhow::Error;
 use mac_address::MacAddress;
 use mac_oui::Oui;
 
-use crate::server::{services::types::{endpoints::{ApplicationProtocol, Endpoint, EndpointResponse}, ports::Port}, subnets::types::base::{Subnet, SubnetType}};
+use crate::server::{services::types::{endpoints::{ApplicationProtocol, Endpoint, EndpointResponse}, ports::Port, types::ServiceDefinition}, subnets::types::base::{Subnet, SubnetType}};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pattern {
@@ -20,10 +20,13 @@ pub enum Pattern {
     SubnetIsType(SubnetType),
     SubnetIsNotType(SubnetType),
     IsGatewayIp,
+    NotGatewayIp,
     IsVpnSubnetGateway,
     IsDockerHost,
-    NotGatewayIp,
     MacVendor(&'static str),
+    HasAnyMatchedService,
+    AnyMatchedService(fn(&Box<dyn ServiceDefinition>) -> bool),
+    AllMatchedService(fn(&Box<dyn ServiceDefinition>) -> bool),
     None,
 }
 
@@ -59,7 +62,8 @@ impl Pattern {
         responses: Vec<EndpointResponse>, 
         ip: IpAddr, 
         subnet: &Subnet, 
-        mac_address: Option<MacAddress>) -> Result<Vec<Option<Port>>, Error> {
+        mac_address: Option<MacAddress>,
+        matched_service_definitions: &Vec<Box<dyn ServiceDefinition>>) -> Result<Vec<Option<Port>>, Error> {
 
         let no_match = Err(Error::msg("No match"));
 
@@ -115,7 +119,7 @@ impl Pattern {
                 let mut any_matched = false;
                 let results = patterns.iter()
                     .filter_map(|p| {
-                        match p.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address) {
+                        match p.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions) {
                             Ok(results) => {
                                 any_matched = true;
                                 Some(results)
@@ -137,7 +141,7 @@ impl Pattern {
                 let mut all_matched = true;
                 let results = patterns.iter()
                     .filter_map(|p| {
-                        match p.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address) {
+                        match p.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions) {
                             Ok(results) => Some(results),
                             Err(_) => {
                                 all_matched = false;
@@ -185,7 +189,7 @@ impl Pattern {
             Pattern::AnyEndpoints(endpoint_responses) => {
                 let matched_responses: Vec<_> = endpoint_responses.iter()
                     .filter_map(|expected| {
-                        match Pattern::Endpoint(expected.clone()).matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address) {
+                        match Pattern::Endpoint(expected.clone()).matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions) {
                             Ok(result) => Some(result),
                             Err(_) => None
                         }
@@ -202,12 +206,12 @@ impl Pattern {
 
             Pattern::WebService(path, resp) => {
                 let endpoints = web_service_endpoint_responses(Some(ip), path, resp);
-                Pattern::AnyEndpoints(endpoints).matches(open_ports, responses, ip, subnet, mac_address)
+                Pattern::AnyEndpoints(endpoints).matches(open_ports, responses, ip, subnet, mac_address, matched_service_definitions)
             },
 
             Pattern::CustomPortWebService(port, path, resp) => {
                 let endpoints = custom_port_web_service_endpoints(Some(ip), port, path, resp);
-                Pattern::AnyEndpoints(endpoints).matches(open_ports, responses, ip, subnet, mac_address)
+                Pattern::AnyEndpoints(endpoints).matches(open_ports, responses, ip, subnet, mac_address, matched_service_definitions)
             },
 
             Pattern::IsGatewayIp => {
@@ -226,7 +230,7 @@ impl Pattern {
             },
 
             Pattern::NotGatewayIp => {
-                let gateway_result = Pattern::IsGatewayIp.matches(open_ports, responses, ip, subnet, mac_address);
+                let gateway_result = Pattern::IsGatewayIp.matches(open_ports, responses, ip, subnet, mac_address, matched_service_definitions);
                 if gateway_result.is_err() {Ok(vec!(None))} else {no_match}
             },
 
@@ -239,15 +243,29 @@ impl Pattern {
             },
 
             Pattern::IsVpnSubnetGateway => {
-                let gateway_result = Pattern::IsGatewayIp.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address);
+                let gateway_result = Pattern::IsGatewayIp.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions);
                 let is_vpn_subnet = matches!(subnet.base.subnet_type, SubnetType::VpnTunnel);
                 if gateway_result.is_ok() && is_vpn_subnet {Ok(vec!(None))} else {no_match}
             },
 
             Pattern::IsDockerHost => {
-                let gateway_result = Pattern::IsGatewayIp.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address);
+                let gateway_result = Pattern::IsGatewayIp.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions);
                 let is_docker_subnet = matches!(subnet.base.subnet_type, SubnetType::DockerBridge);
                 if gateway_result.is_ok() && is_docker_subnet {Ok(vec!(None))} else {no_match}
+            },
+
+            Pattern::HasAnyMatchedService => {
+                if matched_service_definitions.len() > 0  {Ok(vec!(None))} else {no_match}
+            },
+
+            Pattern::AnyMatchedService(constraint_function) => {
+                let any = matched_service_definitions.iter().any(|s| constraint_function(s));
+                if any {Ok(vec!(None))} else {no_match}
+            },
+
+            Pattern::AllMatchedService(constraint_function) => {
+                let any = matched_service_definitions.iter().all(|s| constraint_function(s));
+                if any {Ok(vec!(None))} else {no_match}
             },
 
             Pattern::None => no_match,

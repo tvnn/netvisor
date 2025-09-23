@@ -1,0 +1,20 @@
+use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
+use crate::server::services::types::patterns::Pattern;
+use crate::server::services::types::ports::Port;
+use crate::server::services::types::types::ServiceDefinition;
+use crate::server::services::types::categories::ServiceCategory;
+
+#[derive(Default, Clone, Eq, PartialEq, Hash)]
+pub struct Duplicati;
+
+impl ServiceDefinition for Duplicati {
+    fn name(&self) -> &'static str { "Duplicati" }
+    fn description(&self) -> &'static str { "Cross-platform backup client with encryption" }
+    fn category(&self) -> ServiceCategory { ServiceCategory::Backup }
+
+    fn discovery_pattern(&self) -> Pattern {
+        Pattern::Port(Port::new_tcp(8200))
+    }
+}
+
+inventory::submit!(ServiceDefinitionFactory::new(create_service::<Duplicati>));

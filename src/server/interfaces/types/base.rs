@@ -11,11 +11,18 @@ pub struct InterfaceBase {
     pub name: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]
 pub struct Interface {
     pub id: Uuid,
     #[serde(flatten)]
     pub base: InterfaceBase,
+}
+
+impl PartialEq for Interface {
+    fn eq(&self, other: &Self) -> bool {
+        self.base.ip_address == other.base.ip_address && 
+                self.base.subnet_id == other.base.subnet_id
+    }
 }
 
 impl Interface {

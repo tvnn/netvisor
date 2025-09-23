@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use strum_macros::{EnumDiscriminants, EnumIter};
+use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::server::shared::{constants::Entity, types::metadata::EntityMetadataProvider};
+use crate::server::shared::{constants::Entity, types::metadata::{EntityMetadataProvider, HasId}};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Display, Deserialize, EnumDiscriminants, EnumIter, IntoStaticStr)]
 pub enum ServiceCategory {
     // Infrastructure (always-on, core network services)
     NetworkCore,        // Routers, switches, core infrastructure
@@ -41,46 +41,14 @@ pub enum ServiceCategory {
     Netvisor,
 }
 
-impl ServiceCategory {
-    pub fn category_str(&self) -> &'static str{
-        match self {
-            // Infrastructure (always-on, core network services)
-            ServiceCategory::NetworkCore => "Network Core",
-            ServiceCategory::NetworkAccess => "Network Access",
-            ServiceCategory::NetworkSecurity => "Network Infrastructure",
-
-            // Server Services
-            ServiceCategory::Storage => "Storage",
-            ServiceCategory::Media => "Media",
-            ServiceCategory::HomeAutomation => "Home Automation",
-            ServiceCategory::Virtualization => "Virtualization",
-            ServiceCategory::Backup => "Backup",
-            
-            // Network Services
-            ServiceCategory::DNS => "DNS",
-            ServiceCategory::VPN => "VPN",
-            ServiceCategory::Monitoring => "Monitoring",
-            ServiceCategory::AdBlock => "Ad Blocker",
-            ServiceCategory::ReverseProxy => "Reverse Proxy",
-
-            // End devices
-            ServiceCategory::Workstation => "Workstation",
-            ServiceCategory::Mobile => "Mobile",
-            ServiceCategory::IoT => "IoT",
-            ServiceCategory::Printer => "Printer",
-
-            // Application
-            ServiceCategory::Web => "Web",
-            ServiceCategory::Database => "Database",
-            ServiceCategory::Development => "Development",
-            ServiceCategory::Dashboard => "Dashboard",
-            
-            // Unknown
-            ServiceCategory::Netvisor => "NetVisor",
-            ServiceCategory::Unknown => "Unknown",
-        }
+impl HasId for ServiceCategory {
+    fn id(&self) -> &'static str {
+        self.into()
     }
-    pub fn icon(&self) -> &'static str {
+}
+
+impl EntityMetadataProvider for ServiceCategory {
+    fn icon(&self) -> &'static str {
         match self {
             // Infrastructure (always-on, core network services)
             ServiceCategory::NetworkCore => "Network",
@@ -118,7 +86,8 @@ impl ServiceCategory {
             ServiceCategory::Unknown => "CircleQuestionMark",
         }
     }
-    pub fn color(&self) -> &'static str {
+
+    fn color(&self) -> &'static str {
         match self {
             // Infrastructure (always-on, core network services)
             ServiceCategory::NetworkCore => "yellow",

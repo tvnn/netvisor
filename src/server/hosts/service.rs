@@ -37,9 +37,9 @@ impl HostService {
 
         let host_from_storage = match all_hosts.into_iter().find(|h| host.eq(h)) {
             Some(existing_host) => {
-                tracing::warn!("Duplicate host for {}: {} found, {}: {} - consolidating...", host.base.name, host.id, existing_host.base.name, existing_host.id);
+                tracing::warn!("Duplicate host for {}: {} found, {}: {} - upserting discovery data...", host.base.name, host.id, existing_host.base.name, existing_host.id);
                 self.update_subnet_host_relationships(&existing_host, true).await?;
-                self.consolidate_hosts(existing_host, host).await?
+                self.upsert_host(existing_host, host).await?
             }
             None => {
                 self.storage.create(&host).await?;
@@ -73,6 +73,43 @@ impl HostService {
         self.storage.update(&host).await?;
         Ok(host)
     }
+
+    /// Merge new discovery data with existing host
+    async fn upsert_host(&self, mut existing_host: Host, new_host: Host) -> Result<Host> {
+        // Merge interfaces - add any new interfaces not already present
+        for new_interface in new_host.base.interfaces {
+            if !existing_host.base.interfaces.iter().any(|existing| *existing == new_interface) {
+                existing_host.base.interfaces.push(new_interface);
+            }
+        }
+
+        // Merge open ports - add any new ports not already present
+        for new_port in new_host.base.open_ports {
+            if !existing_host.base.open_ports.iter().any(|existing| *existing == new_port) {
+                existing_host.base.open_ports.push(new_port);
+            }
+        }
+
+        existing_host.base.services = [new_host.base.services, existing_host.base.services].concat();
+
+        // Update other fields if they have more information
+        if existing_host.base.hostname.is_none() && new_host.base.hostname.is_some() {
+            existing_host.base.hostname = new_host.base.hostname;
+        }
+        
+        if existing_host.base.description.is_none() && !new_host.base.description.is_some() {
+            existing_host.base.description = new_host.base.description;
+        }
+
+        existing_host.updated_at = chrono::Utc::now();
+
+        // Update the existing host
+        self.storage.update(&existing_host).await?;
+        tracing::info!("Upserted host {}: {} with new discovery data", existing_host.base.name, existing_host.id);
+        
+        Ok(existing_host)
+    }
+
 
     pub async fn consolidate_hosts(&self, mut destination_host: Host, other_host: Host) -> Result<Host> {
         let other_host_services = self.service_service.get_services_for_host(&other_host.id).await?;

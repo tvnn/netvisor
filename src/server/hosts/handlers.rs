@@ -37,16 +37,20 @@ async fn create_host(
     })
     .collect();
 
-    let created_host = host_service.create_host(host.base).await?;
+    let mut created_host = host_service.create_host(host.base).await?;
 
     let service_futures = services_to_create.into_iter().map(|mut s| {
         s.base.host_id = created_host.id;
         service_service.create_service(s)
     });
 
-    try_join_all(service_futures).await?;
+    let services = try_join_all(service_futures).await?;
+
+    created_host.base.services.retain(|service_id| services.iter().map(|s| s.id).contains(service_id));
+
+    let host_with_final_services = host_service.update_host(created_host).await?;
     
-    Ok(Json(ApiResponse::success(created_host)))
+    Ok(Json(ApiResponse::success(host_with_final_services)))
 }
 
 async fn get_all_hosts(

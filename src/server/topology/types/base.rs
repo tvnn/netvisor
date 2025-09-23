@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
-use strum_macros::{Display, EnumDiscriminants, EnumIter};
+use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
-use crate::server::{shared::{constants::Entity, types::metadata::{EntityMetadataProvider, TypeMetadataProvider}}};
+use crate::server::shared::{constants::Entity, types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider}};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Node {
@@ -95,11 +95,17 @@ pub enum EdgeHandle {
     Right
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter, IntoStaticStr)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum EdgeType {
     Interface, // Connecting hosts with interfaces in multiple subnets
     Group,     // User-defined logical connection
+}
+
+impl HasId for EdgeType {
+    fn id(&self) -> &'static str {
+        self.into()
+    }
 }
 
 impl EntityMetadataProvider for EdgeType {
@@ -119,7 +125,7 @@ impl EntityMetadataProvider for EdgeType {
 }
 
 impl TypeMetadataProvider for EdgeType {
-    fn display_name(&self) -> &'static str {
+    fn name(&self) -> &'static str {
         match self {
             EdgeType::Group => "Host Group",
             EdgeType::Interface => "Host Interface"
