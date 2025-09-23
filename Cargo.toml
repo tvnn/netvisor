@@ -91,6 +91,7 @@ mac_oui = { version = "0.4.11", features = ["with-db"] }
 petgraph = { version = "0.8.2", features = ["serde-1"] }
 petgraph-graphml = "5.0.0"
 itertools = "0.14.0"
+blob-uuid = "0.5.0"
 
 # Linux/Unix dependencies  
 [target.'cfg(target_os = "linux")'.dependencies]

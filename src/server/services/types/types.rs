@@ -296,7 +296,7 @@ impl ServiceType {
                 // Secondary: Gateway with core services
                 Pattern::AllOf(vec![
                     Pattern::IsGatewayIp, 
-                    Pattern::AnyPort(vec![Port::DNS_UDP, Port::DHCP])
+                    Pattern::AnyPort(vec![Port::DNS_UDP, Port::DNS_TCP, Port::DHCP])
                 ]),
                 // Tertiary: SNMP + management (managed router, not gateway)
                 Pattern::AllOf(vec![
@@ -319,7 +319,7 @@ impl ServiceType {
                 Pattern::IsVpnSubnetGateway,
                 Pattern::AnyPort(vec!(Port::SSH, Port::HTTP, Port::HTTPS))
             )),
-            ServiceType::GenericDnsServer => Pattern::Port(Port::DNS_UDP),
+            ServiceType::GenericDnsServer => Pattern::AnyPort(vec!(Port::DNS_UDP, Port::DNS_TCP)),
             ServiceType::GenericDhcpServer => Pattern::Port(Port::DHCP),
             ServiceType::GenericPrintServer => Pattern::Port(Port::IPP),
             ServiceType::GenericNasDevice => Pattern::Port(Port::NFS),

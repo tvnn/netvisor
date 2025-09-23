@@ -34,6 +34,7 @@ impl ServiceService {
     pub async fn create_service(&self, service: Service) -> Result<Service> {
         self.storage.create(&service).await?;
         self.create_subnet_service_relationships(&service).await?;
+        tracing::info!("Created service {}: {} for host {}", service.base.name, service.id, service.base.host_id);
         Ok(service)
     }
 
@@ -59,6 +60,7 @@ impl ServiceService {
         service.updated_at = chrono::Utc::now();
         
         self.storage.update(&service).await?;
+        tracing::info!("Updated service {}: {} for host {}", service.base.name, service.id, service.base.host_id);
         Ok(service)
     }
 
@@ -136,6 +138,8 @@ impl ServiceService {
             host_service.update_host(host).await?;
         };
 
-        self.storage.delete(id).await
+        self.storage.delete(id).await?;
+        tracing::info!("Deleted service {}: {} for host {}", service.base.name, service.id, service.base.host_id);
+        Ok(())
     }
 }

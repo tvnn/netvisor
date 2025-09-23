@@ -4,7 +4,6 @@ use anyhow::Error;
 use itertools::Itertools;
 use petgraph::{graph::NodeIndex, Graph};
 use uuid::Uuid;
-use x509_parser::der_parser::ber::Length;
 
 use crate::server::{
     groups::{service::GroupService, types::Group}, hosts::{service::HostService, types::{base::Host, targets::HostTarget}}, services::{service::ServiceService, types::base::Service}, subnets::{service::SubnetService, types::base::Subnet}, topology::types::base::{Edge, EdgeHandle, EdgeType, Node, NodeLayout, NodeType, SubnetChild, SubnetChildNodeSize, SubnetLayout, XY}

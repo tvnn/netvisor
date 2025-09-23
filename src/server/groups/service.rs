@@ -46,7 +46,7 @@ impl GroupService {
                 self.service_service.update_service(service).await?;
             }
         }
-
+        tracing::info!("Created group {}: {}", group.base.name, group.id);
         Ok(group)
     }
 
@@ -106,7 +106,7 @@ impl GroupService {
                 }
             }
         }
-
+        tracing::info!("Updated group {}: {}", group.base.name, group.id);
         Ok(group)
     }
 
@@ -129,6 +129,7 @@ impl GroupService {
         }
 
         self.group_storage.delete(id).await?;
+        tracing::info!("Deleted group {}: {}", group.base.name, group.id);
         Ok(())
     }
 }

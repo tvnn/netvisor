@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use anyhow::Result;
+use anyhow::{Error, Result};
 use cidr::IpCidr;
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
@@ -37,7 +37,6 @@ impl SubnetStorage for SqliteSubnetStorage {
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
         let subnet_source_str = serde_json::to_string(&subnet.base.source)?;
         
-        // Try to insert, ignore if constraint sviolation
         sqlx::query(
             r#"
             INSERT INTO subnets (
@@ -46,7 +45,7 @@ impl SubnetStorage for SqliteSubnetStorage {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
-        .bind(&subnet.id)
+        .bind(blob_uuid::to_blob(&subnet.id))
         .bind(&subnet.base.name)
         .bind(&subnet.base.description)
         .bind(&cidr_str)
@@ -66,7 +65,7 @@ impl SubnetStorage for SqliteSubnetStorage {
 
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Subnet>> {
         let row = sqlx::query("SELECT * FROM subnets WHERE id = ?")
-            .bind(id)
+            .bind(blob_uuid::to_blob(id))
             .fetch_optional(&self.pool)
             .await?;
 
@@ -86,7 +85,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         
         let mut query_builder = sqlx::query(&query);
         for id in ids {
-            query_builder = query_builder.bind(id);
+            query_builder = query_builder.bind(blob_uuid::to_blob(id));
         }
         
         let rows = query_builder.fetch_all(&self.pool).await?;
@@ -136,7 +135,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(subnet_type_str)
         .bind(subnet_source_str)
         .bind(&subnet.updated_at.to_rfc3339())
-        .bind(&subnet.id)
+        .bind(blob_uuid::to_blob(&subnet.id))
         .execute(&self.pool)
         .await?;
 
@@ -153,15 +152,15 @@ impl SubnetStorage for SqliteSubnetStorage {
     }
 }
 
-fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet> {
+fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet, Error> {
     // Parse JSON fields safely
-    let cidr: IpCidr = serde_json::from_str(&row.get::<String, _>("cidr"))?;
-    let hosts: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("hosts"))?;
-    let dns_resolvers: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("dns_resolvers"))?;
-    let gateways: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("gateways"))?;
-    let reverse_proxies: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("reverse_proxies"))?;
-    let subnet_type: SubnetType = serde_json::from_str(&row.get::<String, _>("subnet_type"))?;
-    let source: SubnetSource = serde_json::from_str(&row.get::<String, _>("source"))?;
+    let cidr: IpCidr = serde_json::from_str(&row.get::<String, _>("cidr")).or(Err(Error::msg("Failed to deserialize cidr")))?;
+    let hosts: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("hosts")).or(Err(Error::msg("Failed to deserialize hosts")))?;
+    let dns_resolvers: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("dns_resolvers")).or(Err(Error::msg("Failed to deserialize dns_resolvers")))?;
+    let gateways: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("gateways")).or(Err(Error::msg("Failed to deserialize gateways")))?;
+    let reverse_proxies: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("reverse_proxies")).or(Err(Error::msg("Failed to deserialize reverse_proxies")))?;
+    let subnet_type: SubnetType = serde_json::from_str(&row.get::<String, _>("subnet_type")).or(Err(Error::msg("Failed to deserialize subnet_type")))?;
+    let source: SubnetSource = serde_json::from_str(&row.get::<String, _>("source")).or(Err(Error::msg("Failed to deserialize source")))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -169,7 +168,7 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet> {
         .with_timezone(&chrono::Utc);
 
     Ok(Subnet {
-        id: row.get("id"),
+        id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize id")))?,
         created_at,
         updated_at,
         base: SubnetBase {

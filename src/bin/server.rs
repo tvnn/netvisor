@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
     
     // Initialize tracing
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new("debug"))
+        .with(tracing_subscriber::EnvFilter::new(&config.server.log_level))
         .with(tracing_subscriber::fmt::layer())
         .init();
         

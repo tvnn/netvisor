@@ -37,11 +37,13 @@ impl HostService {
 
         let host_from_storage = match all_hosts.into_iter().find(|h| host.eq(h)) {
             Some(existing_host) => {
+                tracing::warn!("Duplicate host for {}: {} found, {}: {} - consolidating...", host.base.name, host.id, existing_host.base.name, existing_host.id);
                 self.update_subnet_host_relationships(&existing_host, true).await?;
                 self.consolidate_hosts(existing_host, host).await?
             }
             None => {
                 self.storage.create(&host).await?;
+                tracing::info!("Created host {}: {}", host.base.name, host.id);
                 host
             }
         };
@@ -87,10 +89,8 @@ impl HostService {
 
         let updated_host = self.update_host(destination_host).await?;
 
-        tracing::info!("{:?}", updated_host);
-
         self.delete_host(&other_host.id, true).await?;
-
+        tracing::info!("Consolidated host {}: {} into {}: {}", other_host.base.name, other_host.id, updated_host.base.name, updated_host.id);
         Ok(updated_host)
     }
 
@@ -129,6 +129,8 @@ impl HostService {
         
         self.update_subnet_host_relationships(&host, true).await?;
 
-        self.storage.delete(id).await
+        self.storage.delete(id).await?;
+        tracing::info!("Deleted host {}: {}; deleted services: {}", host.base.name, host.id, !ignore_services);
+        Ok(())
     }
 }

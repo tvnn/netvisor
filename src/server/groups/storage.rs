@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use anyhow::Result;
+use anyhow::{Error, Result};
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
 use crate::server::groups::types::{Group, GroupBase, ServiceBinding};
@@ -36,7 +36,7 @@ impl GroupStorage for SqliteGroupStorage {
             ) VALUES (?, ?, ?, ?, ?, ?)
             "#
         )
-        .bind(&group.id)
+        .bind(blob_uuid::to_blob(&group.id))
         .bind(&group.base.name)
         .bind(&group.base.description)
         .bind(services_json)
@@ -50,7 +50,7 @@ impl GroupStorage for SqliteGroupStorage {
 
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Group>> {
         let row = sqlx::query("SELECT * FROM groups WHERE id = ?")
-            .bind(id)
+            .bind(blob_uuid::to_blob(id))
             .fetch_optional(&self.pool)
             .await?;
 
@@ -88,7 +88,7 @@ impl GroupStorage for SqliteGroupStorage {
         .bind(&group.base.description)
         .bind(services_json)
         .bind(chrono::Utc::now().to_rfc3339())
-        .bind(&group.id)
+        .bind(blob_uuid::to_blob(&group.id))
         .execute(&self.pool)
         .await?;
 
@@ -105,11 +105,11 @@ impl GroupStorage for SqliteGroupStorage {
     }
 }
 
-fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group> {
-    let service_bindings: Vec<ServiceBinding> = serde_json::from_str(&row.get::<String, _>("service_bindings"))?;
+fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group, Error> {
+    let service_bindings: Vec<ServiceBinding> = serde_json::from_str(&row.get::<String, _>("service_bindings")).or(Err(Error::msg("Failed to deserialize service bindings")))?;
 
     Ok(Group {
-        id: row.get("id"),
+        id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize ID")))?,
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
         base: GroupBase {

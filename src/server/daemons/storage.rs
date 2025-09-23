@@ -1,5 +1,6 @@
 use std::net::IpAddr;
 
+use anyhow::Error;
 use async_trait::async_trait;
 use anyhow::Result;
 use sqlx::{SqlitePool, Row};
@@ -39,8 +40,8 @@ impl DaemonStorage for SqliteDaemonStorage {
             ) VALUES (?, ?, ?, ?, ?, ?)
             "#
         )
-        .bind(&daemon.id)
-        .bind(&daemon.base.host_id)
+        .bind(blob_uuid::to_blob(&daemon.id))
+        .bind(blob_uuid::to_blob(&daemon.base.host_id))
         .bind(ip_str)
         .bind(&daemon.base.port)
         .bind(chrono::Utc::now().to_rfc3339())
@@ -53,7 +54,7 @@ impl DaemonStorage for SqliteDaemonStorage {
 
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Daemon>> {
         let row = sqlx::query("SELECT * FROM daemons WHERE id = ?")
-            .bind(id)
+            .bind(blob_uuid::to_blob(id))
             .fetch_optional(&self.pool)
             .await?;
 
@@ -87,11 +88,11 @@ impl DaemonStorage for SqliteDaemonStorage {
             WHERE id = ?
             "#
         )
-        .bind(&daemon.base.host_id)
+        .bind(blob_uuid::to_blob(&daemon.base.host_id))
         .bind(ip_str)
         .bind(&daemon.base.port)
         .bind(chrono::Utc::now().to_rfc3339())
-        .bind(&daemon.id)
+        .bind(blob_uuid::to_blob(&daemon.id))
         .execute(&self.pool)
         .await?;
 
@@ -100,7 +101,7 @@ impl DaemonStorage for SqliteDaemonStorage {
 
     async fn delete(&self, id: &Uuid) -> Result<()> {
         sqlx::query("DELETE FROM daemons WHERE id = ?")
-            .bind(id)
+            .bind(blob_uuid::to_blob(id))
             .execute(&self.pool)
             .await?;
 
@@ -108,18 +109,18 @@ impl DaemonStorage for SqliteDaemonStorage {
     }
 }
 
-fn row_to_daemon(row: sqlx::sqlite::SqliteRow) -> Result<Daemon> {
+fn row_to_daemon(row: sqlx::sqlite::SqliteRow) -> Result<Daemon, Error> {
     
-    let ip: IpAddr = serde_json::from_str(&row.get::<String, _>("ip"))?;
+    let ip: IpAddr = serde_json::from_str(&row.get::<String, _>("ip")).or(Err(Error::msg("Failed to deserialize IP")))?;
 
     Ok(Daemon {
-        id: row.get("id"),
+        id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize ID")))?,
         last_seen: row.get("last_seen"),
         registered_at: row.get("registered_at"),
         base: DaemonBase {
             ip,
             port: row.get("port"),
-            host_id: row.get("host_id"),
+            host_id: blob_uuid::to_uuid(row.get("host_id")).or(Err(Error::msg("Failed to deserialize host_id")))?
         }
     })
 }

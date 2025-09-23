@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS hosts (
-    id TEXT PRIMARY KEY,
+    id BLOB PRIMARY KEY,
     name TEXT NOT NULL,
     hostname TEXT,
     description TEXT,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS hosts (
 );
 
 CREATE TABLE IF NOT EXISTS groups (
-    id TEXT PRIMARY KEY,
+    id BLOB PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
     service_bindings TEXT NOT NULL,
@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS groups (
 );
 
 CREATE TABLE IF NOT EXISTS daemons (
-    id TEXT PRIMARY KEY,
-    host_id TEXT NOT NULL,
+    id BLOB PRIMARY KEY,
+    host_id BLOB NOT NULL,
     ip TEXT NOT NULL,
     port INTEGER NOT NULL,
     registered_at TEXT NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS daemons (
 );
 
 CREATE TABLE IF NOT EXISTS subnets (
-    id TEXT PRIMARY KEY,
+    id BLOB PRIMARY KEY,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     cidr TEXT NOT NULL,
@@ -45,11 +45,11 @@ CREATE TABLE IF NOT EXISTS subnets (
 );
 
 CREATE TABLE IF NOT EXISTS services (
-    id TEXT PRIMARY KEY,
+    id BLOB PRIMARY KEY,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     name TEXT NOT NULL,
-    host_id TEXT NOT NULL,
+    host_id BLOB NOT NULL,
     groups TEXT,
     ports TEXT NOT NULL,
     interface_bindings TEXT NOT NULL,

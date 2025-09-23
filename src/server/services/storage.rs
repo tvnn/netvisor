@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use anyhow::Result;
+use anyhow::{Error, Result};
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
 
@@ -42,9 +42,9 @@ impl ServiceStorage for SqliteServiceStorage {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
-        .bind(&service.id)
+        .bind(blob_uuid::to_blob(&service.id))
         .bind(&service.base.name)
-        .bind(&service.base.host_id)
+        .bind(blob_uuid::to_blob(&service.base.host_id))
         .bind(service_type_str)
         .bind(ports_str)
         .bind(interface_bindings_str)
@@ -59,7 +59,7 @@ impl ServiceStorage for SqliteServiceStorage {
 
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Service>> {
         let row = sqlx::query("SELECT * FROM services WHERE id = ?")
-            .bind(id)
+            .bind(blob_uuid::to_blob(id))
             .fetch_optional(&self.pool)
             .await?;
 
@@ -86,7 +86,7 @@ impl ServiceStorage for SqliteServiceStorage {
         let rows = sqlx::query(
             "SELECT * FROM services WHERE host_id = ? ORDER BY created_at",
         )
-        .bind(host_id)
+        .bind(blob_uuid::to_blob(host_id))
         .fetch_all(&self.pool)
         .await?;
 
@@ -112,13 +112,13 @@ impl ServiceStorage for SqliteServiceStorage {
             "#
         )
         .bind(&service.base.name)
-        .bind(&service.base.host_id)
+        .bind(blob_uuid::to_blob(&service.base.host_id))
         .bind(service_type_str)
         .bind(ports_str)
         .bind(interface_bindings_str)
         .bind(groups_str)
         .bind(&service.updated_at.to_rfc3339())
-        .bind(&service.id)
+        .bind(blob_uuid::to_blob(&service.id))
         .execute(&self.pool)
         .await?;
 
@@ -127,7 +127,7 @@ impl ServiceStorage for SqliteServiceStorage {
 
     async fn delete(&self, id: &Uuid) -> Result<()> {
         sqlx::query("DELETE FROM services WHERE id = ?")
-            .bind(id)
+            .bind(blob_uuid::to_blob(id))
             .execute(&self.pool)
             .await?;
 
@@ -135,12 +135,12 @@ impl ServiceStorage for SqliteServiceStorage {
     }
 }
 
-fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service> {
+fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
     // Parse JSON fields safely
-    let service_type: ServiceType = serde_json::from_str(&row.get::<String, _>("service_type"))?;
-    let ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("ports"))?;
-    let interface_bindings: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("interface_bindings"))?;
-    let groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("groups"))?;
+    let service_type: ServiceType = serde_json::from_str(&row.get::<String, _>("service_type")).or(Err(Error::msg("Failed to deserialize service_type")))?;
+    let ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("ports")).or(Err(Error::msg("Failed to deserialize ports")))?;
+    let interface_bindings: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("interface_bindings")).or(Err(Error::msg("Failed to deserialize interface_bindings")))?;
+    let groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("groups")).or(Err(Error::msg("Failed to deserialize groups")))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -148,12 +148,12 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service> {
         .with_timezone(&chrono::Utc);
 
     Ok(Service {
-        id: row.get("id"),
+        id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize id")))?,
         created_at,
         updated_at,
         base: ServiceBase {
             name: row.get("name"),
-            host_id: row.get("host_id"),
+            host_id: blob_uuid::to_uuid(row.get("host_id")).or(Err(Error::msg("Failed to deserialize host_id")))?,
             service_type,
             ports,
             interface_bindings,

@@ -29,6 +29,7 @@ impl SubnetService {
 
         let subnet_from_storage = match all_subnets.iter().find(|s| subnet.eq(s)) {
             Some(existing_subnet) => {
+                tracing::warn!("Duplicate subnet for {}: {} found, returning existing {}: {}", subnet.base.name, subnet.id, existing_subnet.base.name, existing_subnet.id);
                 existing_subnet.clone()
             }
             None => {
@@ -36,7 +37,7 @@ impl SubnetService {
                 subnet
             }
         };
-
+        tracing::info!("Created subnet {}: {}", subnet_from_storage.base.name, subnet_from_storage.id);
         Ok(subnet_from_storage)
     }
 
@@ -55,10 +56,14 @@ impl SubnetService {
     pub async fn update_subnet(&self, mut subnet: Subnet) -> Result<Subnet> {
         subnet.updated_at = chrono::Utc::now();
         self.storage.update(&subnet).await?;
+        tracing::info!("Updated subnet {}: {}", subnet.base.name, subnet.id);
         Ok(subnet)
     }
 
     pub async fn delete_subnet(&self, id: &Uuid) -> Result<()> {
+        
+        let subnet = self.get_subnet(id).await?
+            .ok_or_else(|| anyhow::anyhow!("Subnet not found"))?;
 
         let host_service = self.host_service.get().ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
 
@@ -76,6 +81,8 @@ impl SubnetService {
 
         try_join_all(update_futures).await?;
 
-        self.storage.delete(id).await
+        self.storage.delete(id).await?;
+        tracing::info!("Deleted subnet {}: {}", subnet.base.name, subnet.id);
+        Ok(())
     }
 }
