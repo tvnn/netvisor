@@ -57,15 +57,12 @@
       return serviceType?.category || null;
     },
     supportsInlineEdit: true,
-    renderInlineEdit: (binding: ServiceBinding, onUpdate: (updates: Partial<ServiceBinding>) => void) => {
-      // Store the update handler so the inline editor can access it
-      currentBindingUpdateHandler = onUpdate;
-      
+    renderInlineEdit: (binding: ServiceBinding, onUpdate: (updates: Partial<ServiceBinding>) => void) => {      
       return {
         component: ServiceBindingInlineEditor,
         props: { 
           serviceBinding: binding, 
-          onUpdate: currentBindingUpdateHandler
+          onUpdate
         }
       };
     }
@@ -77,6 +74,7 @@
   import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
   import ListSelectItem from '../ListSelectItem.svelte';
 	import { get } from 'svelte/store';
+	import type { FormApi } from '../../types';
   
   type $Props = DisplayComponentProps<ServiceBinding>;
   

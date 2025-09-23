@@ -5,11 +5,12 @@
   import type { Group, ServiceBinding } from '../../types/base';
   import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
   import { entities } from '$lib/shared/stores/metadata';
-  import { services } from '$lib/features/services/store';
+  import { getServiceHost, services } from '$lib/features/services/store';
   import { ServiceBindingDisplay }  from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import GroupDetailsForm from './GroupDetailsForm.svelte';
+	import { pushWarning } from '$lib/shared/stores/feedback';
   
   export let group: Group | null = null;
   export let isOpen = false;
@@ -35,18 +36,27 @@
     formData = group ? { ...group } : createEmptyGroupFormData();
   }
 
-  // Get services that are available to add (not already in group + has some interface binding)
+  // Get services that are available to add (not already in group + has some interface binding OR has externlIp target)
   $: selectableServices = $services.filter(service => 
     !formData.service_bindings.some(binding => binding.service_id === service.id)
-    && service.interface_bindings.length > 0
+    && (service.interface_bindings.length > 0 || getServiceHost(service.id)?.target.type == 'ExternalIp')
   );
 
   function handleAdd(serviceId: string) {
     const service = $services.find(s => s.id === serviceId);
     if (!service) return;
     
+    const host = getServiceHost(service.id);
     // Default to first interface binding if available
-    const defaultInterfaceId = service.interface_bindings[0] || '';
+    let defaultInterfaceId;
+    if (host && host?.target.type == 'ExternalIp') {
+      defaultInterfaceId = host.id
+    } else if (service.interface_bindings.length > 0) {
+      defaultInterfaceId = service.interface_bindings[0];
+    } else {
+      pushWarning(`Host for service ${service.name} must have an interface or an External IP target`)
+      return;
+    }
     
     const newBinding: ServiceBinding = {
       service_id: serviceId,

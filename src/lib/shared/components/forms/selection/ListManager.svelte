@@ -3,6 +3,7 @@
   import RichSelect from './RichSelect.svelte';
   import ListSelectItem from './ListSelectItem.svelte';
 	import type { EntityDisplayComponent } from './types';
+	import type { FormApi } from '../types';
 
   // Global
   export let label: string;
@@ -163,8 +164,7 @@
             {#if editingIndex === index && itemDisplayComponent.supportsInlineEdit && itemDisplayComponent.renderInlineEdit}
               {@const inlineEditConfig = itemDisplayComponent.renderInlineEdit(item, (updates) => {
                 const updatedItem = { ...item, ...updates };
-                items[index] = updatedItem;
-                items = items; // Trigger reactivity
+                onEdit(updatedItem, index)
               })}
               <svelte:component 
                 this={inlineEditConfig.component} 

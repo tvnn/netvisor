@@ -10,7 +10,6 @@
 	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
   
   export let formApi: FormApi;
-  export let form: FormType;
   export let iface: Interface;
   export let subnet: Subnet;
   export let onChange: (updatedIface: Interface) => void = () => {};

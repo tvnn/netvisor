@@ -19,6 +19,7 @@ export interface CardAction {
 export interface CardSection {
   label: string;
   value: string;
+  link?: string;
 }
 
 export interface CardListItem {

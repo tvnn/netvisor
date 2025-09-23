@@ -40,7 +40,11 @@
     {#each sections as section}
       <div class="text-sm text-gray-300">
         <span class="text-gray-400">{section.label}:</span>
-        <span class="ml-2">{section.value}</span>
+        {#if section.link}
+          <a href={section.link} class="ml-2 hover:text-blue-400 underline" target="_blank">{section.value}</a>
+        {:else}
+          <span class="ml-2">{section.value}</span>
+        {/if}
       </div>
     {/each}
     

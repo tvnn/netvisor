@@ -45,7 +45,8 @@
     icon: serviceTypes.getIconComponent(hostServices[0]?.service_type) || entities.getIconComponent("Host"),
     sections: connectionInfo ? [{
       label: 'Connection',
-      value: connectionInfo
+      value: connectionInfo,
+      link: `http://${connectionInfo}`
     }] : [],
     
     lists: [

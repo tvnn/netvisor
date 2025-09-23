@@ -14,7 +14,6 @@
 	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
   
   export let formApi: FormApi;
-  export let form: FormType;
   export let formData: Host;
   export let currentServices: Service[] = [];
   
@@ -86,7 +85,6 @@
       {#if selectedItem}
         <ServicesConfigPanel
           {formApi}
-          {form}
           service={selectedItem}
           onChange={(updatedService) => onChange(updatedService)}
           host_interfaces={formData.interfaces}

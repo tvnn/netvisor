@@ -10,7 +10,6 @@
 	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
   
   export let formApi: FormApi;
-  export let form: FormType;
   export let formData: Host;
   
   // Computed values
@@ -71,7 +70,6 @@
     {#if selectedItem && subnet}
       <InterfaceConfigPanel
         {formApi}
-        {form}
         iface={selectedItem}
         subnet={subnet}
         onChange={(updatedInterface) => onChange(updatedInterface)}

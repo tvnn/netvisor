@@ -2,6 +2,7 @@
   import type { ServiceBinding } from '$lib/features/groups/types/base';
 	import type { Interface } from '$lib/features/hosts/types/base';
   import { getServiceHost, services } from '$lib/features/services/store';
+	import type { FormApi } from '../../types';
   
   export let serviceBinding: ServiceBinding;
   export let onUpdate: (updates: Partial<ServiceBinding>) => void = () => {};
@@ -11,9 +12,6 @@
   
   // Get interfaces that this service is bound to
   $: boundInterfaces = service ? getServiceHost(service.id)?.interfaces.filter(iface => service?.interface_bindings.includes(iface.id)) : [];
-
-  console.log(service)
-  console.log(boundInterfaces)
     
   function handleInterfaceChange(event: Event) {
     const target = event.target as HTMLSelectElement;

@@ -19,7 +19,6 @@
 	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
   
   export let formApi: FormApi;
-  export let form: FormType;
   export let service: Service;
   export let host_interfaces: Interface[] = [];
   export let onChange: (updatedService: Service) => void = () => {};
@@ -83,7 +82,21 @@
     
     onChange(updatedService);
   }
-  
+
+  function handleUpdatePort(port: Port, index: number) {
+    if (!service) return;
+
+    const updatedPorts = [...service.ports];
+    updatedPorts[index] = port;
+    
+    const updatedService = {
+      ...service,
+      ports: updatedPorts  // Use the new array
+    };
+    
+    onChange(updatedService);
+  }
+    
   // Interface binding management
   function handleAddInterface(interfaceId: string) {
     if (!service) return;
@@ -202,7 +215,7 @@
         
         onCreateNew={handleCreateNewPort}
         onRemove={handleRemovePort}
-        onEdit={() => {}}
+        onEdit={handleUpdatePort}
       />
     </div>
   </div>

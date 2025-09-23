@@ -28,6 +28,7 @@
   import type { Port } from '$lib/features/services/types/base';
 	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
 	import ListSelectItem from '../ListSelectItem.svelte';
+	import type { FormApi } from '../../types';
   
   type $$Props = DisplayComponentProps<Port>;
   

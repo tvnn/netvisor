@@ -225,7 +225,6 @@
           <div class="flex-1 relative">
             <ServicesForm 
               {formApi}
-              {form}
               bind:formData={formData}
               bind:currentServices={currentHostServices}/>
           </div>
@@ -250,7 +249,6 @@
           <div class="flex-1 relative">
             <InterfacesForm 
               {formApi}
-              {form}
               bind:formData={formData}/>
           </div>
         </div>

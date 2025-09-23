@@ -1,4 +1,5 @@
 import type { TagProps } from "../../data/types";
+import type { FormApi } from "../types";
 
 export interface EntityDisplayComponent<T> {
   // Required methods
