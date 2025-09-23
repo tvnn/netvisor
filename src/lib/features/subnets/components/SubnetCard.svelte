@@ -31,7 +31,7 @@
         label: 'Network Type',
         items: [{
           id: 'type',
-          label: subnetTypes.getDisplay(subnet.subnet_type),
+          label: subnetTypes.getName(subnet.subnet_type),
           color: subnetTypes.getColorString(subnet.subnet_type)
         }],
         emptyText: 'No type specified'

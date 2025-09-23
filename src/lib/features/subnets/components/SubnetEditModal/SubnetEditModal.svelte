@@ -3,7 +3,7 @@
   import { createEmptySubnetFormData } from '../../store';
   import EditModal from '$lib/shared/components/forms/EditModal.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-  import { entities, serviceTypes, subnetTypes } from '$lib/shared/stores/metadata';
+  import { entities, serviceDefinitions, subnetTypes } from '$lib/shared/stores/metadata';
   import { hosts } from '$lib/features/hosts/store';
   import type { Host } from '$lib/features/hosts/types/base';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
@@ -37,19 +37,19 @@
   }
 
   $: dnsServices = $services.filter(service => {
-    const isDnsResolver = serviceTypes.getMetadata(service.service_type)?.is_dns_resolver;
+    const isDnsResolver = serviceDefinitions.getMetadata(service.service_definition)?.is_dns_resolver;
     const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
     return isDnsResolver && hasInterfaceOnSubnet;
   });
 
   $: gatewayServices = $services.filter(service => {
-    const isGateway = serviceTypes.getMetadata(service.service_type)?.is_gateway;
+    const isGateway = serviceDefinitions.getMetadata(service.service_definition)?.is_gateway;
     const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
     return isGateway && hasInterfaceOnSubnet;
   });
 
   $: reverseProxyServices = $services.filter(service => {
-    const isReverseProxy = serviceTypes.getMetadata(service.service_type)?.is_reverse_proxy;
+    const isReverseProxy = serviceDefinitions.getMetadata(service.service_definition)?.is_reverse_proxy;
     const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
     return isReverseProxy && hasInterfaceOnSubnet;
   });

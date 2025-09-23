@@ -4,7 +4,7 @@
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
-	import { getDaemons, getHostDaemon } from '$lib/features/daemons/store';
+	import { getDaemons, hostDaemonMap } from '$lib/features/daemons/store';
 	import type { Daemon } from '$lib/features/daemons/types/base';
 	import { getActiveDiscoverySessions, initiateDiscovery, sessions } from '$lib/features/discovery/store';
 	import HostEditor from './HostEditModal/HostEditor.svelte';
@@ -142,7 +142,7 @@
       {#each filteredHosts as host (host.id)}
         <HostCard
           {host}
-          daemon={getHostDaemon(host.id)}
+          daemon={$hostDaemonMap.get(host.id) || null}
           hostGroups={hostGroups.get(host.id)}
           discoveryIsRunning={discoveryIsRunning}
           onEdit={handleEditHost}

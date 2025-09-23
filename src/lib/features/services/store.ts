@@ -85,7 +85,7 @@ export function createDefaultService(serviceType: string, host_id: string, servi
     created_at: utcTimeZoneSentinel,
     updated_at: utcTimeZoneSentinel,
     host_id,
-    service_type: serviceType,
+    service_definition: serviceType,
     name: serviceName || serviceType,
     ports: defaultPorts ? [...defaultPorts] : [],
     interface_bindings: [],
@@ -128,8 +128,8 @@ export function serviceHasInterfaceOnSubnet(service: Service, subnetId: string):
   });
 }
 
-export function getServiceDisplayName(service: Service): string {
-  return service.name || service.service_type;
+export function getServiceName(service: Service): string {
+  return service.name || service.service_definition;
 }
 
 export function formatServicePorts(ports: Port[]): string {

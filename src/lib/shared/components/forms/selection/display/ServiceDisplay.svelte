@@ -1,26 +1,16 @@
 <script lang="ts" context="module">
-  import { serviceTypes } from '$lib/shared/stores/metadata';
+  import { serviceDefinitions } from '$lib/shared/stores/metadata';
   
   export const ServiceDisplay: EntityDisplayComponent<Service> = {
     getId: (service: Service) => service.id,
     getLabel: (service: Service) => service.name,
-    getDescription: (service: Service) => serviceTypes.getDisplay(service.service_type),
-    getIcon: (service: Service) => serviceTypes.getIconComponent(service.service_type),
-    getIconColor: (service: Service) => serviceTypes.getColorHelper(service.service_type).icon,
-    getTags: (service: Service) => {
-
-      const tags: TagProps[] = [];
-            
-      // Ports
-      if (service.ports?.length > 0) {
-        tags.push({
-          label: formatServicePorts(service.ports),
-          color: 'blue'
-        });
-      }
-      
-      return tags;
+    getDescription: (service: Service) => {
+      let binding_count = service.interface_bindings.length
+      return formatServicePorts(service.ports) + " · " + binding_count + " interface " + (binding_count == 1 ? "binding" : "bindings")
     },
+    getIcon: (service: Service) => serviceDefinitions.getIconComponent(service.service_definition),
+    getIconColor: (service: Service) => serviceDefinitions.getColorHelper(service.service_definition).icon,
+    getTags: (service: Service) => [],
     getIsDisabled: () => false,
     getCategory: () => null,
   };
@@ -33,6 +23,7 @@
 	import type { TagProps } from '$lib/shared/components/data/types';
 	import { formatServicePorts } from '$lib/features/services/store';
 	import ServiceBindingInterfaceEditor from './ServiceBindingInlineEditor.svelte';
+	import { getInterfaceFromId } from '$lib/features/hosts/store';
   
   type $$Props = DisplayComponentProps<Service>;
   

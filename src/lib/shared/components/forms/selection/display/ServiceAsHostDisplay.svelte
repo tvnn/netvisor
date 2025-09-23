@@ -17,8 +17,8 @@
             let services = getServicesForHost(host.id)
 
             return services.map(service => ({
-                label: serviceTypes.getDisplay(service.service_type),
-                color: serviceTypes.getColorString(service.service_type)
+                label: serviceDefinitions.getName(service.service_definition),
+                color: serviceDefinitions.getColorString(service.service_definition)
             }));
         }
         return [];
@@ -35,7 +35,7 @@
   import { getServiceHost, getServicesForHost } from '$lib/features/services/store';
   import { HostDisplay } from './HostDisplay.svelte';
   import ListSelectItem from '../ListSelectItem.svelte';
-	import { entities, serviceTypes } from '$lib/shared/stores/metadata';
+	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import { getHostTargetString } from '$lib/features/hosts/store';
   
   type $$Props = DisplayComponentProps<Service>;

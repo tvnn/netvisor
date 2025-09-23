@@ -1,7 +1,7 @@
 <script lang="ts" context="module">
   import { Network } from 'lucide-svelte';
   import type { Host } from '$lib/features/hosts/types/base';
-  import { entities, serviceTypes } from '$lib/shared/stores/metadata';
+  import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
   
   export const HostDisplay: EntityDisplayComponent<Host> = {
     getId: (host: Host) => host.id,
@@ -14,8 +14,8 @@
       let services = getServicesForHost(host.id)
 
       return services.map(service => ({
-        label: serviceTypes.getDisplay(service.service_type),
-        color: serviceTypes.getColorString(service.service_type)
+        label: serviceDefinitions.getName(service.service_definition),
+        color: serviceDefinitions.getColorString(service.service_definition)
       }));
     },
     getIsDisabled: () => false,

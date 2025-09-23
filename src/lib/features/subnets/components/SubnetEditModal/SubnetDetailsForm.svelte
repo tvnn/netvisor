@@ -56,7 +56,7 @@
         class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:border-transparent"
     >
         {#each subnetTypes.getItems() as subnet_type}
-        <option value="{subnet_type.id}">{subnet_type.display_name}</option>
+        <option value="{subnet_type.id}">{subnet_type.name}</option>
         {/each}
     </select>
 

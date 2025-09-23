@@ -6,7 +6,7 @@
   import ServicesConfigPanel from './ServicesConfigPanel.svelte';
   import type { Port, Service } from '$lib/features/services/types/base';
   import type { Host } from '$lib/features/hosts/types/base';
-  import { serviceTypes } from '$lib/shared/stores/metadata';
+  import { serviceDefinitions } from '$lib/shared/stores/metadata';
   import { createDefaultService, getServicesForHost } from '$lib/features/services/store';
   import type { TypeMetadata } from '$lib/shared/stores/metadata';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
@@ -20,18 +20,18 @@
   let listConfigEditorRef: any;
       
   // Available service types for adding
-  $: availableServiceTypes = serviceTypes.getItems()?.filter(service => 
+  $: availableServiceTypes = serviceDefinitions.getItems()?.filter(service => 
     service.metadata?.can_be_added !== false
   ).sort((a, b) => a.category.localeCompare(b.category, 'en')) || [];
   
   // Event handlers
   function handleAddService(serviceTypeId: string) {    
-    const serviceMetadata = serviceTypes.getItems()?.find(s => s.id === serviceTypeId);
+    const serviceMetadata = serviceDefinitions.getItems()?.find(s => s.id === serviceTypeId);
     if (!serviceMetadata) return;
     
     const defaultPorts = serviceMetadata.metadata?.default_ports || [];
     
-    const newService: Service = createDefaultService(serviceTypeId, formData.id, serviceTypes.getDisplay(serviceTypeId), defaultPorts)
+    const newService: Service = createDefaultService(serviceTypeId, formData.id, serviceDefinitions.getName(serviceTypeId), defaultPorts)
     
     currentServices = [...currentServices, newService as Service];
   }

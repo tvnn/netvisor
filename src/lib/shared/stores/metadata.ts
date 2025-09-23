@@ -4,7 +4,7 @@ import { createColorHelper, createIconComponent, createStyle, type ColorStyle } 
 
 export interface TypeMetadata {
   id: string;
-  display_name: string;
+  name: string;
   description: string;
   category: string;
   icon: string;
@@ -19,7 +19,7 @@ export interface EntityMetadata {
 }
 
 export interface MetadataRegistry {
-  service_types: TypeMetadata[];
+  service_definitions: TypeMetadata[];
   subnet_types: TypeMetadata[];
   edge_types: TypeMetadata[];
   entities: EntityMetadata[];
@@ -90,9 +90,9 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys>(category: T) {
       return ($registry?.[category] as TypeMetadata[])?.find(item => item.id === id) || null;
     },
     
-    getDisplay: (id: string | null) => {
+    getName: (id: string | null) => {
       const $registry = get(metadata);
-      return ($registry?.[category] as TypeMetadata[])?.find(item => item.id === id)?.display_name || id || "";
+      return ($registry?.[category] as TypeMetadata[])?.find(item => item.id === id)?.name || id || "";
     },
     
     getDescription: (id: string | null) => {
@@ -141,7 +141,7 @@ function createEntityMetadataHelpers<T extends EntityMetadataKeys>(category: T) 
 }
 
 // Create all the helpers
-export const serviceTypes = createTypeMetadataHelpers('service_types');
+export const serviceDefinitions = createTypeMetadataHelpers('service_definitions');
 export const subnetTypes = createTypeMetadataHelpers('subnet_types');
 export const edgeTypes = createTypeMetadataHelpers('edge_types');
 export const entities = createEntityMetadataHelpers('entities');

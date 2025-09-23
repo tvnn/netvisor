@@ -10,10 +10,7 @@
   
   export const InterfaceDisplay: EntityDisplayComponent<Interface> = {
     getId: (iface: Interface) => iface.id,
-    getLabel: (iface: Interface) => {
-      const subnet = findSubnetById(iface.subnet_id);
-      return subnet?.name || 'Unknown Subnet';
-    },
+    getLabel: (iface: Interface) => iface.name ? iface.name : "Unnamed Interface",
     getDescription: (iface: Interface) => {
       const parts = [iface.ip_address];
       if (iface.mac_address) {
@@ -28,16 +25,10 @@
     getTags: (iface: Interface) => {
       const subnet = findSubnetById(iface.subnet_id);
       const tags = [];
-      if (iface.is_primary) {
-        tags.push({
-          label: "Default",
-          color: "green"
-        });
-      }
       if (subnet) {
         tags.push({
           label: subnet.cidr,
-          color: "yellow"
+          color: entities.getColorHelper("Subnet").string
         });
       }
       return tags;
@@ -51,6 +42,7 @@
   import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
   import type { Interface } from '$lib/features/hosts/types/base';
 	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
+	import { entities } from '$lib/shared/stores/metadata';
   
   type $$Props = DisplayComponentProps<Interface>;
   

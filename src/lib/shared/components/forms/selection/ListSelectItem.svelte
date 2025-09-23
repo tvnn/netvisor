@@ -39,7 +39,7 @@
         </div>
       {/if}
     </div>
-    {#if description}
+    {#if description.length > 0}
       <span class="block text-xs text-gray-400 truncate">{description}</span>
     {/if}
   </div>

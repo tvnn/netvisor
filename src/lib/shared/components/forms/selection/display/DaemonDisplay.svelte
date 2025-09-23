@@ -1,7 +1,7 @@
 <script lang="ts" context="module">
   import { Network } from 'lucide-svelte';
   import type { Host } from '$lib/features/hosts/types/base';
-  import { serviceTypes } from '$lib/shared/stores/metadata';
+  import { serviceDefinitions } from '$lib/shared/stores/metadata';
 
   export const DaemonDisplay: EntityDisplayComponent<Daemon> = {
     getId: (daemon: Daemon) => daemon.id,

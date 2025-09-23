@@ -1,7 +1,7 @@
 <script lang="ts" context="module">
   import { Server } from 'lucide-svelte';
   import ServiceBindingInlineEditor from './ServiceBindingInlineEditor.svelte';
-  import { entities, serviceTypes } from '$lib/shared/stores/metadata';
+  import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
   import { getServiceHost, services } from '$lib/features/services/store';
   
   // We'll store the update handler globally so the inline editor can access it
@@ -23,7 +23,7 @@
       const service = get(services).find(s => s.id === binding.service_id);
       if (!service) return 'text-gray-400';
       
-      const serviceType = serviceTypes.getItem(service.service_type);
+      const serviceType = serviceDefinitions.getItem(service.service_definition);
       return serviceType ? `text-${serviceType.color}-400` : 'text-gray-400';
     },
     getTags: (binding: ServiceBinding) => {
@@ -32,7 +32,7 @@
       
       const tags = [];
       
-      const serviceType = serviceTypes.getItem(service.service_type);
+      const serviceType = serviceDefinitions.getItem(service.service_definition);
 
       const host = getServiceHost(binding.service_id)
       if (host) {
@@ -53,7 +53,7 @@
       const service = get(services).find(s => s.id === binding.service_id);
       if (!service) return null;
       
-      const serviceType = serviceTypes.getItem(service.service_type);
+      const serviceType = serviceDefinitions.getItem(service.service_definition);
       return serviceType?.category || null;
     },
     supportsInlineEdit: true,

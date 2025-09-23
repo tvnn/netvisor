@@ -4,7 +4,7 @@
   import { AlertCircle, AlertTriangle } from 'lucide-svelte';
   import type { Service, Port } from '$lib/features/services/types/base';
   import type { Interface } from '$lib/features/hosts/types/base';
-  import { entities, metadata, serviceTypes } from '$lib/shared/stores/metadata';
+  import { entities, metadata, serviceDefinitions } from '$lib/shared/stores/metadata';
   import Tag from '$lib/shared/components/data/Tag.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
   import { PortDisplay } from '$lib/shared/components/forms/selection/display/PortDisplay.svelte';
@@ -35,7 +35,7 @@
 
   let nameField = getNameField();
 
-  $: serviceMetadata = service ? serviceTypes.getItem(service.service_type) : null;
+  $: serviceMetadata = service ? serviceDefinitions.getItem(service.service_definition) : null;
   
   $: if (service.id !== currentServiceId) {
     currentServiceId = service.id
@@ -152,7 +152,7 @@
 {#if service && serviceMetadata}
   <div class="space-y-6">
     
-    <ConfigHeader title={service.name} subtitle={serviceMetadata.display_name} description={serviceMetadata.description} />
+    <ConfigHeader title={serviceMetadata.name} subtitle={serviceMetadata.description} />
 
     <!-- Basic Configuration -->
     <div class="space-y-4">

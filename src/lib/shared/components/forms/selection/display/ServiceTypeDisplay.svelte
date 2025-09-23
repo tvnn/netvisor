@@ -2,7 +2,7 @@
   
   export const ServiceTypeDisplay: EntityDisplayComponent<TypeMetadata> = {
     getId: (serviceType: TypeMetadata) => serviceType.id,
-    getLabel: (serviceType: TypeMetadata) => serviceType.display_name,
+    getLabel: (serviceType: TypeMetadata) => serviceType.name,
     getDescription: (serviceType: TypeMetadata) => serviceType.description,
     getIcon: (serviceType: TypeMetadata) => createIconComponent(serviceType.icon),
     getIconColor: (serviceType: TypeMetadata) => serviceType.color,
@@ -22,7 +22,7 @@
 	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
   
   type $$Props = DisplayComponentProps<TypeMetadata>;
-  
+
   export let item: TypeMetadata;
 </script>
 

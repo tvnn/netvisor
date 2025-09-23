@@ -1,4 +1,4 @@
-import { get, writable } from 'svelte/store';
+import { derived, get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { Daemon } from "./types/base";
 import type { DaemonDiscoveryUpdate } from '../discovery/types/api';
@@ -29,7 +29,13 @@ export function getDaemonHost(daemon_id: string): Host | null {
   return host ? host : null;
 }
 
-export function getHostDaemon(host_id: string): Daemon | null {
-  const daemon = get(daemons).find(d => d.host_id === host_id);
-  return daemon ? daemon :null
-} 
+export const hostDaemonMap = derived(
+  daemons,
+  ($daemons) => {
+    const map = new Map<string, Daemon>();
+    $daemons.forEach(daemon => {
+      map.set(daemon.host_id, daemon);
+    });
+    return map;
+  }
+);

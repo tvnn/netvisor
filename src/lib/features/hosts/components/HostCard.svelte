@@ -7,7 +7,7 @@
 	import { getDaemonDiscoveryState } from '$lib/features/daemons/store';
   import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
 	import { sessions } from '$lib/features/discovery/store';
-	import { entities, serviceTypes } from '$lib/shared/stores/metadata';
+	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import { subnets } from '$lib/features/subnets/store';
 	import { get } from 'svelte/store';
 	import type { Group } from '$lib/features/groups/types/base';
@@ -21,7 +21,7 @@
   export let onDiscovery: (daemon: Daemon) => void = () => {};
   export let onConsolidate: (host: Host) => void = () => {};
   export let discoveryIsRunning: boolean;
-  
+
   // Build connection info
   $: connectionInfo = getHostTargetString(host)
 
@@ -42,7 +42,7 @@
   $: cardData = {
     title: host.name,
     iconColor: entities.getColorHelper("Host").icon,
-    icon: serviceTypes.getIconComponent(hostServices[0]?.service_type) || entities.getIconComponent("Host"),
+    icon: serviceDefinitions.getIconComponent(hostServices[0]?.service_definition) || entities.getIconComponent("Host"),
     sections: connectionInfo ? [{
       label: 'Connection',
       value: connectionInfo,
@@ -54,8 +54,8 @@
         label: 'Services',
         items: hostServices.map(sv => {
           return ({
-            id: sv.service_type,
-            label: serviceTypes.getDisplay(sv.service_type),
+            id: sv.service_definition,
+            label: serviceDefinitions.getName(sv.service_definition),
             color: entities.getColorHelper("Service").string
           })
         }),
