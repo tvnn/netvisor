@@ -13,7 +13,7 @@ impl ServiceDefinition for PiHole {
     fn category(&self) -> ServiceCategory { ServiceCategory::AdBlock }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::AllOf(vec!(Pattern::AllPort(vec!(Port::DNS_UDP)), Pattern::WebService("/admin", "Pi-hole")))
+        Pattern::AllOf(vec!(Pattern::AllPort(vec!(Port::DNS_UDP, Port::DNS_TCP)), Pattern::WebService("/admin", "Pi-hole")))
     }
 }
 

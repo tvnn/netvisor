@@ -10,7 +10,7 @@ pub struct DnsServer;
 impl ServiceDefinition for DnsServer {
     fn name(&self) -> &'static str { "Dns Server" }
     fn description(&self) -> &'static str { "A generic Dns server" }
-    fn category(&self) -> ServiceCategory { ServiceCategory::Unknown }
+    fn category(&self) -> ServiceCategory { ServiceCategory::DNS }
 
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AnyPort(vec!(Port::DNS_UDP, Port::DNS_TCP))

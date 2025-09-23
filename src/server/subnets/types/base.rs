@@ -5,8 +5,8 @@ use cidr::{IpCidr, Ipv4Cidr};
 use itertools::Itertools;
 use pnet::{ipnetwork::IpNetwork};
 use serde::{Deserialize, Serialize};
+use crate::server::services::types::types::ServiceDefinitionExt;
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
-use crate::server::services::types::types::ServiceDefinitionHelpers;
 use uuid::Uuid;
 
 use crate::server::{hosts::types::base::Host, services::types::base::Service, shared::{constants::Entity, types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider}}};

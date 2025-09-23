@@ -13,7 +13,7 @@ impl ServiceDefinition for PfBlockerNg {
     fn category(&self) -> ServiceCategory { ServiceCategory::AdBlock }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::AllOf(vec!(Pattern::AllPort(vec!(Port::DNS_UDP)), Pattern::WebService("/pfblockerng", "pfBlockerNG")))
+        Pattern::AllOf(vec!(Pattern::AllPort(vec!(Port::DNS_UDP, Port::DNS_TCP)), Pattern::WebService("/pfblockerng", "pfBlockerNG")))
     }
 }
 

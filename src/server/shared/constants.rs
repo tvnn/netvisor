@@ -51,7 +51,7 @@ impl EntityMetadataProvider for Entity {
             Entity::Interface => "EthernetPort",
             Entity::Media => "Music",
             Entity::Dns => "Search",
-            Entity::Vpn => "HatGlasses",
+            Entity::Vpn => "VenetianMask",
             Entity::Gateway => "Router",
             Entity::ReverseProxy => "Split",
             Entity::Subnet => "Network",

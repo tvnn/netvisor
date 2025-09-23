@@ -7,7 +7,8 @@ use uuid::Uuid;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::services::types::ports::{Port};
-use crate::server::services::types::types::{DefaultServiceDefinition, ServiceDefinition, ServiceDefinitionHelpers};
+use crate::server::services::types::types::ServiceDefinitionExt;
+use crate::server::services::types::types::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::subnets::types::base::{Subnet};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]

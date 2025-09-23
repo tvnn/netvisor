@@ -13,7 +13,10 @@ impl ServiceDefinition for HttpsWebServer {
     fn category(&self) -> ServiceCategory { ServiceCategory::Web }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::AnyPort(vec!(Port::HTTPS, Port::HTTPSALT))
+        Pattern::AllOf(vec!(
+            Pattern::AnyPort(vec!(Port::HTTPS, Port::HTTPSALT)),
+            Pattern::AllMatchedService(|s| s.category() != ServiceCategory::Dashboard)
+        ))
     }
 
     fn is_generic(&self) -> bool { true }

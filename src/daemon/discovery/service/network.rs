@@ -2,11 +2,12 @@ use std::{net::IpAddr, sync::Arc};
 use anyhow::{Error, Result};
 use cidr::{IpCidr};
 use chrono::{DateTime, Utc};
-use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{interfaces::types::base::{Interface, InterfaceBase}, services::{definitions::{vpn_gateway::VpnGateway, web_dashboard::WebDashboard, ServiceDefinitionRegistry}, types::types::{ServiceDefinition, ServiceDefinitionHelpers}}, shared::types::metadata::HasId}};
+use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{interfaces::types::base::{Interface, InterfaceBase}, services::{definitions::{vpn_gateway::VpnGateway, web_dashboard::WebDashboard, ServiceDefinitionRegistry}, types::types::{ServiceDefinition}}, shared::types::metadata::HasId}};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use futures::{future::{try_join_all}, stream::{self, StreamExt}};
 use std::result::Result::Ok;
+use crate::server::services::types::types::ServiceDefinitionExt;
 use crate::{
     daemon::{discovery::{types::base::DiscoveryPhase}, utils::base::{DaemonUtils}},
     server::{
@@ -322,17 +323,16 @@ impl DaemonDiscoveryService {
             .collect();
 
         sorted_service_definitions.sort_unstable_by_key(|s| {
-            if s.id() == VpnGateway.id() {
-                0 // Needs to go before non-VPN gateways, otherwise will get classified as non-VPN gateway
+            if !s.is_generic() {
+                0  // Highest priority - non-generic services
+            } else if s.id() == VpnGateway.id() {
+                1 // Needs to go before non-VPN gateways, otherwise will likely be classified as non-VPN gateway
             } else if s.is_dns_resolver() || s.is_gateway() || s.is_reverse_proxy() {
-                1  // Highest priority - infra services first
+                2 // Infra services
             } else if s.id() == WebDashboard.id() {
-                3 // Needs to go before other generic services so it can use other service patterns in algorithm
-            }
-            else if s.is_generic() {
-                4  // Lowest priority - generic services last
+                3 // Needs to go before other generic services so it can use other service definitions in pattern
             } else {
-                2  // Middle priority - everything else in between
+                4  // Lowest priority - non-infra generic services last
             }
         });
 

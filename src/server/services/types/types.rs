@@ -11,7 +11,8 @@ use dyn_hash::DynHash;
 use std::hash::Hash;
 use serde::{Serialize, Deserialize};
 
-pub trait ServiceDefinition: HasId + TypeMetadataProvider + EntityMetadataProvider + DynClone + DynHash + DynEq  + Send + Sync{
+// Main trait used in service definition implementation
+pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq  + Send + Sync {
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
     fn category(&self) -> ServiceCategory;
@@ -21,37 +22,24 @@ pub trait ServiceDefinition: HasId + TypeMetadataProvider + EntityMetadataProvid
     fn is_gateway(&self) -> bool { false }
 }
 
-pub trait ServiceDefinitionHelpers: ServiceDefinition  {
-
-    fn discovery_ports(&self) -> Vec<Port> {
-        self.discovery_pattern().ports()
-    }
-    
-    fn discovery_endpoints(&self) -> Vec<Endpoint> {
-        self.discovery_pattern().endpoints()
-    }
-    
-    fn is_end_device(&self) -> bool { 
-        matches!(ServiceDefinition::category(self), ServiceCategory::Workstation | ServiceCategory::Mobile)
-     }
-
-    fn can_be_manually_added(&self) -> bool {
-        matches!(ServiceDefinition::category(self), ServiceCategory::Netvisor)
-    }
-
-    fn is_dns_resolver(&self) -> bool {
-        matches!(ServiceDefinition::category(self), ServiceCategory::DNS | ServiceCategory::AdBlock)
-    }
-
-    fn is_reverse_proxy(&self) -> bool {
-        ServiceDefinition::category(self) == ServiceCategory::ReverseProxy
-    }
+// Helper methods to be used in rest of codebase, not overridable by definition implementations
+pub trait ServiceDefinitionExt {
+    fn discovery_ports(&self) -> Vec<Port>;
+    fn discovery_endpoints(&self) -> Vec<Endpoint>;
+    fn is_end_device(&self) -> bool;
+    fn can_be_manually_added(&self) -> bool;
+    fn is_dns_resolver(&self) -> bool;
+    fn is_reverse_proxy(&self) -> bool;
 }
 
-impl<T: ServiceDefinition> ServiceDefinitionHelpers for T 
-where 
-    T: ServiceDefinition + 'static
-{}
+impl<T: ServiceDefinition> HasId for T
+where
+    T: ServiceDefinition
+{
+    fn id(&self) -> &'static str {
+        self.name()
+    }
+}
 
 impl ServiceDefinition for Box<dyn ServiceDefinition> {
     fn name(&self) -> &'static str {
@@ -79,36 +67,50 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
     }
 }
 
-impl<T: ServiceDefinition> HasId for T {
-    fn id(&self) -> &'static str {
-        <T as ServiceDefinition>::name(self)
+impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
+    fn discovery_ports(&self) -> Vec<Port> {
+        self.discovery_pattern().ports()
+    }
+    
+    fn discovery_endpoints(&self) -> Vec<Endpoint> {
+        self.discovery_pattern().endpoints()
+    }
+    
+    fn is_end_device(&self) -> bool { 
+        matches!(ServiceDefinition::category(self), ServiceCategory::Workstation | ServiceCategory::Mobile)
+     }
+
+    fn can_be_manually_added(&self) -> bool {
+        !matches!(ServiceDefinition::category(self), ServiceCategory::Netvisor)
+    }
+
+    fn is_dns_resolver(&self) -> bool {
+        matches!(ServiceDefinition::category(self), ServiceCategory::DNS | ServiceCategory::AdBlock)
+    }
+
+    fn is_reverse_proxy(&self) -> bool {
+        ServiceDefinition::category(self) == ServiceCategory::ReverseProxy
     }
 }
 
-impl<T: ServiceDefinition> EntityMetadataProvider for T 
-where 
-    T: ServiceDefinition + HasId,
-{
+impl EntityMetadataProvider for Box<dyn ServiceDefinition> {
     fn color(&self) -> &'static str {
-        <T as ServiceDefinition>::category(self).color()
+       ServiceDefinition::category(self).color()
     }
     fn icon(&self) -> &'static str {
-        <T as ServiceDefinition>::category(self).icon()
+       ServiceDefinition::category(self).icon()
     }
 }
 
-impl<T: ServiceDefinition> TypeMetadataProvider for T 
-where 
-    T: ServiceDefinition + HasId + Clone + 'static,
-{
+impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
     fn name(&self) -> &'static str {
-        <T as ServiceDefinition>::name(self)
+       ServiceDefinition::name(self)
     }
     fn description(&self) -> &'static str {
-        <T as ServiceDefinition>::description(self)
+       ServiceDefinition::description(self)
     }
     fn category(&self) -> &'static str {
-        <T as ServiceDefinition>::category(self).id()
+       ServiceDefinition::category(self).id()
     }
     fn metadata(&self) -> serde_json::Value {
         let default_ports = self.discovery_ports();

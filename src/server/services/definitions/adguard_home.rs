@@ -14,7 +14,7 @@ impl ServiceDefinition for AdguardHome {
 
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(
-            Pattern::AllPort(vec!(Port::DNS_UDP)), 
+            Pattern::AllPort(vec!(Port::DNS_UDP, Port::DNS_TCP)), 
             Pattern::WebService("/", "AdGuard Home")
         ))
     }

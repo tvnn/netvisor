@@ -1,5 +1,6 @@
 use inventory;
 use crate::server::{services::types::types::ServiceDefinition};
+use crate::server::shared::types::metadata::HasId;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ServiceDefinitionFactory(pub fn() -> Box<dyn ServiceDefinition>);

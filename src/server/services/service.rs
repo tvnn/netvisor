@@ -45,6 +45,7 @@ impl ServiceService {
             }
             None => {
                 self.storage.create(&service).await?;
+                self.create_subnet_service_relationships(&service).await?;
                 tracing::info!("Created service {} for host {}", 
                     service.base.service_definition.name(), service.base.host_id);
                 Ok(service)
