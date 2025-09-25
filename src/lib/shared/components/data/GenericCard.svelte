@@ -3,6 +3,7 @@
 	import Tag from './Tag.svelte';
 
   export let title: string;
+  export let link: string = '';
   export let subtitle: string = '';
   export let status: string = '';
   export let statusColor: string = 'text-gray-400';
@@ -23,7 +24,11 @@
         <svelte:component this={icon} size={24} class={iconColor} />
       {/if}
       <div>
-        <h3 class="text-lg font-semibold text-white">{title}</h3>
+        {#if link}
+          <a href={link} class="text-lg font-semibold text-white hover:text-blue-400" target="_blank">{title}</a>
+        {:else}
+          <h3 class="text-lg font-semibold text-white">{title}</h3>
+        {/if}
         {#if subtitle}
           <p class="text-sm text-gray-400">{subtitle}</p>
         {/if}
@@ -40,11 +45,7 @@
     {#each sections as section}
       <div class="text-sm text-gray-300">
         <span class="text-gray-400">{section.label}:</span>
-        {#if section.link}
-          <a href={section.link} class="ml-2 hover:text-blue-400 underline" target="_blank">{section.value}</a>
-        {:else}
           <span class="ml-2">{section.value}</span>
-        {/if}
       </div>
     {/each}
     

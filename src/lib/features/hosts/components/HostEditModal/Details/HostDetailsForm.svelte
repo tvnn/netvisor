@@ -10,10 +10,12 @@
 	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
+	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
   
   export let formApi: FormApi;
   export let form: FormType;
   export let formData: Host;
+  export let isEditing: boolean;
   
   // Create form fields with validation
   const name = field('name', formData.name, [required(), maxLength(100)]);
@@ -58,4 +60,8 @@
     {form}
     {formData}
   />
+  
+  {#if isEditing}
+    <EntityMetadataSection id={formData.id} createdAt={formData.created_at} updatedAt={formData.updated_at}/>
+  {/if}
 </div>

@@ -1,0 +1,16 @@
+# Development Dockerfile for netvisor-ui
+FROM node:20-slim as base
+WORKDIR /app
+
+# Install dependencies first (better caching)
+COPY package*.json ./
+RUN npm ci --only=development
+
+# Copy source code
+COPY . .
+
+# Build in development mode (faster builds, source maps)
+RUN npm run build
+
+# Keep container running to share volume
+CMD ["tail", "-f", "/dev/null"]

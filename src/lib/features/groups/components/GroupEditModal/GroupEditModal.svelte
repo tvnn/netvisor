@@ -11,6 +11,7 @@
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import GroupDetailsForm from './GroupDetailsForm.svelte';
 	import { pushWarning } from '$lib/shared/stores/feedback';
+	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
   
   export let group: Group | null = null;
   export let isOpen = false;
@@ -188,6 +189,10 @@
             </div>
           </div>
         </div>
+
+        {#if isEditing}
+          <EntityMetadataSection id={formData.id} createdAt={formData.created_at} updatedAt={formData.updated_at}/>
+        {/if}
       </div>
     </div>
   </div>

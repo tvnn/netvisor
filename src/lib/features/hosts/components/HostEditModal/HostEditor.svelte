@@ -202,6 +202,7 @@
             <DetailsForm 
               {formApi}
               {form}
+              {isEditing}
               bind:formData={formData}/>
           </div>
         </div>

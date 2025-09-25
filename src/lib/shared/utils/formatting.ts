@@ -15,11 +15,27 @@ export function formatDuration(startTime: string, endTime?: string) {
   return `${Math.round(durationMs / 3600000)}h`;
 }
 
-export function formatTimestamp(timestamp: string) {
-  if (!timestamp) return 'Unknown';
+export function formatTimestamp(timestamp: string): string {
   try {
-    return new Date(timestamp).toLocaleString();
-  } catch {
-    return 'Invalid date';
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  } catch (error) {
+    return timestamp; // Fallback to raw string if parsing fails
   }
+}
+  
+  // Truncate ID for display (show first 8 characters + ellipsis if longer than 12)
+export function formatId(id: string): string {
+  if (id.length <= 12) {
+    return id;
+  }
+  return `${id.substring(0, 8)}...`;
 }

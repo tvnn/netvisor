@@ -68,6 +68,7 @@
         allowReorder={true}
         
         options={availableServiceTypes}
+        showSearch={true}
         {items}
         allowItemRemove={() => true}
         

@@ -12,26 +12,41 @@
   export let disabled: boolean = false;
   export let error: string | null = null;
   export let onSelect: (value: string) => void;
-  export let showDescriptionUnderDropdown: boolean = false;
+  export let showSearch: boolean = false;
   export let displayComponent: EntityDisplayComponent<T>;
   
   let isOpen = false;
   let dropdownElement: HTMLDivElement;
   let triggerElement: HTMLButtonElement;
+  let inputElement: HTMLInputElement;
   let dropdownPosition = { top: 0, left: 0, width: 0 };
   let openUpward = false;
+  let filterText = '';
   
   $: selectedItem = options.find(i => displayComponent.getId(i) === selectedValue);
   
-  // Group options by category when getCategory is provided
+  // Filter options based on search text
+  $: filteredOptions = options.filter(option => {
+    if (!filterText.trim()) return true;
+    
+    const searchTerm = filterText.toLowerCase();
+    const label = displayComponent.getLabel(option).toLowerCase();
+    const description = displayComponent.getDescription?.(option)?.toLowerCase() || '';
+    
+    return label.includes(searchTerm) || description.includes(searchTerm);
+  });
+  
+  // Group filtered options by category when getCategory is provided
   $: groupedOptions = (() => {
+    const optionsToGroup = filteredOptions;
+    
     if (!displayComponent.getCategory) {
-      return [{ category: null, options: options }];
+      return [{ category: null, options: optionsToGroup }];
     }
     
     const groups = new Map<string | null, T[]>();
     
-    options.forEach(option => {
+    optionsToGroup.forEach(option => {
       const category = displayComponent.getCategory!(option);
       if (!groups.has(category)) {
         groups.set(category, []);
@@ -76,9 +91,13 @@
     if (!disabled) {
       if (!isOpen) {
         isOpen = true;
+        filterText = ''; // Reset filter when opening
         await calculatePosition(); // Calculate once when opening
+        // Focus the input after the dropdown is positioned
+        setTimeout(() => inputElement?.focus(), 0);
       } else {
         isOpen = false;
+        filterText = '';
       }
     }
   }
@@ -88,11 +107,13 @@
       const item = options.find(i => displayComponent.getId(i) === value);
       if (item && !displayComponent.getIsDisabled?.(item)) {
         isOpen = false;
+        filterText = '';
         onSelect(value);
       }
     } catch (e) {
       console.warn('Error in handleSelect:', e);
       isOpen = false;
+      filterText = '';
     }
   }
   
@@ -100,7 +121,18 @@
     if (dropdownElement && !dropdownElement.contains(event.target as Node) &&
         triggerElement && !triggerElement.contains(event.target as Node)) {
       isOpen = false;
+      filterText = '';
     }
+  }
+  
+  function handleInputKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      isOpen = false;
+      filterText = '';
+      triggerElement?.focus(); // Return focus to trigger
+    }
+    // Prevent the input keydown from bubbling to parent components
+    e.stopPropagation();
   }
 </script>
 
@@ -143,7 +175,7 @@
   </button>
   
   <!-- Description below trigger (optional) -->
-  {#if selectedItem && displayComponent.getDescription?.(selectedItem) && showDescriptionUnderDropdown}
+  {#if selectedItem && displayComponent.getDescription?.(selectedItem)}
     <div class="mt-2">
       <p class="text-sm text-gray-400">
         {displayComponent.getDescription(selectedItem)}
@@ -163,41 +195,67 @@
 {#if isOpen && !disabled}
   <div 
     bind:this={dropdownElement}
-    class="fixed z-[9999] bg-gray-700 border border-gray-600 rounded-md shadow-lg max-h-96 overflow-y-auto scroll-smooth"
+    class="fixed z-[9999] bg-gray-700 border border-gray-600 rounded-md shadow-lg max-h-96 overflow-hidden scroll-smooth"
     style="top: {dropdownPosition.top}px; left: {dropdownPosition.left}px; width: {dropdownPosition.width}px;
            {openUpward ? 'transform: translateY(-100%);' : ''}"
   >
-    {#each groupedOptions as group, groupIndex}
-      <!-- Category Header -->
-      {#if group.category !== null}
-        <div class="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-800 border-b border-gray-600 sticky top-0">
-          {group.category}
+    <!-- Search Input -->
+    {#if showSearch}
+      <div class="p-2 border-b border-gray-600 bg-gray-700 sticky top-0">
+        <input
+          bind:this={inputElement}
+          bind:value={filterText}
+          type="text"
+          placeholder="Type to filter options..."
+          class="w-full px-2 py-1 bg-gray-800 border border-gray-600 rounded text-white text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          on:keydown={handleInputKeydown}
+          on:click|stopPropagation
+        />
+      </div>
+    {/if}
+    
+    <!-- Options list with scroll container -->
+    <div class="overflow-y-auto max-h-80">
+      {#if groupedOptions.length === 0 || groupedOptions.every(group => group.options.length === 0)}
+        <div class="px-3 py-4 text-center text-gray-400 text-sm">
+          No options match "{filterText}"
         </div>
+      {:else}
+        {#each groupedOptions as group, groupIndex}
+          {#if group.options.length > 0}
+            <!-- Category Header -->
+            {#if group.category !== null}
+              <div class="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wide bg-gray-800 border-b border-gray-600 sticky top-0">
+                {group.category}
+              </div>
+            {/if}
+            
+            <!-- Options in this category -->
+            {#each group.options as option, optionIndex}
+              {@const isLastInGroup = optionIndex === group.options.length - 1}
+              {@const isLastGroup = groupIndex === groupedOptions.length - 1}
+              <button
+                type="button"
+                on:click={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!displayComponent.getIsDisabled?.(option)) {
+                    handleSelect(displayComponent.getId(option));
+                  }
+                }}
+                class="w-full px-3 py-3 text-left transition-colors 
+                       {!isLastInGroup || !isLastGroup ? 'border-b border-gray-600' : ''}
+                       {displayComponent.getIsDisabled?.(option) ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-600'}"
+                disabled={displayComponent.getIsDisabled?.(option)}
+              >
+                <ListSelectItem
+                  item={option}
+                  {displayComponent} />
+              </button>
+            {/each}
+          {/if}
+        {/each}
       {/if}
-      
-      <!-- Options in this category -->
-      {#each group.options as option, optionIndex}
-        {@const isLastInGroup = optionIndex === group.options.length - 1}
-        {@const isLastGroup = groupIndex === groupedOptions.length - 1}
-        <button
-          type="button"
-          on:click={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!displayComponent.getIsDisabled?.(option)) {
-              handleSelect(displayComponent.getId(option));
-            }
-          }}
-          class="w-full px-3 py-3 text-left transition-colors 
-                 {!isLastInGroup || !isLastGroup ? 'border-b border-gray-600' : ''}
-                 {displayComponent.getIsDisabled?.(option) ? 'cursor-not-allowed opacity-50' : 'hover:bg-gray-600'}"
-          disabled={displayComponent.getIsDisabled?.(option)}
-        >
-          <ListSelectItem
-            item={option}
-            {displayComponent} />
-        </button>
-      {/each}
-    {/each}
+    </div>
   </div>
 {/if}

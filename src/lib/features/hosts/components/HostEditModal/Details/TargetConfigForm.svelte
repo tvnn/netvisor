@@ -8,6 +8,7 @@
 	import { required } from 'svelte-forms/validators';
 	import { onMount } from 'svelte';
 	import type { FieldType, FormApi, FormType } from '$lib/shared/components/forms/types';
+	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 
   export let formApi: FormApi;
   export let form: FormType;
@@ -137,7 +138,7 @@
       {/each}
     </select>
     <p class="text-xs text-gray-400">
-      How should NetVisor connect to this host?
+      How should NetVisor display a link for this host?
     </p>
   </div>
 
@@ -152,7 +153,10 @@
               Network Interface
               <span class="text-red-400 ml-1">*</span>
             </label>
-            
+
+            {#if formData.interfaces.length == 0} 
+              <InlineWarning title="No interfaces available" body="No interfaces available. Add an interface or change target type."/>
+            {:else} 
               <RichSelect
                 selectedValue={selectedInterfaceId || formData.interfaces[0].id}
                 options={formData.interfaces}
@@ -160,10 +164,7 @@
                 displayComponent={InterfaceDisplay}
                 onSelect={handleInterfaceSelect}
               />
-              
-              <p class="text-xs text-gray-400">
-                Choose which network interface to use for connecting to this host
-              </p>
+            {/if}
           </div>
           
         {:else if formData.target.type === 'Hostname'}

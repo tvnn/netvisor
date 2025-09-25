@@ -20,6 +20,7 @@
   // Options (dropdown)
   export let options: V[] = [];
   export let optionDisplayComponent: EntityDisplayComponent<V>;
+  export let showSearch: boolean = false;
 
   // Items
   export let items: T[] = [];
@@ -129,6 +130,7 @@
         <div class="flex-1">
           <RichSelect
             selectedValue={selectedOptionId}
+            {showSearch}
             {options}
             {placeholder}
             onSelect={handleSelectChange}

@@ -41,14 +41,10 @@
   // Build card data
   $: cardData = {
     title: host.name,
+    link: `http://${connectionInfo}`,
     iconColor: entities.getColorHelper("Host").icon,
     icon: serviceDefinitions.getIconComponent(hostServices[0]?.service_definition) || entities.getIconComponent("Host"),
-    sections: connectionInfo ? [{
-      label: 'Connection',
-      value: connectionInfo,
-      link: `http://${connectionInfo}`
-    }] : [],
-    
+    sections: [],
     lists: [
       {
         label: 'Services',
@@ -63,10 +59,10 @@
       },
       {
         label: 'Subnets',
-        items: host.interfaces.map(sub => {
+        items: [...new Set(host.interfaces.map(iface => iface.subnet_id))].map(id => {
           return ({
-            id: sub.subnet_id,
-            label: getSubnetNameFromId(sub.subnet_id) || "Unknown Subnet",
+            id: id,
+            label: getSubnetNameFromId(id) || "Unknown Subnet",
             color: entities.getColorHelper("Subnet").string
           })
         }),

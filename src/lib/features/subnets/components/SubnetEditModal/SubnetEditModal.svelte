@@ -11,6 +11,7 @@
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { ServiceAsHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceAsHostDisplay.svelte';
 	import SubnetDetailsForm from './SubnetDetailsForm.svelte';
+	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
   
   export let subnet: Subnet | null = null;
   export let isOpen = false;
@@ -242,6 +243,10 @@
             </div>
           </div>
         </div>
+
+        {#if isEditing}
+          <EntityMetadataSection id={formData.id} createdAt={formData.created_at} updatedAt={formData.updated_at}/>
+        {/if}
       </div>
     </div>
   </div>

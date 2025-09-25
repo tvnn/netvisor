@@ -2,6 +2,7 @@
   import type { ServiceBinding } from '$lib/features/groups/types/base';
 	import type { Interface } from '$lib/features/hosts/types/base';
   import { getServiceHost, services } from '$lib/features/services/store';
+	import { formatId } from '$lib/shared/utils/formatting';
 	import type { FormApi } from '../../types';
   
   export let serviceBinding: ServiceBinding;
@@ -23,7 +24,7 @@
     const parts = [];
     if (iface.name) parts.push(iface.name);
     if (iface.ip_address) parts.push(iface.ip_address);
-    return parts.length > 0 ? parts.join(' - ') : iface.id.slice(0, 8);
+    return parts.length > 0 ? parts.join(' - ') : formatId(iface.id);
   }
 </script>
 
