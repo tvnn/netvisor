@@ -141,7 +141,7 @@ impl TopologyService {
                 size, infra_width
             })
         })
-        .sorted_by_key(|(_, layout)| (layout.size.x*layout.size.y) )
+        .sorted_by_key(|(_, layout)| layout.size.x*layout.size.y )
         .collect();
 
         (subnet_sizes, child_nodes)

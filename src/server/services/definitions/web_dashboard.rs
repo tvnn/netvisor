@@ -3,6 +3,7 @@ use crate::server::services::types::patterns::Pattern;
 use crate::server::services::types::ports::Port;
 use crate::server::services::types::types::ServiceDefinition;
 use crate::server::services::types::categories::ServiceCategory;
+use crate::server::services::types::types::ServiceDefinitionExt;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct WebDashboard;
@@ -16,7 +17,7 @@ impl ServiceDefinition for WebDashboard {
         Pattern::AllOf(vec![
             Pattern::AnyPort(vec![Port::HTTP, Port::HTTPS]),
             Pattern::HasAnyMatchedService,
-            Pattern::AllMatchedService(|s| !s.is_generic())
+            Pattern::AllMatchedService(|s| !s.is_generic() && !s.contains_web_service_pattern())
         ])
     }
 

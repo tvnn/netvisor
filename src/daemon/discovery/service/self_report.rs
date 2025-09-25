@@ -16,24 +16,19 @@ impl DaemonDiscoveryService {
     pub async fn run_self_report_discovery(&self) -> Result<(), Error> {    
         // Get daemon configuration
         let daemon_id = self.config_store.get_id().await?;
-        let (interfaces, subnets) = self.utils.scan_interfaces(daemon_id).await?;
+        let (mut interfaces, subnets) = self.utils.scan_interfaces(daemon_id).await?;
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
-        let subnets = try_join_all(subnet_futures).await?;
-        let server_ip = self.config_store.get_server_ip().await?;
-        let server_subnet_interface = if let Some(server_ip) = server_ip {
-            if let Some(server_subnet) = subnets.iter().find(|s| s.base.cidr.contains(&server_ip)).cloned() {
-                interfaces.iter().find_map(|i| if i.base.subnet_id == server_subnet.id {Some(i)} else {None})
-            } else {
-                None
-            }
-        } else {
-            None
-        };
+        let created_subnets = try_join_all(subnet_futures).await?;
 
-        let (target, interface_bindings) = if let Some(interface) = server_subnet_interface {
-            (HostTarget::Interface(interface.id), vec!(interface.id))
-        } else if !interfaces.is_empty() {
+        // Created subnets  may differ from discovered if there are existing subnets with the same CIDR, so we need to update interface subnet_id references
+        interfaces.iter_mut().for_each(|i| {
+            if let Some(subnet) = created_subnets.iter().find(|s| s.base.cidr.contains(&i.base.ip_address)) {
+                i.base.subnet_id = subnet.id
+            }
+        });
+
+        let (target, interface_bindings) = if !interfaces.is_empty() {
             (HostTarget::Interface(interfaces[0].id), vec!(interfaces[0].id))
         } else {
             (HostTarget::Hostname, vec!())

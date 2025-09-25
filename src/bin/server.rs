@@ -3,11 +3,10 @@ use axum::{
     Router,
 };
 use clap::Parser;
-use netvisor::server::{config::{AppState, ServerConfig}, discovery::manager::DiscoverySessionManager, shared::{handlers::create_router}};
+use netvisor::server::{config::{AppState, ServerConfig, CliArgs}, discovery::manager::DiscoverySessionManager, shared::{handlers::create_router}};
 use tower::ServiceBuilder;
 use tower_http::{
-    cors::{Any, CorsLayer},
-    trace::TraceLayer,
+    cors::{Any, CorsLayer}, services::ServeDir, trace::TraceLayer
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -15,10 +14,6 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[command(name = "netvisor-server")]
 #[command(about = "NetVisor server")]
 struct Cli {
-    /// Configuration file path
-    #[arg(short, long, default_value = "netvisor.toml")]
-    config: String,
-    
     /// Override server host
     #[arg(long)]
     host: Option<String>,
@@ -30,6 +25,26 @@ struct Cli {
     /// Override log level
     #[arg(long)]
     log_level: Option<String>,
+
+    /// Override database path
+    #[arg(long)]
+    database_path: Option<String>,
+
+    /// Override web external path
+    #[arg(long)]
+    web_external_path: Option<String>,
+}
+
+impl From<Cli> for CliArgs {
+    fn from(cli: Cli) -> Self {
+        Self {
+            host: cli.host,
+            port: cli.port,
+            log_level: cli.log_level,
+            database_path: cli.database_path,
+            web_external_path: cli.web_external_path,
+        }
+    }
 }
 
 #[tokio::main]
@@ -37,26 +52,17 @@ async fn main() -> anyhow::Result<()> {
     let _ = dotenv::dotenv();
     
     let cli = Cli::parse();
+    let cli_args = CliArgs::from(cli);
     
-    // Load configuration
-    let mut config = ServerConfig::load()?;
-    
-    // Apply CLI overrides
-    if let Some(host) = cli.host {
-        config.server.host = host;
-    }
-    if let Some(port) = cli.port {
-        config.server.port = port;
-    }
-    if let Some(log_level) = cli.log_level {
-        config.server.log_level = log_level;
-    }
+    // Load configuration using figment
+    let config = ServerConfig::load(cli_args)?;
 
-    let listen_addr = format!("{}:{}", &config.server.host, &config.server.port);
+    let host = config.host.clone();
+    let listen_addr = format!("{}:{}", &config.host, &config.port);
     
     // Initialize tracing
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(&config.server.log_level))
+        .with(tracing_subscriber::EnvFilter::new(&config.log_level))
         .with(tracing_subscriber::fmt::layer())
         .init();
         
@@ -79,7 +85,15 @@ async fn main() -> anyhow::Result<()> {
     });
     
     // Create router
-    let api_router = create_router().with_state(state);
+    let api_router = if let Some(static_path) = &state.config.web_external_path {
+        Router::new()
+            .nest_service("/", ServeDir::new(static_path))
+            .merge(create_router())
+            .with_state(state)
+    } else {
+        tracing::warn!("Could not load web assets due to no web_external_path");
+        create_router().with_state(state)
+    };
     
     // Create main app
     let app = Router::new()
@@ -96,10 +110,17 @@ async fn main() -> anyhow::Result<()> {
         );
     
     let listener = tokio::net::TcpListener::bind(&listen_addr).await?;
-    
-    tracing::info!("🚀 NetVisor server starting on http://{}", listen_addr);
-    tracing::info!("📊 Web UI available at http://{}", listen_addr);
-    tracing::info!("🔧 API available at http://{}/api", listen_addr);
+    let actual_port = listener.local_addr()?.port();
+
+    tracing::info!("🚀 NetVisor server started successfully");
+
+    if host == "0.0.0.0" {
+        tracing::info!("📊 Web UI: http://localhost:{}", actual_port);
+        tracing::info!("🔧 API: http://localhost:{}/api", actual_port);
+    } else {
+        tracing::info!("📊 Web UI: http://{}:{}", host, actual_port);
+        tracing::info!("🔧 API: http://{}:{}/api", host, actual_port);
+    }
     
     axum::serve(listener, app).await?;
     

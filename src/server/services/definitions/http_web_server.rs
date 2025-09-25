@@ -1,7 +1,7 @@
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::patterns::Pattern;
 use crate::server::services::types::ports::Port;
-use crate::server::services::types::types::ServiceDefinition;
+use crate::server::services::types::types::{ServiceDefinition, ServiceDefinitionExt};
 use crate::server::services::types::categories::ServiceCategory;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
@@ -15,7 +15,7 @@ impl ServiceDefinition for HttpWebServer {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(
             Pattern::AnyPort(vec!(Port::HTTP, Port::HTTPALT)),
-            Pattern::AllMatchedService(|s| s.category() != ServiceCategory::Dashboard)
+            Pattern::AllMatchedService(|s| s.category() != ServiceCategory::Dashboard && !s.contains_web_service_pattern())
         ))
     }
 

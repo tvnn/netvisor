@@ -13,13 +13,13 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[command(name = "netvisor-daemon")]
 #[command(about = "NetVisor network discovery and test execution daemon")]
 struct Cli {
-    /// Server IP address
+    /// Server target (IP or hostname)
     #[arg(long)]
-    server_ip: String,
+    server_target: Option<String>,
         
     /// Server port
     #[arg(long)]
-    server_port: u16,
+    server_port: Option<u16>,
     
     /// Daemon listen port
     #[arg(short, long)]
@@ -45,8 +45,8 @@ struct Cli {
 impl From<Cli> for CliArgs {
     fn from(cli: Cli) -> Self {
         Self {
-            server_ip: Some(cli.server_ip),
-            server_port: Some(cli.server_port),
+            server_target: cli.server_target,
+            server_port: cli.server_port,
             port: cli.port,
             name: cli.name,
             log_level: cli.log_level,
@@ -132,10 +132,7 @@ async fn main() -> anyhow::Result<()> {
     
     let listener = tokio::net::TcpListener::bind(&format!("0.0.0.0:{}", config.port)).await?;
     
-    tracing::info!("🚀 NetVisor daemon listening on http://{}", own_addr);
-    tracing::info!("🔧 Health check: http://{}/health", own_addr);
     tracing::info!("🔍 Discovery endpoint: http://{}/discover", own_addr);
-    tracing::info!("🧪 Test execution endpoint: http://{}/execute_test", own_addr);
     tracing::info!("📁 Config file: {:?}", path_str);
     
     axum::serve(listener, app).await?;

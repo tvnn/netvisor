@@ -1,11 +1,14 @@
 
+use std::collections::HashMap;
 use std::net::{IpAddr};
 use std::time::Duration;
 use anyhow::{Result};
 use anyhow::anyhow;
 use anyhow::Error;
 use async_trait::async_trait;
+use cidr::IpCidr;
 use mac_address::MacAddress;
+use pnet::ipnetwork::IpNetwork;
 use tokio::net::{TcpStream};
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
@@ -16,6 +19,7 @@ use crate::daemon::utils::udp::{send_udp_probe, test_dhcp_service, test_dns_serv
 use crate::server::services::types::base::Service;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::services::types::ports::{Port, TransportProtocol};
+use crate::server::utils::base::NetworkUtils;
 
 const SCAN_TIMEOUT: Duration = Duration::from_millis(800);
 
@@ -45,36 +49,52 @@ pub trait DaemonUtils: NetworkUtils {
     }
     
     async fn scan_interfaces(&self, daemon_id: Uuid) -> Result<(Vec<Interface>, Vec<Subnet>)> {
-
         let interfaces = self.get_own_interfaces();
+        
+        // First pass: collect all interface data and potential subnets
+        let mut potential_subnets: Vec<(String, IpNetwork)> = Vec::new();
+        let mut interface_data: Vec<(String, IpAddr, Option<MacAddress>)> = Vec::new();
+        
+        for interface in interfaces.into_iter().filter(|i| !i.is_loopback()) {
+            let name = interface.name.clone();
+            let mac_address = match interface.mac {
+                Some(mac) if !mac.octets().iter().all(|o| *o==0) => Some(MacAddress::new(mac.octets())),
+                _ => None
+            };
+            
+            for ip in interface.ips.iter() {
+                interface_data.push((name.clone(), ip.ip(), mac_address));
+                potential_subnets.push((name.clone(), *ip));
+            }
+        }
+        
+        // Second pass: create unique subnets from valid networks
+        let mut subnet_map: HashMap<IpCidr, Subnet> = HashMap::new();
+        
+        for (interface_name, ip_network) in potential_subnets {
+            if let Some(subnet) = Subnet::from_discovery(&interface_name, &ip_network, daemon_id) {
+                subnet_map.entry(subnet.base.cidr).or_insert(subnet);
+            }
+        }
+        
+        // Third pass: assign all interfaces to appropriate subnets
+        let mut interfaces_list = Vec::new();
+        
+        for (interface_name, ip_addr, mac_address) in interface_data {
+            // Find which subnet this IP belongs to
+            if let Some(subnet) = subnet_map.values().find(|s| s.base.cidr.contains(&ip_addr)) {
+                interfaces_list.push(Interface::new(InterfaceBase{
+                    name: Some(interface_name),
+                    subnet_id: subnet.id,
+                    ip_address: ip_addr,
+                    mac_address
+                }));
+            }
+        }
 
-        let (memberships, subnets): (Vec<Interface>, Vec<Subnet>) = interfaces.into_iter()
-            .filter(|interface| !interface.is_loopback())
-            .flat_map(|interface| {
-                let name = interface.name;
-                interface.ips.iter().filter_map(|ip| {
-                    if let Some(subnet) = Subnet::from_discovery(&name, &ip, daemon_id) {
-                        let mac_address = match interface.mac {
-                            Some(mac) if !mac.octets().iter().all(|o| *o==0) => Some(MacAddress::new(mac.octets())),
-                            _ => None
-                        };
-                        return Some((
-                            Interface::new(InterfaceBase{
-                                name: Some(name.clone()),
-                                subnet_id: subnet.id,
-                                ip_address: ip.ip(),
-                                mac_address
-                            }),
-                            subnet
-                        ))
-                    }
-                    None
-                })
-                .collect::<Vec<(Interface, Subnet)>>()
-            })
-            .unzip();
-
-        Ok((memberships, subnets))
+        let subnets: Vec<Subnet> = subnet_map.into_values().collect();
+        
+        Ok((interfaces_list, subnets))
     }
 
     async fn scan_ports_and_endpoints(&self, ip: IpAddr, cancel: CancellationToken) -> Result<(Vec<Port>, Vec<EndpointResponse>), Error> {
@@ -196,13 +216,17 @@ pub trait DaemonUtils: NetworkUtils {
 }
 
 #[cfg(target_os = "linux")]
+use crate::daemon::utils::linux::LinuxDaemonUtils;
+#[cfg(target_os = "linux")]
 pub type PlatformDaemonUtils = LinuxDaemonUtils;
 
 #[cfg(target_os = "macos")] 
 use crate::daemon::utils::macos::MacOsDaemonUtils;
-use crate::server::utils::base::NetworkUtils;
+#[cfg(target_os = "macos")]
 pub type PlatformDaemonUtils = MacOsDaemonUtils;
 
+#[cfg(target_family = "windows")]
+use crate::daemon::utils::windows::WindowsDaemonUtils;
 #[cfg(target_family = "windows")]
 pub type PlatformDaemonUtils = WindowsDaemonUtils;
 

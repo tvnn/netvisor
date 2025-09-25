@@ -34,10 +34,10 @@ impl SubnetService {
             }
             None => {
                 self.storage.create(&subnet).await?;
+                tracing::info!("Created subnet {}: {}", subnet.base.name, subnet.id);
                 subnet
             }
         };
-        tracing::info!("Created subnet {}: {}", subnet_from_storage.base.name, subnet_from_storage.id);
         Ok(subnet_from_storage)
     }
 

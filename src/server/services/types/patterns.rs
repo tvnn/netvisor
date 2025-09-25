@@ -294,4 +294,14 @@ impl Pattern {
             _ => vec!()
         }
     }
+
+    pub fn contains_web_service_pattern(&self) -> bool {
+        match self {
+            Pattern::WebService(_, _) => true,
+            Pattern::AllOf(patterns) | Pattern::AnyOf(patterns) => {
+                patterns.iter().any(|p| p.contains_web_service_pattern())
+            }
+            _ => false
+        }
+    }
 }

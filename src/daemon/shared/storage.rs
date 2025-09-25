@@ -1,7 +1,7 @@
 use anyhow::{Context, Error, Result};
 use async_fs;
 use serde::{Deserialize, Serialize};
-use std::{net::IpAddr, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 use directories_next::ProjectDirs;
@@ -10,7 +10,7 @@ use figment::{Figment, providers::{Format, Json, Env, Serialized}};
 /// CLI arguments structure (for figment integration)
 #[derive(Debug)]
 pub struct CliArgs {
-    pub server_ip: Option<String>,
+    pub server_target: Option<String>,
     pub server_port: Option<u16>,
     pub port: Option<u16>,
     pub name: Option<String>,
@@ -22,18 +22,14 @@ pub struct CliArgs {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
     // Server connection (CLI/startup config)
-    pub server_ip: Option<IpAddr>,
+    pub server_target: Option<String>,
     pub server_port: u16,
     
     // Daemon settings (CLI/startup config)
     pub port: u16,
     pub name: String,
     pub log_level: String,
-    
-    // Runtime settings (persisted)
     pub heartbeat_interval: u64,
-    pub max_concurrent_operations: usize,
-    pub request_timeout_ms: u64,
     
     // Runtime state (persisted)
     pub id: Uuid,
@@ -46,14 +42,12 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            server_ip: None,
+            server_target: None,
             server_port: 60072,
             port: 60073,
             name: "netvisor-daemon".to_string(),
             log_level: "info".to_string(),
             heartbeat_interval: 30,
-            max_concurrent_operations: 10,
-            request_timeout_ms: 30000,
             id: Uuid::new_v4(),
             last_heartbeat: None,
             host_id: None
@@ -84,8 +78,8 @@ impl AppConfig {
         figment = figment.merge(Env::prefixed("NETVISOR_"));
 
         // Add CLI overrides (highest priority) - only if explicitly provided
-        if let Some(server_ip) = cli_args.server_ip {
-            figment = figment.merge(("server_ip", server_ip));
+        if let Some(server_target) = cli_args.server_target {
+            figment = figment.merge(("server_target", server_target));
         }
         if let Some(server_port) = cli_args.server_port {
             figment = figment.merge(("server_port", server_port));
@@ -211,15 +205,15 @@ impl ConfigStore {
     //     self.save(&config.clone()).await
     // }
 
-    pub async fn get_server_ip(&self) -> Result<Option<IpAddr>> {
+    pub async fn get_server_ip(&self) -> Result<Option<String>> {
         let config = self.config.read().await;
-        Ok(config.server_ip)
+        Ok(config.server_target.clone())
     }
 
     pub async fn get_server_endpoint(&self) -> Result<String> {
         let config = self.config.read().await;
 
-        if let Some(ip) = &config.server_ip {
+        if let Some(ip) = &config.server_target {
             Ok(format!("http://{}:{}", ip, config.server_port))
         } else {
             Err(Error::msg("No IP configured for server"))

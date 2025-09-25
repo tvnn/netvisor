@@ -30,6 +30,7 @@ pub trait ServiceDefinitionExt {
     fn can_be_manually_added(&self) -> bool;
     fn is_dns_resolver(&self) -> bool;
     fn is_reverse_proxy(&self) -> bool;
+    fn contains_web_service_pattern(&self) -> bool;
 }
 
 impl<T: ServiceDefinition> HasId for T
@@ -90,6 +91,10 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
 
     fn is_reverse_proxy(&self) -> bool {
         ServiceDefinition::category(self) == ServiceCategory::ReverseProxy
+    }
+
+    fn contains_web_service_pattern(&self) -> bool {
+        self.discovery_pattern().contains_web_service_pattern()
     }
 }
 

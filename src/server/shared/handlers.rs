@@ -27,6 +27,7 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .nest("/api/subnets", subnet_handlers::create_router())
         .nest("/api/topology", topology_handlers::create_router())
         .nest("/api/services", service_handlers::create_router())
+        .route("/api/health", get(get_health))
 }
 
 async fn get_metadata_registry() -> Json<ApiResponse<MetadataRegistry>> {
@@ -38,4 +39,8 @@ async fn get_metadata_registry() -> Json<ApiResponse<MetadataRegistry>> {
     };
     
     Json(ApiResponse::success(registry))
+}
+
+async fn get_health() -> Json<ApiResponse<String>> {
+    Json(ApiResponse::success("API Running".to_string()))
 }

@@ -68,24 +68,27 @@ impl Subnet {
     }
 
     pub fn from_discovery(interface_name: &String, ip_network: &IpNetwork, daemon_id: Uuid) -> Option<Self> {
-
         let subnet_type = SubnetType::from_interface_name(&interface_name);
 
         match ip_network {
-            IpNetwork::V6(_) => return None,
+            IpNetwork::V6(_) => None,
             IpNetwork::V4(ipv4_network) => {
-                
-                let (network_addr, prefix_len) = if subnet_type == SubnetType::VpnTunnel && ipv4_network.prefix() == 32 {
-                    // For VPN tunnels with /32, assume /24 network from the interface IP
-                    let ip_octets = ipv4_network.ip().octets();
-                    let network_addr = std::net::Ipv4Addr::new(ip_octets[0], ip_octets[1], ip_octets[2], 0);
-                    (network_addr, 24)
-                } 
-                else { (ipv4_network.network(), ipv4_network.prefix()) };
+                let (network_addr, prefix_len) = match (&subnet_type, ipv4_network.prefix()) {
+                    // VPN tunnels with /32 -> expand to /24
+                    (SubnetType::VpnTunnel, 32) => {
+                        let ip_octets = ipv4_network.ip().octets();
+                        let network_addr = std::net::Ipv4Addr::new(ip_octets[0], ip_octets[1], ip_octets[2], 0);
+                        (network_addr, 24)
+                    }
+                    // Skip other /32 single IPs
+                    (_, 32) => return None,
+                    // Normal case - use the network's actual network address and prefix
+                    _ => (ipv4_network.network(), ipv4_network.prefix())
+                };
 
                 let cidr = IpCidr::V4(Ipv4Cidr::new(network_addr, prefix_len).ok()?);
 
-                return Some(Subnet::new(SubnetBase {
+                Some(Subnet::new(SubnetBase {
                     cidr,
                     description: None,
                     name: cidr.to_string(),
@@ -184,11 +187,19 @@ impl SubnetType {
     fn match_interface_names(patterns: &[&str], interface_name: &String) -> bool {
         let name_lower = interface_name.to_lowercase();
         patterns.iter().any(|pattern| {
-            name_lower.starts_with(pattern) && 
-            // Ensure it's followed by a digit or end of string (not another letter)
-            name_lower.get(pattern.len()..)
-                .map(|rest| rest.is_empty() || rest.chars().next().unwrap().is_ascii_digit())
-                .unwrap_or(false)
+            if *pattern == "br-" {
+                // Special case for Docker bridges: br- followed by hex chars
+                name_lower.starts_with(pattern) && 
+                name_lower.get(pattern.len()..)
+                    .map(|rest| !rest.is_empty() && rest.chars().all(|c| c.is_ascii_alphanumeric()))
+                    .unwrap_or(false)
+            } else {
+                // Original logic for other patterns
+                name_lower.starts_with(pattern) && 
+                name_lower.get(pattern.len()..)
+                    .map(|rest| rest.is_empty() || rest.chars().next().unwrap().is_ascii_digit())
+                    .unwrap_or(false)
+            }
         })
     }
 }

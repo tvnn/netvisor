@@ -1,13 +1,17 @@
-use std::net::{IpAddr};
-use async_trait::async_trait;
-use mac_address::MacAddress;
-use anyhow::{anyhow, Error, Result};
+#[cfg(target_os = "macos")] 
+use crate::daemon::utils::base::DaemonUtils;
+#[cfg(target_os = "macos")] 
+use crate::server::utils::base::NetworkUtils;
 
-#[cfg(any(target_os = "macos"))]
+#[cfg(target_os = "macos")] 
 #[derive(Clone)]
 pub struct MacOsDaemonUtils;
 
-#[cfg(any(target_os = "macos"))]
+#[cfg(target_os = "macos")] 
+use anyhow::{anyhow, Error, Result};
+#[cfg(target_os = "macos")] 
+use mac_address::MacAddress;
+#[cfg(target_os = "macos")] 
 impl MacOsDaemonUtils {
     /// Parse MAC address from macOS format (handles missing leading zeros)
     fn parse_macos_mac_address(&self, mac_str: &str) -> Result<MacAddress, Error> {
@@ -27,21 +31,25 @@ impl MacOsDaemonUtils {
     }
 }
 
-#[cfg(target_os = "macos")]
-use crate::daemon::utils::base::DaemonUtils;
-use crate::server::utils::base::NetworkUtils;
-
+#[cfg(target_os = "macos")] 
 impl NetworkUtils for MacOsDaemonUtils {
     fn new() -> Self {
         Self
     }
 }
 
+#[cfg(target_os = "macos")] 
+use async_trait::async_trait;
+#[cfg(target_os = "macos")] 
+use std::net::{IpAddr};
+#[cfg(target_os = "macos")] 
 #[async_trait]
 impl DaemonUtils for MacOsDaemonUtils {
 
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>, Error> {
+        
         use tokio::process::Command;
+        
 
         tracing::debug!("Attempting to get MAC address for IP: {}", ip);
 
@@ -49,10 +57,6 @@ impl DaemonUtils for MacOsDaemonUtils {
             .args(&["-n", &ip.to_string()])
             .output()
             .await?;
-
-        tracing::debug!("arp command executed with status: {}", output.status);
-        tracing::debug!("arp stdout: {}", String::from_utf8_lossy(&output.stdout));
-        tracing::debug!("arp stderr: {}", String::from_utf8_lossy(&output.stderr));
 
         if output.status.success() {
             let output_str = String::from_utf8_lossy(&output.stdout);

@@ -144,7 +144,7 @@ impl SubnetStorage for SqliteSubnetStorage {
 
     async fn delete(&self, id: &Uuid) -> Result<()> {
         sqlx::query("DELETE FROM subnets WHERE id = ?")
-            .bind(id)
+            .bind(blob_uuid::to_blob(id))
             .execute(&self.pool)
             .await?;
 
