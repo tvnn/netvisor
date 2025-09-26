@@ -28,6 +28,14 @@ impl HostService {
         }
     }
 
+    pub async fn get_host(&self, id: &Uuid) -> Result<Option<Host>> {
+        self.storage.get_by_id(id).await
+    }
+
+    pub async fn get_all_hosts(&self) -> Result<Vec<Host>> {
+        self.storage.get_all().await
+    }
+
     /// Create a new host
     pub async fn create_host(&self, host_base: HostBase) -> Result<Host> {
         
@@ -53,14 +61,6 @@ impl HostService {
         Ok(host_from_storage)
     }
 
-    pub async fn get_host(&self, id: &Uuid) -> Result<Option<Host>> {
-        self.storage.get_by_id(id).await
-    }
-
-    pub async fn get_all_hosts(&self) -> Result<Vec<Host>> {
-        self.storage.get_all().await
-    }
-
     pub async fn update_host(&self, mut host: Host) -> Result<Host, Error> {
         
         let current_host = self.get_host(&host.id).await?.ok_or_else(||anyhow!("Host '{}' not found", host.id))?;
@@ -76,10 +76,11 @@ impl HostService {
 
     /// Merge new discovery data with existing host
     async fn upsert_host(&self, mut existing_host: Host, new_host: Host) -> Result<Host> {
+
         // Merge interfaces - add any new interfaces not already present
-        for new_interface in new_host.base.interfaces {
-            if !existing_host.base.interfaces.iter().any(|existing| *existing == new_interface) {
-                existing_host.base.interfaces.push(new_interface);
+        for new_host_interface in new_host.base.interfaces {
+            if !existing_host.base.interfaces.iter().any(|existing| *existing == new_host_interface) {
+                existing_host.base.interfaces.push(new_host_interface);
             }
         }
 
@@ -97,7 +98,7 @@ impl HostService {
             existing_host.base.hostname = new_host.base.hostname;
         }
         
-        if existing_host.base.description.is_none() && !new_host.base.description.is_some() {
+        if existing_host.base.description.is_none() && new_host.base.description.is_some() {
             existing_host.base.description = new_host.base.description;
         }
 

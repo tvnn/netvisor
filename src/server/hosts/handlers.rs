@@ -29,24 +29,32 @@ async fn create_host(
     let host_service = &state.services.host_service;
     let service_service = &state.services.service_service;
 
-    let mut host = request.host;
-    let services_to_create: Vec<Service> = request.services.into_iter().map(|s| {
-        let service = Service::new(s.base);
-        host.add_service(service.id);
-        service
-    })
-    .collect();
+    let request_host = request.host.clone();
 
-    let mut created_host = host_service.create_host(host.base).await?;
+    // Create host first (handles duplicates via upsert_host)
+    let mut created_host = host_service.create_host(request.host.base).await?;
 
-    let service_futures = services_to_create.into_iter().map(|mut s| {
-        s.base.host_id = created_host.id;
-        service_service.create_service(s)
+    // Create services, handling case where created_service was upserted from host in request instead of created anew
+    let service_futures = request.services.into_iter().map(|mut service| {
+        service.base.interface_bindings = service.base.interface_bindings.iter().filter_map(|b| {
+            if let Some(original_binding) = request_host.get_interface(b) {
+                return created_host.base.interfaces.iter().find_map(|i| if i == original_binding {Some(i.id)} else {None});
+            }
+            None
+        })
+        .collect();
+        service.base.host_id = created_host.id;
+        service_service.create_service(service)
     });
 
     let services = try_join_all(service_futures).await?;
 
-    created_host.base.services.retain(|service_id| services.iter().map(|s| s.id).contains(service_id));
+    // Add all successfully created/found services to the host
+    for service in &services {
+        if !created_host.base.services.contains(&service.id) {
+            created_host.base.services.push(service.id);
+        }
+    }
 
     let host_with_final_services = host_service.update_host(created_host).await?;
     
