@@ -37,7 +37,7 @@
 
       if (iface) {
           tags.push({
-          label: (iface?.name ? iface?.name+": " : "") + iface?.ip_address,
+          label: formatInterface(iface),
           color: entities.getColorHelper("Interface").string
           });
       }
@@ -80,7 +80,7 @@
   import ListSelectItem from '../ListSelectItem.svelte';
 	import { get } from 'svelte/store';
 	import type { FormApi } from '../../types';
-	import { getInterfaceFromId, getPortFromId, serviceBindingToId } from '$lib/features/hosts/store';
+	import { formatInterface, getInterfaceFromId, getPortFromId, serviceBindingToId } from '$lib/features/hosts/store';
 	import { formatPort } from '$lib/shared/utils/formatting';
   
   type $Props = DisplayComponentProps<ServiceBinding>;

@@ -51,30 +51,24 @@
 </script>
 
 <div class="space-y-6 p-6">
-  {#if allPorts.length === 0}
-    <div class="text-center py-8 text-gray-400">
-      <p>No ports detected on this host</p>
-    </div>
-  {:else}
-    <ListManager
-          label="Ports"
-          helpText="Select a port to add to this host. To edit ports assigned to services, use the services tab."
-          placeholder="Select an port to add..."
-          emptyMessage="No ports on this host. Add one to get started."
-          allowReorder={false}
-          allowDuplicates={false}
-          allowItemEdit={() => false}
-          allowItemRemove={(port: Port) => getServicesForPort(port.id).length == 0}
-          
-          options={selectablePorts}
-          items={allPorts}
-          
-          optionDisplayComponent={PortTypeDisplay}
-          itemDisplayComponent={PortDisplayAlternate}
-          
-          onAdd={handleAddPort}
-          onRemove={handleRemovePort}
-          onEdit={() => {}}
-        />
-  {/if}
+  <ListManager
+        label="Ports"
+        helpText="Select a port to add to this host. To edit ports assigned to services, use the services tab."
+        placeholder="Select an port to add..."
+        emptyMessage="No ports on this host. Add one to get started."
+        allowReorder={false}
+        allowDuplicates={false}
+        allowItemEdit={() => false}
+        allowItemRemove={(port: Port) => getServicesForPort(port.id).length == 0}
+        
+        options={selectablePorts}
+        items={allPorts}
+        
+        optionDisplayComponent={PortTypeDisplay}
+        itemDisplayComponent={PortDisplayAlternate}
+        
+        onAdd={handleAddPort}
+        onRemove={handleRemovePort}
+        onEdit={() => {}}
+      />
 </div>

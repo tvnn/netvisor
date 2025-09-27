@@ -2,17 +2,19 @@
     import { Handle, NodeResizeControl, NodeResizer, Position, type NodeProps } from '@xyflow/svelte';
     import { createColorHelper } from '$lib/shared/utils/styling';
 	import { Network } from 'lucide-svelte';
-	import { entities } from '$lib/shared/stores/metadata';
-	import { getSubnetFromId, getSubnets } from '$lib/features/subnets/store';
+	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
+	import { createEmptySubnetFormData, createSubnet, getSubnetFromId, getSubnets, isContainerSubnet } from '$lib/features/subnets/store';
 
-    let { id, data, selected, width, height }: NodeProps = $props();
+    let { id, data, selected, width, height, type }: NodeProps = $props();
 
-    const subnetColorHelper = entities.getColorHelper("Subnet");
+    let subnet = getSubnetFromId(id) || createEmptySubnetFormData();
+
+    const subnetColorHelper = subnetTypes.getColorHelper(subnet.subnet_type);
     const grayColorHelper = createColorHelper("gray");
-    let IconComponent = entities.getIconComponent("Subnet")
-    let subnet = getSubnetFromId(id);
-    let cidr = subnet?.cidr
-    let label = data?.subnet_label
+    let IconComponent = subnetTypes.getIconComponent(subnet.subnet_type)
+    let cidr = subnet.cidr
+
+    let label = (subnet.name != subnet.cidr ? subnet.name : subnetTypes.getName(subnet.subnet_type)) + (isContainerSubnet(subnet.id) ? "": ": " + subnet.cidr)
     let infra_width = (data.infra_width as number) || 0;
 
     let nodeClasses = $derived(`
@@ -123,7 +125,7 @@
   {#if cidr || label}
     <div class="absolute -top-8 left-0 flex items-center gap-1 bg-gray-800/90 backdrop-blur-sm px-2 py-1 rounded-md border border-gray-600 shadow-lg z-10">
       <!-- Icon -->
-      {#if IconComponent && cidr}
+      {#if IconComponent}
         <svelte:component this={IconComponent} class={`w-3 h-3 ${subnetColorHelper.icon}`} />
       {/if}
       

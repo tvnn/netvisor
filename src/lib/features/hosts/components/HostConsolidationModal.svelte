@@ -21,9 +21,9 @@
   let showPreview = false;
   
   // Get available hosts (excluding the source host)
-  $: availableHosts = otherHost 
+  $: availableHosts = (otherHost 
     ? $hosts.filter(host => host.id !== otherHost.id)
-    : $hosts;
+    : $hosts).sort((a,b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
   
   // Get the selected target host
   $: selectedTargetHost = selectedDestinationHostId 
@@ -105,6 +105,7 @@
             selectedValue={selectedDestinationHostId}
             options={availableHosts}
             onSelect={handleHostSelect}
+            showSearch={true}
             displayComponent={HostDisplay}
           />
         </div>
@@ -129,13 +130,19 @@
               {#if otherHost.services?.length > 0}
                 <li class="flex items-start gap-2">
                   <CheckCircle class="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                  <span>Services from "{otherHost.name}" will be migrated to "{selectedTargetHost.name}".</span>
+                  <span>{otherHost.services.length} services from "{otherHost.name}" will be migrated to "{selectedTargetHost.name}".</span>
                 </li>
               {/if}
               {#if otherHost.interfaces?.length > 0}
                 <li class="flex items-start gap-2">
                   <CheckCircle class="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
-                  <span>Interfaces from "{otherHost.name}" will be migrated to "{selectedTargetHost.name}".</span>
+                  <span>{otherHost.interfaces.length} interfaces from "{otherHost.name}" will be migrated to "{selectedTargetHost.name}".</span>
+                </li>
+              {/if}
+              {#if otherHost.ports?.length > 0}
+                <li class="flex items-start gap-2">
+                  <CheckCircle class="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
+                  <span>{otherHost.ports.length} ports from "{otherHost.name}" will be migrated to "{selectedTargetHost.name}".</span>
                 </li>
               {/if}
             {/if}

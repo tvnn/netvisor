@@ -30,7 +30,7 @@
     if (subnet.cidr == "0.0.0.0/0") {
       const newInterface: Interface = {
         id: uuidv4(),
-        name: "Internet",
+        name: subnet.name,
         subnet_id: subnetId,
         ip_address: "203.0.113."+(Math.floor(Math.random()*(255))+1).toString(),
         mac_address: undefined,

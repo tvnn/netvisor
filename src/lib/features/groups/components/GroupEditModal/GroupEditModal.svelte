@@ -6,13 +6,15 @@
   import type { ServiceBinding } from "$lib/features/hosts/types/base";
   import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
   import { entities } from '$lib/shared/stores/metadata';
-  import { getServiceHost, services } from '$lib/features/services/store';
+  import { getServiceById, getServiceHost, services } from '$lib/features/services/store';
   import { ServiceBindingDisplay }  from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import GroupDetailsForm from './GroupDetailsForm.svelte';
 	import { pushWarning } from '$lib/shared/stores/feedback';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
+	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
+	import { getPortFromId, serviceBindingIdToObj, serviceBindingToId } from '$lib/features/hosts/store';
   
   export let group: Group | null = null;
   export let isOpen = false;
@@ -38,34 +40,35 @@
     formData = group ? { ...group } : createEmptyGroupFormData();
   }
 
-  // Get services that are available to add (not already in group + has some interface binding OR has externalIp target)
-  $: selectableServices = $services.filter(service => 
-    !formData.service_bindings.some(binding => binding.service_id === service.id)
-    && service.interface_bindings.length > 0 && service.port_bindings.length > 0
-  );
+  // Get services that are available to add (not already in group + has some interface & port binding)
+  $: selectableServices = $services
+    .filter(service => 
+      !formData.service_bindings.some(binding => binding.service_id === service.id)
+      && service.interface_bindings.length > 0 && service.port_bindings.length > 0
+    )
+    .sort((a,b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
 
-  function handleAdd(serviceId: string) {
-    const service = $services.find(s => s.id === serviceId);
-    if (!service) return;
-    
-    const host = getServiceHost(service.id);
-    // Default to first interface binding if available
-    let defaultInterfaceId, defaultPortId;
-    if (service.interface_bindings.length > 0 && service.port_bindings.length > 0) {
-      defaultInterfaceId = service.interface_bindings[0];
-      defaultPortId = service.port_bindings[0];
-    } else {
-      pushWarning(`Host for service ${service.name} must have an interface + port or an External IP target`)
-      return;
+  $: serviceBindings = $services
+    .flatMap(s => s.interface_bindings
+      .flatMap(interface_id => s.port_bindings
+        .map(port_id => getPortFromId(port_id))
+        .filter(port => port != undefined)
+        .map(port => {
+          return {
+            service_id: s.id,
+            interface_id,
+            port_id: port.id
+          } as ServiceBinding
+        })
+      )
+    )
+    .filter(sb => !formData.service_bindings.some(binding => serviceBindingToId(binding) == serviceBindingToId(sb)))
+
+  function handleAdd(serviceBindingId: string) {
+    let newBinding = serviceBindingIdToObj(serviceBindingId)
+    if (newBinding) {
+      formData.service_bindings = [...formData.service_bindings, newBinding];
     }
-    
-    const newBinding: ServiceBinding = {
-      service_id: serviceId,
-      interface_id: defaultInterfaceId,
-      port_id: defaultPortId
-    };
-    
-    formData.service_bindings = [...formData.service_bindings, newBinding];
   }
   
   function handleRemove(index: number) {
@@ -175,11 +178,11 @@
                 allowReorder={true}
                 showSearch={true}
                 
-                options={selectableServices}
+                options={serviceBindings}
                 items={formData.service_bindings}
                 allowItemEdit={() => true}
                 
-                optionDisplayComponent={ServiceDisplay}
+                optionDisplayComponent={ServiceBindingDisplay}
                 itemDisplayComponent={ServiceBindingDisplay}
                 
                 onAdd={handleAdd}

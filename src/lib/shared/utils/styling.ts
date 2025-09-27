@@ -1,5 +1,6 @@
-// src/lib/shared/utils/styling.ts
 import * as LucideIcons from 'lucide-svelte';
+import HomarrIcon from '$lib/shared/components/data/HomarrIcon.svelte'
+import { mount } from 'svelte';
 
 export interface ColorStyle {
     text: string,
@@ -165,6 +166,18 @@ export function createIconComponent(iconName: string | null) {
   
   // Return the component or fallback
   return (LucideIcons as any)[componentName] || LucideIcons.HelpCircle;
+}
+
+// Icon helper that turns a string into an SVG from homarr icons: https://dashboardicons.com/
+export function createHomarrIconComponent(iconName: string | null) {
+  if (!iconName || iconName == null) return LucideIcons.HelpCircle;
+  
+  // Create a wrapper component that pre-binds the iconName
+  const BoundHomarrIcon = ($$payload: any, $$props: any) => {
+    return HomarrIcon($$payload, { iconName, ...$$props });
+  };
+  
+  return BoundHomarrIcon;
 }
 
 // Convenience wrapper that returns both color and icon

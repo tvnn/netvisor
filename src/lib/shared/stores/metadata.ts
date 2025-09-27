@@ -1,6 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import { api } from '../utils/api';
-import { createColorHelper, createIconComponent, createStyle, type ColorStyle } from '../utils/styling';
+import { createColorHelper, createHomarrIconComponent, createIconComponent, createStyle, type ColorStyle } from '../utils/styling';
 
 export interface TypeMetadata {
   id: string;
@@ -78,9 +78,24 @@ type EntityMetadataKeys = {
 // Full TypeMetadata helpers (includes color methods + other methods)
 function createTypeMetadataHelpers<T extends TypeMetadataKeys>(category: T) {
   const items = derived(metadata, $registry => $registry?.[category] || []);
-  const colorHelpers = createSharedHelpers(category);
+  const sharedHelpers = createSharedHelpers(category);
   
   const helpers = {
+    // Include the shared methods
+    ...sharedHelpers,
+
+    getIconComponent: (id: string | null) => {
+      const $registry = get(metadata);
+      const item = ($registry?.[category] as TypeMetadata[])?.find(item => item.id === id);
+      const iconName = item?.icon || null;
+
+      if (item?.metadata && item.metadata.has_homarr_icon) {
+        return createHomarrIconComponent(iconName)
+      } else {
+        return createIconComponent(iconName);
+      }
+    },
+
     getItems: () => {
       const $registry = get(metadata)
       return $registry?.[category] as TypeMetadata[]
@@ -109,10 +124,7 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys>(category: T) {
     getMetadata: (id: string | null) => {
       const $registry = get(metadata);
       return ($registry?.[category] as TypeMetadata[])?.find(item => item.id === id)?.metadata || {};
-    },
-
-    // Include the shared color methods
-    ...colorHelpers
+    }
   };
 
   return helpers;
@@ -121,7 +133,7 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys>(category: T) {
 // EntityMetadata helpers (only color methods)
 function createEntityMetadataHelpers<T extends EntityMetadataKeys>(category: T) {
   const items = derived(metadata, $registry => $registry?.[category] || []);
-  const colorHelpers = createSharedHelpers(category);
+  const sharedHelpers = createSharedHelpers(category);
   
   const helpers = {
     getItems: () => {
@@ -135,7 +147,7 @@ function createEntityMetadataHelpers<T extends EntityMetadataKeys>(category: T) 
     },
     
     // Only include the shared color methods
-    ...colorHelpers
+    ...sharedHelpers
   };
 
   return helpers;

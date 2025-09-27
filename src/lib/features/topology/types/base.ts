@@ -10,11 +10,13 @@ import type { Position } from "@xyflow/svelte";
     position: { x: number; y: number };
     size: { x: number; y: number };
     subnet_label: string | null;
+    subnet_type: string | null;
   }
 
   export interface TopologyEdgeData {
     edge_type: string;
     source: string;
+    label: string;
     target: string;
     source_handle: EdgeHandle,
     target_handle: EdgeHandle

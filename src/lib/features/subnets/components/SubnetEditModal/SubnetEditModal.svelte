@@ -9,7 +9,7 @@
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
 	import { serviceHasInterfaceOnSubnet, services } from '$lib/features/services/store';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
-	import { ServiceAsHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceAsHostDisplay.svelte';
+	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
 	import SubnetDetailsForm from './SubnetDetailsForm.svelte';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
   
@@ -180,8 +180,8 @@
                 items={selectedDns}
                 allowItemEdit={() => false}
                 
-                optionDisplayComponent={ServiceAsHostDisplay}
-                itemDisplayComponent={ServiceAsHostDisplay}
+                optionDisplayComponent={ServiceWithHostDisplay}
+                itemDisplayComponent={ServiceWithHostDisplay}
                 
                 onAdd={handleAddDnsResolver}
                 onRemove={handleRemoveDnsResolver}
@@ -208,8 +208,8 @@
                 items={selectedGateways}
                 allowItemEdit={() => false}
                 
-                optionDisplayComponent={ServiceAsHostDisplay}
-                itemDisplayComponent={ServiceAsHostDisplay}
+                optionDisplayComponent={ServiceWithHostDisplay}
+                itemDisplayComponent={ServiceWithHostDisplay}
                 
                 onAdd={handleAddGateway}
                 onRemove={handleRemoveGateway}
@@ -236,8 +236,8 @@
                 items={selectedReverseProxies}
                 allowItemEdit={() => false}
                 
-                optionDisplayComponent={ServiceAsHostDisplay}
-                itemDisplayComponent={ServiceAsHostDisplay}
+                optionDisplayComponent={ServiceWithHostDisplay}
+                itemDisplayComponent={ServiceWithHostDisplay}
                 
                 onAdd={handleAddReverseProxy}
                 onRemove={handleRemoveReverseProxy}

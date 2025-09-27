@@ -2,8 +2,9 @@
     import { Handle, Position, type NodeProps } from '@xyflow/svelte';
     import { createColorHelper } from '$lib/shared/utils/styling';
     import { getHostFromId, getHostTargetString } from '$lib/features/hosts/store';
-    import { entities } from '$lib/shared/stores/metadata';
+    import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
     import { getServicesForHost } from '$lib/features/services/store';
+	import { isContainerSubnet } from '$lib/features/subnets/store';
 
     let { id, data, selected, width, height }: NodeProps = $props();
 
@@ -21,17 +22,17 @@
 
             let bodyText: string | null = null;
             let headerText: string | null = null;
-            let showServices = false;
+            let footerText: string | null = null;
+            let showServices = servicesOnInterface.length != 0;
 
-            if (servicesOnInterface.length == 0 || (servicesOnInterface.length == 1 && servicesOnInterface[0].name == host.name)) {
-                bodyText = host.name;
-                showServices = false;
+            if ((servicesOnInterface.length > 0 && servicesOnInterface[0].name == host.name) || host.name.includes("Unknown Device")) {
             } else {
                 headerText = host.name;
-                showServices = true;
             }
 
-            const footerText = iface ? `${iface.name ? iface.name+': ' : ''}${iface.ip_address}` : null
+            if (iface && !isContainerSubnet(iface?.subnet_id)) {
+                footerText = (iface.name ? iface.name+": " : "") + iface.ip_address
+            } 
 
             return {
                 footerText,
@@ -69,14 +70,16 @@
         <div class="flex-1 flex flex-col justify-center items-center px-3">
             {#if nodeData.showServices}
                 <!-- Show services list -->
-                <div class="w-full space-y-1">
+                <div class="w-full space-y-1 flex flex-col items-center">
                     {#each nodeData.services as service}
+                        {@const ServiceIcon = serviceDefinitions.getIconComponent(service.service_definition)}
                         <div 
-                            class={`text-left text-xs max-w-full truncate`}
+                            class={`text-center text-xs max-w-full truncate flex items-center gap-1 justify-center`}
                             style="line-height: 1.3;"
                             title={service.name}
                         >
-                            • {service.name}
+                            <ServiceIcon class="w-3 h-3 flex-shrink-0 {colorHelper.icon}" />
+                            <span class="truncate">{service.name}</span>
                         </div>
                     {/each}
                 </div>
@@ -100,7 +103,7 @@
             </div>
         {/if}
         
-        <!-- Connection handles -->
+        <!-- Connection handles remain the same -->
         <Handle type="target" id='Top' position={Position.Top} style={`opacity: 0`} />     
         <Handle type="target" id='Right' position={Position.Right} style={`opacity: 0`} />
         <Handle type="target" id='Bottom' position={Position.Bottom} style={`opacity: 0`} />

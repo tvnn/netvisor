@@ -9,13 +9,16 @@ import svelteConfig from './svelte.config.js';
 
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
-export default ts.config(
+export default [
 	includeIgnoreFile(gitignorePath),
 	js.configs.recommended,
 	...ts.configs.recommended,
 	...svelte.configs.recommended,
 	prettier,
 	...svelte.configs.prettier,
+	{
+		ignores: ['tsconfig.json', '*.config.js', '*.config.ts', 'build/', '.svelte-kit/']
+	},
 	{
 		languageOptions: {
 			globals: { ...globals.browser, ...globals.node }
@@ -37,4 +40,4 @@ export default ts.config(
 			}
 		}
 	}
-);
+];

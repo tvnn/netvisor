@@ -193,18 +193,6 @@
       <!-- Details Tab -->
       {#if activeTab === 'details'}
         <div class="h-full">
-          {#if !isEditing}
-            <!-- Create flow description -->
-            <div class="p-6 bg-blue-900/10 border-b border-blue-800/30">
-              <h3 class="text-lg font-medium text-blue-300 mb-2">
-                {tabs.find(t => t.id === activeTab)?.label}
-              </h3>
-              <p class="text-blue-200/80 text-sm">
-                {tabs.find(t => t.id === activeTab)?.description}
-              </p>
-            </div>
-          {/if}
-          
           <div class="flex-1 relative">
             <DetailsForm 
               {formApi}
@@ -218,19 +206,7 @@
 
       <!-- Interfaces Tab -->
       {#if activeTab === 'interfaces'}
-        <div class="h-full">
-          {#if !isEditing}
-            <!-- Create flow description -->
-            <div class="p-6 bg-blue-900/10 border-b border-blue-800/30">
-              <h3 class="text-lg font-medium text-blue-300 mb-2">
-                {tabs.find(t => t.id === activeTab)?.label}
-              </h3>
-              <p class="text-blue-200/80 text-sm">
-                {tabs.find(t => t.id === activeTab)?.description}
-              </p>
-            </div>
-          {/if}
-          
+        <div class="h-full">          
           <div class="flex-1 relative">
             <InterfacesForm 
               {formApi}
@@ -241,19 +217,7 @@
 
       <!-- Interfaces Tab -->
       {#if activeTab === 'ports'}
-        <div class="h-full">
-          {#if !isEditing}
-            <!-- Create flow description -->
-            <div class="p-6 bg-blue-900/10 border-b border-blue-800/30">
-              <h3 class="text-lg font-medium text-blue-300 mb-2">
-                {tabs.find(t => t.id === activeTab)?.label}
-              </h3>
-              <p class="text-blue-200/80 text-sm">
-                {tabs.find(t => t.id === activeTab)?.description}
-              </p>
-            </div>
-          {/if}
-          
+        <div class="h-full">          
           <div class="flex-1 relative">
             <PortsDisplay 
               bind:formData={formData}/>
@@ -263,19 +227,7 @@
       
       <!-- Services Tab -->
       {#if activeTab === 'services'}
-        <div class="h-full">
-          {#if !isEditing}
-            <!-- Create flow description -->
-            <div class="p-6 bg-blue-900/10 border-b border-blue-800/30">
-              <h3 class="text-lg font-medium text-blue-300 mb-2">
-                {tabs.find(t => t.id === activeTab)?.label}
-              </h3>
-              <p class="text-blue-200/80 text-sm">
-                {tabs.find(t => t.id === activeTab)?.description}
-              </p>
-            </div>
-          {/if}
-          
+        <div class="h-full">          
           <div class="flex-1 relative">
             <ServicesForm 
               {formApi}

@@ -4,6 +4,7 @@ import { api } from '../../shared/utils/api';
 import { pushInfo, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { getServiceById, getServices } from '../services/store';
+import { isContainerSubnet } from '../subnets/store';
 
 export const hosts = writable<Host[]>([]);
 export const polling = writable(false);
@@ -74,7 +75,7 @@ export function createEmptyHostFormData(): Host {
     description: '',
     hostname: '',
     target: {
-      type: 'Hostname',
+      type: 'None',
     },
     services: [],
     interfaces: [],
@@ -94,6 +95,10 @@ export function getHostTargetString(host: Host): string | null {
     case 'Hostname':
       return host.hostname;
   }
+}
+
+export function formatInterface(i: Interface): string {
+  return isContainerSubnet(i.subnet_id) ? i.name : (i.name ? i.name+": " : "") + i.ip_address
 }
 
 export function getHostFromId(id: string): Host | undefined {

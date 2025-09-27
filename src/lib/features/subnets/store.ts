@@ -32,7 +32,7 @@ export async function createSubnet(subnet: Subnet) {
 
 export async function updateSubnet(subnet: Subnet) {
   const result = await api.request<Subnet, Subnet[]>(
-    `/subnets`,
+    `/subnets/${subnet.id}`,
     subnets,
     (response, currentSubnets) => 
       currentSubnets.map(s => s.id === subnet.id ? response : s),
@@ -64,7 +64,7 @@ export function createEmptySubnetFormData(): Subnet {
     name: '',
     cidr: '',
     description: '',
-    subnet_type: 'Lan',
+    subnet_type: 'Unknown',
     dns_resolvers: [],
     gateways: [],
     hosts: [],
@@ -77,6 +77,10 @@ export function getSubnetFromId(id: string) {
   return get(subnets).find(s => s.id == id);
 }
 
-export function getInternetSubnetId(): string {
-  return get(subnets).find(s => s.subnet_type == 'Internet' && s.source == 'System')?.id || ""
+export function isContainerSubnet(id: string): Subnet | boolean {
+  let subnet = get(subnets).find(s => s.id == id)
+  if (subnet) {
+    return subnet.cidr == '0.0.0.0/0' && subnet.source == 'System'
+  }
+  return false
 }

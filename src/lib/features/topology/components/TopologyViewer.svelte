@@ -66,7 +66,8 @@
               parentId: node.parent_id,
               width: node.size.x,
               height: node.size.y,
-              subnet_label: node.subnet_label
+              subnet_label: node.subnet_label,
+              subnet_type: node.subnet_type
             },
           };
         });
@@ -74,7 +75,10 @@
         const flowEdges: Edge[] = $topology.edges.map(([sourceIdx, targetIdx, edgeData]: [number, number, TopologyEdgeData], index: number): Edge => {
           const edgeType = edgeData.edge_type as string;
           const edgeLabel = edgeTypes.getName(edgeType);
+          let edgeMetadata = edgeTypes.getMetadata(edgeType);
           let edgeColorHelper = edgeTypes.getColorHelper(edgeType);
+
+          const dashArray = edgeMetadata.is_dashed ? 'stroke-dasharray: 5,5;' : '';
 
           const customData: CustomEdgeData = {
             edgeType: edgeType,
@@ -89,8 +93,10 @@
             target: edgeData.target,
             sourceHandle: edgeData.source_handle.toString(),
             targetHandle: edgeData.target_handle.toString(),
-            type: 'default',
-            style: `stroke: ${edgeColorHelper.rgb}; stroke-width: 2px;`,
+            type: 'smoothstep',
+            label: edgeData.label,
+            labelStyle: 'fill: #f3f4f6; font-size: 12px; font-weight: 500; background: #374151; padding: 2px 6px; border-radius: 4px; border: 1px solid #4b5563;',
+            style: `stroke: ${edgeColorHelper.rgb}; stroke-width: 2px; ${dashArray}`,
             data: customData
           };
         });

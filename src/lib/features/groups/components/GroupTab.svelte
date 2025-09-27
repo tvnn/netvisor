@@ -55,7 +55,7 @@
 <div class="space-y-6">
   <TabHeader
     title="Groups"
-    subtitle="Create groups to define logical network groups for visualization"
+    subtitle="Create custom groups to improve topology visualization"
     buttons={[
       {
         onClick: handleCreateGroup,
