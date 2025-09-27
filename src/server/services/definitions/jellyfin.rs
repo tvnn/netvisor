@@ -15,6 +15,10 @@ impl ServiceDefinition for Jellyfin {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AnyPort(vec!(PortBase::new_tcp(8096)))
     }
+
+    fn icon(&self) -> &'static str {
+        "jellyfin"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Jellyfin>));

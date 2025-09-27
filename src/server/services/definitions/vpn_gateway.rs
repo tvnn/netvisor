@@ -20,6 +20,7 @@ impl ServiceDefinition for VpnGateway {
     }
 
     fn is_gateway(&self) -> bool { true }    
+    fn is_generic(&self) -> bool { true }    
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<VpnGateway>));

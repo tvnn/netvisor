@@ -18,6 +18,10 @@ impl ServiceDefinition for HpPrinter {
             Pattern::AnyPort(vec![PortBase::Ipp, PortBase::LdpTcp, PortBase::LdpUdp])
         ))
     }
+
+    fn icon(&self) -> &'static str {
+        "hp"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<HpPrinter>));

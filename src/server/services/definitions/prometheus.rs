@@ -15,6 +15,10 @@ impl ServiceDefinition for Prometheus {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::Port(PortBase::new_tcp(9090))
     }
+
+    fn icon(&self) -> &'static str {
+        "prometheus"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Prometheus>));

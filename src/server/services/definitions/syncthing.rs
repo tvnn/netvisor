@@ -15,6 +15,10 @@ impl ServiceDefinition for Syncthing {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::Port(PortBase::new_tcp(8384))
     }
+
+    fn icon(&self) -> &'static str {
+        "syncthing"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Syncthing>));

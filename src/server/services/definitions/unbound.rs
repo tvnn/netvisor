@@ -15,6 +15,10 @@ impl ServiceDefinition for Unbound {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllPort(vec!(PortBase::DnsUdp, PortBase::new_tcp(8953)))
     }
+
+    fn icon(&self) -> &'static str {
+        "unbound"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Unbound>));

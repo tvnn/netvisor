@@ -13,13 +13,27 @@ use serde::{Serialize, Deserialize};
 
 // Main trait used in service definition implementation
 pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq  + Send + Sync {
+    
+    /// Service name, will also be used as unique identifier. < 15 characters.
     fn name(&self) -> &'static str;
+
+    /// Service description. < 60 characters.
     fn description(&self) -> &'static str;
+
+    /// Category from ServiceCategory enum
     fn category(&self) -> ServiceCategory;
+
+    /// How service should be identified during port scanning
     fn discovery_pattern(&self) -> Pattern;
 
+    /// If service is not associated with a particular brand or vendor
     fn is_generic(&self) -> bool { false }
+
+    /// If service is capable of acting as a gateway on the network
     fn is_gateway(&self) -> bool { false }
+
+    /// Path of service on https://dashboardicons.com/. For example, Home Assistant -> https://dashboardicons.com/icons/home-assistant
+    fn icon(&self) -> &'static str { "" }
 }
 
 // Helper methods to be used in rest of codebase, not overridable by definition implementations
@@ -49,6 +63,10 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
     
     fn description(&self) -> &'static str {
         ServiceDefinition::description(&**self)
+    }
+
+    fn icon(&self) -> &'static str {
+        ServiceDefinition::icon(&**self)
     }
     
     fn category(&self) -> ServiceCategory {
@@ -104,7 +122,11 @@ impl EntityMetadataProvider for Box<dyn ServiceDefinition> {
        ServiceDefinition::category(self).color()
     }
     fn icon(&self) -> &'static str {
-       ServiceDefinition::category(self).icon()
+        let logo_icon = ServiceDefinition::icon(self);
+        if logo_icon.len() > 0 {
+            return logo_icon
+        }
+        ServiceDefinition::category(self).icon()
     }
 }
 
@@ -126,6 +148,7 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
         let is_reverse_proxy = self.is_reverse_proxy();
         let is_gateway = self.is_gateway();
         let is_generic = self.is_generic();
+        let has_homarr_icon = ServiceDefinition::icon(self).len() > 0;
         serde_json::json!({
             // "default_ports": default_ports, 
             // "default_endpoints": default_endpoints, 
@@ -133,7 +156,8 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
             "is_dns_resolver": is_dns_resolver,
             "is_gateway": is_gateway,
             "is_reverse_proxy": is_reverse_proxy,
-            "is_generic": is_generic
+            "is_generic": is_generic,
+            "has_homarr_icon": has_homarr_icon
         })
     }
 }

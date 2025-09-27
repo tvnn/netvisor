@@ -15,6 +15,10 @@ impl ServiceDefinition for PowerDNS {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllPort(vec!(PortBase::DnsUdp, PortBase::new_tcp(8081)))
     }
+
+    fn icon(&self) -> &'static str {
+        "powerdns"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<PowerDNS>));

@@ -15,6 +15,10 @@ impl ServiceDefinition for Plex {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AnyPort(vec!(PortBase::new_tcp(32400)))
     }
+
+    fn icon(&self) -> &'static str {
+        "plex"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Plex>));

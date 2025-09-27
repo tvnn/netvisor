@@ -163,7 +163,8 @@ pub enum SubnetType {
     VpnTunnel, 
     DockerBridge,
     Internet,
-    Unknown
+    Unknown,
+    None
 }
 
 impl SubnetType {
@@ -214,14 +215,18 @@ impl EntityMetadataProvider for SubnetType {
     fn color(&self) -> &'static str {
         match self {
             SubnetType::DockerBridge => "blue",
-            SubnetType::Lan => "green",
+            SubnetType::Lan => Entity::Subnet.color(),
             SubnetType::VpnTunnel => Entity::Vpn.color(),
-            SubnetType::Internet => "gray",
+            SubnetType::Internet => "blue",
             SubnetType::Unknown => "gray",
+            SubnetType::None => "gray",
         }
     }
     fn icon(&self) -> &'static str {
-        Entity::Subnet.icon()
+        match self {
+            SubnetType::Internet => "Globe",
+            _ => Entity::Subnet.icon()
+        }
     }
 }
 
@@ -230,9 +235,10 @@ impl TypeMetadataProvider for SubnetType {
         match self {
             SubnetType::DockerBridge => "Docker Bridge",
             SubnetType::Lan => "Local Area Network",
-            SubnetType::VpnTunnel => "VPN Tunnel",
+            SubnetType::VpnTunnel => "VPN",
             SubnetType::Internet => "Internet",
             SubnetType::Unknown => "Unknown",
+            SubnetType::None => "No Subnet",
         }
     }
 
@@ -243,6 +249,7 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::VpnTunnel => "VPN tunnel network",
             SubnetType::Internet => "Internet network",
             SubnetType::Unknown => "Unknown network type",
+            SubnetType::None => "No Subnet"
         }
     }
 }

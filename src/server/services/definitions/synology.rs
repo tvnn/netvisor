@@ -14,6 +14,10 @@ impl ServiceDefinition for Synology {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::WebService("/", "Synology")
     }
+    
+    fn icon(&self) -> &'static str {
+        "synology"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Synology>));

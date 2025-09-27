@@ -15,6 +15,10 @@ impl ServiceDefinition for Proxmox {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AnyPort(vec!(PortBase::new_tcp(8006)))
     }
+
+    fn icon(&self) -> &'static str {
+        "proxmox"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Proxmox>));

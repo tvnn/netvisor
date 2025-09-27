@@ -14,6 +14,10 @@ impl ServiceDefinition for UnifiAccessPoint {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(Pattern::MacVendor(Vendor::UBIQUITI), Pattern::WebService("/", "UniFi")))
     }
+
+    fn icon(&self) -> &'static str {
+        "unifi"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<UnifiAccessPoint>));

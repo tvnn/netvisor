@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
-use crate::server::shared::{constants::Entity, types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider}};
+use crate::server::{shared::{constants::Entity, types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider}}, subnets::types::base::SubnetType};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Node {
@@ -13,7 +13,7 @@ pub struct Node {
     pub position: XY,
     pub size: XY,
     pub infra_width: Option<usize>,
-    pub subnet_label: Option<String>
+    pub subnet_type: Option<SubnetType>
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -83,6 +83,7 @@ pub struct Edge {
     pub source: Uuid,
     pub target: Uuid,
     pub edge_type: EdgeType,
+    pub label: String,
     pub source_handle: EdgeHandle,
     pub target_handle: EdgeHandle
 }
@@ -130,5 +131,16 @@ impl TypeMetadataProvider for EdgeType {
             EdgeType::Group => "Host Group",
             EdgeType::Interface => "Host Interface"
         }
+    }
+
+    fn metadata(&self) -> serde_json::Value {
+        let is_dashed = match &self {
+            EdgeType::Group => false,
+            EdgeType::Interface => true
+        };
+
+        serde_json::json!({
+            "is_dashed": is_dashed,
+        })
     }
 }

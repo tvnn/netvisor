@@ -18,6 +18,10 @@ impl ServiceDefinition for Kubernetes {
             Pattern::AnyPort(vec!(PortBase::new_tcp(10250), PortBase::new_tcp(10259), PortBase::new_tcp(10257), PortBase::new_tcp(10256)))
         ))
     }
+
+    fn icon(&self) -> &'static str {
+        "kubernetes"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Kubernetes>));

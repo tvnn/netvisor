@@ -15,7 +15,11 @@ impl ServiceDefinition for FiosGateway {
         Pattern::AllOf(vec!(Pattern::WebService("/#/login/", "fios"), Pattern::IsGatewayIp))
     }
 
-    fn is_gateway(&self) -> bool { true }    
+    fn is_gateway(&self) -> bool { true }   
+
+    fn icon(&self) -> &'static str {
+        "fios"
+    } 
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<FiosGateway>));

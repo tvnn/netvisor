@@ -3,7 +3,7 @@ use futures::future::{try_join_all};
 use anyhow::anyhow;
 use uuid::Uuid;
 use std::sync::{Arc, OnceLock};
-use crate::server::{groups::service::GroupService, hosts::service::HostService, services::{storage::ServiceStorage, types::base::Service}, shared::types::metadata::TypeMetadataProvider, subnets::service::SubnetService
+use crate::server::{groups::service::GroupService, hosts::{service::HostService, types::base::Host}, services::{storage::ServiceStorage, types::base::Service}, shared::types::metadata::TypeMetadataProvider, subnets::service::SubnetService
 };
 
 pub struct ServiceService {
@@ -108,6 +108,29 @@ impl ServiceService {
         self.storage.update(&service).await?;
         tracing::info!("Updated service {}: {} for host {}", service.base.name, service.id, service.base.host_id);
         Ok(service)
+    }
+
+    pub fn transfer_service_to_new_host(&self, service: &mut Service, original_host: &Host, new_host: &Host) -> Service {
+        
+        service.base.interface_bindings = service.base.interface_bindings.iter().filter_map(|b| {
+            if let Some(original_binding) = original_host.get_interface(b) {
+                return new_host.base.interfaces.iter().find_map(|i| if i == original_binding {Some(i.id)} else {None});
+            }
+            None
+        })
+        .collect();
+
+        service.base.port_bindings = service.base.port_bindings.iter().filter_map(|b| {
+            if let Some(original_binding ) = original_host.get_port(b) {
+                return new_host.base.ports.iter().find_map(|p| if p == original_binding {Some(p.id)} else {None});
+            }
+            None
+        })
+        .collect();
+
+        service.base.host_id = new_host.id;
+
+        service.clone()
     }
 
     pub async fn remove_subnet_service_relationships(&self, service: &Service) -> Result<(), Error> {

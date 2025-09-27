@@ -15,6 +15,10 @@ impl ServiceDefinition for UnifiController {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AnyPort(vec!(PortBase::new_tcp(2049)))
     }
+
+    fn icon(&self) -> &'static str {
+        "unifi"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<UnifiController>));

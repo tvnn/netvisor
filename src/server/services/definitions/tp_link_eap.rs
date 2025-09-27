@@ -14,6 +14,10 @@ impl ServiceDefinition for TpLinkEap {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(Pattern::MacVendor(Vendor::TPLINK), Pattern::WebService("/", "TP-LINK")))
     }
+
+    fn icon(&self) -> &'static str {
+        "tp-link"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<TpLinkEap>));

@@ -14,6 +14,8 @@ impl ServiceDefinition for EeroRepeater {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(Pattern::MacVendor(Vendor::EERO), Pattern::NotGatewayIp))
     }
+
+    
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<EeroRepeater>));

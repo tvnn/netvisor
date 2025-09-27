@@ -16,6 +16,10 @@ impl ServiceDefinition for PfSense {
     }
 
     fn is_gateway(&self) -> bool { true }    
+
+    fn icon(&self) -> &'static str {
+        "pfsense"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<PfSense>));

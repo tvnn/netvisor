@@ -14,6 +14,10 @@ impl ServiceDefinition for NginxProxyManager {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::WebService("/", "Nginx Proxy Manager")
     }
+
+    fn icon(&self) -> &'static str {
+        "nginx-proxy-manager"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<NginxProxyManager>));

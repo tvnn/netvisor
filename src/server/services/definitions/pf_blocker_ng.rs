@@ -15,6 +15,10 @@ impl ServiceDefinition for PfBlockerNg {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(Pattern::AllPort(vec!(PortBase::DnsTcp, PortBase::DnsUdp)), Pattern::WebService("/pfblockerng", "pfBlockerNG")))
     }
+
+    fn icon(&self) -> &'static str {
+        "pfsense"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<PfBlockerNg>));

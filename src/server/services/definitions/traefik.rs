@@ -14,6 +14,10 @@ impl ServiceDefinition for Traefik {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::WebService("/dashboard/", "Traefik")
     }
+
+    fn icon(&self) -> &'static str {
+        "traefik"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Traefik>));

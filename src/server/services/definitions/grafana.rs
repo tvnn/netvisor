@@ -14,6 +14,10 @@ impl ServiceDefinition for Grafana {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::WebService("/", "Grafana")
     }
+
+    fn icon(&self) -> &'static str {
+        "grafana"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Grafana>));

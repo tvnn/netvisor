@@ -9,8 +9,8 @@ use crate::server::subnets::types::base::SubnetType;
 pub struct WgDashboard;
 
 impl ServiceDefinition for WgDashboard {
-    fn name(&self) -> &'static str { "Wireguard Dashboard" }
-    fn description(&self) -> &'static str { "Dashboard for visualizing and managing wireguard clients and server" }
+    fn name(&self) -> &'static str { "WGDashboard" }
+    fn description(&self) -> &'static str { "Wireguard dashboard for visualizing and managing wireguard clients and server" }
     fn category(&self) -> ServiceCategory { ServiceCategory::Dashboard }
 
     fn discovery_pattern(&self) -> Pattern {
@@ -18,6 +18,10 @@ impl ServiceDefinition for WgDashboard {
             Pattern::AnyPort(vec![PortBase::new_tcp(10086)]), 
             Pattern::SubnetIsNotType(SubnetType::VpnTunnel)
         ))
+    }
+
+    fn icon(&self) -> &'static str {
+        "wireguard"
     }
 }
 

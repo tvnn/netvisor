@@ -6,7 +6,7 @@ use petgraph::{graph::NodeIndex, Graph};
 use uuid::Uuid;
 
 use crate::server::{
-    groups::{service::GroupService, types::Group}, hosts::{service::HostService, types::{base::Host}}, services::{service::ServiceService, types::base::Service}, subnets::{service::SubnetService, types::base::Subnet}, topology::types::base::{Edge, EdgeHandle, EdgeType, Node, NodeLayout, NodeType, SubnetChild, SubnetChildNodeSize, SubnetLayout, XY}
+    groups::{service::GroupService, types::Group}, hosts::{service::HostService, types::base::Host}, services::{service::ServiceService, types::base::Service}, subnets::{service::SubnetService, types::base::{Subnet, SubnetType}}, topology::types::base::{Edge, EdgeHandle, EdgeType, Node, NodeLayout, NodeType, SubnetChild, SubnetChildNodeSize, SubnetLayout, XY}
 };
 
 const SUBNET_PADDING: XY = XY{x: 75, y: 75};
@@ -252,7 +252,7 @@ impl TopologyService {
                     position: position.clone(),
                     size: child.size.size(),
                     infra_width: None,
-                    subnet_label: None
+                    subnet_type: None
                 });
             }
         });
@@ -273,7 +273,7 @@ impl TopologyService {
                     position: node_position,
                     size: child.size.size(),
                     infra_width: None,
-                    subnet_label: None
+                    subnet_type: None
                 });
             };
         });
@@ -312,9 +312,7 @@ impl TopologyService {
         // Create all nodes (including no_subnet) from the sorted list
         all_subnet_entries.iter()
             .filter_map(|(subnet_id, layout)| {
-                if let Some(position) = positions.get(subnet_id) {
-                    let node_type = NodeType::SubnetNode;
-                    
+                if let Some(position) = positions.get(subnet_id) {                    
                     // Handle no_subnet case
                     if *subnet_id == self.no_subnet_id {
                         return Some(Node {
@@ -322,26 +320,26 @@ impl TopologyService {
                             parent_id: None,
                             host_id: None,
                             interface_id: None,
-                            node_type,
+                            node_type: NodeType::SubnetNode,
                             position: position.clone(),
                             size: layout.size.clone(),
                             infra_width: Some(layout.infra_width),
-                            subnet_label: Some("No Subnet".to_string())
+                            subnet_type: Some(SubnetType::None)
                         });
                     }
                     
                     // Handle regular subnet case
-                    if subnets.iter().any(|s| s.id == *subnet_id) {
+                    if let Some(subnet) = subnets.iter().find(|s| s.id == *subnet_id) {
                         return Some(Node { 
                             id: *subnet_id,
                             parent_id: None,
                             host_id: None,
                             interface_id: None,
-                            node_type,
+                            node_type: NodeType::SubnetNode,
                             position: position.clone(),
                             size: layout.size.clone(),
                             infra_width: Some(layout.infra_width),
-                            subnet_label: None
+                            subnet_type: Some(subnet.base.subnet_type.clone())
                         });
                     }
                 }
@@ -361,6 +359,7 @@ impl TopologyService {
                         if let (Some(&source_idx), Some(&target_idx)) = (node_indices.get(&interface.id), node_indices.get(&first_interface.id)) {
                             graph.add_edge(source_idx, target_idx, Edge {
                                 edge_type: EdgeType::Interface,
+                                label: host.base.name.to_string(),
                                 source: first_interface.id,
                                 target: interface.id,
                                 source_handle: EdgeHandle::Top,
@@ -379,8 +378,8 @@ impl TopologyService {
         node_indices: &HashMap<Uuid, NodeIndex>, 
         groups: &[Group],
     ) {
-        for host_group in groups {
-            let bindings = &host_group.base.service_bindings;
+        for group in groups {
+            let bindings = &group.base.service_bindings;
             
             // Create sequential edges within each group (path-like connections)
             for window in bindings.windows(2) {
@@ -388,6 +387,7 @@ impl TopologyService {
                     (node_indices.get(&window[0].interface_id), node_indices.get(&window[1].interface_id)) {
                     graph.add_edge(source_idx, target_idx, Edge {
                         edge_type: EdgeType::Group,
+                        label: group.base.name.to_string(),
                         source: window[0].interface_id,
                         target: window[1].interface_id,
                         source_handle: EdgeHandle::Top,

@@ -15,6 +15,10 @@ impl ServiceDefinition for Restic {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::Port(PortBase::new_tcp(8000))
     }
+
+    fn icon(&self) -> &'static str {
+        "restic"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Restic>));

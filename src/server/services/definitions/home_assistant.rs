@@ -16,6 +16,10 @@ impl ServiceDefinition for HomeAssistant {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AnyPort(vec!(PortBase::new_tcp(8123)))
     }
+
+    fn icon(&self) -> &'static str {
+        "home-assistant"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<HomeAssistant>));

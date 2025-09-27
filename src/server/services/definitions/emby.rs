@@ -15,6 +15,10 @@ impl ServiceDefinition for Emby {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AnyPort(vec!(PortBase::new_tcp(8920)))
     }
+
+    fn icon(&self) -> &'static str {
+        "emby"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Emby>));

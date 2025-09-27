@@ -15,6 +15,10 @@ impl ServiceDefinition for Duplicati {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::Port(PortBase::new_tcp(8200))
     }
+
+    fn icon(&self) -> &'static str {
+        "duplicati"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Duplicati>));

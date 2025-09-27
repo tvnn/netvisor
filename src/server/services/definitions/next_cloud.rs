@@ -14,6 +14,10 @@ impl ServiceDefinition for NextCloud {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::WebService("/", "Nextcloud")
     }
+
+    fn icon(&self) -> &'static str {
+        "nextcloud"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<NextCloud>));

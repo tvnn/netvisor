@@ -305,7 +305,7 @@ impl DaemonDiscoveryService {
 
         let (name, target) = match hostname.clone() {
             Some(hostname) => (hostname, HostTarget::Hostname),
-            None => (host_ip.to_string(), HostTarget::None)
+            None => ("Unknown Device".to_owned() + &host_ip.to_string(), HostTarget::None)
         };
 
         // Create host

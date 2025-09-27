@@ -112,23 +112,21 @@ impl HostService {
     }
 
 
-    pub async fn consolidate_hosts(&self, mut destination_host: Host, other_host: Host) -> Result<Host> {
+    pub async fn consolidate_hosts(&self, destination_host: Host, other_host: Host) -> Result<Host> {
         let other_host_services = self.service_service.get_services_for_host(&other_host.id).await?;
+        let (other_host_name, other_host_id) = (&other_host.base.name, &other_host.id);
 
-        destination_host.base.interfaces = [destination_host.base.interfaces, other_host.base.interfaces].concat();
-        destination_host.base.services = [destination_host.base.services, other_host_services.iter().map(|s| s.id).collect()].concat();
+        let updated_host = self.upsert_host(destination_host, other_host.clone()).await?;
 
         let service_update_futures = other_host_services.into_iter().map(|mut s| {
-            s.base.host_id = destination_host.id;
+            s = self.service_service.transfer_service_to_new_host(&mut s, &other_host, &updated_host);
             self.service_service.update_service(s)
         });
 
         try_join_all(service_update_futures).await?;
 
-        let updated_host = self.update_host(destination_host).await?;
-
-        self.delete_host(&other_host.id, true).await?;
-        tracing::info!("Consolidated host {}: {} into {}: {}", other_host.base.name, other_host.id, updated_host.base.name, updated_host.id);
+        self.delete_host(&other_host_id, true).await?;
+        tracing::info!("Consolidated host {}: {} into {}: {}", other_host_name, other_host_id, updated_host.base.name, updated_host.id);
         Ok(updated_host)
     }
 

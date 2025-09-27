@@ -18,6 +18,10 @@ impl ServiceDefinition for CUPS {
             Pattern::WebService("/", "CUPS")
         ))
     }
+
+    fn icon(&self) -> &'static str {
+        "cups"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<CUPS>));

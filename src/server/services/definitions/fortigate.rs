@@ -4,18 +4,22 @@ use crate::server::services::types::types::ServiceDefinition;
 use crate::server::services::types::categories::ServiceCategory;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
-pub struct Fortigate;
+pub struct Fortinet;
 
-impl ServiceDefinition for Fortigate {
-    fn name(&self) -> &'static str { "Fortigate" }
-    fn description(&self) -> &'static str { "Fortigate security appliance" }
+impl ServiceDefinition for Fortinet {
+    fn name(&self) -> &'static str { "Fortinet" }
+    fn description(&self) -> &'static str { "Fortinet security appliance" }
     fn category(&self) -> ServiceCategory { ServiceCategory::NetworkSecurity }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::WebService("/", "FortiGate")
+        Pattern::WebService("/", "fortinet")
     }
 
     fn is_gateway(&self) -> bool { true }    
+
+    fn icon(&self) -> &'static str {
+        "fortinet"
+    }
 }
 
-inventory::submit!(ServiceDefinitionFactory::new(create_service::<Fortigate>));
+inventory::submit!(ServiceDefinitionFactory::new(create_service::<Fortinet>));

@@ -15,15 +15,15 @@ pub struct InterfaceBase {
 }
 
 impl InterfaceBase {
-    pub fn new_internet(internet_subnet: &Subnet) -> Self {
+    pub fn new_conceptual(subnet: &Subnet) -> Self {
 
         let ip_address = IpAddr::V4(Ipv4Addr::new(203, 0, 113, rand::rng().random_range(1..255)));
 
         Self {
-            subnet_id: internet_subnet.id,
+            subnet_id: subnet.id,
             ip_address,
             mac_address: None,
-            name: Some("Internet".to_string()),
+            name: Some(subnet.base.name.clone()),
         }
     }
 }

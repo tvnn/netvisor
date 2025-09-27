@@ -15,6 +15,10 @@ impl ServiceDefinition for TrueNAS {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(Pattern::AllPort(vec!(PortBase::Samba)), Pattern::WebService("/", "TrueNAS")))
     }
+
+    fn icon(&self) -> &'static str {
+        "truenas"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<TrueNAS>));

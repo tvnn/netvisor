@@ -18,6 +18,10 @@ impl ServiceDefinition for AdguardHome {
             Pattern::WebService("/", "AdGuard Home")
         ))
     }
+
+    fn icon(&self) -> &'static str {
+        "adguard-home"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<AdguardHome>));

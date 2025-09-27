@@ -15,6 +15,10 @@ impl ServiceDefinition for OpenMediaVault {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(Pattern::AllPort(vec!(PortBase::Samba)),Pattern::WebService("/", "OpenMediaVault")))
     }
+
+    fn icon(&self) -> &'static str {
+        "openmediavault"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<OpenMediaVault>));

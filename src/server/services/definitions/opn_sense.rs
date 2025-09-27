@@ -16,6 +16,10 @@ impl ServiceDefinition for OpnSense {
     }
 
     fn is_gateway(&self) -> bool { true }    
+
+    fn icon(&self) -> &'static str {
+        "opnsense"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<OpnSense>));

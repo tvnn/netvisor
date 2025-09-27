@@ -14,6 +14,10 @@ impl ServiceDefinition for Cloudflared {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::WebService("/metrics", "cloudflared")
     }
+
+    fn icon(&self) -> &'static str {
+        "cloudflare"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Cloudflared>));

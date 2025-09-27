@@ -14,6 +14,10 @@ impl ServiceDefinition for QNAP {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::WebService("/", "QNAP")
     }
+
+    fn icon(&self) -> &'static str {
+        "qnap"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<QNAP>));

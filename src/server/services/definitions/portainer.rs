@@ -15,6 +15,10 @@ impl ServiceDefinition for Portainer {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AnyPort(vec![PortBase::new_tcp(9000), PortBase::new_tcp(9443)])
     }
+
+    fn icon(&self) -> &'static str {
+        "portainer"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<Portainer>));

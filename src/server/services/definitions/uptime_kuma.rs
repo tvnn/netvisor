@@ -14,6 +14,10 @@ impl ServiceDefinition for UptimeKuma {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::WebService("/", "Uptime Kuma")
     }
+
+    fn icon(&self) -> &'static str {
+        "uptime-kuma"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<UptimeKuma>));

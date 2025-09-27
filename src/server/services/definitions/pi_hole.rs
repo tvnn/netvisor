@@ -15,6 +15,10 @@ impl ServiceDefinition for PiHole {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(Pattern::AllPort(vec!(PortBase::DnsUdp, PortBase::DnsTcp)), Pattern::WebService("/admin", "Pi-hole")))
     }
+
+    fn icon(&self) -> &'static str {
+        "pi-hole"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<PiHole>));

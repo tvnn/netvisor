@@ -15,6 +15,10 @@ impl ServiceDefinition for DockerSwarm {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllPort(vec![PortBase::new_tcp(2377), PortBase::new_tcp(7946)])
     }
+
+    fn icon(&self) -> &'static str {
+        "docker"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<DockerSwarm>));
