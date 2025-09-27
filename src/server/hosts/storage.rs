@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use anyhow::{Error, Result};
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::{hosts::types::{base::{Host, HostBase}, targets::HostTarget}, interfaces::types::base::Interface, services::types::{ports::Port}};
+use crate::server::hosts::types::{base::{Host, HostBase}, interfaces::Interface, ports::Port, targets::HostTarget};
 
 #[async_trait]
 pub trait HostStorage: Send + Sync {
@@ -29,13 +29,13 @@ impl HostStorage for SqliteHostStorage {
         let services_str = serde_json::to_string(&host.base.services)?;
         let interfaces_str = serde_json::to_string(&host.base.interfaces)?;
         let target_str = serde_json::to_string(&host.base.target)?;
-        let open_ports_str = serde_json::to_string(&host.base.open_ports)?;
+        let ports_str = serde_json::to_string(&host.base.ports)?;
 
         sqlx::query(
             r#"
             INSERT INTO hosts (
                 id, name, hostname, target, description,
-                services, interfaces, open_ports,
+                services, interfaces, ports,
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#
@@ -47,7 +47,7 @@ impl HostStorage for SqliteHostStorage {
         .bind(&host.base.description)
         .bind(services_str)
         .bind(interfaces_str)
-        .bind(open_ports_str)
+        .bind(ports_str)
         .bind(&host.created_at.to_rfc3339())
         .bind(&host.updated_at.to_rfc3339())
         .execute(&self.pool)
@@ -85,13 +85,13 @@ impl HostStorage for SqliteHostStorage {
         let services_str = serde_json::to_string(&host.base.services)?;
         let interfaces_str = serde_json::to_string(&host.base.interfaces)?;
         let target_str = serde_json::to_string(&host.base.target)?;
-        let open_ports_str = serde_json::to_string(&host.base.open_ports)?;
+        let ports_str = serde_json::to_string(&host.base.ports)?;
 
         sqlx::query(
             r#"
             UPDATE hosts SET 
                 name = ?, hostname = ?, description = ?,
-                target = ?, interfaces = ?, open_ports = ?, services = ?,
+                target = ?, interfaces = ?, ports = ?, services = ?,
                 updated_at = ?
             WHERE id = ?
             "#
@@ -101,7 +101,7 @@ impl HostStorage for SqliteHostStorage {
         .bind(&host.base.description)
         .bind(target_str)
         .bind(interfaces_str)
-        .bind(open_ports_str)
+        .bind(ports_str)
         .bind(services_str)
         .bind(&host.updated_at)
         .bind(blob_uuid::to_blob(&host.id))
@@ -126,7 +126,7 @@ fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host, Error> {
     let services: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("services")).or(Err(Error::msg("Failed to deserialize services")))?;
     let interfaces: Vec<Interface> = serde_json::from_str(&row.get::<String, _>("interfaces")).or(Err(Error::msg("Failed to deserialize interfaces")))?;
     let target: HostTarget = serde_json::from_str(&row.get::<String, _>("target")).or(Err(Error::msg("Failed to deserialize target")))?;
-    let open_ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("open_ports")).or(Err(Error::msg("Failed to deserialize open_ports")))?;
+    let ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("ports")).or(Err(Error::msg("Failed to deserialize ports")))?;
     
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -143,7 +143,7 @@ fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host, Error> {
             hostname: row.get("hostname"),
             description: row.get("description"),
             services,
-            open_ports,
+            ports,
             interfaces,
         }        
     })

@@ -1,6 +1,6 @@
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::patterns::Pattern;
-use crate::server::services::types::ports::Port;
+use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::types::types::ServiceDefinition;
 use crate::server::services::types::categories::ServiceCategory;
 
@@ -13,7 +13,7 @@ impl ServiceDefinition for PiHole {
     fn category(&self) -> ServiceCategory { ServiceCategory::AdBlock }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::AllOf(vec!(Pattern::AllPort(vec!(Port::DNS_UDP, Port::DNS_TCP)), Pattern::WebService("/admin", "Pi-hole")))
+        Pattern::AllOf(vec!(Pattern::AllPort(vec!(PortBase::DnsUdp, PortBase::DnsTcp)), Pattern::WebService("/admin", "Pi-hole")))
     }
 }
 

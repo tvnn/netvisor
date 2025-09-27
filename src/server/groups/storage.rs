@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use anyhow::{Error, Result};
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::groups::types::{Group, GroupBase, ServiceBinding};
+use crate::server::{groups::types::{Group, GroupBase}, hosts::types::targets::ServiceBinding};
 
 #[async_trait]
 pub trait GroupStorage: Send + Sync {

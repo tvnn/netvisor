@@ -26,12 +26,6 @@ impl GroupService {
     /// Create a new group
     pub async fn create_group(&self, group: Group) -> Result<Group> {
 
-        for binding in &group.base.service_bindings {
-            if self.service_service.get_service(&binding.service_id).await?.is_none() {
-                return Err(anyhow::anyhow!("Service with id '{}' not found", &binding.service_id));
-            }
-        }
-
         self.group_storage.create(&group).await?;
         
         // Add group reference to all services in the sequence
@@ -65,21 +59,14 @@ impl GroupService {
         let now = chrono::Utc::now();
         group.updated_at = now;
         
-        // Validate that all services in sequence exist
-        for binding in &group.base.service_bindings {
-            if self.service_service.get_service(&binding.service_id).await?.is_none() {
-                return Err(anyhow::anyhow!("Host with id '{}' not found", &binding.service_id));
-            }
-        }
-
-        // Get old group to compare host sequences
+        // Get old group to compare services
         let old_group = self.get_group(&group.id).await?
             .ok_or_else(|| anyhow::anyhow!("Group not found"))?;
 
         self.group_storage.update(&group).await?;
 
         // Update group references
-        // Remove group from services no longer in sequence
+        // Remove group from services no longer in group
         for old_binding in &old_group.base.service_bindings {
             if !group.base.service_bindings.contains(old_binding) {
                 if let Some(mut service) = self.service_service.get_service(&old_binding.service_id).await? {

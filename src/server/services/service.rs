@@ -32,25 +32,56 @@ impl ServiceService {
     }
 
     pub async fn create_service(&self, service: Service) -> Result<Service> {
+        let host_service = self.host_service.get().ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
         let existing_services = self.get_services_for_host(&service.base.host_id).await?;
-        
-        // Check if a similar service already exists
-        let duplicate = existing_services.into_iter().find(|existing| *existing == service);
-        
-        match duplicate {
+        let all_hosts = host_service.get_all_hosts().await?;
+                
+        let service_from_storage = match existing_services.into_iter().find(|existing: &Service| {
+            if let (Some(existing_service_host), Some(new_service_host)) = (all_hosts.iter().find(|h| h.id == existing.id), all_hosts.iter().find(|h| h.id == service.id)) {
+                let port_match = new_service_host.base.ports.iter().any(|p| existing_service_host.base.ports.contains(p));
+                let definition_match = service.base.service_definition == existing.base.service_definition;
+                return port_match && definition_match
+            }
+            false
+        }) {
             Some(existing_service) => {
-                tracing::info!("Service {} already exists for host {}, skipping creation", 
-                    service.base.service_definition.name(), service.base.host_id);
-                Ok(existing_service.clone())
+                tracing::warn!("Duplicate service for {}: {} found, {}: {} - upserting discovery data...", service.base.name, service.id, existing_service.base.name, existing_service.id);
+                self.upsert_service(existing_service, service).await?
             }
             None => {
                 self.storage.create(&service).await?;
                 self.create_subnet_service_relationships(&service).await?;
                 tracing::info!("Created service {} for host {}", 
                     service.base.service_definition.name(), service.base.host_id);
-                Ok(service)
+                service
+            }
+        };
+
+        Ok(service_from_storage)
+    }
+
+    pub async fn upsert_service(&self, mut existing_service: Service, new_service: Service) -> Result<Service> {
+        for new_service_binding in new_service.base.interface_bindings {
+            if !existing_service.base.interface_bindings.contains(&new_service_binding) {
+                existing_service.base.interface_bindings.push(new_service_binding);
             }
         }
+
+        for new_service_group in new_service.base.groups {
+            if !existing_service.base.groups.contains(&new_service_group) {
+                existing_service.base.groups.push(new_service_group)
+            }
+        }
+
+        for new_service_port in new_service.base.port_bindings {
+            if !existing_service.base.port_bindings.contains(&new_service_port) {
+                existing_service.base.port_bindings.push(new_service_port)
+            }
+        }
+
+        self.storage.update(&existing_service).await?;
+        tracing::info!("Upserted service {}: {} with new data", existing_service.base.name, existing_service.id);
+        Ok(existing_service)
     }
 
     pub async fn get_service(&self, id: &Uuid) -> Result<Option<Service>> {
@@ -137,7 +168,7 @@ impl ServiceService {
     
         // Remove service from all groups that contain it
         for mut group in all_groups {
-            if group.base.service_bindings.iter().any(|sb| sb.service_id == *id) {
+            if group.base.service_bindings.iter().any(|sb| service.id == sb.service_id) {
                 group.base.service_bindings.retain(|sb| sb.service_id != *id);
                 group.updated_at = chrono::Utc::now();
                 group_service.update_group(group).await?;

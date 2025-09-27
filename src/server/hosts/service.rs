@@ -85,9 +85,9 @@ impl HostService {
         }
 
         // Merge open ports - add any new ports not already present
-        for new_port in new_host.base.open_ports {
-            if !existing_host.base.open_ports.iter().any(|existing| *existing == new_port) {
-                existing_host.base.open_ports.push(new_port);
+        for new_port in new_host.base.ports {
+            if !existing_host.base.ports.iter().any(|existing| *existing == new_port) {
+                existing_host.base.ports.push(new_port);
             }
         }
 

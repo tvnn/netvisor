@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use uuid::Uuid;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::ports::{Port};
+use crate::server::hosts::types::ports::{Port, PortBase};
 use crate::server::services::types::types::ServiceDefinitionExt;
 use crate::server::services::types::types::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::subnets::types::base::{Subnet};
@@ -16,7 +16,7 @@ pub struct ServiceBase {
     pub host_id: Uuid,
     pub service_definition: Box<dyn ServiceDefinition>,
     pub name: String,
-    pub ports: Vec<Port>,
+    pub port_bindings: Vec<Uuid>,
     pub interface_bindings: Vec<Uuid>,
     pub groups: Vec<Uuid>
 }
@@ -27,27 +27,20 @@ impl Default for ServiceBase {
             host_id: Uuid::nil(),
             service_definition: Box::new(DefaultServiceDefinition),
             name: String::new(),
-            ports: Vec::new(),
+            port_bindings: Vec::new(),
             interface_bindings: Vec::new(),
             groups: Vec::new()
         }
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
 pub struct Service {
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     #[serde(flatten)]
     pub base: ServiceBase,
-}
-
-impl PartialEq for Service {
-    fn eq(&self, other: &Self) -> bool {
-        self.base.service_definition == other.base.service_definition &&
-        self.base.ports.iter().any(|p| other.base.ports.contains(p))
-    }
 }
 
 impl Service {
@@ -62,12 +55,12 @@ impl Service {
         }
     }
 
-    pub fn all_discovery_ports() -> Vec<Port> {
-        let mut ports: Vec<Port> = ServiceDefinitionRegistry::all_service_definitions().iter()
+    pub fn all_discovery_ports() -> Vec<PortBase> {
+        let mut ports: Vec<PortBase> = ServiceDefinitionRegistry::all_service_definitions().iter()
             .flat_map(|s| s.discovery_ports())
             .collect();
             
-        ports.sort_by_key(|p| (p.number, p.protocol.to_string()));
+        ports.sort_by_key(|p| (p.number(), p.protocol()));
         ports.dedup();
         ports
     }
@@ -77,7 +70,7 @@ impl Service {
             .flat_map(|s| s.discovery_endpoints())
             .collect();
 
-        endpoints.sort_by_key(|e| (e.protocol.to_string(), e.port.number, e.path.clone().unwrap_or("".to_string())) );
+        endpoints.sort_by_key(|e| (e.protocol.to_string(), e.port_base.number(), e.path.clone().unwrap_or("".to_string())) );
         endpoints.dedup();
         endpoints
     }
@@ -85,27 +78,28 @@ impl Service {
     pub fn from_discovery(
         service_definition: Box<dyn ServiceDefinition>, 
         ip: IpAddr, 
-        open_ports: &Vec<Port>, 
+        open_ports: &Vec<PortBase>, 
         endpoint_responses: &Vec<EndpointResponse>, 
         subnet: &Subnet, 
         mac_address: Option<MacAddress>,
         host_id: &Uuid,
         interface_bindings: &Vec<Uuid>,
-        matched_service_definitions: &Vec<Box<dyn ServiceDefinition>>) -> (Option<Self>, Option<Vec<Port>>) {
+        matched_service_definitions: &Vec<Box<dyn ServiceDefinition>>) -> (Option<Self>, Vec<Port>) {
 
         if let Ok(result) = service_definition.discovery_pattern().matches(open_ports.clone(), endpoint_responses.clone(), ip, subnet, mac_address, matched_service_definitions) {
 
-            tracing::info!("✅ Service {:?} matched for {} with ports {:?}", service_definition, ip, open_ports);
+            let matched_ports: Vec<Port> = result.into_iter().filter_map(|p| p).collect();
 
-            let ports: Vec<Port> = result.into_iter().filter_map(|p| p).collect();
-            let ports_for_return = ports.clone();
+            tracing::info!("✅ Service {:?} matched for {} with ports {:?}", service_definition, ip, matched_ports);
+
+            let port_bindings: Vec<Uuid> = matched_ports.iter().map(|p| p.id).collect();
             let name = service_definition.name().to_string();
 
-            let service = Service::new(ServiceBase { host_id: *host_id, service_definition, name, ports, interface_bindings: interface_bindings.clone(), groups: Vec::new() });
+            let service = Service::new(ServiceBase { host_id: *host_id, service_definition, name, port_bindings, interface_bindings: interface_bindings.clone(), groups: Vec::new() });
             
-            return (Some(service), Some(ports_for_return))
+            return (Some(service), matched_ports)
         } else {
-            return (None, None)
+            return (None, Vec::new())
         }
     }
 }

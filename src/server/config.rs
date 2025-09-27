@@ -77,6 +77,10 @@ impl ServerConfig {
             std::fs::create_dir_all(parent)?;
         }
 
+        if !config.database_path.exists() {
+            std::fs::File::create(&config.database_path)?;
+        }
+
         Ok(config)
     }
 

@@ -13,12 +13,12 @@ use tokio::net::{TcpStream};
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
-use crate::server::interfaces::types::base::{Interface, InterfaceBase};
+use crate::server::hosts::types::interfaces::{Interface, InterfaceBase};
 use crate::server::subnets::types::base::{Subnet};
 use crate::daemon::utils::udp::{send_udp_probe, test_dhcp_service, test_dns_service, test_ntp_service, test_snmp_service};
 use crate::server::services::types::base::Service;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::ports::{Port, TransportProtocol};
+use crate::server::hosts::types::ports::{PortBase, TransportProtocol};
 use crate::server::utils::base::NetworkUtils;
 
 const SCAN_TIMEOUT: Duration = Duration::from_millis(800);
@@ -97,7 +97,7 @@ pub trait DaemonUtils: NetworkUtils {
         Ok((interfaces_list, subnets))
     }
 
-    async fn scan_ports_and_endpoints(&self, ip: IpAddr, cancel: CancellationToken) -> Result<(Vec<Port>, Vec<EndpointResponse>), Error> {
+    async fn scan_ports_and_endpoints(&self, ip: IpAddr, cancel: CancellationToken) -> Result<(Vec<PortBase>, Vec<EndpointResponse>), Error> {
         if cancel.is_cancelled() {
             return Err(anyhow!("Operation cancelled"));
         }
@@ -130,11 +130,10 @@ pub trait DaemonUtils: NetworkUtils {
         Ok((open_ports, endpoint_responses))
     }
 
-    async fn scan_tcp_ports(&self, ip: IpAddr, cancel: CancellationToken) -> Result<Vec<Port>, Error> {
+    async fn scan_tcp_ports(&self, ip: IpAddr, cancel: CancellationToken) -> Result<Vec<PortBase>, Error> {
         let discovery_ports = Service::all_discovery_ports();
-        let ports: Vec<u16> = discovery_ports.iter().filter_map(|p| (p.protocol == TransportProtocol::Tcp).then(|| p.number)).collect();
-        
-        let mut open_ports = Vec::new();
+        let ports: Vec<u16> = discovery_ports.iter().filter_map(|p| (p.protocol() == TransportProtocol::Tcp).then(|| p.number())).collect();
+        let mut open_ports = Vec::new();    
         
         for port in ports {
             if cancel.is_cancelled() {
@@ -143,7 +142,7 @@ pub trait DaemonUtils: NetworkUtils {
             
             match timeout(SCAN_TIMEOUT, TcpStream::connect((ip, port))).await {
                 Ok(Ok(_)) => {
-                    open_ports.push(Port::new_tcp(port));
+                    open_ports.push(PortBase::new_tcp(port));
                     tracing::debug!("Found open TCP port {}:{}", ip, port);
                 },
                 _ => {} // Port closed or timeout
@@ -153,9 +152,9 @@ pub trait DaemonUtils: NetworkUtils {
         Ok(open_ports)
     }
 
-    async fn scan_udp_ports(&self, ip: IpAddr, cancel: CancellationToken) -> Result<Vec<Port>, Error> {
+    async fn scan_udp_ports(&self, ip: IpAddr, cancel: CancellationToken) -> Result<Vec<PortBase>, Error> {
         let discovery_ports = Service::all_discovery_ports();
-        let ports: Vec<u16> = discovery_ports.iter().filter_map(|p| (p.protocol == TransportProtocol::Udp).then(|| p.number)).collect();
+        let ports: Vec<u16> = discovery_ports.iter().filter_map(|p| (p.protocol() == TransportProtocol::Udp).then(|| p.number())).collect();
         
         let mut open_ports = Vec::new();
         
@@ -173,7 +172,7 @@ pub trait DaemonUtils: NetworkUtils {
             };
             
             if let Ok(Some(detected_port)) = result {
-                open_ports.push(Port::new_udp(detected_port));
+                open_ports.push(PortBase::new_udp(detected_port));
                 tracing::debug!("Found open UDP port {}:{}", ip, detected_port);
             }
         }

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS hosts (
     target TEXT NOT NULL,
     interfaces TEXT,
     services TEXT,
-    open_ports TEXT,
+    ports TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS services (
     name TEXT NOT NULL,
     host_id BLOB NOT NULL,
     groups TEXT,
-    ports TEXT NOT NULL,
+    port_bindings TEXT NOT NULL,
     interface_bindings TEXT NOT NULL,
     service_definition TEXT NOT NULL,
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE

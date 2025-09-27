@@ -4,3 +4,4 @@
 netvisor.db
 migrations/
 .sqlx/
+.vscode

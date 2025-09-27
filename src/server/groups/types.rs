@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use crate::server::shared::types::api::deserialize_empty_string_as_none;
+use crate::server::{hosts::types::targets::ServiceBinding, shared::types::api::deserialize_empty_string_as_none};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupBase {
@@ -9,18 +9,6 @@ pub struct GroupBase {
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
     pub service_bindings: Vec<ServiceBinding>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ServiceBinding {
-    pub service_id: Uuid,
-    pub interface_id: Uuid
-}
-
-impl PartialEq for ServiceBinding {
-    fn eq(&self, other: &Self) -> bool {
-        self.interface_id == other.interface_id && self.service_id == other.service_id
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

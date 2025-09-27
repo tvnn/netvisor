@@ -4,19 +4,18 @@ use anyhow::Error;
 use mac_address::MacAddress;
 use mac_oui::Oui;
 
-use crate::server::{services::types::{endpoints::{ApplicationProtocol, Endpoint, EndpointResponse}, ports::Port, types::ServiceDefinition}, subnets::types::base::{Subnet, SubnetType}};
+use crate::server::{hosts::types::ports::{Port, PortBase}, services::types::{endpoints::{Endpoint, EndpointResponse}, types::ServiceDefinition}, subnets::types::base::{Subnet, SubnetType}};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pattern {
-    Port(Port),                 // Whether or not a specific port matches
+    Port(PortBase),                 // Whether or not a specific port matches
     Endpoint(EndpointResponse),         // Whether or not a specific endpoint matches
     AnyOf(Vec<Pattern>),        // Match any of the listed patterns
     AllOf(Vec<Pattern>),        // Must match all of the listed patterns
-    AnyPort(Vec<Port>),         // Match if at least one port is open
-    AllPort(Vec<Port>),           // Match if ALL of these ports are open
+    AnyPort(Vec<PortBase>),         // Match if at least one port is open
+    AllPort(Vec<PortBase>),           // Match if ALL of these ports are open
     AnyEndpoints(Vec<EndpointResponse>), // Match if at least one endpoint response contains the response string
     WebService(&'static str, &'static str), // Match on a string response from a path on endpoints using standard HTTP/HTTPS ports
-    CustomPortWebService(u16, &'static str, &'static str), // Match on a string response from a path on endpoints using a custom port
     SubnetIsType(SubnetType),
     SubnetIsNotType(SubnetType),
     IsGatewayIp,
@@ -28,12 +27,6 @@ pub enum Pattern {
     AnyMatchedService(fn(&Box<dyn ServiceDefinition>) -> bool),
     AllMatchedService(fn(&Box<dyn ServiceDefinition>) -> bool),
     None,
-}
-
-fn custom_port_web_service_endpoints(ip: Option<IpAddr>, port: &u16, path: &&str, resp: &&str) -> Vec<EndpointResponse> {
-    vec!{
-        EndpointResponse{ endpoint: Endpoint{ ip, protocol: ApplicationProtocol::Http, port: Port::new_tcp(*port), path: Some(path.to_string())}, response: resp.to_string()}
-    }
 }
 
 fn web_service_endpoint_responses(ip: Option<IpAddr>, path: &&str, resp: &&str) -> Vec<EndpointResponse> {
@@ -58,32 +51,31 @@ impl Vendor {
 impl Pattern {
     pub fn matches(
         &self, 
-        open_ports: Vec<Port>, 
+        open_ports: Vec<PortBase>, 
         responses: Vec<EndpointResponse>, 
         ip: IpAddr, 
         subnet: &Subnet, 
         mac_address: Option<MacAddress>,
-        matched_service_definitions: &Vec<Box<dyn ServiceDefinition>>) -> Result<Vec<Option<Port>>, Error> {
+        matched_service_definitions: &Vec<Box<dyn ServiceDefinition>>) -> Result<Vec<Option<Port>>, Error> { // Return ports that matched if any
 
         let no_match = Err(Error::msg("No match"));
 
         match self {
-            Pattern::Port(port) => {
-                if open_ports.contains(port) {
-                    Ok(vec![Some(port.clone())])
+            Pattern::Port(port_base) => {
+                if let Some(matched_port) = open_ports.iter().find(|p| **p == *port_base) {
+                    Ok(vec![Some(Port::new(matched_port.clone()))])
                 } else {
                     no_match
                 }
             },
 
             Pattern::Endpoint(expected) => {
-                if responses.iter().any(|actual| {
-                    let resolved_expected_endpoint = if !expected.endpoint.is_resolved() {expected.endpoint.use_ip(ip)} else {expected.endpoint.clone()};
-                    let resolved_actual_endpoint = if !actual.endpoint.is_resolved() {actual.endpoint.use_ip(ip)} else {actual.endpoint.clone()};
-
-                    resolved_actual_endpoint == resolved_expected_endpoint && actual.response.contains(&expected.response)
+                // At matching time, both endpoints are resolved
+                if let Some(actual) = responses.iter().find(|actual| {
+                    actual.endpoint == expected.endpoint && 
+                    actual.response.contains(&expected.response)
                 }) {
-                    Ok(vec![Some(expected.endpoint.port.clone())])
+                    Ok(vec![Some(Port::new(actual.endpoint.port_base.clone()))])
                 } else {
                     no_match
                 }
@@ -160,10 +152,10 @@ impl Pattern {
                 }
             },
 
-            Pattern::AnyPort(ports) => {
-                let matched_ports: Vec<_> = ports.iter()
-                    .filter(|p| open_ports.contains(p))
-                    .map(|p| Some(p.clone()))
+            Pattern::AnyPort(port_bases) => {
+                let matched_ports: Vec<Option<Port>> = open_ports.into_iter()
+                    .filter(|p| port_bases.contains(&p))
+                    .map(|p| Some(Port::new(p)))
                     .collect();
                 
                 if matched_ports.is_empty() {
@@ -173,13 +165,13 @@ impl Pattern {
                 }
             },
 
-            Pattern::AllPort(ports) => {
-                let matched_ports: Vec<_> = ports.iter()
-                    .filter(|p| open_ports.contains(p))
-                    .map(|p| Some(p.clone()))
+            Pattern::AllPort(port_bases) => {
+                let matched_ports: Vec<Option<Port>> = open_ports.into_iter()
+                    .filter(|p| port_bases.contains(&p))
+                    .map(|p| Some(Port::new(p)))
                     .collect();
                 
-                if matched_ports.len() == ports.len() {
+                if matched_ports.len() == port_bases.len() {
                     Ok(matched_ports)
                 } else {
                     no_match
@@ -187,7 +179,7 @@ impl Pattern {
             },
 
             Pattern::AnyEndpoints(endpoint_responses) => {
-                let matched_responses: Vec<_> = endpoint_responses.iter()
+                let matched_responses: Vec<Option<Port>> = endpoint_responses.iter()
                     .filter_map(|expected| {
                         match Pattern::Endpoint(expected.clone()).matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions) {
                             Ok(result) => Some(result),
@@ -206,11 +198,6 @@ impl Pattern {
 
             Pattern::WebService(path, resp) => {
                 let endpoints = web_service_endpoint_responses(Some(ip), path, resp);
-                Pattern::AnyEndpoints(endpoints).matches(open_ports, responses, ip, subnet, mac_address, matched_service_definitions)
-            },
-
-            Pattern::CustomPortWebService(port, path, resp) => {
-                let endpoints = custom_port_web_service_endpoints(Some(ip), port, path, resp);
                 Pattern::AnyEndpoints(endpoints).matches(open_ports, responses, ip, subnet, mac_address, matched_service_definitions)
             },
 
@@ -272,11 +259,13 @@ impl Pattern {
         }
     }
 
-    pub fn ports(&self) -> Vec<Port> {
+    pub fn ports(&self) -> Vec<PortBase> {
         match self {
             Pattern::Port(port) => vec!(port.clone()),
-            Pattern::AnyPort(ports) => ports.to_vec(),
-            Pattern::AllPort(ports) => ports.to_vec(),
+            Pattern::Endpoint(response) => vec!(response.endpoint.port_base.clone()),
+            Pattern::AnyEndpoints(responses) => responses.iter().map(|r| r.endpoint.port_base.clone()).collect(),
+            Pattern::AnyPort(ports) => ports.clone(),
+            Pattern::AllPort(ports) => ports.clone(),
             Pattern::AnyOf(patterns) => patterns.iter().flat_map(|p| p.ports().to_vec()).collect(),
             Pattern::AllOf(patterns) => patterns.iter().flat_map(|p| p.ports().to_vec()).collect(),
             _ => vec!()
@@ -288,7 +277,6 @@ impl Pattern {
             Pattern::Endpoint(endpoint_response) => vec!(endpoint_response.endpoint.clone()),
             Pattern::AnyEndpoints(endpoint_response) => endpoint_response.iter().map(|er| er.endpoint.clone()).collect(),
             Pattern::WebService(path, resp) => web_service_endpoint_responses(None, path, resp).iter().map(|er| er.endpoint.clone()).collect(),
-            Pattern::CustomPortWebService(port, path, resp) => custom_port_web_service_endpoints(None, port, path, resp).iter().map(|er|er.endpoint.clone()).collect(),
             Pattern::AnyOf(patterns) => patterns.iter().flat_map(|p| p.endpoints().to_vec()).collect(),
             Pattern::AllOf(patterns) => patterns.iter().flat_map(|p| p.endpoints().to_vec()).collect(),
             _ => vec!()

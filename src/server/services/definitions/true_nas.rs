@@ -1,6 +1,6 @@
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::patterns::Pattern;
-use crate::server::services::types::ports::Port;
+use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::types::types::ServiceDefinition;
 use crate::server::services::types::categories::ServiceCategory;
 
@@ -13,7 +13,7 @@ impl ServiceDefinition for TrueNAS {
     fn category(&self) -> ServiceCategory { ServiceCategory::Storage }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::AllOf(vec!(Pattern::AllPort(vec!(Port::SAMBA)), Pattern::WebService("/", "TrueNAS")))
+        Pattern::AllOf(vec!(Pattern::AllPort(vec!(PortBase::Samba)), Pattern::WebService("/", "TrueNAS")))
     }
 }
 

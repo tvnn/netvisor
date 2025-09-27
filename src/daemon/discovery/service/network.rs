@@ -2,7 +2,7 @@ use std::{net::IpAddr, sync::Arc};
 use anyhow::{Error, Result};
 use cidr::{IpCidr};
 use chrono::{DateTime, Utc};
-use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{interfaces::types::base::{Interface, InterfaceBase}, services::{definitions::{vpn_gateway::VpnGateway, web_dashboard::WebDashboard, ServiceDefinitionRegistry}, types::types::{ServiceDefinition}}, shared::types::metadata::HasId}};
+use crate::{daemon::discovery::service::base::DaemonDiscoveryService, server::{hosts::types::{interfaces::{Interface, InterfaceBase}, ports::{Port, PortBase, TransportProtocol}, targets::ServiceBinding}, services::{definitions::{vpn_gateway::VpnGateway, ServiceDefinitionRegistry}, types::types::ServiceDefinition}, shared::types::metadata::HasId}};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 use futures::{future::{try_join_all}, stream::{self, StreamExt}};
@@ -13,7 +13,7 @@ use crate::{
     server::{
         daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate}, hosts::types::{
             base::{Host, HostBase}, targets::{HostTarget}
-        }, services::types::{base::{Service}, endpoints::EndpointResponse, ports::Port}, subnets::types::base::{Subnet, SubnetType}
+        }, services::types::{base::{Service}, endpoints::EndpointResponse}, subnets::types::base::{Subnet, SubnetType}
     },
 };
 
@@ -228,7 +228,7 @@ impl DaemonDiscoveryService {
         ip: IpAddr, 
         scanned_count: Arc<std::sync::atomic::AtomicUsize>,
         cancel: CancellationToken
-    ) -> Result<Option<(Vec<Port>, Vec<EndpointResponse>)>> {
+    ) -> Result<Option<(Vec<PortBase>, Vec<EndpointResponse>)>> {
 
         // Check cancellation at the start
         if cancel.is_cancelled() {
@@ -276,7 +276,7 @@ impl DaemonDiscoveryService {
         &self,
         host_ip: IpAddr,
         subnet: Subnet,
-        open_ports: Vec<Port>,
+        open_ports: Vec<PortBase>,
         endpoint_responses: Vec<EndpointResponse>,
     ) -> Result<Option<(Host, Vec<Service>)>, Error> {
         
@@ -284,8 +284,8 @@ impl DaemonDiscoveryService {
             return Ok(None); // Skip hosts with no interesting services
         }
 
-        // Gather host information
         let hostname = self.utils.get_hostname_for_ip(host_ip).await?;
+
         let mac = match subnet.base.subnet_type {
             SubnetType::VpnTunnel => None, // ARP doesn't work through VPN tunnels
             _ => self.utils.get_mac_address_for_ip(host_ip).await?
@@ -302,17 +302,21 @@ impl DaemonDiscoveryService {
 
         let interfaces = vec!(interface);
         let interface_bindings = vec!(interface_id);
-        let target = HostTarget::Interface(interface_id);
+
+        let (name, target) = match hostname.clone() {
+            Some(hostname) => (hostname, HostTarget::Hostname),
+            None => (host_ip.to_string(), HostTarget::None)
+        };
 
         // Create host
         let mut host = Host::new(HostBase {
-            name: hostname.clone().unwrap_or_else(|| host_ip.to_string()),
+            name,
             hostname,
             target,
             description: Some("Discovered device".to_string()),
             interfaces,
             services: Vec::new(),
-            open_ports: Vec::new(),
+            ports: Vec::new(),
         });
 
         let mut services = Vec::new();
@@ -327,32 +331,39 @@ impl DaemonDiscoveryService {
                 0  // Highest priority - non-generic services
             } else if s.id() == VpnGateway.id() {
                 1 // Needs to go before non-VPN gateways, otherwise will likely be classified as non-VPN gateway
-            } else if s.is_dns_resolver() || s.is_gateway() || s.is_reverse_proxy() {
+            } else if s.is_infra_service() {
                 2 // Infra services
-            } else if s.id() == WebDashboard.id() {
-                3 // Needs to go before other generic services so it can use other service definitions in pattern
             } else {
-                4  // Lowest priority - non-infra generic services last
+                3  // Lowest priority - non-infra generic services last
             }
         });
 
         // Add services from detected ports
         for service_definition in sorted_service_definitions {
-            if let (Some(service), Some(service_ports)) = Service::from_discovery(service_definition, host_ip, &unclaimed_ports, &endpoint_responses, &subnet, mac, &host.id, &interface_bindings, &matched_service_definitions) {
+            if let (Some(service), mut matched_ports) = Service::from_discovery(service_definition, host_ip, &unclaimed_ports, &endpoint_responses, &subnet, mac, &host.id, &interface_bindings, &matched_service_definitions) {
                 if !service.base.service_definition.is_generic() {
                     host.base.name = service.base.service_definition.name().to_string();
                 }
 
+                if let (Some(port), Some(interface_id), true) = (matched_ports.iter().find(|p| p.base.protocol() == TransportProtocol::Tcp), service.base.interface_bindings.first(), matches!(host.base.target, HostTarget::Hostname | HostTarget::None)) {
+                    host.base.target = HostTarget::ServiceBinding(ServiceBinding {port_id: port.id, interface_id: *interface_id, service_id: service.id  })
+                }   
+ 
+                // Add any matched ports to host ports array, remove from unclaimed ports
+                let matched_port_bases: Vec<PortBase> = matched_ports.iter().map(|p| p.base.clone()).collect();
+                unclaimed_ports.retain(|p| !matched_port_bases.contains(p));
+                host.base.ports.append(&mut matched_ports);
+
+                // Add new service
                 matched_service_definitions.push(service.base.service_definition.clone());
-                unclaimed_ports.retain(|p| !service_ports.contains(p));
                 host.add_service(service.id);
                 services.push(service);
             }
         };
 
-        host.base.open_ports = unclaimed_ports;
+        host.base.ports.extend(unclaimed_ports.into_iter().map(|p| Port::new(p)));
         
-        tracing::info!("Processed host for host {} with {} open ports", host_ip, open_ports.len());
+        tracing::info!("Processed host for host {}", host_ip);
         Ok(Some((host, services)))
     }
 

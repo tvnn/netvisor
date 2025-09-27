@@ -1,9 +1,10 @@
 use sqlx::SqlitePool;
 use anyhow::Result;
 
-use crate::server::{hosts::storage::SqliteHostStorage, services::storage::{ServiceStorage, SqliteServiceStorage}};
+use crate::server::{hosts::storage::SqliteHostStorage, services::storage::{ServiceStorage, SqliteServiceStorage}, shared::storage::seed_data::create_wan_subnet, subnets::storage::SqliteSubnetStorage};
 use super::seed_data::{create_internet_connectivity_host, create_public_dns_host};
 use crate::server::hosts::storage::HostStorage;
+use crate::server::subnets::storage::SubnetStorage;
 pub struct DatabaseMigrations;
 
 impl DatabaseMigrations {
@@ -43,15 +44,23 @@ impl DatabaseMigrations {
         tracing::info!("Seeding default data...");
         
         // Use actual compiled structs
-        let (dns_host, dns_service) = create_public_dns_host();
-        let connectivity_host = create_internet_connectivity_host();
+        let mut wan_subnet = create_wan_subnet();
+        let (dns_host, dns_service) = create_public_dns_host(&wan_subnet);
+        let (web_host, web_service) = create_internet_connectivity_host(&wan_subnet);
+
+        wan_subnet.create_host_relationship(&dns_host);
+        wan_subnet.create_host_relationship(&web_host);
+        wan_subnet.create_service_relationships(&dns_service, &dns_host);
 
         let host_storage = SqliteHostStorage::new(pool.clone());
         let service_storage = SqliteServiceStorage::new(pool.clone());
+        let subnet_storage = SqliteSubnetStorage::new(pool.clone());
         
+        subnet_storage.create(&wan_subnet).await?;
         host_storage.create(&dns_host).await?;
-        host_storage.create(&connectivity_host).await?;
+        host_storage.create(&web_host).await?;
         service_storage.create(&dns_service).await?;
+        service_storage.create(&web_service).await?;
 
         
         tracing::info!("Default hosts seeded successfully");

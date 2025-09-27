@@ -8,4 +8,3 @@ pub mod subnets;
 pub mod utils;
 pub mod groups;
 pub mod topology;
-pub mod interfaces;

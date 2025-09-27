@@ -1,6 +1,6 @@
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::patterns::{Pattern, Vendor};
-use crate::server::services::types::ports::Port;
+use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::types::types::ServiceDefinition;
 use crate::server::services::types::categories::ServiceCategory;
 
@@ -15,7 +15,7 @@ impl ServiceDefinition for HpPrinter {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(
             Pattern::MacVendor(Vendor::HP), 
-            Pattern::AnyPort(vec![Port::IPP, Port::LDP_UDP, Port::LDP_TCP])
+            Pattern::AnyPort(vec![PortBase::Ipp, PortBase::LdpTcp, PortBase::LdpUdp])
         ))
     }
 }

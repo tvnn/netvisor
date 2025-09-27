@@ -1,7 +1,7 @@
 use mac_address::{MacAddress};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use crate::server::{hosts::types::targets::HostTarget, interfaces::types::base::Interface, services::types::{ports::Port}};
+use crate::server::{hosts::types::{interfaces::Interface, targets::HostTarget}, hosts::types::ports::Port};
 use uuid::{Uuid};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
@@ -12,7 +12,7 @@ pub struct HostBase {
     pub target: HostTarget,
     pub interfaces: Vec<Interface>,
     pub services: Vec<Uuid>,
-    pub open_ports: Vec<Port>,
+    pub ports: Vec<Port>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]

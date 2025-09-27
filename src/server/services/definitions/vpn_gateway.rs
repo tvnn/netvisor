@@ -1,6 +1,6 @@
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::patterns::Pattern;
-use crate::server::services::types::ports::Port;
+use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::types::types::ServiceDefinition;
 use crate::server::services::types::categories::ServiceCategory;
 
@@ -15,7 +15,7 @@ impl ServiceDefinition for VpnGateway {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec!(
             Pattern::IsVpnSubnetGateway,
-            Pattern::AnyPort(vec!(Port::SSH, Port::HTTP, Port::HTTPS))
+            Pattern::AnyPort(vec!(PortBase::Ssh, PortBase::Http, PortBase::Https))
         ))
     }
 

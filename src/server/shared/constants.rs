@@ -7,12 +7,13 @@ use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId};
 pub enum Entity {
     Host,
     Service,
+    Port,
     Interface,
+
     Subnet,
     Group,
     Topology,
 
-    Media,
     Dns,
     Vpn,
     Gateway,
@@ -31,11 +32,11 @@ impl EntityMetadataProvider for Entity {
             Entity::Host => "blue",
             Entity::Service => "indigo",
             Entity::Interface => "purple",
+            Entity::Port => "purple",
 
-            Entity::Media => "teal",
             Entity::Dns => "emerald",
             Entity::Vpn => "green",
-            Entity::Gateway => "yellow",
+            Entity::Gateway => "teal",
             Entity::ReverseProxy => "cyan",
 
             Entity::Subnet => "orange",
@@ -48,10 +49,10 @@ impl EntityMetadataProvider for Entity {
         match self {
             Entity::Host => "Server",
             Entity::Service => "Layers",
-            Entity::Interface => "EthernetPort",
-            Entity::Media => "Music",
+            Entity::Interface => "Binary",
             Entity::Dns => "Search",
             Entity::Vpn => "VenetianMask",
+            Entity::Port => "EthernetPort",
             Entity::Gateway => "Router",
             Entity::ReverseProxy => "Split",
             Entity::Subnet => "Network",

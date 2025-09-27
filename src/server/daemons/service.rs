@@ -8,7 +8,7 @@ use crate::server::{daemons::{
                 DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse
             }, base::Daemon
         }
-    }, services::types::{endpoints::{ApplicationProtocol, Endpoint}, ports::Port}, shared::types::api::ApiResponse};
+    }, hosts::types::ports::PortBase, services::types::endpoints::{ApplicationProtocol, Endpoint}, shared::types::api::ApiResponse};
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
@@ -51,7 +51,7 @@ impl DaemonService {
         
         let endpoint = Endpoint {
             ip: Some(daemon.base.ip),
-            port: Port::new_tcp(daemon.base.port),
+            port_base: PortBase::new_tcp(daemon.base.port),
             protocol: ApplicationProtocol::Http,
             path: None
         };
@@ -80,7 +80,7 @@ impl DaemonService {
 
         let endpoint = Endpoint {
             ip: Some(daemon.base.ip),
-            port: Port::new_tcp(daemon.base.port),
+            port_base: PortBase::new_tcp(daemon.base.port),
             protocol: ApplicationProtocol::Http,
             path: None
         };

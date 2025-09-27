@@ -1,7 +1,10 @@
-use std::{net::{IpAddr}};
+use std::net::{IpAddr, Ipv4Addr};
 use mac_address::{MacAddress};
+use rand::{Rng};
 use serde::{Deserialize, Serialize};
 use uuid::{Uuid};
+
+use crate::server::subnets::types::base::Subnet;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct InterfaceBase {
@@ -9,6 +12,20 @@ pub struct InterfaceBase {
     pub ip_address: IpAddr,
     pub mac_address: Option<MacAddress>,
     pub name: Option<String>,
+}
+
+impl InterfaceBase {
+    pub fn new_internet(internet_subnet: &Subnet) -> Self {
+
+        let ip_address = IpAddr::V4(Ipv4Addr::new(203, 0, 113, rand::rng().random_range(1..255)));
+
+        Self {
+            subnet_id: internet_subnet.id,
+            ip_address,
+            mac_address: None,
+            name: Some("Internet".to_string()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]

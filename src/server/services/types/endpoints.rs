@@ -2,7 +2,7 @@ use std::{fmt::{Display}, net::IpAddr};
 use serde::{Deserialize, Serialize};
 use strum::{IntoDiscriminant};
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
-use crate::server::services::types::ports::{Port};
+use crate::server::hosts::types::ports::{PortBase};
 
 #[derive(Debug, Clone, Default, Display, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
@@ -12,11 +12,11 @@ pub enum ApplicationProtocol {
     Https
 }
 
-#[derive(Debug, Clone, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, Hash)]
 pub struct Endpoint {
     pub protocol: ApplicationProtocol,
     pub ip: Option<IpAddr>,
-    pub port: Port,
+    pub port_base: PortBase,
     pub path: Option<String>,
 }
 
@@ -36,29 +36,29 @@ impl Endpoint {
         Self {
             protocol: self.protocol.clone(),
             ip: Some(ip),
-            port: self.port.clone(),
+            port_base: self.port_base.clone(),
             path: self.path.clone()
         }
     }
 
     pub fn http(ip: Option<IpAddr>, path: &str) -> Self {
-        Endpoint { protocol: ApplicationProtocol::Http, port: Port::HTTP, ip: ip.clone(), path: Some(path.to_string())}
+        Endpoint { protocol: ApplicationProtocol::Http, port_base: PortBase::Http, ip: ip.clone(), path: Some(path.to_string())}
     }
 
     pub fn https(ip: Option<IpAddr>, path: &str) -> Self {
-        Endpoint { protocol: ApplicationProtocol::Https, port: Port::HTTPS, ip: ip.clone(), path: Some(path.to_string())}
+        Endpoint { protocol: ApplicationProtocol::Https, port_base: PortBase::Https, ip: ip.clone(), path: Some(path.to_string())}
     }
 
     pub fn http_alt(ip: Option<IpAddr>, path: &str) -> Self {
-        Endpoint { protocol: ApplicationProtocol::Http, port: Port::HTTPALT, ip: ip.clone(), path: Some(path.to_string())}
+        Endpoint { protocol: ApplicationProtocol::Http, port_base: PortBase::HttpAlt, ip: ip.clone(), path: Some(path.to_string())}
     }
 
     pub fn https_alt(ip: Option<IpAddr>, path: &str) -> Self {
-        Endpoint { protocol: ApplicationProtocol::Https, port: Port::HTTPSALT, ip: ip.clone(), path: Some(path.to_string())}
+        Endpoint { protocol: ApplicationProtocol::Https, port_base: PortBase::HttpsAlt, ip: ip.clone(), path: Some(path.to_string())}
     }
 
-    pub fn from_refs(ip: Option<IpAddr>, protocol: &ApplicationProtocol, port: &Port, path: &Option<String>) -> Self {
-        Endpoint { protocol: protocol.clone(), ip: ip.clone(), port: port.clone(), path: path.clone()}
+    pub fn from_refs(ip: Option<IpAddr>, protocol: &ApplicationProtocol, port_base: &PortBase, path: &Option<String>) -> Self {
+        Endpoint { protocol: protocol.clone(), ip: ip.clone(), port_base: port_base.clone(), path: path.clone()}
     }
 }
 
@@ -69,7 +69,7 @@ impl Display for Endpoint {
                 write!(f, "{}://{}:{}{}", 
                     self.protocol.discriminant().to_string().to_lowercase(), 
                     ip,
-                    self.port.number,
+                    self.port_base.number(),
                     self.path.as_deref().unwrap_or("")
                 )
             }
@@ -82,7 +82,7 @@ impl PartialEq for Endpoint {
     fn eq(&self, other: &Self) -> bool {
         self.protocol == other.protocol && 
         self.ip == other.ip && 
-        self.port.number == other.port.number && 
+        self.port_base.number() == other.port_base.number() && 
         self.path == other.path
     }
 }

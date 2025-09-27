@@ -38,6 +38,7 @@ pub enum ServiceCategory {
     
     // Special
     Unknown,
+    Custom,
     Netvisor,
 }
 
@@ -83,6 +84,7 @@ impl EntityMetadataProvider for ServiceCategory {
             
             // Unknown
             ServiceCategory::Netvisor => "Zap",
+            ServiceCategory::Custom => "Sparkle",
             ServiceCategory::Unknown => "CircleQuestionMark",
         }
     }
@@ -96,7 +98,7 @@ impl EntityMetadataProvider for ServiceCategory {
 
             // Server Services
             ServiceCategory::Storage => "green",
-            ServiceCategory::Media => Entity::Media.color(),
+            ServiceCategory::Media => "blue",
             ServiceCategory::HomeAutomation => "blue",
             ServiceCategory::Virtualization => "orange",
             ServiceCategory::Backup => "gray",
@@ -122,6 +124,7 @@ impl EntityMetadataProvider for ServiceCategory {
             
             // Unknown
             ServiceCategory::Netvisor => "purple",
+            ServiceCategory::Custom => "rose",
             ServiceCategory::Unknown => "gray",
         }
     }

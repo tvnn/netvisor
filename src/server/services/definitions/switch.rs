@@ -1,6 +1,6 @@
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::patterns::Pattern;
-use crate::server::services::types::ports::Port;
+use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::types::types::ServiceDefinition;
 use crate::server::services::types::categories::ServiceCategory;
 
@@ -15,14 +15,7 @@ impl ServiceDefinition for Switch {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec![
             Pattern::NotGatewayIp,
-            Pattern::AnyOf(vec![
-                // Managed switch with SNMP
-                Pattern::AllPort(vec![Port::SNMP, Port::HTTP]),
-                // SSH-managed switch
-                Pattern::AllPort(vec![Port::SSH, Port::HTTP]),
-                // Basic web-managed switch
-                Pattern::AllPort(vec![Port::HTTP, Port::TELNET]) // HTTP + Telnet
-            ])
+            Pattern::AllPort(vec![PortBase::Http, PortBase::Telnet])
         ])
     }
 
