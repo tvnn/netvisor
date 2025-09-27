@@ -158,11 +158,10 @@ impl HostService {
         let host = self.get_host(id).await?.ok_or_else(|| anyhow::anyhow!("Host {} not found", id))?;
 
         if !ignore_services {
-            let service_deletion_futures = host.base.services.iter().map(|s| {
-                self.service_service.delete_service(s, false)
-            });
+            for service_id in &host.base.services{
+                self.service_service.delete_service(service_id, false).await?;
 
-            try_join_all(service_deletion_futures).await?;
+            };
         }
         
         self.update_subnet_host_relationships(&host, true).await?;

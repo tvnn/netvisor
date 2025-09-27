@@ -174,11 +174,16 @@ impl TypeMetadataProvider for PortBase {
             PortBase::HttpAlt | PortBase::HttpsAlt
         );
 
+        let number = self.number();
+        let protocol = self.protocol();
+
         let can_be_added = !matches!(self, PortBase::Custom(_));
 
         serde_json::json!({
             "is_management": is_management,
-            "can_be_added": can_be_added
+            "can_be_added": can_be_added,
+            "number": number,
+            "protocol": protocol
         })
     }
 }

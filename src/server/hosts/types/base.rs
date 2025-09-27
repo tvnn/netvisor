@@ -67,6 +67,10 @@ impl Host {
         self.base.interfaces.iter().find(|i| &i.id == interface_id)
     }
 
+    pub fn get_port(&self, port_id: &Uuid) -> Option<&Port> {
+        self.base.ports.iter().find(|p| &p.id == port_id)
+    }
+
     pub fn add_service(&mut self, service_id: Uuid) {        
         self.base.services.push(service_id);
     }

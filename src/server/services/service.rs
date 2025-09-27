@@ -33,11 +33,11 @@ impl ServiceService {
 
     pub async fn create_service(&self, service: Service) -> Result<Service> {
         let host_service = self.host_service.get().ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
-        let existing_services = self.get_services_for_host(&service.base.host_id).await?;
         let all_hosts = host_service.get_all_hosts().await?;
-                
+        let existing_services = self.get_services_for_host(&service.base.host_id).await?;
+        
         let service_from_storage = match existing_services.into_iter().find(|existing: &Service| {
-            if let (Some(existing_service_host), Some(new_service_host)) = (all_hosts.iter().find(|h| h.id == existing.id), all_hosts.iter().find(|h| h.id == service.id)) {
+            if let (Some(existing_service_host), Some(new_service_host)) = (all_hosts.iter().find(|h| h.id == existing.base.host_id), all_hosts.iter().find(|h| h.id == service.base.host_id)) {
                 let port_match = new_service_host.base.ports.iter().any(|p| existing_service_host.base.ports.contains(p));
                 let definition_match = service.base.service_definition == existing.base.service_definition;
                 return port_match && definition_match

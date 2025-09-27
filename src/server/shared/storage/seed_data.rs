@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr};
 use cidr::{Ipv4Cidr};
 
 use crate::server::{
@@ -12,8 +12,7 @@ pub fn create_wan_subnet() -> Subnet {
         name: "Internet".to_string(),
         cidr: cidr::IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(0, 0, 0, 0), 0).expect("Cidr for internet subnet")),
         description: Some("This subnet uses the 0.0.0.0/0 CIDR as an organizational container for \
-       services outside the local network (e.g., public DNS servers, cloud services, etc.). \
-This is not a routing configuration - it's a grouping tool for external service endpoints.".to_string()),
+       services outside the local network (e.g., public DNS servers, cloud services, etc.).".to_string()),
         dns_resolvers: vec!(),
         gateways: vec!(),
         reverse_proxies: vec!(),
@@ -63,9 +62,10 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
 
 pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
 
-    let interface = Interface::new(InterfaceBase::new_internet(internet_subnet));
+    let mut interface = Interface::new(InterfaceBase::new_internet(internet_subnet));
+    interface.base.ip_address = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
     let dns_tcp_port = Port::new(PortBase::DnsTcp);
-    let dns_udp_port = Port::new(PortBase::DnsTcp);
+    let dns_udp_port = Port::new(PortBase::DnsUdp);
     let port_bindings = vec!(dns_tcp_port.id, dns_udp_port.id);
     let interface_bindings = vec!(interface.id);
 

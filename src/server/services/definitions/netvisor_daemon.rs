@@ -13,7 +13,7 @@ impl ServiceDefinition for NetvisorDaemon {
     fn category(&self) -> ServiceCategory { ServiceCategory::Netvisor }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::Port(PortBase::new_tcp(60072))
+        Pattern::Port(PortBase::new_tcp(60073))
     }
 }
 

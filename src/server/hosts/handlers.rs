@@ -34,8 +34,9 @@ async fn create_host(
     // Create host first (handles duplicates via upsert_host)
     let mut created_host = host_service.create_host(request.host.base).await?;
 
-    // Create services, handling case where created_service was upserted from host in request instead of created anew
+    // Create services, handling case where created_service was upserted from host in request instead of created anew and interfaces/ports were overwritten
     let service_futures = request.services.into_iter().map(|mut service| {
+        
         service.base.interface_bindings = service.base.interface_bindings.iter().filter_map(|b| {
             if let Some(original_binding) = request_host.get_interface(b) {
                 return created_host.base.interfaces.iter().find_map(|i| if i == original_binding {Some(i.id)} else {None});
@@ -43,7 +44,17 @@ async fn create_host(
             None
         })
         .collect();
+
+        service.base.port_bindings = service.base.port_bindings.iter().filter_map(|b| {
+            if let Some(original_binding ) = request_host.get_port(b) {
+                return created_host.base.ports.iter().find_map(|p| if p == original_binding {Some(p.id)} else {None});
+            }
+            None
+        })
+        .collect();
+
         service.base.host_id = created_host.id;
+
         service_service.create_service(service)
     });
 
