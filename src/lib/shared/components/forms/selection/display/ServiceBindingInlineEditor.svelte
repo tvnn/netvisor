@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ServiceBinding } from '$lib/features/groups/types/base';
+    import type { ServiceBinding } from "$lib/features/hosts/types/base";
 	import type { Interface } from '$lib/features/hosts/types/base';
   import { getServiceHost, services } from '$lib/features/services/store';
 	import { formatId } from '$lib/shared/utils/formatting';

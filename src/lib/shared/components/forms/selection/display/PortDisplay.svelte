@@ -5,9 +5,9 @@
   export const PortDisplay: EntityDisplayComponent<Port> = {
     getId: (port: Port) => `${port.number}-${port.protocol}`,
     getLabel: (port: Port) => `Port ${port.number}`,
-    getDescription: (port: Port) => `${port.protocol.toUpperCase()} protocol`,
-    getIcon: () => Plug,
-    getIconColor: () => 'text-green-400',
+    getDescription: (port: Port) => '',
+    getIcon: () => entities.getIconComponent("Port"),
+    getIconColor: () => entities.getColorHelper("Port").icon,
     getTags: (port: Port) => [{
       label: port.protocol.toUpperCase(),
       color: port.protocol === 'Tcp' ? 'blue' : 'purple'
@@ -25,10 +25,10 @@
 </script>
 
 <script lang="ts">
-  import type { Port } from '$lib/features/services/types/base';
+    import type { Port } from "$lib/features/hosts/types/base";
 	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
 	import ListSelectItem from '../ListSelectItem.svelte';
-	import type { FormApi } from '../../types';
+	import { entities } from '$lib/shared/stores/metadata';
   
   type $$Props = DisplayComponentProps<Port>;
   

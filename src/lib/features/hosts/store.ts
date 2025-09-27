@@ -1,9 +1,9 @@
 import { get, writable } from 'svelte/store';
-import type { Host, HostTarget, HostWithServicesRequest, Interface } from "./types/base";
+import type { Host, HostTarget, HostWithServicesRequest, Interface, Port, ServiceBinding } from "./types/base";
 import { api } from '../../shared/utils/api';
 import { pushInfo, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
-import { getServices } from '../services/store';
+import { getServiceById, getServices } from '../services/store';
 
 export const hosts = writable<Host[]>([]);
 export const polling = writable(false);
@@ -78,21 +78,21 @@ export function createEmptyHostFormData(): Host {
     },
     services: [],
     interfaces: [],
-    open_ports: []
+    ports: []
   };
 }
 
-export function getHostTargetString(host: Host): string {
+export function getHostTargetString(host: Host): string | null {
   switch (host.target.type) {
-    case 'Interface':
-      let iface = getInterfaceFromId(host.target.config);
-      return iface ? iface.ip_address || iface.mac_address || iface.name : 'Unknown interface';
-    case 'ExternalIp':
-      return host.target.config || 'Unknown external IP';
+    case 'ServiceBinding':
+      let iface = getInterfaceFromId(host.target.config.interface_id);
+      let port = getPortFromId(host.target.config.port_id);
+
+      return iface && port ? iface.ip_address + ":" + port.number : null;
+    case 'None':
+      return "None";
     case 'Hostname':
       return host.hostname;
-    default:
-      return 'Unknown target';
   }
 }
 
@@ -108,4 +108,29 @@ export function getInterfaceFromId(id: string): Interface | undefined {
     }
   }
   return undefined;
+}
+
+export function getPortFromId(id: string): Port | undefined {
+  for (const host of get(hosts)) {
+    const port = host.ports.find(p => p.id == id);
+    if (port != undefined) {
+      return port;
+    }
+  }
+  return undefined;
+}
+
+export function serviceBindingToId(binding: ServiceBinding): string {
+  return JSON.stringify(Object.fromEntries(
+    Object.entries(binding).sort()
+  ));
+}
+
+export function serviceBindingIdToObj(binding_string: string): ServiceBinding | null {
+  let parsed = JSON.parse(binding_string)
+  if (parsed?.interface_id && parsed?.service_id && parsed?.port_id) {
+    return parsed as ServiceBinding
+  } else {
+    return null
+  }
 }

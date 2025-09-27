@@ -8,6 +8,7 @@
   export let loading: boolean = false;
   
   // Event handlers
+  export let onReorder: (fromIndex: number, toIndex: number) => void = () => {};
   export let onChange: (item: TItem, index: number) => void = () => {};
   export let onItemAdded: (newIndex: number) => void = (newIndex) => {
     selectedIndex = newIndex;
@@ -47,6 +48,30 @@
       onChange(updatedItem, selectedIndex);
     }
   }
+
+  function handleMoveUp(fromIndex: number, toIndex: number) {
+    // When an item moves up: fromIndex > toIndex
+    if (selectedIndex === fromIndex) {
+      // The selected item moved up
+      selectedIndex = toIndex;
+    } else if (selectedIndex >= toIndex && selectedIndex < fromIndex) {
+      // Selected item got pushed down by the moving item
+      selectedIndex = selectedIndex + 1;
+    }
+    onReorder(fromIndex, toIndex);
+  }
+  
+  function handleMoveDown(fromIndex: number, toIndex: number) {
+    // When an item moves down: fromIndex < toIndex
+    if (selectedIndex === fromIndex) {
+      // The selected item moved down
+      selectedIndex = toIndex;
+    } else if (selectedIndex > fromIndex && selectedIndex <= toIndex) {
+      // Selected item got pushed up by the moving item
+      selectedIndex = selectedIndex - 1;
+    }
+    onReorder(fromIndex, toIndex);
+  }
 </script>
 
 {#if loading}
@@ -66,6 +91,8 @@
           {items}
           {selectedIndex}
           onEdit={handleEdit}
+          onMoveUp={handleMoveUp}
+          onMoveDown={handleMoveDown}
           highlightedIndex={selectedIndex}
         >
           <!-- Default slot content if no list slot provided -->

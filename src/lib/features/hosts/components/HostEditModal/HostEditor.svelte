@@ -10,6 +10,7 @@
 	import type { Service } from '$lib/features/services/types/base';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { getServicesForHost } from '$lib/features/services/store';
+	import PortsDisplay from './Ports/PortsForm.svelte';
   
   export let host: Host | null = null;
   export let isOpen = false;
@@ -35,13 +36,19 @@
     { 
       id: 'interfaces', 
       label: 'Interfaces',
-      icon: Network,
+      icon: entities.getIconComponent("Interface"),
       description: 'Network interfaces and subnet membership'
+    },
+    { 
+      id: 'ports', 
+      label: 'Ports',
+      icon: entities.getIconComponent("Port"),
+      description: 'Service configuration'
     },
     { 
       id: 'services', 
       label: 'Services',
-      icon: Server,
+      icon: entities.getIconComponent("Service"),
       description: 'Service configuration'
     }
   ];
@@ -203,6 +210,52 @@
               {formApi}
               {form}
               {isEditing}
+              {host}
+              bind:formData={formData}/>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Interfaces Tab -->
+      {#if activeTab === 'interfaces'}
+        <div class="h-full">
+          {#if !isEditing}
+            <!-- Create flow description -->
+            <div class="p-6 bg-blue-900/10 border-b border-blue-800/30">
+              <h3 class="text-lg font-medium text-blue-300 mb-2">
+                {tabs.find(t => t.id === activeTab)?.label}
+              </h3>
+              <p class="text-blue-200/80 text-sm">
+                {tabs.find(t => t.id === activeTab)?.description}
+              </p>
+            </div>
+          {/if}
+          
+          <div class="flex-1 relative">
+            <InterfacesForm 
+              {formApi}
+              bind:formData={formData}/>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Interfaces Tab -->
+      {#if activeTab === 'ports'}
+        <div class="h-full">
+          {#if !isEditing}
+            <!-- Create flow description -->
+            <div class="p-6 bg-blue-900/10 border-b border-blue-800/30">
+              <h3 class="text-lg font-medium text-blue-300 mb-2">
+                {tabs.find(t => t.id === activeTab)?.label}
+              </h3>
+              <p class="text-blue-200/80 text-sm">
+                {tabs.find(t => t.id === activeTab)?.description}
+              </p>
+            </div>
+          {/if}
+          
+          <div class="flex-1 relative">
+            <PortsDisplay 
               bind:formData={formData}/>
           </div>
         </div>
@@ -228,29 +281,6 @@
               {formApi}
               bind:formData={formData}
               bind:currentServices={currentHostServices}/>
-          </div>
-        </div>
-      {/if}
-      
-      <!-- Interfaces Tab -->
-      {#if activeTab === 'interfaces'}
-        <div class="h-full">
-          {#if !isEditing}
-            <!-- Create flow description -->
-            <div class="p-6 bg-blue-900/10 border-b border-blue-800/30">
-              <h3 class="text-lg font-medium text-blue-300 mb-2">
-                {tabs.find(t => t.id === activeTab)?.label}
-              </h3>
-              <p class="text-blue-200/80 text-sm">
-                {tabs.find(t => t.id === activeTab)?.description}
-              </p>
-            </div>
-          {/if}
-          
-          <div class="flex-1 relative">
-            <InterfacesForm 
-              {formApi}
-              bind:formData={formData}/>
           </div>
         </div>
       {/if}

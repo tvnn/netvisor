@@ -1,3 +1,5 @@
+import type { Port } from '$lib/features/hosts/types/base';
+
 export const uuidv4Sentinel: string = '00000000-0000-0000-0000-000000000000';
 
 export const utcTimeZoneSentinel: string = "1970-01-01T00:00:00Z";
@@ -38,4 +40,11 @@ export function formatId(id: string): string {
     return id;
   }
   return `${id.substring(0, 8)}...`;
+}
+export function formatPort(port: Port): string {
+  return `${port.number}${port.protocol == 'Tcp' ? '/tcp' : '/udp'}`
+}
+
+export function pluralizeArray(array: any[], prefix: string) {
+  (array.length == 1 ? "binding" : "bindings")
 }

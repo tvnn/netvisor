@@ -23,6 +23,7 @@ export interface MetadataRegistry {
   subnet_types: TypeMetadata[];
   edge_types: TypeMetadata[];
   entities: EntityMetadata[];
+  ports: TypeMetadata[];
 }
 
 export const metadata = writable<MetadataRegistry>();
@@ -145,6 +146,7 @@ export const serviceDefinitions = createTypeMetadataHelpers('service_definitions
 export const subnetTypes = createTypeMetadataHelpers('subnet_types');
 export const edgeTypes = createTypeMetadataHelpers('edge_types');
 export const entities = createEntityMetadataHelpers('entities');
+export const ports = createTypeMetadataHelpers('ports');
 
 export async function getMetadata() {
   const result = await api.request<MetadataRegistry>(

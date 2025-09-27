@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { Port } from '$lib/features/services/types/base';
+    import type { Port } from "$lib/features/hosts/types/base";
 	import { type FormApi } from '../../types';
   
   export let port: Port;

@@ -6,7 +6,7 @@
   export const HostDisplay: EntityDisplayComponent<Host> = {
     getId: (host: Host) => host.id,
     getLabel: (host: Host) => host.name,
-    getDescription: (host: Host) => getHostTargetString(host),
+    getDescription: (host: Host) => getHostTargetString(host) || "Unknown Host",
     getIcon: () => entities.getIconComponent("Host"),
     getIconColor: () => entities.getColorHelper("Host").icon,
     getTags: (host: Host) => {

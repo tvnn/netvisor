@@ -7,9 +7,9 @@
     getLabel: (service: Service) => getServiceHost(service.id)?.name || "Unknown Host",
     getDescription: (service: Service) => {
         let host = getServiceHost(service.id) 
-        return host ? getHostTargetString(host) : "Unknown Host";
+        return host ? getHostTargetString(host) || "Unknown Host" : "Unknown Host";
     },
-    getIcon: () => Network,
+    getIcon: () => entities.getIconComponent("Host"),
     getIconColor: () => entities.getColorHelper("Host").icon,
     getTags: (service: Service) => {
         let host = getServiceHost(service.id)

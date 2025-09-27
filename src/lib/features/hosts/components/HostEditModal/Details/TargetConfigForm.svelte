@@ -1,6 +1,6 @@
 <script lang="ts">
   import { AlertCircle, Globe, Network, TargetIcon } from 'lucide-svelte';
-  import type { Host, HostTarget } from '$lib/features/hosts/types/base';
+  import type { Host, HostTarget, ServiceBinding } from '$lib/features/hosts/types/base';
   import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
   import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
 	import { field } from 'svelte-forms';
@@ -9,26 +9,36 @@
 	import { onMount } from 'svelte';
 	import type { FieldType, FormApi, FormType } from '$lib/shared/components/forms/types';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
+	import { getServicesForHost } from '$lib/features/services/store';
+	import { getInterfaceFromId, getPortFromId, serviceBindingIdToObj, serviceBindingToId } from '$lib/features/hosts/store';
+	import { uuidv4Sentinel } from '$lib/shared/utils/formatting';
+	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
 
   export let formApi: FormApi;
   export let form: FormType;
   export let formData: Host;
 
   let currentTargetType = formData.target.type
-  let selectedInterfaceId: string = '';
+  let selectedBinding: ServiceBinding;
 
-  const getIpField = () => {
-    return field(
-      'target_ip',
-      formData.target?.type === 'ExternalIp' ? formData.target.config : '',
-      [ipAddress(), required()],
-      {
-        checkOnInit: false,
-      }
-    )
+  if (formData.target.type == 'ServiceBinding') {
+    selectedBinding = formData.target.config
   }
 
-  let ipAddressField = getIpField();
+  $: serviceBindings = getServicesForHost(formData.id).flatMap(s => s.interface_bindings
+    .flatMap(interface_id => s.port_bindings
+      .map(port_id => getPortFromId(port_id))
+      .filter(port => port != undefined)
+      .filter(port => port.protocol == 'Tcp')
+      .map(port => {
+        return {
+          service_id: s.id,
+          interface_id,
+          port_id: port.id
+        }
+      })
+    )
+  )
 
   $: hostnameField = form.getField('hostname');
   $: has_hostname = hostnameField ? $hostnameField.value.length > 0 : false;
@@ -36,10 +46,10 @@
   // Form fields
   $: targetTypes = [
     {
-      value: 'Interface',
-      label: formData.interfaces.length != 0 ? 'Network Interface' : 'No Network Interfaces Configured',
-      description: 'Connect using an IP from a network interface',
-      disabled: formData.interfaces.length === 0,
+      value: 'ServiceBinding',
+      label: formData.interfaces.length != 0 ? 'Service Binding' : 'No Services Configured',
+      description: 'Connect to a service port on a network interface',
+      disabled: serviceBindings.length === 0,
       icon: Network
     },
     {
@@ -50,31 +60,18 @@
       icon: Globe
     },
     {
-      value: 'ExternalIp',
-      label: 'External IP',
-      description: 'Connect using an external (non-local) IP. For local IPs, use the "Network Interface" option', 
+      value: 'None',
+      label: 'None',
+      description: 'No connection set for this host', 
       disabled: false,
       icon: Globe
     }
   ];
 
-  // Update validation when target type changes
-  $: if (formData.target.type != currentTargetType) {
-    currentTargetType = formData.target.type
-    if (formData.target.type === 'ExternalIp') {
-      let ipField = getIpField()
-      formApi.registerField('ip', ipField)
-      ipAddressField = ipField;
-    } else {
-      formApi.unregisterField('ip')
-    }
-  }
-
   // Initialize target if not set
   $: if (!formData.target) {
     formData.target = {
-      type: 'Interface',
-      config: ''
+      type: 'Hostname'
     };
   }
 
@@ -84,20 +81,20 @@
     const newType = targetElement.value;
     
     // Reset target config when type changes
-    if (newType === 'Interface') {
+    if (newType === 'ServiceBinding') {
+      let binding = serviceBindings[0]
       formData.target = {
-        type: 'Interface',
-        config: ''
+        type: 'ServiceBinding',
+        config: binding
       };
-      selectedInterfaceId = '';
+      selectedBinding = {service_id: uuidv4Sentinel, interface_id: uuidv4Sentinel, port_id: uuidv4Sentinel};
     } else if (newType === 'Hostname') {
       formData.target = {
         type: 'Hostname'
       };
-    } else if (newType === 'ExternalIp') {
+    } else if (newType === 'None') {
       formData.target = {
-        type: 'ExternalIp',
-        config: ''
+        type: 'None'
       };
     } 
     
@@ -106,16 +103,14 @@
   }
 
   // Handle interface selection
-  function handleInterfaceSelect(interfaceId: string) {
-    selectedInterfaceId = interfaceId;
-    if (formData.target?.type === 'Interface') {
-      formData.target.config = interfaceId;
+  function handleServiceBindingSelect(binding: string) {
+    let parsed_binding = serviceBindingIdToObj(binding)
+    if (parsed_binding) {
+      selectedBinding = parsed_binding;
+      if (formData.target.type == 'ServiceBinding') {
+        formData.target.config = parsed_binding;
+      }
     }
-  }
-
-  // Track IP address changes in formData
-  $: if (formData.target.type == 'ExternalIp') {
-    formData.target.config = $ipAddressField?.value || ''
   }
 
 </script>
@@ -146,23 +141,23 @@
   <div class="flex flex-col flex-grow">
     {#if formData.target}
       <div class="space-y-4">
-        {#if formData.target.type === 'Interface'}
+        {#if formData.target.type === 'ServiceBinding'}
           <!-- Interface Selection -->
           <div class="space-y-2">
             <label for="interface_select" class="block text-sm font-medium text-gray-300">
-              Network Interface
+              Service Binding
               <span class="text-red-400 ml-1">*</span>
             </label>
 
             {#if formData.interfaces.length == 0} 
-              <InlineWarning title="No interfaces available" body="No interfaces available. Add an interface or change target type."/>
+              <InlineWarning title="No services available" body="No services available. Add a service or change target type."/>
             {:else} 
               <RichSelect
-                selectedValue={selectedInterfaceId || formData.interfaces[0].id}
-                options={formData.interfaces}
-                placeholder="Select a network interface..."
-                displayComponent={InterfaceDisplay}
-                onSelect={handleInterfaceSelect}
+                selectedValue={serviceBindingToId(selectedBinding)}
+                options={serviceBindings}
+                placeholder="Select a service binding..."
+                displayComponent={ServiceBindingDisplay}
+                onSelect={handleServiceBindingSelect}
               />
             {/if}
           </div>
@@ -176,28 +171,6 @@
               <div class="w-full px-3 py-2 bg-gray-800/50 border border-gray-500 rounded-md text-gray-200 flex items-center gap-2">
                 <span class="font-mono">{formData.hostname}</span>
               </div>
-          </div>
-        {:else if formData.target.type === 'ExternalIp' && $ipAddressField}
-          <!-- Hostname Display -->
-          <div class="space-y-2">
-                <label for="ip_address" class="block text-sm font-medium text-gray-300">
-                  External IP Address <span class="text-red-400">*</span>
-                </label>
-                <input
-                  id="target_ip"
-                  type="text"
-                  bind:value={$ipAddressField.value}
-                  class="w-full px-3 py-2 bg-gray-700 border rounded-md text-white 
-                        focus:outline-none focus:ring-2
-                        {$ipAddressField.errors.length > 0 ? 'border-red-500' : 'border-gray-600'}"
-                  placeholder="1.1.1.1"
-                />
-                {#if $ipAddressField.errors.length > 0}
-                  <div class="flex items-center gap-2 text-red-400">
-                    <AlertCircle size={16} />
-                    <p class="text-xs">{$ipAddressField.errors[0]}</p>
-                  </div>
-                {/if}
           </div>
         {/if}
       </div>

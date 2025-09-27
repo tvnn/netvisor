@@ -1,14 +1,9 @@
-export interface Port {
-  number: number;
-  protocol: string;
-}
-
-export interface Endpoint {
-  protocol?: string;
-  ip?: string;
-  port?: Port;
-  path?: string;
-}
+// export interface Endpoint {
+//   protocol?: string;
+//   ip?: string;
+//   port?: Port;
+//   path?: string;
+// }
 
 export interface Service {
   id: string,
@@ -17,7 +12,7 @@ export interface Service {
   host_id: string;
   service_definition: string;
   name: string;
-  ports: Port[];
+  port_bindings: string[];
   interface_bindings: string[];
   groups: string[];
 }

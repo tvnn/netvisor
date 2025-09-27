@@ -20,7 +20,7 @@
       }
       return parts.join(' • ');
     },
-    getIcon: () => null,
+    getIcon: () => entities.getIconComponent("Interface"),
     getIconColor: () => 'text-purple-400',
     getTags: (iface: Interface) => {
       const subnet = findSubnetById(iface.subnet_id);

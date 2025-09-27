@@ -44,7 +44,7 @@
   let editingIndex: number = -1;
   
   $: computedEmptyMessage = emptyMessage || `No ${label.toLowerCase()} added yet`;
-  
+
   function addItem() {
     if (selectedOptionId) {
       // Check for duplicates only if allowDuplicates is false
@@ -83,8 +83,8 @@
     if (index < items.length - 1 && allowReorder) {
       const newItems = [...items];
       [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
-      items = newItems;
-      onMoveDown(index, index + 1); 
+      items = newItems;      
+      onMoveDown(index, index + 1);
     }
   }
 

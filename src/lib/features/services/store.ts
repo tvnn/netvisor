@@ -1,7 +1,7 @@
 // src/lib/features/services/store.ts
 import { writable, derived, get } from 'svelte/store';
 import { api } from '../../shared/utils/api';
-import type { Endpoint, Port, Service } from './types/base';
+import type { Service } from './types/base';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { hosts } from '../hosts/store';
 import type { Host } from '../hosts/types/base';
@@ -79,7 +79,7 @@ export async function updateHostServices(hostId: string, servicesToUpdate: Servi
 }
 
 // Helper functions for working with services and the MetadataRegistry
-export function createDefaultService(serviceType: string, host_id: string, serviceName?: string, defaultPorts?: Port[]): Service {
+export function createDefaultService(serviceType: string, host_id: string, serviceName?: string, defaultPorts?: string[]): Service {
   return {
     id: uuidv4Sentinel,
     created_at: utcTimeZoneSentinel,
@@ -87,7 +87,7 @@ export function createDefaultService(serviceType: string, host_id: string, servi
     host_id,
     service_definition: serviceType,
     name: serviceName || serviceType,
-    ports: defaultPorts ? [...defaultPorts] : [],
+    port_bindings: defaultPorts ? [...defaultPorts] : [],
     interface_bindings: [],
     groups: []
   };
@@ -132,10 +132,16 @@ export function getServiceName(service: Service): string {
   return service.name || service.service_definition;
 }
 
-export function formatServicePorts(ports: Port[]): string {
-  if (!ports || ports.length === 0) return "No ports";
-  
-  return ports.map(p => 
-    `${p.number}${p.protocol == 'Tcp' ? '/tcp' : '/udp'}`
-  ).join(', ');
+export function getServicesForPort(port_id: string): Service[] {
+  let host = get(hosts).find(h => h.ports.some(p => p.id === port_id));
+
+  console.log(host);
+
+  if (host) {
+    let services = getServicesForHost(host.id);
+    console.log(services);
+    return services.filter(s => s.port_bindings.some(p => p === port_id));
+  } else {
+    return [];
+  }
 }

@@ -1,14 +1,14 @@
 <script lang="ts" context="module">
   import { Network } from 'lucide-svelte';
   import type { Host } from '$lib/features/hosts/types/base';
-  import { serviceDefinitions } from '$lib/shared/stores/metadata';
+  import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 
   export const DaemonDisplay: EntityDisplayComponent<Daemon> = {
     getId: (daemon: Daemon) => daemon.id,
     getLabel: (daemon: Daemon) => getDaemonHost(daemon.id)?.name || "Unknown Daemon",
     getDescription: (daemon: Daemon) => getDaemonHost(daemon.id)?.description || "",
-    getIcon: () => Network,
-    getIconColor: () => createColorHelper("purple").icon,
+    getIcon: () => entities.getIconComponent("Daemon"),
+    getIconColor: () => entities.getColorHelper("Daemon").icon,
     getTags: (daemon: Daemon) => [],
     getIsDisabled: () => false,
     getCategory: () => null

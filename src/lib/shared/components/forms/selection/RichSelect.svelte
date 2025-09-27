@@ -174,15 +174,6 @@
     <ChevronDown class="w-4 h-4 text-gray-400 transition-transform flex-shrink-0 {isOpen ? 'rotate-180' : ''}" />
   </button>
   
-  <!-- Description below trigger (optional) -->
-  {#if selectedItem && displayComponent.getDescription?.(selectedItem)}
-    <div class="mt-2">
-      <p class="text-sm text-gray-400">
-        {displayComponent.getDescription(selectedItem)}
-      </p>
-    </div>
-  {/if}
-  
   <!-- Error Message -->
   {#if error}
     <div class="flex items-center gap-2 text-red-400 text-sm mt-1">

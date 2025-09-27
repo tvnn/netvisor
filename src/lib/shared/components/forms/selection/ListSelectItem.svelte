@@ -6,9 +6,9 @@
   export let item: T;
   export let displayComponent: EntityDisplayComponent<T>;
 
-  let icon = displayComponent.getIcon?.(item);
-  let tags = displayComponent.getTags?.(item) || [];
-  let description = displayComponent.getDescription?.(item) || '';
+  $: icon = displayComponent.getIcon?.(item);
+  $: tags = displayComponent.getTags?.(item) || [];
+  $: description = displayComponent.getDescription?.(item) || '';
 </script>
 
 <div class="flex items-center gap-3 flex-1 min-w-0">
@@ -24,7 +24,7 @@
   
   <!-- Label and description -->
   <div class="flex-1 min-w-0 text-left">
-    <div class="flex gap-3 pb-1">
+    <div class="flex gap-3 items-center">
       <span class="block truncate">{displayComponent.getLabel(item)}</span>
       <!-- Tags -->
       {#if tags.length > 0}
@@ -40,7 +40,7 @@
       {/if}
     </div>
     {#if description.length > 0}
-      <span class="block text-xs text-gray-400 truncate">{description}</span>
+      <span class="block text-xs text-gray-400 truncate mt-2">{description}</span>
     {/if}
   </div>
 </div>

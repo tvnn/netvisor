@@ -76,3 +76,7 @@ export function createEmptySubnetFormData(): Subnet {
 export function getSubnetFromId(id: string) {
   return get(subnets).find(s => s.id == id);
 }
+
+export function getInternetSubnetId(): string {
+  return get(subnets).find(s => s.subnet_type == 'Internet' && s.source == 'System')?.id || ""
+}

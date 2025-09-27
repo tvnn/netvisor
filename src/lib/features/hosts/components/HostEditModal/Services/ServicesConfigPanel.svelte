@@ -1,24 +1,24 @@
 <!-- src/lib/features/hosts/components/HostEditModal/Services/ServicesConfigPanel.svelte -->
 <script lang="ts">
   import { field } from 'svelte-forms';
-  import { AlertCircle, AlertTriangle } from 'lucide-svelte';
-  import type { Service, Port } from '$lib/features/services/types/base';
+  import type { Service } from '$lib/features/services/types/base';
+  import type { Host, Port } from "$lib/features/hosts/types/base";
   import type { Interface } from '$lib/features/hosts/types/base';
-  import { entities, metadata, serviceDefinitions } from '$lib/shared/stores/metadata';
-  import Tag from '$lib/shared/components/data/Tag.svelte';
+  import { serviceDefinitions } from '$lib/shared/stores/metadata';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
   import { PortDisplay } from '$lib/shared/components/forms/selection/display/PortDisplay.svelte';
 	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
-	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
 	import { required } from 'svelte-forms/validators';
-	import { onMount } from 'svelte';
 	import { pushWarning } from '$lib/shared/stores/feedback';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import { maxLength } from '$lib/shared/components/forms/validators';
 	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
-  
+	import { getPortFromId } from '$lib/features/hosts/store';
+  import {v4 as uuidv4} from 'uuid';
+
   export let formApi: FormApi;
+  export let formData: Host;
   export let service: Service;
   export let host_interfaces: Interface[] = [];
   export let onChange: (updatedService: Service) => void = () => {};
@@ -36,6 +36,10 @@
   let nameField = getNameField();
 
   $: serviceMetadata = service ? serviceDefinitions.getItem(service.service_definition) : null;
+
+  $: servicePorts = service.port_bindings
+    .map(portId => formData.ports?.find(p => p.id === portId))
+    .filter((p): p is Port => p !== undefined);
   
   $: if (service.id !== currentServiceId) {
     currentServiceId = service.id
@@ -61,24 +65,35 @@
     // Create a new port with default values in editing state
     const newPort: Port = {
       number: 80,  // Default port number
-      protocol: 'Tcp'  // Default protocol
+      protocol: 'Tcp',  // Default protocol
+      type: 'Custom',
+      id: uuidv4()
     };
     
     const updatedService = {
       ...service,
-      ports: [...service.ports, newPort]
+      port_bindings: [...service.port_bindings, newPort.id]
     };
+
+    let oldPorts = formData.ports
+    oldPorts.push(newPort)
+
+    formData.ports = [...oldPorts]
     
     onChange(updatedService);
   }
   
   function handleRemovePort(index: number) {
     if (!service) return;
+
+    let port_id = service.port_bindings[index]
     
     const updatedService = {
       ...service,
-      ports: service.ports.filter((_, i) => i !== index)
+      port_bindings: service.port_bindings.filter((_, i) => i !== index)
     };
+
+    formData.ports = [...formData.ports.filter(p => p.id != port_id)]
     
     onChange(updatedService);
   }
@@ -86,15 +101,15 @@
   function handleUpdatePort(port: Port, index: number) {
     if (!service) return;
 
-    const updatedPorts = [...service.ports];
-    updatedPorts[index] = port;
+    const updatedPorts = [...service.port_bindings];
+    updatedPorts[index] = port.id;
     
     const updatedService = {
       ...service,
-      ports: updatedPorts  // Use the new array
+      port_bindings: updatedPorts
     };
-    
-    onChange(updatedService);
+
+    formData.ports = [...formData.ports.map(p => p.id == port.id ? port : p)];
   }
     
   // Interface binding management
@@ -134,7 +149,7 @@
       .map(id => {
         const iface = host_interfaces.find(iface => iface.id === id);
         if (!iface) {
-          pushWarning(`⚠️ Interface binding ${id} not found in host interfaces for service ${service.name}`);
+          pushWarning(`Interface binding ${id} not found in host interfaces for service ${service.name}`);
         }
         return iface;
       })
@@ -196,6 +211,7 @@
     
     <!-- Ports Configuration using ListManager -->
     <div class="space-y-4">
+      {#key service.id}
       <ListManager
         label="Ports"
         helpText="Configure which ports this service uses"
@@ -208,7 +224,7 @@
         allowCreateNew={true}
         
         options={[]}
-        items={service.ports}
+        items={servicePorts}
         
         optionDisplayComponent={PortDisplay}
         itemDisplayComponent={PortDisplay}
@@ -217,6 +233,7 @@
         onRemove={handleRemovePort}
         onEdit={handleUpdatePort}
       />
+      {/key}
     </div>
   </div>
 {/if}

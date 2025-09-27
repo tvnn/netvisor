@@ -8,6 +8,8 @@
 	import { SubnetDisplay } from '$lib/shared/components/forms/selection/display/SubnetDisplay.svelte';
 	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
 	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
+	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
+	import InternetInterfaceConfigPanel from './InternetInterfaceConfigPanel.svelte';
   
   export let formApi: FormApi;
   export let formData: Host;
@@ -24,16 +26,28 @@
   function handleAddInterface(subnetId: string) {
     const subnet = findSubnetById(subnetId);
     if (!subnet) return;
-    
-    const newInterface: Interface = {
-      id: uuidv4(),
-      name: "",
-      subnet_id: subnetId,
-      ip_address: undefined,
-      mac_address: undefined,
-    };
-    
-    formData.interfaces = [...interfaces, newInterface];
+
+    if (subnet.cidr == "0.0.0.0/0") {
+      const newInterface: Interface = {
+        id: uuidv4(),
+        name: "Internet",
+        subnet_id: subnetId,
+        ip_address: "203.0.113."+(Math.floor(Math.random()*(255))+1).toString(),
+        mac_address: undefined,
+      };
+      
+      formData.interfaces = [...interfaces, newInterface];
+    } else {
+      const newInterface: Interface = {
+        id: uuidv4(),
+        name: "",
+        subnet_id: subnetId,
+        ip_address: undefined,
+        mac_address: undefined,
+      };
+      
+      formData.interfaces = [...interfaces, newInterface];
+    }
   }
   
   function handleRemoveInterface(index: number) {
@@ -67,7 +81,14 @@
   
   <svelte:fragment slot="config" let:selectedItem let:onChange>
     {@const subnet = selectedItem ? findSubnetById(selectedItem.subnet_id) : null}
-    {#if selectedItem && subnet}
+    {#if selectedItem && subnet && subnet.cidr == '0.0.0.0/0'}
+      <InternetInterfaceConfigPanel
+        {formApi}
+        iface={selectedItem}
+        subnet={subnet}
+        onChange={(updatedInterface) => onChange(updatedInterface)}
+      />
+    {:else if selectedItem && subnet && subnet.cidr != '0.0.0.0/0'}
       <InterfaceConfigPanel
         {formApi}
         iface={selectedItem}
@@ -75,12 +96,7 @@
         onChange={(updatedInterface) => onChange(updatedInterface)}
       />
     {:else}
-      <div class="flex-1 min-h-0 flex items-center justify-center text-gray-400">
-        <div class="text-center">
-          <div class="text-lg mb-2">No interface selected</div>
-          <div class="text-sm">Select an interface from the list to configure it</div>
-        </div>
-      </div>
+      <EntityConfigEmpty title="No interface selected" subtitle="Select an interface from the list to configure it"/>
     {/if}
   </svelte:fragment>
 </ListConfigEditor>

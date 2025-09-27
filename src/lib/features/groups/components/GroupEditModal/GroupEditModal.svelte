@@ -2,7 +2,8 @@
   import { Users } from 'lucide-svelte';
   import { createEmptyGroupFormData } from '../../store';
   import EditModal from '$lib/shared/components/forms/EditModal.svelte';
-  import type { Group, ServiceBinding } from '../../types/base';
+  import type { Group } from '../../types/base';
+  import type { ServiceBinding } from "$lib/features/hosts/types/base";
   import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
   import { entities } from '$lib/shared/stores/metadata';
   import { getServiceHost, services } from '$lib/features/services/store';
@@ -37,10 +38,10 @@
     formData = group ? { ...group } : createEmptyGroupFormData();
   }
 
-  // Get services that are available to add (not already in group + has some interface binding OR has externlIp target)
+  // Get services that are available to add (not already in group + has some interface binding OR has externalIp target)
   $: selectableServices = $services.filter(service => 
     !formData.service_bindings.some(binding => binding.service_id === service.id)
-    && (service.interface_bindings.length > 0 || getServiceHost(service.id)?.target.type == 'ExternalIp')
+    && service.interface_bindings.length > 0 && service.port_bindings.length > 0
   );
 
   function handleAdd(serviceId: string) {
@@ -49,19 +50,19 @@
     
     const host = getServiceHost(service.id);
     // Default to first interface binding if available
-    let defaultInterfaceId;
-    if (host && host?.target.type == 'ExternalIp') {
-      defaultInterfaceId = host.id
-    } else if (service.interface_bindings.length > 0) {
+    let defaultInterfaceId, defaultPortId;
+    if (service.interface_bindings.length > 0 && service.port_bindings.length > 0) {
       defaultInterfaceId = service.interface_bindings[0];
+      defaultPortId = service.port_bindings[0];
     } else {
-      pushWarning(`Host for service ${service.name} must have an interface or an External IP target`)
+      pushWarning(`Host for service ${service.name} must have an interface + port or an External IP target`)
       return;
     }
     
     const newBinding: ServiceBinding = {
       service_id: serviceId,
-      interface_id: defaultInterfaceId
+      interface_id: defaultInterfaceId,
+      port_id: defaultPortId
     };
     
     formData.service_bindings = [...formData.service_bindings, newBinding];
@@ -161,9 +162,9 @@
         <!-- Services Section -->
         <div class="space-y-4">
           <div class="border-t border-gray-700 pt-6">
-            <h3 class="text-lg font-medium text-white mb-2">Service Chain</h3>
+            <h3 class="text-lg font-medium text-white mb-2">Services</h3>
             <p class="text-sm text-gray-400 mb-4">
-              Define the services in this group. Each service can be configured with a specific interface binding.
+              Define the services in this group. Only services with at least one port and one interface binding ca be selected.
             </p>
             <div class="bg-gray-800/50 rounded-lg p-4">
               <ListManager
@@ -172,6 +173,7 @@
                 placeholder="Select a service to add..."
                 emptyMessage="No services in this group yet."
                 allowReorder={true}
+                showSearch={true}
                 
                 options={selectableServices}
                 items={formData.service_bindings}

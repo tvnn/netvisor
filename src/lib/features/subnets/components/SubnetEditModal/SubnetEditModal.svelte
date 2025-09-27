@@ -174,6 +174,7 @@
                 placeholder="Select a DNS server to add..."
                 emptyMessage="No DNS resolvers configured. DNS capable hosts will appear here."
                 allowReorder={false}
+                showSearch={true}
                 
                 options={availableDns}
                 items={selectedDns}
@@ -201,6 +202,7 @@
                 placeholder="Select a gateway to add..."
                 emptyMessage="No gateways configured. Gateway-capable hosts will appear here."
                 allowReorder={false}
+                showSearch={true}
                 
                 options={availableGateways}
                 items={selectedGateways}
@@ -228,6 +230,7 @@
                 placeholder="Select a reverse proxy to add..."
                 emptyMessage="No reverse proxies configured. Reverse proxy-capable hosts will appear here."
                 allowReorder={false}
+                showSearch={true}
                 
                 options={availableReverseProxies}
                 items={selectedReverseProxies}
@@ -245,7 +248,7 @@
         </div>
 
         {#if isEditing}
-          <EntityMetadataSection id={formData.id} createdAt={formData.created_at} updatedAt={formData.updated_at}/>
+          <EntityMetadataSection entity={subnet} id={formData.id} createdAt={formData.created_at} updatedAt={formData.updated_at}/>
         {/if}
       </div>
     </div>

@@ -1,3 +1,5 @@
+import type { ServiceBinding } from "$lib/features/hosts/types/base";
+
 export interface Group {
   id: string;
   created_at: string;
@@ -7,7 +9,3 @@ export interface Group {
   service_bindings: ServiceBinding[];
 }
 
-export interface ServiceBinding {
-  service_id: string;
-  interface_id: string;
-}

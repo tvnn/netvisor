@@ -4,7 +4,8 @@
   import ListConfigEditor from '$lib/shared/components/forms/selection/ListConfigEditor.svelte';
   import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
   import ServicesConfigPanel from './ServicesConfigPanel.svelte';
-  import type { Port, Service } from '$lib/features/services/types/base';
+  import type { Service } from '$lib/features/services/types/base';
+  import type { Port } from "$lib/features/hosts/types/base";
   import type { Host } from '$lib/features/hosts/types/base';
   import { serviceDefinitions } from '$lib/shared/stores/metadata';
   import { createDefaultService, getServicesForHost } from '$lib/features/services/store';
@@ -12,12 +13,11 @@
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
 	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
+	import { pushError } from '$lib/shared/stores/feedback';
   
   export let formApi: FormApi;
   export let formData: Host;
   export let currentServices: Service[] = [];
-  
-  let listConfigEditorRef: any;
       
   // Available service types for adding
   $: availableServiceTypes = serviceDefinitions.getItems()?.filter(service => 
@@ -48,18 +48,29 @@
       updatedServices[index] = service;
       currentServices = updatedServices;
     } else {
-      console.error('❌ ServicesForm: Invalid service index:', index);
+      pushError("Invalid service index")
     }
   }
+
+  function handleServiceReorder(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
+    
+    const updatedServices = [...currentServices];
+    const [movedService] = updatedServices.splice(fromIndex, 1);
+    updatedServices.splice(toIndex, 0, movedService);
+    
+    currentServices = updatedServices;
+  }
+
 </script>
 
-<div class="space-y-6">  
+<div class="space-y-6">
   <ListConfigEditor
     bind:items={currentServices}
     onChange={handleServiceChange}
-    bind:this={listConfigEditorRef}
+    onReorder={handleServiceReorder}
   >
-    <svelte:fragment slot="list" let:items let:onEdit let:highlightedIndex>
+    <svelte:fragment slot="list" let:items let:onEdit let:highlightedIndex let:onMoveUp let:onMoveDown >
       <ListManager
         label="Services"
         helpText="Services define what this host provides to the network."
@@ -77,6 +88,8 @@
         
         onAdd={handleAddService}
         onRemove={handleRemoveService}
+        onMoveDown={onMoveDown}
+        onMoveUp={onMoveUp}
         {onEdit}
         {highlightedIndex}
       />
@@ -86,6 +99,7 @@
       {#if selectedItem}
         <ServicesConfigPanel
           {formApi}
+          bind:formData={formData}
           service={selectedItem}
           onChange={(updatedService) => onChange(updatedService)}
           host_interfaces={formData.interfaces}

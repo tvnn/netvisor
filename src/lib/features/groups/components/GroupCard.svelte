@@ -11,14 +11,9 @@
   export let onEdit: (group: Group) => void = () => {};
   export let onDelete: (group: Group) => void = () => {};
     
-  function getHostName(id: string): string | null {
-    return get(hosts).find(h => h.id === id)?.name || null;
-  }
-  
   // Build card data
   $: cardData = {
     title: group.name,
-    subtitle: `${group.service_bindings.length} service${group.service_bindings.length === 1 ? '' : 's'} in group`,
     iconColor: entities.getColorHelper("Group").icon,
     icon: entities.getIconComponent("Group"),
     

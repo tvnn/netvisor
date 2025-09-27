@@ -6,12 +6,13 @@
   import type { Host } from '$lib/features/hosts/types/base';
   import { hostname as hostnameValidator, maxLength } from '$lib/shared/components/forms/validators';
   import TargetConfigForm from './TargetConfigForm.svelte';
-	import { entities } from '$lib/shared/stores/metadata';
+	import { entities, ports } from '$lib/shared/stores/metadata';
 	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
   
+  export let host: Host | null = null
   export let formApi: FormApi;
   export let form: FormType;
   export let formData: Host;
@@ -62,6 +63,6 @@
   />
   
   {#if isEditing}
-    <EntityMetadataSection id={formData.id} createdAt={formData.created_at} updatedAt={formData.updated_at}/>
+    <EntityMetadataSection entity={host} id={formData.id} createdAt={formData.created_at} updatedAt={formData.updated_at}/>
   {/if}
 </div>

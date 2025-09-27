@@ -8,7 +8,7 @@
   import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
 	import { sessions } from '$lib/features/discovery/store';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
-	import { subnets } from '$lib/features/subnets/store';
+	import { getInternetSubnetId, subnets } from '$lib/features/subnets/store';
 	import { get } from 'svelte/store';
 	import type { Group } from '$lib/features/groups/types/base';
 	import { getServicesForHost, services } from '$lib/features/services/store';
@@ -51,25 +51,25 @@
         items: hostServices.map(sv => {
           return ({
             id: sv.service_definition,
-            label: serviceDefinitions.getName(sv.service_definition),
+            label: sv.name,
             color: entities.getColorHelper("Service").string
           })
         }),
         emptyText: 'No services assigned'
       },
       {
-        label: 'Subnets',
-        items: [...new Set(host.interfaces.map(iface => iface.subnet_id))].map(id => {
+        label: 'Interfaces',
+        items: host.interfaces.map(i => {
           return ({
-            id: id,
-            label: getSubnetNameFromId(id) || "Unknown Subnet",
-            color: entities.getColorHelper("Subnet").string
+            id: i.id,
+            label: i.subnet_id != getInternetSubnetId() ? (i.name ? i.name+": " : "") + i.ip_address : "Internet",
+            color: entities.getColorHelper("Interface").string
           })
         }),
         emptyText: 'No subnets assigned'
       },
       {
-        label: 'Groups',
+        label: 'Ports',
         items: hostGroups.map((group: Group, i) => ({
           id: group.id,
           label: group.name,

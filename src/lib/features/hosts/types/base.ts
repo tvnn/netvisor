@@ -1,4 +1,4 @@
-import type { Port, Service } from "$lib/features/services/types/base";
+import type { Service } from "$lib/features/services/types/base";
 
 export interface HostWithServicesRequest {
   host: Host,
@@ -14,7 +14,7 @@ export interface Host {
   hostname: string;
   target: HostTarget;
   services: string[];
-  open_ports: Port[];
+  ports: Port[];
   interfaces: Interface[];
 }
 
@@ -27,8 +27,8 @@ export interface Interface {
 }
 
 export type HostTarget = 
-  | { type: 'Interface'; config: string }  // UUID of interface
-  | { type: 'ExternalIp'; config: string }  // IP Address
+  | { type: 'ServiceBinding'; config: ServiceBinding }
+  | { type: 'None' }
   | { type: 'Hostname' };
 
 // For backwards compatibility during transition
@@ -39,3 +39,16 @@ export interface IpTargetConfig {
 export interface HostnameTargetConfig {
   hostname: string;
 }
+export interface ServiceBinding {
+  service_id: string;
+  interface_id: string;
+  port_id: string;
+}
+
+export interface Port {
+  number: number;
+  protocol: string;
+  id: string;
+  type: string;
+}
+
