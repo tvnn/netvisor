@@ -1,7 +1,7 @@
-/target
+/target/
+/releases/
+/migrations/
+/.vscode/
 .DS_STORE
 .env
 netvisor.db
-migrations/
-.sqlx/
-.vscode

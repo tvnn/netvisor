@@ -305,7 +305,7 @@ impl DaemonDiscoveryService {
 
         let (name, target) = match hostname.clone() {
             Some(hostname) => (hostname, HostTarget::Hostname),
-            None => ("Unknown Device".to_owned() + &host_ip.to_string(), HostTarget::None)
+            None => ("Unknown Device".to_owned(), HostTarget::None)
         };
 
         // Create host
@@ -313,7 +313,7 @@ impl DaemonDiscoveryService {
             name,
             hostname,
             target,
-            description: Some("Discovered device".to_string()),
+            description: Some("Discovered device".to_owned()),
             interfaces,
             services: Vec::new(),
             ports: Vec::new(),

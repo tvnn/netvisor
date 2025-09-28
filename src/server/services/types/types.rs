@@ -32,7 +32,7 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq  + Send + Sync {
     /// If service is capable of acting as a gateway on the network
     fn is_gateway(&self) -> bool { false }
 
-    /// Path of service on https://dashboardicons.com/. For example, Home Assistant -> https://dashboardicons.com/icons/home-assistant
+    /// Path of service on https://dashboardicons.com/. For example, Home Assistant -> https://dashboardicons.com/icons/home-assistant. MUST SUPPORT SVG ICON FORMAT. If SVG is not supported, a fallback icon will be used instead.
     fn icon(&self) -> &'static str { "" }
 }
 

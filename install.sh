@@ -1,18 +1,30 @@
 #!/bin/bash
 set -e
 
-BINARY_URL="https://github.com/mayanayza/netvisor-server/releases/latest/download/netvisor-daemon-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)"
+REPO="mayanayza/netvisor-server"
+PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+BINARY_NAME="netvisor-daemon-${PLATFORM}-${ARCH}"
 
-echo "Downloading NetVisor daemon..."
+echo "📥 Installing NetVisor daemon..."
+
+# Download latest binary
+BINARY_URL="https://github.com/${REPO}/releases/latest/download/${BINARY_NAME}"
 curl -L "$BINARY_URL" -o netvisor-daemon
 chmod +x netvisor-daemon
 
-echo "Installing to /usr/local/bin (may require sudo)..."
+# Install to system
+echo "🔐 Installing to /usr/local/bin (may require sudo)..."
 if [ -w "/usr/local/bin" ]; then
     mv netvisor-daemon /usr/local/bin/
 else
     sudo mv netvisor-daemon /usr/local/bin/
 fi
 
-echo "✓ NetVisor daemon installed!"
-echo "Run with: netvisor-daemon --server-ip YOUR_SERVER_IP --server-port 60072"
+echo "✅ NetVisor daemon installed!"
+echo ""
+echo "Next steps:"
+echo "1. Start NetVisor server: docker compose up -d"
+echo "2. Run daemon: netvisor-daemon --server-target YOUR_SERVER_IP --server-port 60072"
+echo ""
+echo "Need help? Visit: https://github.com/${REPO}#readme"

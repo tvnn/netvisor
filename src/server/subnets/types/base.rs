@@ -234,7 +234,7 @@ impl TypeMetadataProvider for SubnetType {
     fn name(&self) -> &'static str {
         match self {
             SubnetType::DockerBridge => "Docker Bridge",
-            SubnetType::Lan => "Local Area Network",
+            SubnetType::Lan => "LAN",
             SubnetType::VpnTunnel => "VPN",
             SubnetType::Internet => "Internet",
             SubnetType::Unknown => "Unknown",
@@ -246,8 +246,8 @@ impl TypeMetadataProvider for SubnetType {
         match self {
             SubnetType::DockerBridge => "Docker bridge network",
             SubnetType::Lan => "Local area network",
-            SubnetType::VpnTunnel => "VPN tunnel network",
-            SubnetType::Internet => "Internet network",
+            SubnetType::VpnTunnel => "Virtual private network",
+            SubnetType::Internet => "Internet",
             SubnetType::Unknown => "Unknown network type",
             SubnetType::None => "No Subnet"
         }
