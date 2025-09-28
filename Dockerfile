@@ -19,16 +19,9 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for security
-RUN useradd --create-home --shell /bin/bash netvisor
-
 # Copy release binary
 COPY --from=builder /app/target/release/server /usr/local/bin/server
 RUN chmod +x /usr/local/bin/server
-
-# Switch to non-root user
-USER netvisor
-WORKDIR /home/netvisor
 
 EXPOSE 60072
 
@@ -36,4 +29,4 @@ EXPOSE 60072
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
     CMD curl -f http://localhost:60072/api/health || exit 1
 
-CMD ["server"]
+CMD ["sh", "-c", "mkdir -p /data && touch /data/netvisor.db && server"]

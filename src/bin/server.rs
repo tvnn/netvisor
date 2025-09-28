@@ -3,7 +3,7 @@ use axum::{
     Router,
 };
 use clap::Parser;
-use netvisor::server::{config::{AppState, ServerConfig, CliArgs}, discovery::manager::DiscoverySessionManager, shared::{handlers::create_router}};
+use netvisor::server::{config::{AppState, CliArgs, ServerConfig}, discovery::manager::DiscoverySessionManager, shared::handlers::create_router, utils::base::{NetworkUtils, ServerNetworkUtils}};
 use tower::ServiceBuilder;
 use tower_http::{
     cors::{Any, CorsLayer}, services::ServeDir, trace::TraceLayer
@@ -57,7 +57,6 @@ async fn main() -> anyhow::Result<()> {
     // Load configuration using figment
     let config = ServerConfig::load(cli_args)?;
 
-    let host = config.host.clone();
     let listen_addr = format!("{}:{}", &config.host, &config.port);
     
     // Initialize tracing
@@ -67,7 +66,8 @@ async fn main() -> anyhow::Result<()> {
         .init();
         
     // Create app state
-    let state = AppState::new(config, DiscoverySessionManager::new()).await?;
+    let state = AppState::new(config, DiscoverySessionManager::new(), ServerNetworkUtils::new()).await?;
+    let own_ip = state.utils.get_own_ip_address()?;
 
     // Create discovery cleanup task
     let cleanup_state = state.clone();
@@ -114,13 +114,8 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("🚀 NetVisor server started successfully");
 
-    if host == "0.0.0.0" {
-        tracing::info!("📊 Web UI: http://localhost:{}", actual_port);
-        tracing::info!("🔧 API: http://localhost:{}/api", actual_port);
-    } else {
-        tracing::info!("📊 Web UI: http://{}:{}", host, actual_port);
-        tracing::info!("🔧 API: http://{}:{}/api", host, actual_port);
-    }
+    tracing::info!("📊 Web UI: http://{}:{}", own_ip, actual_port);
+    tracing::info!("🔧 API: http://{}:{}/api", own_ip, actual_port);
     
     axum::serve(listener, app).await?;
     

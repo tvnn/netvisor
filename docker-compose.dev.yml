@@ -23,6 +23,5 @@ services:
       - ui-build:/app/static:ro
     depends_on:
       - ui
-    command: sh -c "mkdir -p /data && touch /data/netvisor.db && chmod 755 /data && chmod 644 /data/netvisor.db && server"
 volumes:
   ui-build:

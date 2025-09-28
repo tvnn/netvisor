@@ -21,10 +21,12 @@ RUN apt-get update && apt-get install -y \
 
 # Copy debug binary
 COPY --from=builder /app/target/debug/server /usr/local/bin/server
+RUN chmod +x /usr/local/bin/server
+
 EXPOSE 60072
 
 # Add health check
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
     CMD curl -f http://localhost:60072/api/health || exit 1
 
-CMD ["server"]
+CMD ["sh", "-c", "mkdir -p /data && touch /data/netvisor.db && server"]
