@@ -14,10 +14,10 @@
 <div class="flex items-center gap-3 flex-1 min-w-0">
   <!-- Icon -->
   {#if icon}
-    <div class="w-6 h-6 rounded bg-gray-600 flex items-center justify-center flex-shrink-0">
+    <div class="w-7 h-7 flex items-center justify-center flex-shrink-0">
       <svelte:component 
         this={icon} 
-        class="w-3 h-3 {displayComponent.getIconColor?.(item) || 'text-gray-300'}" 
+        class="w-5 h-5 {displayComponent.getIconColor?.(item) || 'text-gray-300'}" 
       />
     </div>
   {/if}

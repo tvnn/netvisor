@@ -25,4 +25,5 @@
   width={size} 
   height={size} 
   class={className}
+  onerror={handleError}
 />

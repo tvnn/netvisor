@@ -1,18 +1,18 @@
-FROM node:20-slim as builder
+FROM node:20-slim AS builder
 WORKDIR /app
 
 # Install dependencies first (better caching)
 COPY package*.json ./
-RUN npm ci --only=production --frozen-lockfile
+RUN npm ci --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build for production (optimized, minified)
-RUN npm run build
+RUN npx svelte-kit sync && npm run build
 
 # Production stage - minimal runtime
-FROM node:20-alpine as runtime
+FROM node:20-alpine AS runtime
 WORKDIR /app
 
 # Copy only the built artifacts

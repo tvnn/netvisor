@@ -4,7 +4,7 @@
     getId: (serviceType: TypeMetadata) => serviceType.id,
     getLabel: (serviceType: TypeMetadata) => serviceType.name,
     getDescription: (serviceType: TypeMetadata) => serviceType.description,
-    getIcon: (serviceType: TypeMetadata) => createIconComponent(serviceType.icon),
+    getIcon: (serviceType: TypeMetadata) => serviceDefinitions.getIconComponent(serviceType.id),
     getIconColor: (serviceType: TypeMetadata) => serviceDefinitions.getColorHelper(serviceType.id).icon,
     getTags: (serviceType: TypeMetadata) => [{
       label: serviceType.category,
