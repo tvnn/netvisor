@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  ui:
+    image: yourusername/netvisor-ui:latest
+    volumes:
+      - ui-build:/app/build
+
+  server:
+    image: yourusername/netvisor-server:latest
+    ports:
+      - "60072:60072"
+    environment:
+      - RUST_LOG=info
+      - NETVISOR_DATABASE_PATH=/data/netvisor.db
+      - NETVISOR_WEB_EXTERNAL_PATH=/app/static
+    volumes:
+      - ./data:/data
+      - ui-build:/app/static:ro
+    depends_on:
+      - ui
+    command: sh -c "mkdir -p /data && touch /data/netvisor.db && chmod 755 /data && chmod 644 /data/netvisor.db && server"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:60072/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  ui-build:

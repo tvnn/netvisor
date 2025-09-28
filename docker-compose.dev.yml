@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  ui:
+    build: 
+      context: ../netvisor-ui
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ui-build:/app/build
+
+  server:
+    build: 
+      context: ./
+      dockerfile: Dockerfile.dev
+    ports:
+      - "60072:60072"
+    environment:
+      - RUST_LOG=debug
+      - NETVISOR_DATABASE_PATH=/data/netvisor.db
+      - NETVISOR_WEB_EXTERNAL_PATH=/app/static
+    volumes:
+      - ./data:/data
+      - ui-build:/app/static:ro
+    depends_on:
+      - ui
+    command: sh -c "mkdir -p /data && touch /data/netvisor.db && chmod 755 /data && chmod 644 /data/netvisor.db && server"
+volumes:
+  ui-build:
