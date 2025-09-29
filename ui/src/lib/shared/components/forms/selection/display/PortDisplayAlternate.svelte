@@ -1,9 +1,7 @@
 <script lang="ts" context="module">
-	import { Network, Plug } from 'lucide-svelte';
-	import PortInlineEditor from './PortInlineEditor.svelte';
 	import type { Port } from '$lib/features/hosts/types/base';
 	import type { EntityDisplayComponent } from '../types';
-	import { entities, ports } from '$lib/shared/stores/metadata';
+	import { entities } from '$lib/shared/stores/metadata';
 	import { getServicesForPort } from '$lib/features/services/store';
 	import { PortDisplay } from './PortDisplay.svelte';
 
@@ -34,10 +32,7 @@
 </script>
 
 <script lang="ts">
-	import type { DisplayComponentProps } from '../types';
 	import ListSelectItem from '../ListSelectItem.svelte';
-
-	type $$Props = DisplayComponentProps<Port>;
 
 	export let item: Port;
 </script>

@@ -2,7 +2,6 @@
 	import type { FieldType, FormApi } from '../types';
 	import FormField from './FormField.svelte';
 	import { getInputClasses } from './FormField.svelte';
-	import type { Writable } from 'svelte/store';
 
 	export let label: string;
 	export let formApi: FormApi;

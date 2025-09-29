@@ -1,5 +1,4 @@
-// src/lib/features/services/store.ts
-import { writable, derived, get } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { Service } from './types/base';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
@@ -106,16 +105,16 @@ export function getServiceById(service_id: string): Service | null {
 }
 
 export function getServiceHost(service_id: string): Host | null {
-	let service = get(services).find((s) => s.id == service_id);
+	const service = get(services).find((s) => s.id == service_id);
 	if (service) {
-		let host = get(hosts).find((h) => h.id == service.host_id) || null;
+		const host = get(hosts).find((h) => h.id == service.host_id) || null;
 		return host;
 	}
 	return null;
 }
 
 export function getServicesForHost(host_id: string): Service[] {
-	let host = get(hosts).find((h) => h.id == host_id);
+	const host = get(hosts).find((h) => h.id == host_id);
 
 	if (host) {
 		const serviceMap = new Map(get(services).map((s) => [s.id, s]));
@@ -140,12 +139,12 @@ export function getServiceName(service: Service): string {
 }
 
 export function getServicesForPort(port_id: string): Service[] {
-	let host = get(hosts).find((h) => h.ports.some((p) => p.id === port_id));
+	const host = get(hosts).find((h) => h.ports.some((p) => p.id === port_id));
 
 	console.log(host);
 
 	if (host) {
-		let services = getServicesForHost(host.id);
+		const services = getServicesForHost(host.id);
 		console.log(services);
 		return services.filter((s) => s.port_bindings.some((p) => p === port_id));
 	} else {

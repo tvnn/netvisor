@@ -1,5 +1,4 @@
 <script lang="ts" context="module">
-	import { Server } from 'lucide-svelte';
 	import ServiceBindingInlineEditor from './ServiceBindingInlineEditor.svelte';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import { getServiceHost, services } from '$lib/features/services/store';
@@ -79,10 +78,9 @@
 
 <script lang="ts">
 	import type { ServiceBinding } from '$lib/features/hosts/types/base';
-	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
+	import type { EntityDisplayComponent } from '../types';
 	import ListSelectItem from '../ListSelectItem.svelte';
 	import { get } from 'svelte/store';
-	import type { FormApi } from '../../types';
 	import {
 		formatInterface,
 		getInterfaceFromId,
@@ -90,8 +88,6 @@
 		serviceBindingToId
 	} from '$lib/features/hosts/store';
 	import { formatPort } from '$lib/shared/utils/formatting';
-
-	type $Props = DisplayComponentProps<ServiceBinding>;
 
 	export let item: ServiceBinding;
 </script>

@@ -7,7 +7,7 @@
 	import { v4 as uuidv4 } from 'uuid';
 	import { SubnetDisplay } from '$lib/shared/components/forms/selection/display/SubnetDisplay.svelte';
 	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
-	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
+	import type { FormApi } from '$lib/shared/components/forms/types';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
 	import InternetInterfaceConfigPanel from './InternetInterfaceConfigPanel.svelte';
 

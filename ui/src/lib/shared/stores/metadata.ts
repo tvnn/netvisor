@@ -86,7 +86,6 @@ type EntityMetadataKeys = {
 
 // Full TypeMetadata helpers (includes color methods + other methods)
 function createTypeMetadataHelpers<T extends TypeMetadataKeys>(category: T) {
-	const items = derived(metadata, ($registry) => $registry?.[category] || []);
 	const sharedHelpers = createSharedHelpers(category);
 
 	const helpers = {
@@ -149,7 +148,6 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys>(category: T) {
 
 // EntityMetadata helpers (only color methods)
 function createEntityMetadataHelpers<T extends EntityMetadataKeys>(category: T) {
-	const items = derived(metadata, ($registry) => $registry?.[category] || []);
 	const sharedHelpers = createSharedHelpers(category);
 
 	const helpers = {
@@ -178,10 +176,7 @@ export const entities = createEntityMetadataHelpers('entities');
 export const ports = createTypeMetadataHelpers('ports');
 
 export async function getMetadata() {
-	const result = await api.request<MetadataRegistry>(
-		'/metadata',
-		metadata,
-		(metadata) => metadata,
-		{ method: 'GET' }
-	);
+	await api.request<MetadataRegistry>('/metadata', metadata, (metadata) => metadata, {
+		method: 'GET'
+	});
 }

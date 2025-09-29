@@ -3,7 +3,6 @@
 	import RichSelect from './RichSelect.svelte';
 	import ListSelectItem from './ListSelectItem.svelte';
 	import type { EntityDisplayComponent } from './types';
-	import type { FormApi } from '../types';
 
 	// Global
 	export let label: string;
@@ -28,8 +27,8 @@
 
 	// Item interaction
 	export let allowDuplicates: boolean = false;
-	export let allowItemEdit: (item: T) => boolean = (item) => true;
-	export let allowItemRemove: (item: T) => boolean = (item) => true;
+	export let allowItemEdit: (item: T) => boolean = (_item) => true;
+	export let allowItemRemove: (item: T) => boolean = (_item) => true;
 
 	// Interaction handlers
 	export let onCreateNew: (() => void) | null = null;
@@ -144,7 +143,7 @@
 	<!-- Current Items -->
 	{#if items.length > 0}
 		<div class="mb-3 space-y-2">
-			{#each items as item, index}
+			{#each items as item, index (index)}
 				{@const isHighlighted = highlightedIndex === index}
 
 				<!-- svelte-ignore a11y-no-noninteractive-tabindex -->

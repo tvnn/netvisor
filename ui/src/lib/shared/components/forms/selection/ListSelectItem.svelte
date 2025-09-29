@@ -28,7 +28,7 @@
 			<!-- Tags -->
 			{#if tags.length > 0}
 				<div class="flex gap-1">
-					{#each tags as tag}
+					{#each tags as tag (tag.label)}
 						<Tag
 							label={tag.label}
 							color={tag.color}

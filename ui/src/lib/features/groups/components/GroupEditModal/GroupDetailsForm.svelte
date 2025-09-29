@@ -1,18 +1,13 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { AlertCircle } from 'lucide-svelte';
 	import { field } from 'svelte-forms';
 	import { required } from 'svelte-forms/validators';
-	import type { Host } from '$lib/features/hosts/types/base';
 	import { maxLength } from '$lib/shared/components/forms/validators';
-	import { entities } from '$lib/shared/stores/metadata';
-	import type { FieldType, FormApi, FormType } from '$lib/shared/components/forms/types';
+	import type { FormApi } from '$lib/shared/components/forms/types';
 	import type { Group } from '../../types/base';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 
 	export let formApi: FormApi;
-	export let form: FormType;
 	export let formData: Group;
 
 	// Create form fields with validation

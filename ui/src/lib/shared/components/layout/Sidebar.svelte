@@ -21,7 +21,7 @@
 	<!-- Navigation -->
 	<nav class="flex-1 p-4">
 		<ul class="space-y-2">
-			{#each navItems as item}
+			{#each navItems as item (item.id)}
 				<li>
 					<button
 						on:click={() => onTabChange(item.id)}

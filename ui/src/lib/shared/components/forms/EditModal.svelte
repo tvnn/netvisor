@@ -1,8 +1,7 @@
 <script lang="ts">
 	import { AlertCircle } from 'lucide-svelte';
-	import { form as createForm, field } from 'svelte-forms';
+	import { form as createForm } from 'svelte-forms';
 	import GenericModal from '../layout/GenericModal.svelte';
-	import { onMount } from 'svelte';
 	import type { FieldType, FormApi } from './types';
 
 	export let title: string = 'Edit';
@@ -78,7 +77,7 @@
 						<div>
 							<p class="text-sm font-medium text-red-400">Please fix the following errors:</p>
 							<ul class="mt-1 list-inside list-disc text-sm text-red-300">
-								{#each formErrors as error}
+								{#each formErrors as error (error)}
 									<li>{error}</li>
 								{/each}
 							</ul>

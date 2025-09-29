@@ -1,4 +1,3 @@
-<!-- src/lib/features/hosts/components/HostEditModal/Services/ServicesConfigPanel.svelte -->
 <script lang="ts">
 	import { field } from 'svelte-forms';
 	import type { Service } from '$lib/features/services/types/base';
@@ -8,13 +7,12 @@
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { PortDisplay } from '$lib/shared/components/forms/selection/display/PortDisplay.svelte';
 	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
-	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
+	import type { FormApi } from '$lib/shared/components/forms/types';
 	import { required } from 'svelte-forms/validators';
 	import { pushWarning } from '$lib/shared/stores/feedback';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import { maxLength } from '$lib/shared/components/forms/validators';
 	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
-	import { getPortFromId } from '$lib/features/hosts/store';
 	import { v4 as uuidv4 } from 'uuid';
 
 	export let formApi: FormApi;
@@ -100,11 +98,6 @@
 		const updatedPorts = [...service.port_bindings];
 		updatedPorts[index] = port.id;
 
-		const updatedService = {
-			...service,
-			port_bindings: updatedPorts
-		};
-
 		formData.ports = [...formData.ports.map((p) => (p.id == port.id ? port : p))];
 	}
 
@@ -130,7 +123,6 @@
 
 		if (index < 0 || index >= service.interface_bindings.length) return;
 
-		const removedInterfaceId = service.interface_bindings[index];
 		const updatedService = {
 			...service,
 			interface_bindings: service.interface_bindings.filter((_, i) => i !== index)
@@ -168,7 +160,7 @@
 		<!-- Basic Configuration -->
 		<div class="space-y-4">
 			<!-- Service Name Field -->
-			{#if nameField}
+			{#if $nameField}
 				<TextInput
 					label="Name"
 					id="service_name_{service.id}"

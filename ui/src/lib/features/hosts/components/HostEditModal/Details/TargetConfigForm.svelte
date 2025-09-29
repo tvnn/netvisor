@@ -1,17 +1,11 @@
 <script lang="ts">
-	import { AlertCircle, Globe, Network, TargetIcon } from 'lucide-svelte';
-	import type { Host, HostTarget, ServiceBinding } from '$lib/features/hosts/types/base';
+	import { Globe, Network } from 'lucide-svelte';
+	import type { Host, ServiceBinding } from '$lib/features/hosts/types/base';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
-	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
-	import { field } from 'svelte-forms';
-	import { ipAddress } from '$lib/shared/components/forms/validators';
-	import { required } from 'svelte-forms/validators';
-	import { onMount } from 'svelte';
-	import type { FieldType, FormApi, FormType } from '$lib/shared/components/forms/types';
+	import type { FormType } from '$lib/shared/components/forms/types';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import { getServicesForHost } from '$lib/features/services/store';
 	import {
-		getInterfaceFromId,
 		getPortFromId,
 		serviceBindingIdToObj,
 		serviceBindingToId
@@ -19,11 +13,9 @@
 	import { uuidv4Sentinel } from '$lib/shared/utils/formatting';
 	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
 
-	export let formApi: FormApi;
 	export let form: FormType;
 	export let formData: Host;
 
-	let currentTargetType = formData.target.type;
 	let selectedBinding: ServiceBinding;
 
 	if (formData.target.type == 'ServiceBinding') {
@@ -47,7 +39,7 @@
 	);
 
 	$: hostnameField = form.getField('hostname');
-	$: has_hostname = hostnameField ? $hostnameField.value.length > 0 : false;
+	$: has_hostname = $hostnameField ? $hostnameField.value.length > 0 : false;
 
 	// Form fields
 	$: targetTypes = [
@@ -135,7 +127,7 @@
 			class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white
               focus:outline-none focus:ring-2"
 		>
-			{#each targetTypes as targetType}
+			{#each targetTypes as targetType (targetType.value)}
 				<option disabled={targetType.disabled} value={targetType.value}>{targetType.label}</option>
 			{/each}
 		</select>

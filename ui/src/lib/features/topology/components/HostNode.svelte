@@ -1,12 +1,11 @@
 <script lang="ts">
 	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
-	import { createColorHelper } from '$lib/shared/utils/styling';
-	import { getHostFromId, getHostTargetString } from '$lib/features/hosts/store';
+	import { getHostFromId } from '$lib/features/hosts/store';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import { getServicesForHost } from '$lib/features/services/store';
 	import { isContainerSubnet } from '$lib/features/subnets/store';
 
-	let { id, data, selected, width, height }: NodeProps = $props();
+	let { data, selected, width, height }: NodeProps = $props();
 
 	let nodeData = $derived(
 		data.host_id
@@ -27,10 +26,9 @@
 					let showServices = servicesOnInterface.length != 0;
 
 					if (
-						(servicesOnInterface.length > 0 && servicesOnInterface[0].name == host.name) ||
-						host.name.includes('Unknown Device')
+						!(servicesOnInterface.length > 0 && servicesOnInterface[0].name == host.name) &&
+						!host.name.includes('Unknown Device')
 					) {
-					} else {
 						headerText = host.name;
 					}
 
@@ -80,10 +78,10 @@
 			{#if nodeData.showServices}
 				<!-- Show services list -->
 				<div class="flex w-full flex-col items-center space-y-1">
-					{#each nodeData.services as service}
+					{#each nodeData.services as service (service.id)}
 						{@const ServiceIcon = serviceDefinitions.getIconComponent(service.service_definition)}
 						<div
-							class={`flex max-w-full items-center justify-center gap-1 truncate text-center text-xs`}
+							class="flex max-w-full items-center justify-center gap-1 truncate text-center text-xs"
 							style="line-height: 1.3;"
 							title={service.name}
 						>
@@ -94,7 +92,7 @@
 				</div>
 			{:else}
 				<!-- Show host name as body text -->
-				<div class={`truncate text-center text-xs leading-none`} title={nodeData.bodyText}>
+				<div class="truncate text-center text-xs leading-none" title={nodeData.bodyText}>
 					{nodeData.bodyText}
 				</div>
 			{/if}
@@ -112,14 +110,14 @@
 		{/if}
 
 		<!-- Connection handles remain the same -->
-		<Handle type="target" id="Top" position={Position.Top} style={`opacity: 0`} />
-		<Handle type="target" id="Right" position={Position.Right} style={`opacity: 0`} />
-		<Handle type="target" id="Bottom" position={Position.Bottom} style={`opacity: 0`} />
-		<Handle type="target" id="Left" position={Position.Left} style={`opacity: 0`} />
+		<Handle type="target" id="Top" position={Position.Top} style="opacity: 0" />
+		<Handle type="target" id="Right" position={Position.Right} style="opacity: 0" />
+		<Handle type="target" id="Bottom" position={Position.Bottom} style="opacity: 0" />
+		<Handle type="target" id="Left" position={Position.Left} style="opacity: 0" />
 
-		<Handle type="source" id="Top" position={Position.Top} style={`opacity: 0`} />
-		<Handle type="source" id="Right" position={Position.Right} style={`opacity: 0`} />
-		<Handle type="source" id="Bottom" position={Position.Bottom} style={`opacity: 0`} />
-		<Handle type="source" id="Left" position={Position.Left} style={`opacity: 0`} />
+		<Handle type="source" id="Top" position={Position.Top} style="opacity: 0" />
+		<Handle type="source" id="Right" position={Position.Right} style="opacity: 0" />
+		<Handle type="source" id="Bottom" position={Position.Bottom} style="opacity: 0" />
+		<Handle type="source" id="Left" position={Position.Left} style="opacity: 0" />
 	</div>
 {/if}

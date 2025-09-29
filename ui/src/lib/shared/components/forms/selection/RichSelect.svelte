@@ -3,6 +3,7 @@
 	import ListSelectItem from './ListSelectItem.svelte';
 	import type { EntityDisplayComponent } from './types';
 	import { tick } from 'svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	export let label: string = '';
 	export let selectedValue: string | null = '';
@@ -44,7 +45,7 @@
 			return [{ category: null, options: optionsToGroup }];
 		}
 
-		const groups = new Map<string | null, T[]>();
+		const groups = new SvelteMap<string | null, T[]>();
 
 		optionsToGroup.forEach((option) => {
 			const category = displayComponent.getCategory!(option);
@@ -218,7 +219,7 @@
 					No options match "{filterText}"
 				</div>
 			{:else}
-				{#each groupedOptions as group, groupIndex}
+				{#each groupedOptions as group, groupIndex (groupIndex)}
 					{#if group.options.length > 0}
 						<!-- Category Header -->
 						{#if group.category !== null}
@@ -230,7 +231,7 @@
 						{/if}
 
 						<!-- Options in this category -->
-						{#each group.options as option, optionIndex}
+						{#each group.options as option, optionIndex (optionIndex)}
 							{@const isLastInGroup = optionIndex === group.options.length - 1}
 							{@const isLastGroup = groupIndex === groupedOptions.length - 1}
 							<button

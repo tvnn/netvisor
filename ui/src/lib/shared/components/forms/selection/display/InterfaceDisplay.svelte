@@ -1,5 +1,4 @@
 <script lang="ts" context="module">
-	import { Network } from 'lucide-svelte';
 	import { isContainerSubnet, subnets } from '$lib/features/subnets/store';
 	import { get } from 'svelte/store';
 
@@ -41,10 +40,8 @@
 <script lang="ts">
 	import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
 	import type { Interface } from '$lib/features/hosts/types/base';
-	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
+	import type { EntityDisplayComponent } from '../types';
 	import { entities } from '$lib/shared/stores/metadata';
-
-	type $$Props = DisplayComponentProps<Interface>;
 
 	export let item: Interface;
 </script>

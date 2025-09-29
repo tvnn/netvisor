@@ -48,7 +48,7 @@
 	<!-- Content - grows to fill available space -->
 	<div class="flex-grow space-y-3">
 		<!-- Basic info sections -->
-		{#each sections as section}
+		{#each sections as section (section.value)}
 			<div class="text-sm text-gray-300">
 				<span class="text-gray-400">{section.label}:</span>
 				<span class="ml-2">{section.value}</span>
@@ -56,12 +56,12 @@
 		{/each}
 
 		<!-- List sections -->
-		{#each lists as list}
+		{#each lists as list (list.label)}
 			<div class="text-sm">
 				<div class="flex flex-wrap items-center gap-2">
 					<span class="text-gray-400">{list.label}:</span>
 					{#if list.items.length > 0}
-						{#each list.items as item}
+						{#each list.items as item (item.id)}
 							<div class="flex items-center justify-between">
 								<div class="flex items-center space-x-2">
 									<Tag
@@ -76,7 +76,7 @@
 								<!-- Item actions -->
 								{#if list.itemActions}
 									<div class="flex items-center space-x-1">
-										{#each list.itemActions(item) as action}
+										{#each list.itemActions(item) as action (action.label)}
 											<button
 												on:click={action.onClick}
 												disabled={action.disabled}
@@ -114,7 +114,7 @@
 	<!-- Action Buttons -->
 	{#if actions.length > 0}
 		<div class="mt-4 flex items-center justify-between border-t border-gray-700 pt-4">
-			{#each actions as action}
+			{#each actions as action (action.label)}
 				<button
 					on:click={action.onClick}
 					disabled={action.disabled}

@@ -1,10 +1,3 @@
-// export interface Endpoint {
-//   protocol?: string;
-//   ip?: string;
-//   port?: Port;
-//   path?: string;
-// }
-
 export interface Service {
 	id: string;
 	created_at: string;

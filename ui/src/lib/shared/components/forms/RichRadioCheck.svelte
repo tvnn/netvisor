@@ -70,7 +70,7 @@
 </script>
 
 <div class="grid grid-cols-1 {columns > 1 ? `md:grid-cols-${columns}` : ''} gap-3">
-	{#each options as option}
+	{#each options as option (option.id)}
 		{@const selected = isSelected(option.id)}
 		<label class={getCardClasses(option, selected)}>
 			<input

@@ -1,19 +1,15 @@
 <script lang="ts">
-	import { Users } from 'lucide-svelte';
 	import { createEmptyGroupFormData } from '../../store';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import type { Group } from '../../types/base';
 	import type { ServiceBinding } from '$lib/features/hosts/types/base';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { entities } from '$lib/shared/stores/metadata';
-	import { getServiceById, getServiceHost, services } from '$lib/features/services/store';
+	import { services } from '$lib/features/services/store';
 	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import GroupDetailsForm from './GroupDetailsForm.svelte';
-	import { pushWarning } from '$lib/shared/stores/feedback';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
-	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
 	import {
 		getPortFromId,
 		serviceBindingIdToObj,
@@ -43,16 +39,6 @@
 	function resetForm() {
 		formData = group ? { ...group } : createEmptyGroupFormData();
 	}
-
-	// Get services that are available to add (not already in group + has some interface & port binding)
-	$: selectableServices = $services
-		.filter(
-			(service) =>
-				!formData.service_bindings.some((binding) => binding.service_id === service.id) &&
-				service.interface_bindings.length > 0 &&
-				service.port_bindings.length > 0
-		)
-		.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 
 	$: serviceBindings = $services
 		.flatMap((s) =>
@@ -156,7 +142,6 @@
 	onCancel={onClose}
 	onDelete={isEditing ? handleDelete : null}
 	size="xl"
-	let:form
 	let:formApi
 >
 	<!-- Header icon -->
@@ -168,7 +153,7 @@
 	<div class="flex h-full flex-col overflow-hidden">
 		<div class="flex-1 overflow-y-auto">
 			<div class="space-y-8 p-6">
-				<GroupDetailsForm {form} {formApi} bind:formData />
+				<GroupDetailsForm {formApi} bind:formData />
 
 				<!-- Services Section -->
 				<div class="space-y-4">

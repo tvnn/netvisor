@@ -14,7 +14,7 @@
 		getIcon: (service: Service) => serviceDefinitions.getIconComponent(service.service_definition),
 		getIconColor: (service: Service) =>
 			serviceDefinitions.getColorHelper(service.service_definition).icon,
-		getTags: (service: Service) => [
+		getTags: (_service: Service) => [
 			// {
 			//   label: service.
 			// }
@@ -25,16 +25,11 @@
 </script>
 
 <script lang="ts">
-	import { Network } from 'lucide-svelte';
-	import type { DisplayComponentProps } from '../types';
 	import type { Service } from '$lib/features/services/types/base';
-	import { getServiceHost, getServicesForHost } from '$lib/features/services/store';
-	import { HostDisplay } from './HostDisplay.svelte';
+	import { getServiceHost } from '$lib/features/services/store';
 	import ListSelectItem from '../ListSelectItem.svelte';
-	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
+	import { serviceDefinitions } from '$lib/shared/stores/metadata';
 	import { getHostTargetString } from '$lib/features/hosts/store';
-
-	type $$Props = DisplayComponentProps<Service>;
 
 	export let item: Service;
 

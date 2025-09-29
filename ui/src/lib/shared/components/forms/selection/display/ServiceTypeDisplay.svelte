@@ -20,10 +20,7 @@
 <script lang="ts">
 	import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
 	import { serviceDefinitions, type TypeMetadata } from '$lib/shared/stores/metadata';
-	import { createIconComponent } from '$lib/shared/utils/styling';
-	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
-
-	type $$Props = DisplayComponentProps<TypeMetadata>;
+	import type { EntityDisplayComponent } from '../types';
 
 	export let item: TypeMetadata;
 </script>

@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { Server, Settings, Shield, Info, Network } from 'lucide-svelte';
+	import { Server, Info } from 'lucide-svelte';
 	import type { Host, HostWithServicesRequest } from '$lib/features/hosts/types/base';
 	import { createEmptyHostFormData } from '$lib/features/hosts/store';
 	import DetailsForm from './Details/HostDetailsForm.svelte';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import InterfacesForm from './Interfaces/InterfacesForm.svelte';
 	import ServicesForm from './Services/ServicesForm.svelte';
-	import { entities, metadata } from '$lib/shared/stores/metadata';
+	import { entities } from '$lib/shared/stores/metadata';
 	import type { Service } from '$lib/features/services/types/base';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { getServicesForHost } from '$lib/features/services/store';
@@ -90,27 +90,19 @@
 
 	async function handleSubmit() {
 		loading = true;
-		try {
-			if (isEditing && host) {
-				await onUpdate({ host: formData, services: currentHostServices });
-			} else {
-				await onCreate({ host: formData, services: currentHostServices });
-			}
-		} catch (error) {
-			throw error;
-		} finally {
-			loading = false;
+		if (isEditing && host) {
+			await onUpdate({ host: formData, services: currentHostServices });
+		} else {
+			await onCreate({ host: formData, services: currentHostServices });
 		}
+		loading = false;
 	}
 
 	async function handleDelete() {
 		if (onDelete && host) {
 			deleting = true;
-			try {
-				await onDelete(host.id);
-			} finally {
-				deleting = false;
-			}
+			await onDelete(host.id);
+			deleting = false;
 		}
 	}
 
@@ -167,7 +159,7 @@
 		{#if isEditing}
 			<div class="border-b border-gray-700 px-6">
 				<nav class="flex space-x-8" aria-label="Host editor tabs">
-					{#each tabs as tab}
+					{#each tabs as tab (tab.id)}
 						<button
 							type="button"
 							on:click={() => {

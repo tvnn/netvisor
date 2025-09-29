@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { AlertCircle } from 'lucide-svelte';
 	import { field } from 'svelte-forms';
 	import { required } from 'svelte-forms/validators';
 	import type { Host } from '$lib/features/hosts/types/base';
@@ -9,7 +7,6 @@
 		maxLength
 	} from '$lib/shared/components/forms/validators';
 	import TargetConfigForm from './TargetConfigForm.svelte';
-	import { entities, ports } from '$lib/shared/stores/metadata';
 	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
@@ -60,7 +57,7 @@
 		field={description}
 	/>
 
-	<TargetConfigForm {formApi} {form} {formData} />
+	<TargetConfigForm {form} {formData} />
 
 	{#if isEditing}
 		<EntityMetadataSection

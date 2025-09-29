@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { toastStore, dismissToast, type Toast } from '$lib/shared/stores/feedback';
-	import { fly, fade } from 'svelte/transition';
+	import { fly } from 'svelte/transition';
 	import { AlertCircle, AlertTriangle, Info, CheckCircle, X } from 'lucide-svelte';
 
 	$: toasts = $toastStore;
@@ -97,7 +97,7 @@
 						<!-- Actions -->
 						{#if toast.actions && toast.actions.length > 0}
 							<div class="mt-3 flex gap-2">
-								{#each toast.actions as action}
+								{#each toast.actions as action (action.label)}
 									<button
 										type="button"
 										on:click={() => handleActionClick(action.action, toast.id)}

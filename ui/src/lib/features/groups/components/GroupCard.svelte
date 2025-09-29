@@ -1,8 +1,6 @@
 <script lang="ts">
-	import { Edit, Trash2, Users } from 'lucide-svelte';
+	import { Edit, Trash2 } from 'lucide-svelte';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
-	import { hosts } from '$lib/features/hosts/store';
-	import { get } from 'svelte/store';
 	import type { Group } from '../types/base';
 	import { entities } from '$lib/shared/stores/metadata';
 	import { getServiceById } from '$lib/features/services/store';

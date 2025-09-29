@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { Network, ArrowRight, AlertTriangle, CheckCircle } from 'lucide-svelte';
+	import { CheckCircle } from 'lucide-svelte';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
-	import type { Host, Interface } from '../types/base';
+	import type { Host } from '../types/base';
 	import { hosts } from '../store';
-	import { getHostTargetString } from '../store';
 	import GenericModal from '$lib/shared/components/layout/GenericModal.svelte';
 	import EntityDisplay from '$lib/shared/components/forms/selection/display/EntityDisplayWrapper.svelte';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';

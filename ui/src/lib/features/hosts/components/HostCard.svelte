@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { CircleQuestionMark, Edit, Radar, Replace, Trash2 } from 'lucide-svelte';
+	import { Edit, Radar, Replace, Trash2 } from 'lucide-svelte';
 	import { formatInterface, getHostTargetString } from '../store';
 	import type { Host } from '../types/base';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
@@ -8,10 +8,8 @@
 	import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
 	import { sessions } from '$lib/features/discovery/store';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
-	import { isContainerSubnet, subnets } from '$lib/features/subnets/store';
-	import { get } from 'svelte/store';
 	import type { Group } from '$lib/features/groups/types/base';
-	import { getServicesForHost, services } from '$lib/features/services/store';
+	import { getServicesForHost } from '$lib/features/services/store';
 
 	export let host: Host;
 	export let daemon: Daemon | null;
@@ -32,15 +30,7 @@
 	$: discoveryData =
 		hostIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;
 
-	$: hostServices = (() => {
-		// Force reactivity to services store
-		$services;
-		return getServicesForHost(host.id);
-	})();
-
-	function getSubnetNameFromId(id: string): string | null {
-		return get(subnets).find((s) => s.id == id)?.cidr || null;
-	}
+	$: hostServices = getServicesForHost(host.id);
 
 	// Build card data
 	$: cardData = {
@@ -76,7 +66,7 @@
 			},
 			{
 				label: 'Groups',
-				items: hostGroups.map((group: Group, i) => ({
+				items: hostGroups.map((group: Group) => ({
 					id: group.id,
 					label: group.name,
 					color: entities.getColorHelper('Group').string

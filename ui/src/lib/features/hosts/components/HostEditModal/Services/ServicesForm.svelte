@@ -1,18 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { get } from 'svelte/store';
 	import ListConfigEditor from '$lib/shared/components/forms/selection/ListConfigEditor.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import ServicesConfigPanel from './ServicesConfigPanel.svelte';
 	import type { Service } from '$lib/features/services/types/base';
-	import type { Port } from '$lib/features/hosts/types/base';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
-	import { createDefaultService, getServicesForHost } from '$lib/features/services/store';
-	import type { TypeMetadata } from '$lib/shared/stores/metadata';
+	import { createDefaultService } from '$lib/features/services/store';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
-	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
+	import type { FormApi } from '$lib/shared/components/forms/types';
 	import { pushError } from '$lib/shared/stores/feedback';
 
 	export let formApi: FormApi;
@@ -50,7 +46,6 @@
 	function handleServiceChange(service: Service, index: number) {
 		if (index >= 0 && index < currentServices.length) {
 			const updatedServices = [...currentServices];
-			const oldService = updatedServices[index];
 
 			updatedServices[index] = service;
 			currentServices = updatedServices;

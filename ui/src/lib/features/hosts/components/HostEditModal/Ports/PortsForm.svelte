@@ -1,12 +1,8 @@
 <script lang="ts">
 	import { type Host } from '$lib/features/hosts/types/base';
-	import { getServicesForHost, getServicesForPort } from '$lib/features/services/store';
+	import { getServicesForPort } from '$lib/features/services/store';
 	import { ports } from '$lib/shared/stores/metadata';
-	import { PortDisplay } from '$lib/shared/components/forms/selection/display/PortDisplay.svelte';
-	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
-	import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
 	import type { Port } from '$lib/features/hosts/types/base';
-	import type { Service } from '$lib/features/services/types/base';
 	import { PortTypeDisplay } from '$lib/shared/components/forms/selection/display/PortTypeDisplay.svelte';
 	import { v4 as uuidv4 } from 'uuid';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';

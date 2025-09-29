@@ -1,18 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { AlertCircle } from 'lucide-svelte';
 	import { field } from 'svelte-forms';
 	import { required } from 'svelte-forms/validators';
-	import type { Host } from '$lib/features/hosts/types/base';
 	import { cidr as cidrValidator, maxLength } from '$lib/shared/components/forms/validators';
-	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
-	import type { FieldType, FormApi, FormType } from '$lib/shared/components/forms/types';
+	import { subnetTypes } from '$lib/shared/stores/metadata';
+	import type { FormApi } from '$lib/shared/components/forms/types';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import { isContainerSubnet } from '../../store';
 
 	export let formApi: FormApi;
-	export let form: FormType;
 	export let formData: Subnet;
 
 	// Create form fields with validation
@@ -58,7 +54,7 @@
 		bind:value={formData.subnet_type}
 		class="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2"
 	>
-		{#each subnetTypes.getItems() as subnet_type}
+		{#each subnetTypes.getItems() as subnet_type (subnet_type.id)}
 			<option value={subnet_type.id}>{subnet_type.name}</option>
 		{/each}
 	</select>

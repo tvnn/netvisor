@@ -1,16 +1,8 @@
 import { get, writable } from 'svelte/store';
-import type {
-	Host,
-	HostTarget,
-	HostWithServicesRequest,
-	Interface,
-	Port,
-	ServiceBinding
-} from './types/base';
+import type { Host, HostWithServicesRequest, Interface, Port, ServiceBinding } from './types/base';
 import { api } from '../../shared/utils/api';
-import { pushInfo, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
+import { pushSuccess } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
-import { getServiceById, getServices } from '../services/store';
 import { isContainerSubnet } from '../subnets/store';
 
 export const hosts = writable<Host[]>([]);
@@ -52,7 +44,7 @@ export async function deleteHost(id: string) {
 }
 
 export async function consolidateHosts(destination_host_id: string, other_host_id: string) {
-	let other_host_name = getHostFromId(other_host_id)?.name;
+	const other_host_name = getHostFromId(other_host_id)?.name;
 
 	return await api.request<Host, Host[]>(
 		`/hosts/${destination_host_id}/consolidate/${other_host_id}`,
@@ -86,8 +78,8 @@ export function createEmptyHostFormData(): Host {
 export function getHostTargetString(host: Host): string | null {
 	switch (host.target.type) {
 		case 'ServiceBinding':
-			let iface = getInterfaceFromId(host.target.config.interface_id);
-			let port = getPortFromId(host.target.config.port_id);
+			const iface = getInterfaceFromId(host.target.config.interface_id);
+			const port = getPortFromId(host.target.config.port_id);
 
 			return iface && port ? iface.ip_address + ':' + port.number : null;
 		case 'None':
@@ -130,7 +122,7 @@ export function serviceBindingToId(binding: ServiceBinding): string {
 }
 
 export function serviceBindingIdToObj(binding_string: string): ServiceBinding | null {
-	let parsed = JSON.parse(binding_string);
+	const parsed = JSON.parse(binding_string);
 	if (parsed?.interface_id && parsed?.service_id && parsed?.port_id) {
 		return parsed as ServiceBinding;
 	} else {

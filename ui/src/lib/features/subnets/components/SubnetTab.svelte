@@ -49,7 +49,7 @@
 		}
 	}
 
-	async function handleSubnetUpdate(id: string, data: any) {
+	async function handleSubnetUpdate(_id: string, data: Subnet) {
 		const result = await updateSubnet(data);
 		if (result?.success) {
 			showSubnetEditor = false;

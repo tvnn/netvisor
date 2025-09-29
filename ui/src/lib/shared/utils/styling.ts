@@ -1,6 +1,5 @@
 import * as LucideIcons from 'lucide-svelte';
 import HomarrIcon from '$lib/shared/components/data/HomarrIcon.svelte';
-import { mount } from 'svelte';
 
 export interface ColorStyle {
 	text: string;
@@ -149,7 +148,7 @@ export function createColorHelper(colorName: string | null): ColorStyle {
 		}
 	};
 
-	let color = colorName && colorMap[colorName] ? colorName : 'gray';
+	const color = colorName && colorMap[colorName] ? colorName : 'gray';
 
 	return colorMap[color];
 }

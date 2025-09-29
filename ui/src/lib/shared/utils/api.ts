@@ -41,8 +41,7 @@ class ApiClient {
 		endpoint: string,
 		dataStore: Writable<TStoreData> | null,
 		storeAction: ((data: TResponseData, current: TStoreData) => TStoreData) | null,
-		options: RequestInit = {},
-		isBackgroundRequest: boolean = false
+		options: RequestInit = {}
 	): Promise<ApiResponse<TResponseData> | null> {
 		const method = options.method || 'GET';
 		const body = options.body as string;
@@ -69,7 +68,7 @@ class ApiClient {
 			}
 		}
 
-		let hostname =
+		const hostname =
 			PUBLIC_SERVER_HOSTNAME == 'default' ? window.location.hostname : PUBLIC_SERVER_HOSTNAME;
 
 		const url = URL.parse(
@@ -106,7 +105,7 @@ class ApiClient {
 				cacheEntry.completed = true;
 				cacheEntry.result = result;
 			})
-			.catch((error) => {
+			.catch((_error) => {
 				cacheEntry.completed = true;
 				cacheEntry.result = null;
 			});

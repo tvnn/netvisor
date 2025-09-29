@@ -1,17 +1,14 @@
 <script lang="ts">
-	import { Handle, NodeResizeControl, NodeResizer, Position, type NodeProps } from '@xyflow/svelte';
+	import { NodeResizeControl, type NodeProps } from '@xyflow/svelte';
 	import { createColorHelper } from '$lib/shared/utils/styling';
-	import { Network } from 'lucide-svelte';
-	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
+	import { subnetTypes } from '$lib/shared/stores/metadata';
 	import {
 		createEmptySubnetFormData,
-		createSubnet,
 		getSubnetFromId,
-		getSubnets,
 		isContainerSubnet
 	} from '$lib/features/subnets/store';
 
-	let { id, data, selected, width, height, type }: NodeProps = $props();
+	let { id, data, selected, width, height }: NodeProps = $props();
 
 	let subnet = getSubnetFromId(id) || createEmptySubnetFormData();
 
@@ -143,7 +140,7 @@
 		>
 			<!-- Icon -->
 			{#if IconComponent}
-				<svelte:component this={IconComponent} class={`h-3 w-3 ${subnetColorHelper.icon}`} />
+				<IconComponent class={`h-3 w-3 ${subnetColorHelper.icon}`} />
 			{/if}
 
 			<!-- Label -->

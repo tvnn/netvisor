@@ -24,11 +24,8 @@
 	} from '../store';
 	import { getGroups, groups } from '$lib/features/groups/store';
 	import { loadData } from '$lib/shared/utils/dataLoader';
-	import { getServices, getServicesForHost, services } from '$lib/features/services/store';
-	import { getSubnets, subnets } from '$lib/features/subnets/store';
-	import { stringify } from 'uuid';
-	import { get } from 'svelte/store';
-	import { watchStores } from '$lib/shared/utils/storeWatcher';
+	import { getServices, getServicesForHost } from '$lib/features/services/store';
+	import { getSubnets } from '$lib/features/subnets/store';
 
 	const loading = loadData([
 		getHosts,
@@ -54,7 +51,7 @@
 
 		return (
 			host.name.toLowerCase().includes(searchLower) ||
-			targetString.includes(searchLower) ||
+			(targetString && targetString.includes(searchLower)) ||
 			(host.description && host.description.toLowerCase().includes(searchLower))
 		);
 	});

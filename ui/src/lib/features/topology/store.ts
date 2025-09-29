@@ -83,7 +83,7 @@ function getAbsoluteNodePosition(nodeId: string): { x: number; y: number } | nul
 
 // Calculate distance between click point and node centers
 export function getDistanceToNode(clickX: number, clickY: number, node: Node): number {
-	let nodePosition = getAbsoluteNodePosition(node.id);
+	const nodePosition = getAbsoluteNodePosition(node.id);
 
 	console.log(nodePosition);
 
@@ -95,27 +95,4 @@ export function getDistanceToNode(clickX: number, clickY: number, node: Node): n
 	}
 
 	return Infinity;
-}
-
-function getNodesBounds(nodeList: Node[]) {
-	if (nodeList.length === 0) return { x: 0, y: 0, width: 800, height: 600 };
-
-	let minX = Infinity,
-		minY = Infinity,
-		maxX = -Infinity,
-		maxY = -Infinity;
-
-	nodeList.forEach((node) => {
-		minX = Math.min(minX, node.position.x);
-		minY = Math.min(minY, node.position.y);
-		maxX = Math.max(maxX, node.position.x + (node.width || 0));
-		maxY = Math.max(maxY, node.position.y + (node.height || 0));
-	});
-
-	return {
-		x: minX,
-		y: minY,
-		width: maxX - minX,
-		height: maxY - minY
-	};
 }

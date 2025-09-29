@@ -1,7 +1,14 @@
 <script lang="ts">
+	import type { Component } from 'svelte';
+
 	export let title: string;
 	export let subtitle: string;
-	export let buttons: any[];
+	export let buttons: {
+		cta: string;
+		onClick: () => void;
+		disabled?: boolean;
+		IconComponent?: Component;
+	}[] = [];
 </script>
 
 <div class="flex items-center justify-between">
@@ -10,7 +17,7 @@
 		<p class="mt-1 text-gray-400">{subtitle}</p>
 	</div>
 	<div class="flex gap-4">
-		{#each buttons as button}
+		{#each buttons as button (button)}
 			<button
 				on:click={button.onClick}
 				disabled={button.disabled}

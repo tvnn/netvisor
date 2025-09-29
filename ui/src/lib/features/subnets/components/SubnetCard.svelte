@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { Edit, Trash2, Network } from 'lucide-svelte';
+	import { Edit, Trash2 } from 'lucide-svelte';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import { hosts } from '$lib/features/hosts/store';
 	import { get } from 'svelte/store';
 	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
-	import { getServiceHost, services } from '$lib/features/services/store';
+	import { getServiceHost } from '$lib/features/services/store';
 	import { isContainerSubnet } from '../store';
 
 	export let subnet: Subnet;

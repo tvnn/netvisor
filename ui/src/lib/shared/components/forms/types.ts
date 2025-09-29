@@ -1,8 +1,8 @@
 import { field, form } from 'svelte-forms';
 import { required } from 'svelte-forms/validators';
 
-let dummyField = field('dummy', 'a', [required()]);
-let dummyForm = form();
+const dummyField = field('dummy', 'a', [required()]);
+const dummyForm = form();
 
 export type FormType = typeof dummyForm;
 

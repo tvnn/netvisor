@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { field } from 'svelte-forms';
-	import { AlertCircle } from 'lucide-svelte';
 	import type { Interface } from '$lib/features/hosts/types/base';
 	import {
 		ipAddress,
@@ -9,8 +8,7 @@
 		maxLength
 	} from '$lib/shared/components/forms/validators';
 	import { required } from 'svelte-forms/validators';
-	import { onMount } from 'svelte';
-	import type { FormApi, FormType } from '$lib/shared/components/forms/types';
+	import type { FormApi } from '$lib/shared/components/forms/types';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
 
@@ -90,7 +88,7 @@
 		<div class="space-y-4">
 			<h4 class="text-sm font-medium text-gray-300">Interface Configuration</h4>
 
-			{#if nameField}
+			{#if $nameField}
 				<TextInput
 					label="Name"
 					id="interface_{iface.id}"
@@ -100,7 +98,7 @@
 				/>
 			{/if}
 
-			{#if ipAddressField}
+			{#if $ipAddressField}
 				<TextInput
 					label="IP Address"
 					id="interface_ip_{iface.id}"
@@ -112,7 +110,7 @@
 				/>
 			{/if}
 
-			{#if macAddressField}
+			{#if $macAddressField}
 				<TextInput
 					label="MAC Address"
 					id="interface_mac_{iface.id}"

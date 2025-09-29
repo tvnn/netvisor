@@ -1,5 +1,3 @@
-import type { Position } from '@xyflow/svelte';
-
 export interface TopologyNodeData {
 	id: string;
 	node_type: string;

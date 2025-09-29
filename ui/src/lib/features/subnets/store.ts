@@ -1,8 +1,6 @@
 import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
-import { getHosts } from '../hosts/store';
-import { getServices } from '../services/store';
 
 export const subnets = writable<Subnet[]>([]);
 
@@ -77,7 +75,7 @@ export function getSubnetFromId(id: string) {
 }
 
 export function isContainerSubnet(id: string): Subnet | boolean {
-	let subnet = get(subnets).find((s) => s.id == id);
+	const subnet = get(subnets).find((s) => s.id == id);
 	if (subnet) {
 		return subnet.cidr == '0.0.0.0/0' && subnet.source == 'System';
 	}

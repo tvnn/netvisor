@@ -1,5 +1,4 @@
 <script lang="ts" context="module">
-	import { Network } from 'lucide-svelte';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 
@@ -24,12 +23,9 @@
 
 <script lang="ts">
 	import { getServicesForHost } from '$lib/features/services/store';
-	import { get } from 'svelte/store';
-	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
+	import type { EntityDisplayComponent } from '../types';
 	import ListSelectItem from '../ListSelectItem.svelte';
 	import { getHostTargetString } from '$lib/features/hosts/store';
-
-	type $$Props = DisplayComponentProps<Host>;
 
 	export let item: Host;
 </script>

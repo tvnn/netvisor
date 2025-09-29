@@ -1,7 +1,4 @@
 <script lang="ts">
-	import { formatId, formatTimestamp } from '$lib/shared/utils/formatting';
-	import { Calendar, Clock, Hash, ChevronDown, ChevronRight } from 'lucide-svelte';
-
 	export let title: string;
 	export let subtitle: string;
 </script>

@@ -3,7 +3,6 @@
 	import type { Interface } from '$lib/features/hosts/types/base';
 	import { getServiceHost, services } from '$lib/features/services/store';
 	import { formatId } from '$lib/shared/utils/formatting';
-	import type { FormApi } from '../../types';
 
 	export let serviceBinding: ServiceBinding;
 	export let onUpdate: (updates: Partial<ServiceBinding>) => void = () => {};
@@ -58,7 +57,7 @@
 			class="w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
 		>
 			<option value="" disabled>Select interface...</option>
-			{#each boundInterfaces as iface}
+			{#each boundInterfaces as iface (iface.id)}
 				<option value={iface.id}>
 					{getInterfaceDisplayName(iface)}
 				</option>

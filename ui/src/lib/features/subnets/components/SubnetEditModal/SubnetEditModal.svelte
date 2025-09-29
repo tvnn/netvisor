@@ -1,12 +1,8 @@
 <script lang="ts">
-	import { Network, Router, Search } from 'lucide-svelte';
 	import { createEmptySubnetFormData } from '../../store';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-	import { entities, serviceDefinitions, subnetTypes } from '$lib/shared/stores/metadata';
-	import { hosts } from '$lib/features/hosts/store';
-	import type { Host } from '$lib/features/hosts/types/base';
-	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
+	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import { serviceHasInterfaceOnSubnet, services } from '$lib/features/services/store';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
@@ -156,7 +152,6 @@
 	onCancel={onClose}
 	onDelete={isEditing ? handleDelete : null}
 	size="xl"
-	let:form
 	let:formApi
 >
 	<!-- Header icon -->
@@ -168,7 +163,7 @@
 	<div class="flex h-full flex-col overflow-hidden">
 		<div class="flex-1 overflow-y-auto">
 			<div class="space-y-8 p-6">
-				<SubnetDetailsForm {form} {formApi} bind:formData />
+				<SubnetDetailsForm {formApi} bind:formData />
 
 				<!-- DNS Resolvers Section -->
 				<div class="space-y-4">

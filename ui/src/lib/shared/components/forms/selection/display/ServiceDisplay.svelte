@@ -20,7 +20,7 @@
 		getIcon: (service: Service) => serviceDefinitions.getIconComponent(service.service_definition),
 		getIconColor: (service: Service) =>
 			serviceDefinitions.getColorHelper(service.service_definition).icon,
-		getTags: (service: Service) => [],
+		getTags: (_service: Service) => [],
 		getIsDisabled: () => false,
 		getCategory: () => null
 	};
@@ -28,10 +28,8 @@
 
 <script lang="ts">
 	import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
-	import type { DisplayComponentProps, EntityDisplayComponent } from '../types';
+	import type { EntityDisplayComponent } from '../types';
 	import type { Service } from '$lib/features/services/types/base';
-
-	type $$Props = DisplayComponentProps<Service>;
 
 	export let item: Service;
 </script>

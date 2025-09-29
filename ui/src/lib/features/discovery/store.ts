@@ -60,7 +60,7 @@ export async function initiateDiscovery(data: InitiateDiscoveryRequest) {
 }
 
 export async function cancelDiscovery(id: string) {
-	const result = await api.request<void, Map<string, DaemonDiscoveryUpdate>>(
+	await api.request<void, Map<string, DaemonDiscoveryUpdate>>(
 		`/discovery/${id}/cancel`,
 		null,
 		null,
@@ -113,7 +113,7 @@ export async function getActiveDiscoverySessions() {
 	);
 
 	if (result?.success && result.data && result.data?.length > 0) {
-		!discoveryPoller?.getIsRunning() ? startDiscoveryPolling() : null;
+		if (!discoveryPoller?.getIsRunning()) startDiscoveryPolling();
 	} else {
 		stopDiscoveryPolling();
 	}

@@ -27,7 +27,7 @@
 	// Stores
 	let nodes = writable<Node[]>([]);
 	let edges = writable<Edge[]>([]);
-	let selectedNodeId: string | null = null;
+	// let selectedNodeId: string | null = null;
 
 	// Add debugging to see what's happening
 	$: if ($topology?.nodes && $topology?.edges) {
@@ -64,7 +64,7 @@
 
 				const flowEdges: Edge[] = $topology.edges.map(
 					(
-						[sourceIdx, targetIdx, edgeData]: [number, number, TopologyEdgeData],
+						[_sourceIdx, _targetIdx, edgeData]: [number, number, TopologyEdgeData],
 						index: number
 					): Edge => {
 						const edgeType = edgeData.edge_type as string;
@@ -108,8 +108,8 @@
 	}
 
 	// Event handlers
-	function onNodeClick({ node, event }: { node: Node; event: MouseEvent | TouchEvent }) {
-		selectedNodeId = node.id;
+	function onNodeClick({ node }: { node: Node; event: MouseEvent | TouchEvent }) {
+		// selectedNodeId = node.id;
 		console.log('Node clicked:', node);
 	}
 
@@ -180,7 +180,7 @@
 		nodesConnectable={false}
 		elementsSelectable={true}
 	>
-		<Background variant={BackgroundVariant.Dots} bgColor={'#374151'} gap={10} size={1} />
+		<Background variant={BackgroundVariant.Dots} bgColor="#374151" gap={10} size={1} />
 
 		<Controls
 			showZoom={true}
