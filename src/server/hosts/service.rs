@@ -116,11 +116,12 @@ impl HostService {
         // Update the existing host
         self.storage.update(&existing_host).await?;
         let mut data = Vec::new();
+        
         if port_updates > 0 {data.push(format!("{} ports", port_updates))};
         if interface_updates > 0 {data.push(format!("{} interfaces", interface_updates))};
         if hostname_update {data.push("new hostname".to_string())}
         if description_update {data.push("new description".to_string())}
-        
+
         if data.len() > 0 {
             tracing::info!("Upserted host {}: {} with new discovery data: {}", existing_host.base.name, existing_host.id, data.join(", "));
         }
