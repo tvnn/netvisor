@@ -119,7 +119,7 @@
   <!-- Target Type Selection -->
   <div class="flex flex-col space-y-2 w-1/3">
     <label for="target_type" class="block text-sm font-medium text-gray-300">
-      Target Type
+      Link Type
     </label>
     <select
       id="target_type"

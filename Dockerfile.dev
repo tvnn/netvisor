@@ -1,16 +1,15 @@
-# Development Dockerfile for netvisor-ui
-FROM node:20-slim AS base
+FROM node:20-slim AS development
 WORKDIR /app
 
-# Install dependencies first (better caching)
+# Install dependencies
 COPY package*.json ./
-RUN npm ci --only=development
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Build in development mode (faster builds, source maps)
-RUN npx svelte-kit sync && npm run build
+# Expose dev server port
+EXPOSE 5173
 
-# Keep container running to share volume
-CMD ["tail", "-f", "/dev/null"]
+# Run dev server with hot reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
