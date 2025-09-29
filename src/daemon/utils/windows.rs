@@ -1,5 +1,5 @@
 #[cfg(target_family = "windows")]
-use crate::daemon::utils::base::{DaemonUtils, SystemUtils};
+use crate::daemon::utils::base::DaemonUtils;
 #[cfg(target_family = "windows")]
 use crate::server::utils::base::NetworkUtils;
 
