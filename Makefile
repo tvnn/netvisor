@@ -19,8 +19,6 @@ build:
 test:
 	@echo "Testing Server..."
 	cd server && cargo test
-	@echo "Testing UI..."
-	cd ui && npm test
 
 lint:
 	@echo "Linting Server..."

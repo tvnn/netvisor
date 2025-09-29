@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-REPO="mayanayza/netvisor-server"
+REPO="mayanayza/netvisor"
 PLATFORM=$(uname -s | tr '[:upper:]' '[:lower:]')
 ARCH=$(uname -m)
 BINARY_NAME="netvisor-daemon-${PLATFORM}-${ARCH}"

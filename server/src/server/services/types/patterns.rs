@@ -6,7 +6,7 @@ use mac_oui::Oui;
 
 use crate::server::{hosts::types::ports::{Port, PortBase}, services::types::{endpoints::{Endpoint, EndpointResponse}, types::ServiceDefinition}, subnets::types::base::{Subnet, SubnetType}};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Pattern {
     
     /// Whether or not a specific port is open on the host
@@ -26,10 +26,7 @@ pub enum Pattern {
     
     /// Match if ALL of these ports are open
     AllPort(Vec<PortBase>),           
-    
-    /// Match if at least one endpoint response contains the response string
-    AnyEndpoints(Vec<EndpointResponse>), 
-    
+        
     /// path, response - match on a string response from a path on endpoints using standard HTTP/HTTPS ports
     WebService(&'static str, &'static str),
     SubnetIsType(SubnetType),
@@ -194,27 +191,9 @@ impl Pattern {
                 }
             },
 
-            Pattern::AnyEndpoints(endpoint_responses) => {
-                let matched_responses: Vec<Option<Port>> = endpoint_responses.iter()
-                    .filter_map(|expected| {
-                        match Pattern::Endpoint(expected.clone()).matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions) {
-                            Ok(result) => Some(result),
-                            Err(_) => None
-                        }
-                    })
-                    .flatten()
-                    .collect();
-                
-                if matched_responses.is_empty() {
-                    no_match
-                } else {
-                    Ok(matched_responses)
-                }
-            },
-
             Pattern::WebService(path, resp) => {
-                let endpoints = web_service_endpoint_responses(Some(ip), path, resp);
-                Pattern::AnyEndpoints(endpoints).matches(open_ports, responses, ip, subnet, mac_address, matched_service_definitions)
+                let endpoints = web_service_endpoint_responses(Some(ip), path, resp).into_iter().map(|e| Pattern::Endpoint(e)).collect();
+                Pattern::AnyOf(endpoints).matches(open_ports, responses, ip, subnet, mac_address, matched_service_definitions)
             },
 
             Pattern::IsGatewayIp => {
@@ -279,7 +258,6 @@ impl Pattern {
         match self {
             Pattern::Port(port) => vec!(port.clone()),
             Pattern::Endpoint(response) => vec!(response.endpoint.port_base.clone()),
-            Pattern::AnyEndpoints(responses) => responses.iter().map(|r| r.endpoint.port_base.clone()).collect(),
             Pattern::AnyPort(ports) => ports.clone(),
             Pattern::AllPort(ports) => ports.clone(),
             Pattern::AnyOf(patterns) => patterns.iter().flat_map(|p| p.ports().to_vec()).collect(),
@@ -291,7 +269,6 @@ impl Pattern {
     pub fn endpoints(&self) -> Vec<Endpoint> {
         match self {
             Pattern::Endpoint(endpoint_response) => vec!(endpoint_response.endpoint.clone()),
-            Pattern::AnyEndpoints(endpoint_response) => endpoint_response.iter().map(|er| er.endpoint.clone()).collect(),
             Pattern::WebService(path, resp) => web_service_endpoint_responses(None, path, resp).iter().map(|er| er.endpoint.clone()).collect(),
             Pattern::AnyOf(patterns) => patterns.iter().flat_map(|p| p.endpoints().to_vec()).collect(),
             Pattern::AllOf(patterns) => patterns.iter().flat_map(|p| p.endpoints().to_vec()).collect(),
