@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use std::hash::Hash;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type", content = "config")]
@@ -19,7 +19,9 @@ pub struct ServiceBinding {
 
 impl PartialEq for ServiceBinding {
     fn eq(&self, other: &Self) -> bool {
-        self.interface_id == other.interface_id && self.port_id == other.port_id && self.service_id == other.service_id
+        self.interface_id == other.interface_id
+            && self.port_id == other.port_id
+            && self.service_id == other.service_id
     }
 }
 

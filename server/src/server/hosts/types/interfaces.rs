@@ -1,9 +1,9 @@
 use mac_address::MacAddress;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 use std::net::{IpAddr, Ipv4Addr};
 use uuid::Uuid;
-use std::hash::Hash;
 
 use crate::server::subnets::types::base::Subnet;
 

@@ -52,7 +52,7 @@ impl SubnetService {
         self.storage.get_by_id(id).await
     }
 
-    pub async fn get_by_ids<'a>(&self, ids: &'a [Uuid]) -> Result<Vec<Subnet>> {
+    pub async fn get_by_ids(&self, ids: &[Uuid]) -> Result<Vec<Subnet>> {
         self.storage.get_by_ids(ids).await
     }
 
@@ -80,11 +80,7 @@ impl SubnetService {
 
         let hosts = host_service.get_all_hosts().await?;
         let update_futures = hosts.into_iter().filter_map(|mut host| {
-            let has_subnet = host
-                .base
-                .interfaces
-                .iter()
-                .any(|i| &i.base.subnet_id == id);
+            let has_subnet = host.base.interfaces.iter().any(|i| &i.base.subnet_id == id);
             if has_subnet {
                 host.base.interfaces = host
                     .base

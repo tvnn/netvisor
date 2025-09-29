@@ -179,7 +179,8 @@ impl ServiceService {
             .await?
             .ok_or_else(|| anyhow!("Could not find service"))?;
 
-        self.remove_subnet_service_relationships(&current_service).await?;
+        self.remove_subnet_service_relationships(&current_service)
+            .await?;
         self.create_subnet_service_relationships(&service).await?;
 
         service.updated_at = chrono::Utc::now();

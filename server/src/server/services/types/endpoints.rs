@@ -1,9 +1,9 @@
 use crate::server::hosts::types::ports::PortBase;
 use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 use std::{fmt::Display, net::IpAddr};
 use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
-use std::hash::Hash;
 
 #[derive(
     Debug,
@@ -97,7 +97,7 @@ impl Endpoint {
     ) -> Self {
         Endpoint {
             protocol: protocol.clone(),
-            ip: ip,
+            ip,
             port_base: port_base.clone(),
             path: path.clone(),
         }

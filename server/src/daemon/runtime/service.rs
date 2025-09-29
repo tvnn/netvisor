@@ -107,10 +107,7 @@ impl DaemonRuntimeService {
 
         let response = self
             .client
-            .post(format!(
-                "{}/api/daemons/register",
-                server_target.to_string()
-            ))
+            .post(format!("{}/api/daemons/register", server_target))
             .json(&registration_request)
             .send()
             .await?;
@@ -148,11 +145,7 @@ impl DaemonRuntimeService {
 
         let response = self
             .client
-            .put(format!(
-                "{}/api/daemons/{}/heartbeat",
-                server_target.to_string(),
-                daemon_id
-            ))
+            .put(format!("{}/api/daemons/{}/heartbeat", server_target, daemon_id))
             .send()
             .await?;
 

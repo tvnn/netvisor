@@ -94,7 +94,7 @@ impl DaemonDiscoveryService {
         .await?;
 
         let discovery_futures = subnets.iter().map(|subnet| {
-            let params = HostScanParams{
+            let params = HostScanParams {
                 subnet,
                 session_id,
                 daemon_id,
@@ -185,18 +185,17 @@ impl DaemonDiscoveryService {
     /// Scan subnet concurrently and process hosts immediately as they're discovered
     async fn scan_and_process_hosts<'a>(
         &self,
-        scan_params: HostScanParams<'a>
+        scan_params: HostScanParams<'a>,
     ) -> Result<Vec<Host>> {
-
-        let HostScanParams { 
-            subnet, 
-            session_id, 
-            daemon_id, 
-            started_at, 
-            cancel, 
-            discovered_count, 
-            scanned_count, 
-            total_ips_across_subnets
+        let HostScanParams {
+            subnet,
+            session_id,
+            daemon_id,
+            started_at,
+            cancel,
+            discovered_count,
+            scanned_count,
+            total_ips_across_subnets,
         } = scan_params;
 
         tracing::info!(
@@ -423,17 +422,19 @@ impl DaemonDiscoveryService {
 
         // Add services from detected ports
         for service_definition in sorted_service_definitions {
-            if let (Some(service), mut matched_ports) = Service::from_discovery(ServiceFromDiscoveryParams{
-                service_definition,
-                ip: host_ip,
-                open_ports: &unclaimed_ports,
-                endpoint_responses: &endpoint_responses,
-                subnet: &subnet,
-                mac_address: mac,
-                host_id: &host.id,
-                interface_bindings: &interface_bindings,
-                matched_service_definitions: &matched_service_definitions,
-            }) {
+            if let (Some(service), mut matched_ports) =
+                Service::from_discovery(ServiceFromDiscoveryParams {
+                    service_definition,
+                    ip: host_ip,
+                    open_ports: &unclaimed_ports,
+                    endpoint_responses: &endpoint_responses,
+                    subnet: &subnet,
+                    mac_address: mac,
+                    host_id: &host.id,
+                    interface_bindings: &interface_bindings,
+                    matched_service_definitions: &matched_service_definitions,
+                })
+            {
                 if !service.base.service_definition.is_generic() {
                     host.base.name = service.base.service_definition.name().to_string();
                 }

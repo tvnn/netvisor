@@ -5,8 +5,8 @@ use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
 use itertools::Itertools;
 use pnet::ipnetwork::IpNetwork;
-use std::hash::Hash;
 use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
 
@@ -187,7 +187,7 @@ impl Subnet {
 
 impl PartialEq for Subnet {
     fn eq(&self, other: &Self) -> bool {
-        &self.base.cidr == &other.base.cidr
+        self.base.cidr == other.base.cidr
         // let sources_match = match (&self.base.source, &other.base.source) {
         //     (SubnetSource::Discovery(daemon_id), SubnetSource::Discovery(other_daemon_id))  => {
         //         daemon_id == other_daemon_id

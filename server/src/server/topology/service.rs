@@ -190,8 +190,7 @@ impl TopologyService {
             .iter()
             .flat_map(|host| {
                 if !host.base.interfaces.is_empty() {
-                    host
-                        .base
+                    host.base
                         .interfaces
                         .iter()
                         .map(|interface| {

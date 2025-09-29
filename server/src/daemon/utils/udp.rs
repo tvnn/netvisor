@@ -110,7 +110,6 @@ pub async fn test_snmp_service(ip: IpAddr) -> Result<Option<u16>, Error> {
 
             match timeout(Duration::from_millis(2000), session.get(&sys_descr_oid)).await {
                 Ok(Ok(mut response)) => {
-
                     if let Some(_varbind) = response.varbinds.next() {
                         tracing::debug!("✅ SNMP server responding at {}:161", ip);
                         Ok(Some(161))

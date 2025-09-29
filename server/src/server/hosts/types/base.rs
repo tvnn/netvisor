@@ -4,11 +4,14 @@ use crate::server::{
 };
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
-use std::{hash::Hash, net::IpAddr};
 use serde::{Deserialize, Serialize};
+use std::{hash::Hash, net::IpAddr};
 use uuid::Uuid;
 
-const INVALID_MACS_BYTES: &[[u8; 6]; 2] = &[[0x00, 0x00, 0x00, 0x00, 0x00, 0x00], [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]];
+const INVALID_MACS_BYTES: &[[u8; 6]; 2] = &[
+    [0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
+    [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
+];
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct HostBase {
@@ -32,7 +35,7 @@ pub struct Host {
 
 impl Hash for Host {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        let invalid_macs = INVALID_MACS_BYTES.map(|b| MacAddress::new(b));
+        let invalid_macs = INVALID_MACS_BYTES.map(MacAddress::new);
         // Collect valid MAC addresses
         let mut valid_macs: Vec<MacAddress> = self
             .base
@@ -60,7 +63,7 @@ impl Hash for Host {
 
 impl PartialEq for Host {
     fn eq(&self, other: &Self) -> bool {
-        let invalid_macs = INVALID_MACS_BYTES.map(|b| MacAddress::new(b));
+        let invalid_macs = INVALID_MACS_BYTES.map(MacAddress::new);
         let macs_a: Vec<Option<MacAddress>> = self
             .base
             .interfaces

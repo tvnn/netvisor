@@ -7,8 +7,8 @@ use mac_oui::Oui;
 use crate::server::{
     hosts::types::ports::{Port, PortBase},
     services::types::{
-        endpoints::{Endpoint, EndpointResponse},
         definitions::ServiceDefinition,
+        endpoints::{Endpoint, EndpointResponse},
     },
     subnets::types::base::{Subnet, SubnetType},
 };
@@ -345,9 +345,7 @@ impl Pattern {
             }
 
             Pattern::AnyMatchedService(constraint_function) => {
-                let any = matched_service_definitions
-                    .iter()
-                    .any(constraint_function);
+                let any = matched_service_definitions.iter().any(constraint_function);
                 if any {
                     Ok(vec![None])
                 } else {
@@ -356,9 +354,7 @@ impl Pattern {
             }
 
             Pattern::AllMatchedService(constraint_function) => {
-                let any = matched_service_definitions
-                    .iter()
-                    .all(constraint_function);
+                let any = matched_service_definitions.iter().all(constraint_function);
                 if any {
                     Ok(vec![None])
                 } else {

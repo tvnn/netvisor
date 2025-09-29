@@ -58,7 +58,7 @@ async fn handle_cancel_request(
     State(state): State<Arc<DaemonAppState>>,
     Json(request): Json<DaemonDiscoveryCancellationRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonDiscoveryCancellationResponse>>> {
-    let session_id = request.session_id.clone();
+    let session_id = request.session_id;
     tracing::info!(
         "Received discovery cancellation request for session {}",
         session_id

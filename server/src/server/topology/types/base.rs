@@ -28,16 +28,10 @@ pub enum NodeType {
     HostNode,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct XY {
     pub x: usize,
     pub y: usize,
-}
-
-impl Default for XY {
-    fn default() -> Self {
-        Self { x: 0, y: 0 }
-    }
 }
 
 #[derive(Debug, Clone)]

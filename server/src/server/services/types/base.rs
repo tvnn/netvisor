@@ -2,9 +2,9 @@ use std::net::IpAddr;
 
 use crate::server::hosts::types::ports::{Port, PortBase};
 use crate::server::services::definitions::ServiceDefinitionRegistry;
-use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
+use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::subnets::types::base::Subnet;
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
@@ -95,7 +95,6 @@ impl Service {
     }
 
     pub fn from_discovery(params: ServiceFromDiscoveryParams) -> (Option<Self>, Vec<Port>) {
-
         let ServiceFromDiscoveryParams {
             service_definition,
             ip,

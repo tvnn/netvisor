@@ -71,7 +71,7 @@ impl PartialEq for PortBase {
     }
 }
 
-#[derive(Debug, Clone, Default, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Eq, Serialize, Deserialize)]
 pub struct PortConfig {
     pub number: u16,
     pub protocol: TransportProtocol,
@@ -80,6 +80,13 @@ pub struct PortConfig {
 impl PartialEq for PortConfig {
     fn eq(&self, other: &Self) -> bool {
         self.number == other.number && self.protocol == other.protocol
+    }
+}
+
+impl Hash for PortConfig {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.number.hash(state);
+        self.protocol.hash(state);
     }
 }
 
