@@ -1,3 +1,3 @@
+pub mod api;
 pub mod metadata;
 pub mod storage;
-pub mod api;

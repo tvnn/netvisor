@@ -21,28 +21,27 @@ impl NetworkUtils for LinuxDaemonUtils {
 }
 
 #[cfg(target_os = "linux")]
-use async_trait::async_trait;
+use anyhow::{anyhow, Error, Result};
 #[cfg(target_os = "linux")]
-use std::net::IpAddr;
+use async_trait::async_trait;
 #[cfg(target_os = "linux")]
 use mac_address::MacAddress;
 #[cfg(target_os = "linux")]
-use anyhow::{anyhow, Result, Error};
+use std::net::IpAddr;
 #[cfg(target_os = "linux")]
 #[async_trait]
 impl DaemonUtils for LinuxDaemonUtils {
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>, Error> {
-        
         use procfs::net;
 
         let ipv4_addr = match ip {
             IpAddr::V4(addr) => addr,
             IpAddr::V6(_) => return Ok(None), // IPv6 ARP not supported yet
         };
-        
+
         let arp_table = net::arp()
             .map_err(|e| anyhow!("Failed to read ARP table from /proc/net/arp: {}", e))?;
-        
+
         for entry in arp_table {
             if entry.ip_address == ipv4_addr {
                 if let Some(hw_addr) = entry.hw_address {
@@ -51,7 +50,7 @@ impl DaemonUtils for LinuxDaemonUtils {
                 }
             }
         }
-        
+
         Ok(None)
     }
 }

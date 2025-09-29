@@ -1,22 +1,25 @@
-use std::fmt::Display;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use std::hash::Hash;
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
-use std::hash::Hash;
 
-use crate::server::shared::{constants::Entity, types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider}};
+use crate::server::shared::{
+    constants::Entity,
+    types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
+};
 
 #[derive(Debug, Clone, PartialOrd, Ord, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TransportProtocol {
     #[default]
     Udp,
-    Tcp
+    Tcp,
 }
 
 #[derive(Debug, Clone, Eq, Hash)]
 pub struct Port {
     pub id: Uuid,
-    pub base: PortBase
+    pub base: PortBase,
 }
 
 impl PartialEq for Port {
@@ -47,7 +50,7 @@ pub enum PortBase {
     HttpAlt,
     Https,
     HttpsAlt,
-    Custom(PortConfig)
+    Custom(PortConfig),
 }
 
 impl Hash for PortBase {
@@ -85,32 +88,29 @@ impl Display for Port {
 }
 
 impl Port {
-    
     pub fn new(base: PortBase) -> Self {
-        Self {id: Uuid::new_v4(), base}
+        Self {
+            id: Uuid::new_v4(),
+            base,
+        }
     }
-    
 }
 
 impl PortBase {
-
     pub fn new(number: u16, protocol: TransportProtocol) -> Self {
-        PortBase::Custom(PortConfig{
-            number, 
-            protocol,
-        })
+        PortBase::Custom(PortConfig { number, protocol })
     }
 
     pub fn new_tcp(number: u16) -> Self {
-        PortBase::Custom(PortConfig{
-            number, 
+        PortBase::Custom(PortConfig {
+            number,
             protocol: TransportProtocol::Tcp,
         })
     }
 
     pub fn new_udp(number: u16) -> Self {
-        PortBase::Custom(PortConfig{
-            number, 
+        PortBase::Custom(PortConfig {
+            number,
             protocol: TransportProtocol::Udp,
         })
     }
@@ -124,26 +124,83 @@ impl PortBase {
 
     pub fn config(&self) -> PortConfig {
         match &self {
-            PortBase::Ssh => PortConfig{number: 22, protocol: TransportProtocol::Tcp},
-            PortBase::Telnet => PortConfig{number: 23, protocol: TransportProtocol::Tcp},
-            PortBase::DnsTcp => PortConfig{number: 53, protocol: TransportProtocol::Tcp},
-            PortBase::DnsUdp => PortConfig{number: 53, protocol: TransportProtocol::Udp},
-            PortBase::Samba => PortConfig{number: 445, protocol: TransportProtocol::Tcp},
-            PortBase::Nfs => PortConfig{number: 2049, protocol: TransportProtocol::Tcp},
-            PortBase::Ftp => PortConfig{number: 21, protocol: TransportProtocol::Tcp},
-            PortBase::Ipp => PortConfig{number: 631, protocol: TransportProtocol::Tcp},
-            PortBase::LdpTcp => PortConfig{number: 515, protocol: TransportProtocol::Tcp},
-            PortBase::LdpUdp => PortConfig{number: 515, protocol: TransportProtocol::Udp},
-            PortBase::Snmp => PortConfig{number: 161, protocol: TransportProtocol::Udp},
-            PortBase::Rdp => PortConfig{number: 3389, protocol: TransportProtocol::Tcp},
-            PortBase::Ntp => PortConfig{number: 123, protocol: TransportProtocol::Udp},
-            PortBase::Rtsp => PortConfig{number: 554, protocol: TransportProtocol::Tcp},
-            PortBase::Dhcp => PortConfig{number: 67, protocol: TransportProtocol::Udp},
-            PortBase::Http => PortConfig{number: 80, protocol: TransportProtocol::Tcp},
-            PortBase::HttpAlt => PortConfig{number: 8080, protocol: TransportProtocol::Tcp},
-            PortBase::Https => PortConfig{number: 443, protocol: TransportProtocol::Tcp},
-            PortBase::HttpsAlt => PortConfig{number: 8443, protocol: TransportProtocol::Tcp},
-            PortBase::Custom(config) => config.clone()
+            PortBase::Ssh => PortConfig {
+                number: 22,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::Telnet => PortConfig {
+                number: 23,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::DnsTcp => PortConfig {
+                number: 53,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::DnsUdp => PortConfig {
+                number: 53,
+                protocol: TransportProtocol::Udp,
+            },
+            PortBase::Samba => PortConfig {
+                number: 445,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::Nfs => PortConfig {
+                number: 2049,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::Ftp => PortConfig {
+                number: 21,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::Ipp => PortConfig {
+                number: 631,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::LdpTcp => PortConfig {
+                number: 515,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::LdpUdp => PortConfig {
+                number: 515,
+                protocol: TransportProtocol::Udp,
+            },
+            PortBase::Snmp => PortConfig {
+                number: 161,
+                protocol: TransportProtocol::Udp,
+            },
+            PortBase::Rdp => PortConfig {
+                number: 3389,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::Ntp => PortConfig {
+                number: 123,
+                protocol: TransportProtocol::Udp,
+            },
+            PortBase::Rtsp => PortConfig {
+                number: 554,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::Dhcp => PortConfig {
+                number: 67,
+                protocol: TransportProtocol::Udp,
+            },
+            PortBase::Http => PortConfig {
+                number: 80,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::HttpAlt => PortConfig {
+                number: 8080,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::Https => PortConfig {
+                number: 443,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::HttpsAlt => PortConfig {
+                number: 8443,
+                protocol: TransportProtocol::Tcp,
+            },
+            PortBase::Custom(config) => config.clone(),
         }
     }
 }
@@ -168,10 +225,16 @@ impl TypeMetadataProvider for PortBase {
         self.id()
     }
     fn metadata(&self) -> serde_json::Value {
-        let is_management = matches!(self, 
-            PortBase::Ssh | PortBase::Telnet | PortBase::Rdp | 
-            PortBase::Snmp | PortBase::Http | PortBase::Https |
-            PortBase::HttpAlt | PortBase::HttpsAlt
+        let is_management = matches!(
+            self,
+            PortBase::Ssh
+                | PortBase::Telnet
+                | PortBase::Rdp
+                | PortBase::Snmp
+                | PortBase::Http
+                | PortBase::Https
+                | PortBase::HttpAlt
+                | PortBase::HttpsAlt
         );
 
         let number = self.number();
@@ -196,11 +259,11 @@ impl Serialize for Port {
         use serde::ser::SerializeStruct;
         let mut state = serializer.serialize_struct("Port", 4)?;
         state.serialize_field("id", &self.id)?;
-        
+
         // Flatten the base fields directly into the Port
         let config = self.base.config();
         state.serialize_field("number", &config.number)?;
-        state.serialize_field("protocol", &config.protocol)?;        
+        state.serialize_field("protocol", &config.protocol)?;
         state.serialize_field("type", &self.base.id())?;
         state.end()
     }
@@ -212,7 +275,7 @@ impl<'de> Deserialize<'de> for Port {
         D: serde::Deserializer<'de>,
     {
         use strum::IntoEnumIterator;
-        
+
         #[derive(Deserialize)]
         struct TempPort {
             id: Uuid,
@@ -223,7 +286,7 @@ impl<'de> Deserialize<'de> for Port {
         }
 
         let temp = TempPort::deserialize(deserializer)?;
-        
+
         // Try to find a matching predefined port
         let base = PortBase::iter()
             .find(|variant| {
@@ -241,10 +304,7 @@ impl<'de> Deserialize<'de> for Port {
                     protocol: temp.protocol,
                 })
             });
-        
-        Ok(Port {
-            id: temp.id,
-            base,
-        })
+
+        Ok(Port { id: temp.id, base })
     }
 }

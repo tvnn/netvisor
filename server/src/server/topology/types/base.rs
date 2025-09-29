@@ -1,7 +1,13 @@
+use crate::server::{
+    shared::{
+        constants::Entity,
+        types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
+    },
+    subnets::types::base::SubnetType,
+};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
-use crate::server::{shared::{constants::Entity, types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider}}, subnets::types::base::SubnetType};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Node {
@@ -13,7 +19,7 @@ pub struct Node {
     pub position: XY,
     pub size: XY,
     pub infra_width: Option<usize>,
-    pub subnet_type: Option<SubnetType>
+    pub subnet_type: Option<SubnetType>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
@@ -25,19 +31,19 @@ pub enum NodeType {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct XY {
     pub x: usize,
-    pub y: usize
+    pub y: usize,
 }
 
 impl Default for XY {
     fn default() -> Self {
-        Self {x: 0, y:0}
+        Self { x: 0, y: 0 }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct NodeLayout {
     pub size: XY,
-    pub grid_position: XY
+    pub grid_position: XY,
 }
 
 #[derive(Debug, Clone)]
@@ -52,7 +58,7 @@ pub struct SubnetChild {
 pub enum SubnetChildNodeSize {
     Small,
     Medium,
-    Large
+    Large,
 }
 
 impl SubnetChildNodeSize {
@@ -60,7 +66,7 @@ impl SubnetChildNodeSize {
         match count {
             0..=1 => SubnetChildNodeSize::Small,
             2..=3 => SubnetChildNodeSize::Medium,
-            _ => SubnetChildNodeSize::Large
+            _ => SubnetChildNodeSize::Large,
         }
     }
 
@@ -75,7 +81,7 @@ impl SubnetChildNodeSize {
 
 pub struct SubnetLayout {
     pub size: XY,
-    pub infra_width: usize
+    pub infra_width: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -85,7 +91,7 @@ pub struct Edge {
     pub edge_type: EdgeType,
     pub label: String,
     pub source_handle: EdgeHandle,
-    pub target_handle: EdgeHandle
+    pub target_handle: EdgeHandle,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -93,10 +99,21 @@ pub enum EdgeHandle {
     Top,
     Bottom,
     Left,
-    Right
+    Right,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumDiscriminants, EnumIter, IntoStaticStr)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    EnumDiscriminants,
+    EnumIter,
+    IntoStaticStr,
+)]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum EdgeType {
     Interface, // Connecting hosts with interfaces in multiple subnets
@@ -113,14 +130,14 @@ impl EntityMetadataProvider for EdgeType {
     fn color(&self) -> &'static str {
         match self {
             EdgeType::Group => Entity::Group.color(),
-            EdgeType::Interface => Entity::Host.color()
+            EdgeType::Interface => Entity::Host.color(),
         }
     }
-    
+
     fn icon(&self) -> &'static str {
         match self {
             EdgeType::Group => Entity::Group.icon(),
-            EdgeType::Interface => Entity::Host.icon()
+            EdgeType::Interface => Entity::Host.icon(),
         }
     }
 }
@@ -129,14 +146,14 @@ impl TypeMetadataProvider for EdgeType {
     fn name(&self) -> &'static str {
         match self {
             EdgeType::Group => "Host Group",
-            EdgeType::Interface => "Host Interface"
+            EdgeType::Interface => "Host Interface",
         }
     }
 
     fn metadata(&self) -> serde_json::Value {
         let is_dashed = match &self {
             EdgeType::Group => false,
-            EdgeType::Interface => true
+            EdgeType::Interface => true,
         };
 
         serde_json::json!({

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{RwLock};
-use tokio_util::sync::CancellationToken;
+use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+use tokio_util::sync::CancellationToken;
 
 pub struct DaemonDiscoverySessionManager {
     current_task: Arc<RwLock<Option<tokio::task::JoinHandle<()>>>>,
@@ -28,7 +28,7 @@ impl DaemonDiscoverySessionManager {
             true
         };
         tracing::debug!("Has task: {}, Is finished: {}", has_task, is_finished);
-        
+
         if let Some(handle) = task_guard.as_ref() {
             !handle.is_finished()
         } else {
@@ -37,7 +37,7 @@ impl DaemonDiscoverySessionManager {
     }
 
     /// Set the current discovery task for cancellation
-    pub async fn start_new_session(&self) -> CancellationToken {        
+    pub async fn start_new_session(&self) -> CancellationToken {
         *self.cancellation_token.write().await = CancellationToken::new();
         *self.current_task.write().await = None;
 
@@ -53,15 +53,15 @@ impl DaemonDiscoverySessionManager {
         if !self.is_discovery_running().await {
             return false;
         }
-        
+
         tracing::info!("Cancelling discovery session...");
-        
+
         // Signal cooperative cancellation
         self.cancellation_token.write().await.cancel();
-        
+
         // Give it a brief moment for cooperative cancellation
         tokio::time::sleep(Duration::from_millis(1000)).await;
-        
+
         // If still running, abort
         if self.is_discovery_running().await {
             tracing::warn!("Discovery not responding to cancellation, aborting task");
@@ -70,7 +70,7 @@ impl DaemonDiscoverySessionManager {
             }
             return false;
         }
-        
+
         tracing::info!("Discovery cancelled successfully");
         true
     }
@@ -84,7 +84,7 @@ impl DaemonDiscoverySessionManager {
         let mut task_guard = self.current_task.write().await;
         if let Some(handle) = task_guard.as_ref() {
             if handle.is_finished() {
-                *self.cancellation_token.write().await = CancellationToken::new(); 
+                *self.cancellation_token.write().await = CancellationToken::new();
                 *task_guard = None;
             }
         }

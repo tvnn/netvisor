@@ -1,11 +1,14 @@
 use anyhow::{Context, Error, Result};
 use async_fs;
+use directories_next::ProjectDirs;
+use figment::{
+    providers::{Env, Format, Json, Serialized},
+    Figment,
+};
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use directories_next::ProjectDirs;
-use figment::{Figment, providers::{Format, Json, Env, Serialized}};
 
 /// CLI arguments structure (for figment integration)
 #[derive(Debug)]
@@ -24,13 +27,13 @@ pub struct AppConfig {
     // Server connection (CLI/startup config)
     pub server_target: Option<String>,
     pub server_port: u16,
-    
+
     // Daemon settings (CLI/startup config)
     pub port: u16,
     pub name: String,
     pub log_level: String,
     pub heartbeat_interval: u64,
-    
+
     // Runtime state (persisted)
     pub id: Uuid,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -50,7 +53,7 @@ impl Default for AppConfig {
             heartbeat_interval: 30,
             id: Uuid::new_v4(),
             last_heartbeat: None,
-            host_id: None
+            host_id: None,
         }
     }
 }
@@ -59,11 +62,11 @@ impl AppConfig {
     pub fn get_config_path() -> Result<(bool, PathBuf)> {
         let proj_dirs = ProjectDirs::from("com", "netvisor", "daemon")
             .ok_or_else(|| anyhow::anyhow!("Unable to determine config directory"))?;
-        
+
         let config_path = proj_dirs.config_dir().join("config.json");
         Ok((config_path.exists(), config_path))
     }
-    pub fn load(cli_args: CliArgs) -> anyhow::Result<Self> {        
+    pub fn load(cli_args: CliArgs) -> anyhow::Result<Self> {
         let (config_exists, config_path) = AppConfig::get_config_path()?;
 
         // Standard configuration layering: Defaults → Config file → Env → CLI (highest priority)
@@ -97,7 +100,8 @@ impl AppConfig {
             figment = figment.merge(("heartbeat_interval", heartbeat_interval));
         }
 
-        let config: AppConfig = figment.extract()
+        let config: AppConfig = figment
+            .extract()
             .map_err(|e| Error::msg(format!("Configuration error: {}", e)))?;
 
         Ok(config)
@@ -110,7 +114,7 @@ pub struct ConfigStore {
 }
 
 impl ConfigStore {
-    pub fn new(path: PathBuf, initial_config: AppConfig) -> Self {        
+    pub fn new(path: PathBuf, initial_config: AppConfig) -> Self {
         Self {
             path,
             config: Arc::new(RwLock::new(initial_config)),
@@ -120,7 +124,8 @@ impl ConfigStore {
     pub async fn initialize(&self) -> Result<()> {
         // Ensure parent directory exists
         if let Some(parent) = self.path.parent() {
-            async_fs::create_dir_all(parent).await
+            async_fs::create_dir_all(parent)
+                .await
                 .context("Failed to create config directory")?;
         }
 
@@ -135,32 +140,34 @@ impl ConfigStore {
     }
 
     async fn load(&self) -> Result<()> {
-        let content = async_fs::read_to_string(&self.path).await
+        let content = async_fs::read_to_string(&self.path)
+            .await
             .context("Failed to read config file")?;
-        
-        let loaded_config: AppConfig = serde_json::from_str(&content)
-            .context("Failed to parse config file")?;
-            
+
+        let loaded_config: AppConfig =
+            serde_json::from_str(&content).context("Failed to parse config file")?;
+
         // Merge loaded runtime state with current config
         let mut config = self.config.write().await;
         config.id = loaded_config.id;
         config.last_heartbeat = loaded_config.last_heartbeat;
-        
+
         tracing::info!("Loaded daemon runtime state from {}", self.path.display());
         Ok(())
     }
 
     async fn save(&self, config: &AppConfig) -> Result<()> {
-        let json = serde_json::to_string_pretty(&*config)
-            .context("Failed to serialize config")?;
+        let json = serde_json::to_string_pretty(&*config).context("Failed to serialize config")?;
 
         // Atomic write: write to temp file then rename
         let temp_path = self.path.with_extension("tmp");
-        
-        async_fs::write(&temp_path, json).await
+
+        async_fs::write(&temp_path, json)
+            .await
             .context("Failed to write temp config file")?;
-        
-        async_fs::rename(&temp_path, &self.path).await
+
+        async_fs::rename(&temp_path, &self.path)
+            .await
             .context("Failed to move temp config to final location")?;
 
         Ok(())
@@ -182,7 +189,7 @@ impl ConfigStore {
         Ok(config.host_id)
     }
 
-    pub async fn set_host_id(&self,  host_id: Uuid) -> Result<()> {
+    pub async fn set_host_id(&self, host_id: Uuid) -> Result<()> {
         let mut config = self.config.write().await;
         config.host_id = Some(host_id);
         self.save(&config.clone()).await

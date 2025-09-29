@@ -1,21 +1,29 @@
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
+use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::patterns::Pattern;
 use crate::server::services::types::types::ServiceDefinition;
-use crate::server::services::types::categories::ServiceCategory;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct PfSense;
 
 impl ServiceDefinition for PfSense {
-    fn name(&self) -> &'static str { "pfSense" }
-    fn description(&self) -> &'static str { "Open-source firewall and router platform" }
-    fn category(&self) -> ServiceCategory { ServiceCategory::NetworkSecurity }
+    fn name(&self) -> &'static str {
+        "pfSense"
+    }
+    fn description(&self) -> &'static str {
+        "Open-source firewall and router platform"
+    }
+    fn category(&self) -> ServiceCategory {
+        ServiceCategory::NetworkSecurity
+    }
 
     fn discovery_pattern(&self) -> Pattern {
         Pattern::WebService("/", "pfSense")
     }
 
-    fn is_gateway(&self) -> bool { true }    
+    fn is_gateway(&self) -> bool {
+        true
+    }
 
     fn icon(&self) -> &'static str {
         "pfsense"

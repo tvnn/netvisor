@@ -1,32 +1,38 @@
-use std::net::{IpAddr};
+use std::net::IpAddr;
 
 use anyhow::Error;
 use mac_address::MacAddress;
 use mac_oui::Oui;
 
-use crate::server::{hosts::types::ports::{Port, PortBase}, services::types::{endpoints::{Endpoint, EndpointResponse}, types::ServiceDefinition}, subnets::types::base::{Subnet, SubnetType}};
+use crate::server::{
+    hosts::types::ports::{Port, PortBase},
+    services::types::{
+        endpoints::{Endpoint, EndpointResponse},
+        types::ServiceDefinition,
+    },
+    subnets::types::base::{Subnet, SubnetType},
+};
 
 #[derive(Debug, Clone)]
 pub enum Pattern {
-    
     /// Whether or not a specific port is open on the host
-    Port(PortBase),                 
-    
+    Port(PortBase),
+
     /// Whether or not an endpoint provided a specific response
-    Endpoint(EndpointResponse),         
-    
+    Endpoint(EndpointResponse),
+
     /// Match any of the listed patterns
-    AnyOf(Vec<Pattern>),        
-    
+    AnyOf(Vec<Pattern>),
+
     /// Must match all of the listed patterns
-    AllOf(Vec<Pattern>),        
-    
+    AllOf(Vec<Pattern>),
+
     /// Match if at least one port is open
-    AnyPort(Vec<PortBase>),         
-    
+    AnyPort(Vec<PortBase>),
+
     /// Match if ALL of these ports are open
-    AllPort(Vec<PortBase>),           
-        
+    AllPort(Vec<PortBase>),
+
     /// path, response - match on a string response from a path on endpoints using standard HTTP/HTTPS ports
     WebService(&'static str, &'static str),
     SubnetIsType(SubnetType),
@@ -42,13 +48,29 @@ pub enum Pattern {
     None,
 }
 
-fn web_service_endpoint_responses(ip: Option<IpAddr>, path: &&str, resp: &&str) -> Vec<EndpointResponse> {
-    vec!(
-        EndpointResponse{ endpoint: Endpoint::http(ip, path), response: resp.to_string() },
-        EndpointResponse{ endpoint: Endpoint::https(ip, path), response: resp.to_string() },
-        EndpointResponse{ endpoint: Endpoint::http_alt(ip, path), response: resp.to_string() },
-        EndpointResponse{ endpoint: Endpoint::https_alt(ip, path), response: resp.to_string() },
-    )
+fn web_service_endpoint_responses(
+    ip: Option<IpAddr>,
+    path: &&str,
+    resp: &&str,
+) -> Vec<EndpointResponse> {
+    vec![
+        EndpointResponse {
+            endpoint: Endpoint::http(ip, path),
+            response: resp.to_string(),
+        },
+        EndpointResponse {
+            endpoint: Endpoint::https(ip, path),
+            response: resp.to_string(),
+        },
+        EndpointResponse {
+            endpoint: Endpoint::http_alt(ip, path),
+            response: resp.to_string(),
+        },
+        EndpointResponse {
+            endpoint: Endpoint::https_alt(ip, path),
+            response: resp.to_string(),
+        },
+    ]
 }
 
 // https://gist.github.com/aallan/b4bb86db86079509e6159810ae9bd3e4
@@ -63,13 +85,15 @@ impl Vendor {
 
 impl Pattern {
     pub fn matches(
-        &self, 
-        open_ports: Vec<PortBase>, 
-        responses: Vec<EndpointResponse>, 
-        ip: IpAddr, 
-        subnet: &Subnet, 
+        &self,
+        open_ports: Vec<PortBase>,
+        responses: Vec<EndpointResponse>,
+        ip: IpAddr,
+        subnet: &Subnet,
         mac_address: Option<MacAddress>,
-        matched_service_definitions: &Vec<Box<dyn ServiceDefinition>>) -> Result<Vec<Option<Port>>, Error> { // Return ports that matched if any
+        matched_service_definitions: &Vec<Box<dyn ServiceDefinition>>,
+    ) -> Result<Vec<Option<Port>>, Error> {
+        // Return ports that matched if any
 
         let no_match = Err(Error::msg("No match"));
 
@@ -80,31 +104,35 @@ impl Pattern {
                 } else {
                     no_match
                 }
-            },
+            }
 
             Pattern::Endpoint(expected) => {
                 // At matching time, both endpoints are resolved
                 if let Some(actual) = responses.iter().find(|actual| {
-                    actual.endpoint == expected.endpoint && 
-                    actual.response.contains(&expected.response)
+                    actual.endpoint == expected.endpoint
+                        && actual.response.contains(&expected.response)
                 }) {
                     Ok(vec![Some(Port::new(actual.endpoint.port_base.clone()))])
                 } else {
                     no_match
                 }
-            },
+            }
 
             Pattern::MacVendor(vendor_string) => {
                 if let Some(mac) = mac_address {
-                    let Ok(oui_db) = Oui::default() else {return no_match};
-                    let Ok(Some(entry)) = Oui::lookup_by_mac(&oui_db, &mac.to_string()) else {return no_match};
+                    let Ok(oui_db) = Oui::default() else {
+                        return no_match;
+                    };
+                    let Ok(Some(entry)) = Oui::lookup_by_mac(&oui_db, &mac.to_string()) else {
+                        return no_match;
+                    };
 
                     let normalize = |s: &str| -> String {
                         s.trim()
-                        .to_lowercase()
-                        .chars()
-                        .filter(|c| c.is_alphanumeric())
-                        .collect()
+                            .to_lowercase()
+                            .chars()
+                            .filter(|c| c.is_alphanumeric())
+                            .collect()
                     };
 
                     let vendor_string = normalize(vendor_string);
@@ -118,35 +146,51 @@ impl Pattern {
                 } else {
                     no_match
                 }
-            },
+            }
 
             Pattern::AnyOf(patterns) => {
                 let mut any_matched = false;
-                let results = patterns.iter()
+                let results = patterns
+                    .iter()
                     .filter_map(|p| {
-                        match p.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions) {
+                        match p.matches(
+                            open_ports.clone(),
+                            responses.clone(),
+                            ip,
+                            subnet,
+                            mac_address,
+                            matched_service_definitions,
+                        ) {
                             Ok(results) => {
                                 any_matched = true;
                                 Some(results)
-                            },
-                            Err(_) => None
+                            }
+                            Err(_) => None,
                         }
                     })
                     .flatten()
                     .collect();
-                
+
                 if any_matched {
                     Ok(results)
                 } else {
                     no_match
                 }
-            },
+            }
 
             Pattern::AllOf(patterns) => {
                 let mut all_matched = true;
-                let results = patterns.iter()
+                let results = patterns
+                    .iter()
                     .filter_map(|p| {
-                        match p.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions) {
+                        match p.matches(
+                            open_ports.clone(),
+                            responses.clone(),
+                            ip,
+                            subnet,
+                            mac_address,
+                            matched_service_definitions,
+                        ) {
                             Ok(results) => Some(results),
                             Err(_) => {
                                 all_matched = false;
@@ -156,45 +200,56 @@ impl Pattern {
                     })
                     .flatten()
                     .collect();
-                    
 
                 if all_matched {
                     Ok(results)
                 } else {
                     no_match
                 }
-            },
+            }
 
             Pattern::AnyPort(port_bases) => {
-                let matched_ports: Vec<Option<Port>> = open_ports.into_iter()
+                let matched_ports: Vec<Option<Port>> = open_ports
+                    .into_iter()
                     .filter(|p| port_bases.contains(&p))
                     .map(|p| Some(Port::new(p)))
                     .collect();
-                
+
                 if matched_ports.is_empty() {
                     no_match
                 } else {
                     Ok(matched_ports)
                 }
-            },
+            }
 
             Pattern::AllPort(port_bases) => {
-                let matched_ports: Vec<Option<Port>> = open_ports.into_iter()
+                let matched_ports: Vec<Option<Port>> = open_ports
+                    .into_iter()
                     .filter(|p| port_bases.contains(&p))
                     .map(|p| Some(Port::new(p)))
                     .collect();
-                
+
                 if matched_ports.len() == port_bases.len() {
                     Ok(matched_ports)
                 } else {
                     no_match
                 }
-            },
+            }
 
             Pattern::WebService(path, resp) => {
-                let endpoints = web_service_endpoint_responses(Some(ip), path, resp).into_iter().map(|e| Pattern::Endpoint(e)).collect();
-                Pattern::AnyOf(endpoints).matches(open_ports, responses, ip, subnet, mac_address, matched_service_definitions)
-            },
+                let endpoints = web_service_endpoint_responses(Some(ip), path, resp)
+                    .into_iter()
+                    .map(|e| Pattern::Endpoint(e))
+                    .collect();
+                Pattern::AnyOf(endpoints).matches(
+                    open_ports,
+                    responses,
+                    ip,
+                    subnet,
+                    mac_address,
+                    matched_service_definitions,
+                )
+            }
 
             Pattern::IsGatewayIp => {
                 let is_gateway = match ip {
@@ -204,51 +259,112 @@ impl Pattern {
                     }
                     IpAddr::V6(ipv6) => {
                         let segments = ipv6.segments();
-                        segments[0..7].iter().all(|&s| s == 0) && 
-                        (segments[7] == 1 || segments[7] == 254)
+                        segments[0..7].iter().all(|&s| s == 0)
+                            && (segments[7] == 1 || segments[7] == 254)
                     }
                 };
-                if is_gateway {Ok(vec!(None))} else {no_match}
-            },
+                if is_gateway {
+                    Ok(vec![None])
+                } else {
+                    no_match
+                }
+            }
 
             Pattern::NotGatewayIp => {
-                let gateway_result = Pattern::IsGatewayIp.matches(open_ports, responses, ip, subnet, mac_address, matched_service_definitions);
-                if gateway_result.is_err() {Ok(vec!(None))} else {no_match}
-            },
+                let gateway_result = Pattern::IsGatewayIp.matches(
+                    open_ports,
+                    responses,
+                    ip,
+                    subnet,
+                    mac_address,
+                    matched_service_definitions,
+                );
+                if gateway_result.is_err() {
+                    Ok(vec![None])
+                } else {
+                    no_match
+                }
+            }
 
             Pattern::SubnetIsType(subnet_type) => {
-                if &subnet.base.subnet_type == subnet_type {Ok(vec!(None))} else {no_match}
-            },
+                if &subnet.base.subnet_type == subnet_type {
+                    Ok(vec![None])
+                } else {
+                    no_match
+                }
+            }
 
             Pattern::SubnetIsNotType(subnet_type) => {
-                if &subnet.base.subnet_type != subnet_type {Ok(vec!(None))} else {no_match}
-            },
+                if &subnet.base.subnet_type != subnet_type {
+                    Ok(vec![None])
+                } else {
+                    no_match
+                }
+            }
 
             Pattern::IsVpnSubnetGateway => {
-                let gateway_result = Pattern::IsGatewayIp.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions);
+                let gateway_result = Pattern::IsGatewayIp.matches(
+                    open_ports.clone(),
+                    responses.clone(),
+                    ip,
+                    subnet,
+                    mac_address,
+                    matched_service_definitions,
+                );
                 let is_vpn_subnet = matches!(subnet.base.subnet_type, SubnetType::VpnTunnel);
-                if gateway_result.is_ok() && is_vpn_subnet {Ok(vec!(None))} else {no_match}
-            },
+                if gateway_result.is_ok() && is_vpn_subnet {
+                    Ok(vec![None])
+                } else {
+                    no_match
+                }
+            }
 
             Pattern::IsDockerHost => {
-                let gateway_result = Pattern::IsGatewayIp.matches(open_ports.clone(), responses.clone(), ip, subnet, mac_address, matched_service_definitions);
+                let gateway_result = Pattern::IsGatewayIp.matches(
+                    open_ports.clone(),
+                    responses.clone(),
+                    ip,
+                    subnet,
+                    mac_address,
+                    matched_service_definitions,
+                );
                 let is_docker_subnet = matches!(subnet.base.subnet_type, SubnetType::DockerBridge);
-                if gateway_result.is_ok() && is_docker_subnet {Ok(vec!(None))} else {no_match}
-            },
+                if gateway_result.is_ok() && is_docker_subnet {
+                    Ok(vec![None])
+                } else {
+                    no_match
+                }
+            }
 
             Pattern::HasAnyMatchedService => {
-                if matched_service_definitions.len() > 0  {Ok(vec!(None))} else {no_match}
-            },
+                if matched_service_definitions.len() > 0 {
+                    Ok(vec![None])
+                } else {
+                    no_match
+                }
+            }
 
             Pattern::AnyMatchedService(constraint_function) => {
-                let any = matched_service_definitions.iter().any(|s| constraint_function(s));
-                if any {Ok(vec!(None))} else {no_match}
-            },
+                let any = matched_service_definitions
+                    .iter()
+                    .any(|s| constraint_function(s));
+                if any {
+                    Ok(vec![None])
+                } else {
+                    no_match
+                }
+            }
 
             Pattern::AllMatchedService(constraint_function) => {
-                let any = matched_service_definitions.iter().all(|s| constraint_function(s));
-                if any {Ok(vec!(None))} else {no_match}
-            },
+                let any = matched_service_definitions
+                    .iter()
+                    .all(|s| constraint_function(s));
+                if any {
+                    Ok(vec![None])
+                } else {
+                    no_match
+                }
+            }
 
             Pattern::None => no_match,
         }
@@ -256,23 +372,32 @@ impl Pattern {
 
     pub fn ports(&self) -> Vec<PortBase> {
         match self {
-            Pattern::Port(port) => vec!(port.clone()),
-            Pattern::Endpoint(response) => vec!(response.endpoint.port_base.clone()),
+            Pattern::Port(port) => vec![port.clone()],
+            Pattern::Endpoint(response) => vec![response.endpoint.port_base.clone()],
             Pattern::AnyPort(ports) => ports.clone(),
             Pattern::AllPort(ports) => ports.clone(),
             Pattern::AnyOf(patterns) => patterns.iter().flat_map(|p| p.ports().to_vec()).collect(),
             Pattern::AllOf(patterns) => patterns.iter().flat_map(|p| p.ports().to_vec()).collect(),
-            _ => vec!()
+            _ => vec![],
         }
     }
 
     pub fn endpoints(&self) -> Vec<Endpoint> {
         match self {
-            Pattern::Endpoint(endpoint_response) => vec!(endpoint_response.endpoint.clone()),
-            Pattern::WebService(path, resp) => web_service_endpoint_responses(None, path, resp).iter().map(|er| er.endpoint.clone()).collect(),
-            Pattern::AnyOf(patterns) => patterns.iter().flat_map(|p| p.endpoints().to_vec()).collect(),
-            Pattern::AllOf(patterns) => patterns.iter().flat_map(|p| p.endpoints().to_vec()).collect(),
-            _ => vec!()
+            Pattern::Endpoint(endpoint_response) => vec![endpoint_response.endpoint.clone()],
+            Pattern::WebService(path, resp) => web_service_endpoint_responses(None, path, resp)
+                .iter()
+                .map(|er| er.endpoint.clone())
+                .collect(),
+            Pattern::AnyOf(patterns) => patterns
+                .iter()
+                .flat_map(|p| p.endpoints().to_vec())
+                .collect(),
+            Pattern::AllOf(patterns) => patterns
+                .iter()
+                .flat_map(|p| p.endpoints().to_vec())
+                .collect(),
+            _ => vec![],
         }
     }
 
@@ -282,7 +407,7 @@ impl Pattern {
             Pattern::AllOf(patterns) | Pattern::AnyOf(patterns) => {
                 patterns.iter().any(|p| p.contains_web_service_pattern())
             }
-            _ => false
+            _ => false,
         }
     }
 }

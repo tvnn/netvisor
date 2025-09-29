@@ -1,8 +1,11 @@
-use async_trait::async_trait;
+use crate::server::{
+    groups::types::{Group, GroupBase, GroupType},
+    hosts::types::targets::ServiceBinding,
+};
 use anyhow::{Error, Result};
-use sqlx::{SqlitePool, Row};
+use async_trait::async_trait;
+use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
-use crate::server::{groups::types::{Group, GroupBase, GroupType}, hosts::types::targets::ServiceBinding};
 
 #[async_trait]
 pub trait GroupStorage: Send + Sync {
@@ -35,7 +38,7 @@ impl GroupStorage for SqliteGroupStorage {
                 id, name, description, service_bindings, group_type
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?)
-            "#
+            "#,
         )
         .bind(blob_uuid::to_blob(&group.id))
         .bind(&group.base.name)
@@ -84,7 +87,7 @@ impl GroupStorage for SqliteGroupStorage {
                 name = ?, description = ?, service_bindings = ?, 
                 updated_at = ?
             WHERE id = ?
-            "#
+            "#,
         )
         .bind(&group.base.name)
         .bind(&group.base.description)
@@ -108,8 +111,11 @@ impl GroupStorage for SqliteGroupStorage {
 }
 
 fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group, Error> {
-    let service_bindings: Vec<ServiceBinding> = serde_json::from_str(&row.get::<String, _>("service_bindings")).or(Err(Error::msg("Failed to deserialize service bindings")))?;
-    let group_type: GroupType = serde_json::from_str(&row.get::<String, _>("group_type")).or(Err(Error::msg("Failed to deserialize group_type")))?;
+    let service_bindings: Vec<ServiceBinding> =
+        serde_json::from_str(&row.get::<String, _>("service_bindings"))
+            .or(Err(Error::msg("Failed to deserialize service bindings")))?;
+    let group_type: GroupType = serde_json::from_str(&row.get::<String, _>("group_type"))
+        .or(Err(Error::msg("Failed to deserialize group_type")))?;
 
     Ok(Group {
         id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize ID")))?,
@@ -119,7 +125,7 @@ fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group, Error> {
             name: row.get("name"),
             description: row.get("description"),
             service_bindings,
-            group_type
-        }  
+            group_type,
+        },
     })
 }

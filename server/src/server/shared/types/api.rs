@@ -7,8 +7,6 @@ use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 
 pub type ApiResult<T> = Result<T, ApiError>;
 
-
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiResponse<T> {
     pub success: bool,
@@ -107,7 +105,6 @@ impl EmptyToOption<String> for String {
         }
     }
 }
-
 
 impl EmptyToOption<String> for Option<String> {
     fn empty_to_option(self) -> Option<String> {

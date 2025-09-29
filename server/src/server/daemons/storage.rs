@@ -1,11 +1,11 @@
 use std::net::IpAddr;
 
-use anyhow::Error;
-use async_trait::async_trait;
-use anyhow::Result;
-use sqlx::{SqlitePool, Row};
-use uuid::Uuid;
 use crate::server::daemons::types::base::{Daemon, DaemonBase};
+use anyhow::Error;
+use anyhow::Result;
+use async_trait::async_trait;
+use sqlx::{Row, SqlitePool};
+use uuid::Uuid;
 
 #[async_trait]
 pub trait DaemonStorage: Send + Sync {
@@ -29,7 +29,6 @@ impl SqliteDaemonStorage {
 #[async_trait]
 impl DaemonStorage for SqliteDaemonStorage {
     async fn create(&self, daemon: &Daemon) -> Result<()> {
-
         let ip_str = serde_json::to_string(&daemon.base.ip)?;
 
         sqlx::query(
@@ -38,7 +37,7 @@ impl DaemonStorage for SqliteDaemonStorage {
                 id, host_id, ip, port,
                 last_seen, registered_at
             ) VALUES (?, ?, ?, ?, ?, ?)
-            "#
+            "#,
         )
         .bind(blob_uuid::to_blob(&daemon.id))
         .bind(blob_uuid::to_blob(&daemon.base.host_id))
@@ -78,7 +77,6 @@ impl DaemonStorage for SqliteDaemonStorage {
     }
 
     async fn update(&self, daemon: &Daemon) -> Result<()> {
-
         let ip_str = serde_json::to_string(&daemon.base.ip)?;
 
         sqlx::query(
@@ -86,7 +84,7 @@ impl DaemonStorage for SqliteDaemonStorage {
             UPDATE daemons SET 
                 host_id = ?, ip = ?, port = ?, last_seen = ?
             WHERE id = ?
-            "#
+            "#,
         )
         .bind(blob_uuid::to_blob(&daemon.base.host_id))
         .bind(ip_str)
@@ -110,8 +108,8 @@ impl DaemonStorage for SqliteDaemonStorage {
 }
 
 fn row_to_daemon(row: sqlx::sqlite::SqliteRow) -> Result<Daemon, Error> {
-    
-    let ip: IpAddr = serde_json::from_str(&row.get::<String, _>("ip")).or(Err(Error::msg("Failed to deserialize IP")))?;
+    let ip: IpAddr = serde_json::from_str(&row.get::<String, _>("ip"))
+        .or(Err(Error::msg("Failed to deserialize IP")))?;
 
     Ok(Daemon {
         id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize ID")))?,
@@ -120,7 +118,8 @@ fn row_to_daemon(row: sqlx::sqlite::SqliteRow) -> Result<Daemon, Error> {
         base: DaemonBase {
             ip,
             port: row.get("port"),
-            host_id: blob_uuid::to_uuid(row.get("host_id")).or(Err(Error::msg("Failed to deserialize host_id")))?
-        }
+            host_id: blob_uuid::to_uuid(row.get("host_id"))
+                .or(Err(Error::msg("Failed to deserialize host_id")))?,
+        },
     })
 }

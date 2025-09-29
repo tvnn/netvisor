@@ -1,41 +1,56 @@
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::server::shared::{constants::Entity, types::metadata::{EntityMetadataProvider, HasId}};
+use crate::server::shared::{
+    constants::Entity,
+    types::metadata::{EntityMetadataProvider, HasId},
+};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Display, Deserialize, EnumDiscriminants, EnumIter, IntoStaticStr)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Display,
+    Deserialize,
+    EnumDiscriminants,
+    EnumIter,
+    IntoStaticStr,
+)]
 pub enum ServiceCategory {
     // Infrastructure (always-on, core network services)
-    NetworkCore,        // Routers, switches, core infrastructure
-    NetworkAccess,      // WiFi APs, switches for end devices
-    NetworkSecurity,    // Firewalls, security appliances
-    
+    NetworkCore,     // Routers, switches, core infrastructure
+    NetworkAccess,   // WiFi APs, switches for end devices
+    NetworkSecurity, // Firewalls, security appliances
+
     // Server Services
-    Storage,           // NAS, file servers
+    Storage, // NAS, file servers
     Backup,
-    Media,             // Plex, Jellyfin
-    HomeAutomation,    // Home Assistant
-    Virtualization,    // Proxmox, ESXi
-    
+    Media,          // Plex, Jellyfin
+    HomeAutomation, // Home Assistant
+    Virtualization, // Proxmox, ESXi
+
     // Network Services
-    DNS,               // All DNS services
-    VPN,               // All VPN services
-    Monitoring,        // SNMP, monitoring tools
+    DNS,        // All DNS services
+    VPN,        // All VPN services
+    Monitoring, // SNMP, monitoring tools
     AdBlock,
     ReverseProxy,
-    
+
     // End Devices
-    Workstation,       // Desktops, laptops
-    Mobile,            // Phones, tablets
-    IoT,               // Smart devices, sensors
-    Printer,           // All printing devices
-    
+    Workstation, // Desktops, laptops
+    Mobile,      // Phones, tablets
+    IoT,         // Smart devices, sensors
+    Printer,     // All printing devices
+
     // Applications
-    Web,               // Web servers
-    Database,          // DB servers
-    Development,       // Dev tools, CI/CD
+    Web,         // Web servers
+    Database,    // DB servers
+    Development, // Dev tools, CI/CD
     Dashboard,
-    
+
     // Special
     Unknown,
     Custom,
@@ -61,7 +76,7 @@ impl EntityMetadataProvider for ServiceCategory {
             ServiceCategory::Media => "PlayCircle",
             ServiceCategory::HomeAutomation => "Home",
             ServiceCategory::Virtualization => "MonitorCog",
-            
+
             // Network Services
             ServiceCategory::DNS => Entity::Dns.icon(),
             ServiceCategory::VPN => Entity::Vpn.icon(),
@@ -81,7 +96,7 @@ impl EntityMetadataProvider for ServiceCategory {
             ServiceCategory::Database => "Database",
             ServiceCategory::Development => "Code",
             ServiceCategory::Dashboard => "LayoutDashboard",
-            
+
             // Unknown
             ServiceCategory::Netvisor => "Zap",
             ServiceCategory::Custom => "Sparkle",
@@ -102,7 +117,7 @@ impl EntityMetadataProvider for ServiceCategory {
             ServiceCategory::HomeAutomation => "blue",
             ServiceCategory::Virtualization => "orange",
             ServiceCategory::Backup => "gray",
-            
+
             // Network Services
             ServiceCategory::DNS => Entity::Dns.color(),
             ServiceCategory::VPN => Entity::Vpn.color(),
@@ -121,7 +136,7 @@ impl EntityMetadataProvider for ServiceCategory {
             ServiceCategory::Database => "gray",
             ServiceCategory::Development => "red",
             ServiceCategory::Dashboard => "purple",
-            
+
             // Unknown
             ServiceCategory::Netvisor => "purple",
             ServiceCategory::Custom => "rose",

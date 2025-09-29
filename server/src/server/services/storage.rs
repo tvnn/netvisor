@@ -1,9 +1,12 @@
-use async_trait::async_trait;
 use anyhow::{Error, Result};
-use sqlx::{SqlitePool, Row};
+use async_trait::async_trait;
+use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
-use crate::server::services::types::{base::{Service, ServiceBase}, types::ServiceDefinition};
+use crate::server::services::types::{
+    base::{Service, ServiceBase},
+    types::ServiceDefinition,
+};
 
 #[async_trait]
 pub trait ServiceStorage: Send + Sync {
@@ -27,13 +30,12 @@ impl SqliteServiceStorage {
 
 #[async_trait]
 impl ServiceStorage for SqliteServiceStorage {
-
     async fn create(&self, service: &Service) -> Result<()> {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
         let port_bindings_str = serde_json::to_string(&service.base.port_bindings)?;
         let interface_bindings_str = serde_json::to_string(&service.base.interface_bindings)?;
         let groups_str = serde_json::to_string(&service.base.groups)?;
-        
+
         // Try to insert, ignore if constraint sviolation
         sqlx::query(
             r#"
@@ -83,12 +85,10 @@ impl ServiceStorage for SqliteServiceStorage {
     }
 
     async fn get_services_for_host(&self, host_id: &Uuid) -> Result<Vec<Service>> {
-        let rows = sqlx::query(
-            "SELECT * FROM services WHERE host_id = ? ORDER BY created_at",
-        )
-        .bind(blob_uuid::to_blob(host_id))
-        .fetch_all(&self.pool)
-        .await?;
+        let rows = sqlx::query("SELECT * FROM services WHERE host_id = ? ORDER BY created_at")
+            .bind(blob_uuid::to_blob(host_id))
+            .fetch_all(&self.pool)
+            .await?;
 
         let mut services = Vec::new();
         for row in rows {
@@ -137,10 +137,16 @@ impl ServiceStorage for SqliteServiceStorage {
 
 fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
     // Parse JSON fields safely
-    let service_definition: Box<dyn ServiceDefinition> = serde_json::from_str(&row.get::<String, _>("service_definition")).or(Err(Error::msg("Failed to deserialize service_definition")))?;
-    let port_bindings: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("port_bindings")).or(Err(Error::msg("Failed to deserialize port_bindings")))?;
-    let interface_bindings: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("interface_bindings")).or(Err(Error::msg("Failed to deserialize interface_bindings")))?;
-    let groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("groups")).or(Err(Error::msg("Failed to deserialize groups")))?;
+    let service_definition: Box<dyn ServiceDefinition> =
+        serde_json::from_str(&row.get::<String, _>("service_definition"))
+            .or(Err(Error::msg("Failed to deserialize service_definition")))?;
+    let port_bindings: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("port_bindings"))
+        .or(Err(Error::msg("Failed to deserialize port_bindings")))?;
+    let interface_bindings: Vec<Uuid> =
+        serde_json::from_str(&row.get::<String, _>("interface_bindings"))
+            .or(Err(Error::msg("Failed to deserialize interface_bindings")))?;
+    let groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("groups"))
+        .or(Err(Error::msg("Failed to deserialize groups")))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -153,11 +159,12 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
         updated_at,
         base: ServiceBase {
             name: row.get("name"),
-            host_id: blob_uuid::to_uuid(row.get("host_id")).or(Err(Error::msg("Failed to deserialize host_id")))?,
+            host_id: blob_uuid::to_uuid(row.get("host_id"))
+                .or(Err(Error::msg("Failed to deserialize host_id")))?,
             service_definition,
             port_bindings,
             interface_bindings,
-            groups
-        }        
+            groups,
+        },
     })
 }

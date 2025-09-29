@@ -1,8 +1,11 @@
-use mac_address::{MacAddress};
-use serde::{Deserialize, Serialize};
+use crate::server::{
+    hosts::types::ports::Port,
+    hosts::types::{interfaces::Interface, targets::HostTarget},
+};
 use chrono::{DateTime, Utc};
-use crate::server::{hosts::types::{interfaces::Interface, targets::HostTarget}, hosts::types::ports::Port};
-use uuid::{Uuid};
+use mac_address::MacAddress;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct HostBase {
@@ -26,25 +29,37 @@ pub struct Host {
 
 impl PartialEq for Host {
     fn eq(&self, other: &Self) -> bool {
-        
-        let macs_a: Vec<Option<MacAddress>> = self.base.interfaces.iter().map(|s| s.base.mac_address).collect();
-        let macs_b: Vec<Option<MacAddress>> = other.base.interfaces.iter().map(|s| s.base.mac_address).collect();
+        let macs_a: Vec<Option<MacAddress>> = self
+            .base
+            .interfaces
+            .iter()
+            .map(|s| s.base.mac_address)
+            .collect();
+        let macs_b: Vec<Option<MacAddress>> = other
+            .base
+            .interfaces
+            .iter()
+            .map(|s| s.base.mac_address)
+            .collect();
 
         let mac_match = macs_a.iter().any(|mac_a| {
-            macs_b.iter().any(|mac_b| {
-                match (mac_a, mac_b) {
-                    (Some(a), Some(b)) => !vec!(
+            macs_b.iter().any(|mac_b| match (mac_a, mac_b) {
+                (Some(a), Some(b)) => {
+                    !vec![
                         MacAddress::new([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
                         MacAddress::new([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]),
-                    ).contains(&a) && a == b,
-                    (_, _) => false
+                    ]
+                    .contains(&a)
+                        && a == b
                 }
+                (_, _) => false,
             })
         });
 
         let subnet_ip_match = self.base.interfaces.iter().any(|subnet_a| {
             other.base.interfaces.iter().any(|subnet_b| {
-                subnet_a.base.subnet_id == subnet_b.base.subnet_id && subnet_a.base.ip_address == subnet_b.base.ip_address
+                subnet_a.base.subnet_id == subnet_b.base.subnet_id
+                    && subnet_a.base.ip_address == subnet_b.base.ip_address
             })
         });
 
@@ -71,7 +86,7 @@ impl Host {
         self.base.ports.iter().find(|p| &p.id == port_id)
     }
 
-    pub fn add_service(&mut self, service_id: Uuid) {        
+    pub fn add_service(&mut self, service_id: Uuid) {
         self.base.services.push(service_id);
     }
 }

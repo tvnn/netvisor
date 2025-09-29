@@ -1,8 +1,8 @@
-use std::net::{IpAddr, Ipv4Addr};
-use mac_address::{MacAddress};
-use rand::{Rng};
+use mac_address::MacAddress;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
-use uuid::{Uuid};
+use std::net::{IpAddr, Ipv4Addr};
+use uuid::Uuid;
 
 use crate::server::subnets::types::base::Subnet;
 
@@ -16,7 +16,6 @@ pub struct InterfaceBase {
 
 impl InterfaceBase {
     pub fn new_conceptual(subnet: &Subnet) -> Self {
-
         let ip_address = IpAddr::V4(Ipv4Addr::new(203, 0, 113, rand::rng().random_range(1..255)));
 
         Self {
@@ -37,16 +36,15 @@ pub struct Interface {
 
 impl PartialEq for Interface {
     fn eq(&self, other: &Self) -> bool {
-        self.base.ip_address == other.base.ip_address && 
-                self.base.subnet_id == other.base.subnet_id
+        self.base.ip_address == other.base.ip_address && self.base.subnet_id == other.base.subnet_id
     }
 }
 
 impl Interface {
-    pub fn new(base: InterfaceBase) -> Self{
+    pub fn new(base: InterfaceBase) -> Self {
         Self {
             id: Uuid::new_v4(),
-            base
+            base,
         }
     }
 }

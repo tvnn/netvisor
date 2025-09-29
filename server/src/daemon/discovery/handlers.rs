@@ -1,17 +1,13 @@
-use std::sync::Arc;
-use axum::{
-    extract::State, response::Json, routing::post, Router
-};
 use crate::daemon::runtime::types::DaemonAppState;
-use crate::server::daemons::types::api::{DaemonDiscoveryCancellationRequest, DaemonDiscoveryCancellationResponse};
-use crate::{
-    server::{
-        daemons::types::api::{
-            DaemonDiscoveryRequest, DaemonDiscoveryResponse,
-        },
-        shared::types::api::{ApiResponse, ApiResult, ApiError},
-    },
+use crate::server::daemons::types::api::{
+    DaemonDiscoveryCancellationRequest, DaemonDiscoveryCancellationResponse,
 };
+use crate::server::{
+    daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryResponse},
+    shared::types::api::{ApiError, ApiResponse, ApiResult},
+};
+use axum::{extract::State, response::Json, routing::post, Router};
+use std::sync::Arc;
 
 pub fn create_router() -> Router<Arc<DaemonAppState>> {
     Router::new()
@@ -32,15 +28,17 @@ async fn handle_discovery_request(
     if manager.is_discovery_running().await {
         return Err(ApiError::conflict(&"Discovery session already running"));
     } else {
-        
         let cancel_token = manager.start_new_session().await;
 
         let inner_manager = manager.clone();
         let handle = tokio::spawn(async move {
-            match discovery_service.run_network_discovery(request, cancel_token).await {
+            match discovery_service
+                .run_network_discovery(request, cancel_token)
+                .await
+            {
                 Ok(()) => {
                     tracing::info!("Discovery completed successfully");
-                },
+                }
                 Err(e) => {
                     tracing::error!("Discovery failed: {}", e);
                 }
@@ -50,7 +48,9 @@ async fn handle_discovery_request(
         manager.set_current_task(handle).await;
 
         // Return immediate acknowledgment
-        Ok(Json(ApiResponse::success(DaemonDiscoveryResponse{session_id})))
+        Ok(Json(ApiResponse::success(DaemonDiscoveryResponse {
+            session_id,
+        })))
     }
 }
 
@@ -59,7 +59,10 @@ async fn handle_cancel_request(
     Json(request): Json<DaemonDiscoveryCancellationRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonDiscoveryCancellationResponse>>> {
     let session_id = request.session_id.clone();
-    tracing::info!("Received discovery cancellation request for session {}", session_id);
+    tracing::info!(
+        "Received discovery cancellation request for session {}",
+        session_id
+    );
 
     let discovery_service = state.services.discovery_service.clone();
     let manager = discovery_service.discovery_manager.clone();
@@ -67,11 +70,17 @@ async fn handle_cancel_request(
     if manager.is_discovery_running().await {
         if manager.cancel_current_session().await {
             manager.clear_completed_task().await;
-            Ok(Json(ApiResponse::success(DaemonDiscoveryCancellationResponse{session_id})))
+            Ok(Json(ApiResponse::success(
+                DaemonDiscoveryCancellationResponse { session_id },
+            )))
         } else {
-            Err(ApiError::internal_error("Failed to cancel discovery session"))
+            Err(ApiError::internal_error(
+                "Failed to cancel discovery session",
+            ))
         }
     } else {
-        Err(ApiError::conflict("Discovery session not currently running"))
+        Err(ApiError::conflict(
+            "Discovery session not currently running",
+        ))
     }
 }

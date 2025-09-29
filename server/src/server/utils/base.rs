@@ -1,9 +1,9 @@
-use std::net::{IpAddr};
-use anyhow::{Result};
 use anyhow::anyhow;
 use anyhow::Error;
+use anyhow::Result;
 use local_ip_address::local_ip;
 use pnet::datalink::NetworkInterface;
+use std::net::IpAddr;
 
 pub struct ServerNetworkUtils {}
 
@@ -21,6 +21,6 @@ pub trait NetworkUtils {
 
 impl NetworkUtils for ServerNetworkUtils {
     fn new() -> Self {
-        Self{}
+        Self {}
     }
 }

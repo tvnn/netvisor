@@ -1,15 +1,13 @@
 use std::net::IpAddr;
 
+use crate::{daemon::discovery::types::base::DiscoveryPhase, server::daemons::types::base::Daemon};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::{daemon::discovery::types::base::DiscoveryPhase, server::{
-    daemons::types::base::Daemon
-}};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonResponse {
-    pub daemon: Daemon
+    pub daemon: Daemon,
 }
 
 /// Daemon registration request from daemon to server
@@ -18,13 +16,13 @@ pub struct DaemonRegistrationRequest {
     pub host_id: Uuid,
     pub daemon_id: Uuid,
     pub daemon_ip: IpAddr,
-    pub daemon_port: u16
+    pub daemon_port: u16,
 }
 
 /// Daemon registration response from server to daemon
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonRegistrationResponse {
-    pub daemon: Daemon
+    pub daemon: Daemon,
 }
 
 /// Daemon discovery request from server to daemon
@@ -76,7 +74,7 @@ impl DaemonDiscoveryUpdate {
             discovered_count: 0,
             error: None,
             started_at: None,
-            finished_at: None
+            finished_at: None,
         }
     }
 }

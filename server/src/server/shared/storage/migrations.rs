@@ -1,20 +1,25 @@
-use sqlx::SqlitePool;
 use anyhow::Result;
+use sqlx::SqlitePool;
 
-use crate::server::{hosts::storage::SqliteHostStorage, services::storage::{ServiceStorage, SqliteServiceStorage}, shared::storage::seed_data::{create_remote_host, create_remote_subnet, create_wan_subnet}, subnets::storage::SqliteSubnetStorage};
 use super::seed_data::{create_internet_connectivity_host, create_public_dns_host};
 use crate::server::hosts::storage::HostStorage;
 use crate::server::subnets::storage::SubnetStorage;
+use crate::server::{
+    hosts::storage::SqliteHostStorage,
+    services::storage::{ServiceStorage, SqliteServiceStorage},
+    shared::storage::seed_data::{create_remote_host, create_remote_subnet, create_wan_subnet},
+    subnets::storage::SqliteSubnetStorage,
+};
 pub struct DatabaseMigrations;
 
 impl DatabaseMigrations {
     /// Initialize database with current schema
     pub async fn initialize(pool: &SqlitePool) -> Result<()> {
         tracing::info!("Initializing database schema...");
-        
+
         // Create all tables from schema
         let schema = include_str!("schema.sql");
-        
+
         // Split on semicolons and execute each statement
         for statement in schema.split(';') {
             let statement = statement.trim();
@@ -22,9 +27,9 @@ impl DatabaseMigrations {
                 sqlx::query(statement).execute(pool).await?;
             }
         }
-        
+
         tracing::info!("Database schema initialized successfully");
-        
+
         Self::seed_default_data(pool).await?;
 
         Ok(())
@@ -35,14 +40,14 @@ impl DatabaseMigrations {
         let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM hosts")
             .fetch_one(pool)
             .await?;
-            
+
         if count.0 > 0 {
             tracing::info!("Database already contains data, skipping seed data");
             return Ok(());
         }
-        
+
         tracing::info!("Seeding default data...");
-        
+
         // Use actual compiled structs
         let mut wan_subnet = create_wan_subnet();
         let mut remote_subnet = create_remote_subnet();
@@ -58,7 +63,7 @@ impl DatabaseMigrations {
         let host_storage = SqliteHostStorage::new(pool.clone());
         let service_storage = SqliteServiceStorage::new(pool.clone());
         let subnet_storage = SqliteSubnetStorage::new(pool.clone());
-        
+
         subnet_storage.create(&wan_subnet).await?;
         subnet_storage.create(&remote_subnet).await?;
         host_storage.create(&dns_host).await?;
@@ -68,7 +73,6 @@ impl DatabaseMigrations {
         service_storage.create(&web_service).await?;
         service_storage.create(&client_service).await?;
 
-        
         tracing::info!("Default hosts seeded successfully");
         Ok(())
     }

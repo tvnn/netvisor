@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-
 // Request from frontend to server
 #[derive(Debug, Serialize, Deserialize)]
 pub struct InitiateDiscoveryRequest {

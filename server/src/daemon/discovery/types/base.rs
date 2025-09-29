@@ -8,7 +8,7 @@ pub enum DiscoveryPhase {
     Complete,
     Failed,
     Cancelled,
-    Finished // Ultimate terminal state, set by server
+    Finished, // Ultimate terminal state, set by server
 }
 
 impl std::fmt::Display for DiscoveryPhase {

@@ -41,7 +41,7 @@ impl EntityMetadataProvider for Entity {
 
             Entity::Subnet => "orange",
             Entity::Group => "rose",
-            Entity::Topology => "pink"
+            Entity::Topology => "pink",
         }
     }
 
@@ -57,7 +57,7 @@ impl EntityMetadataProvider for Entity {
             Entity::ReverseProxy => "Split",
             Entity::Subnet => "Network",
             Entity::Group => "Group",
-            Entity::Topology => "ChartNetwork"
+            Entity::Topology => "ChartNetwork",
         }
     }
 }

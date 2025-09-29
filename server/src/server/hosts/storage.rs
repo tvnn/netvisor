@@ -1,8 +1,13 @@
-use async_trait::async_trait;
+use crate::server::hosts::types::{
+    base::{Host, HostBase},
+    interfaces::Interface,
+    ports::Port,
+    targets::HostTarget,
+};
 use anyhow::{Error, Result};
-use sqlx::{SqlitePool, Row};
+use async_trait::async_trait;
+use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
-use crate::server::hosts::types::{base::{Host, HostBase}, interfaces::Interface, ports::Port, targets::HostTarget};
 
 #[async_trait]
 pub trait HostStorage: Send + Sync {
@@ -38,7 +43,7 @@ impl HostStorage for SqliteHostStorage {
                 services, interfaces, ports,
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            "#
+            "#,
         )
         .bind(blob_uuid::to_blob(&host.id))
         .bind(&host.base.name)
@@ -94,7 +99,7 @@ impl HostStorage for SqliteHostStorage {
                 target = ?, interfaces = ?, ports = ?, services = ?,
                 updated_at = ?
             WHERE id = ?
-            "#
+            "#,
         )
         .bind(&host.base.name)
         .bind(&host.base.hostname)
@@ -123,11 +128,15 @@ impl HostStorage for SqliteHostStorage {
 
 fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host, Error> {
     // Parse JSON fields safely
-    let services: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("services")).or(Err(Error::msg("Failed to deserialize services")))?;
-    let interfaces: Vec<Interface> = serde_json::from_str(&row.get::<String, _>("interfaces")).or(Err(Error::msg("Failed to deserialize interfaces")))?;
-    let target: HostTarget = serde_json::from_str(&row.get::<String, _>("target")).or(Err(Error::msg("Failed to deserialize target")))?;
-    let ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("ports")).or(Err(Error::msg("Failed to deserialize ports")))?;
-    
+    let services: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("services"))
+        .or(Err(Error::msg("Failed to deserialize services")))?;
+    let interfaces: Vec<Interface> = serde_json::from_str(&row.get::<String, _>("interfaces"))
+        .or(Err(Error::msg("Failed to deserialize interfaces")))?;
+    let target: HostTarget = serde_json::from_str(&row.get::<String, _>("target"))
+        .or(Err(Error::msg("Failed to deserialize target")))?;
+    let ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("ports"))
+        .or(Err(Error::msg("Failed to deserialize ports")))?;
+
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
     let updated_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("updated_at"))?
@@ -145,6 +154,6 @@ fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host, Error> {
             services,
             ports,
             interfaces,
-        }        
+        },
     })
 }

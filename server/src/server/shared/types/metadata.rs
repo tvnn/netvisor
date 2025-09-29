@@ -6,7 +6,7 @@ pub struct MetadataRegistry {
     pub subnet_types: Vec<TypeMetadata>,
     pub edge_types: Vec<TypeMetadata>,
     pub entities: Vec<EntityMetadata>,
-    pub ports: Vec<TypeMetadata>
+    pub ports: Vec<TypeMetadata>,
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -24,7 +24,7 @@ pub struct TypeMetadata {
 pub struct EntityMetadata {
     pub id: &'static str,
     pub color: &'static str,
-    pub icon: &'static str
+    pub icon: &'static str,
 }
 
 pub trait HasId {
@@ -53,21 +53,21 @@ pub trait TypeMetadataProvider: EntityMetadataProvider + MetadataProvider<TypeMe
     }
 }
 
-impl<T> MetadataProvider<EntityMetadata> for T 
-where 
+impl<T> MetadataProvider<EntityMetadata> for T
+where
     T: EntityMetadataProvider,
 {
     fn to_metadata(&self) -> EntityMetadata {
-        EntityMetadata { 
-            id: self.id(), 
+        EntityMetadata {
+            id: self.id(),
             color: self.color(),
-            icon: self.icon()
+            icon: self.icon(),
         }
     }
 }
 
-impl<T> MetadataProvider<TypeMetadata> for T 
-where 
+impl<T> MetadataProvider<TypeMetadata> for T
+where
     T: TypeMetadataProvider,
 {
     fn to_metadata(&self) -> TypeMetadata {
@@ -86,7 +86,8 @@ where
             category: (!category.is_empty()).then_some(category),
             icon: (!icon.is_empty()).then_some(icon),
             color: (!color.is_empty()).then_some(color),
-            metadata: (!metadata.as_object().map_or(false, |obj| obj.is_empty())).then_some(metadata)
+            metadata: (!metadata.as_object().map_or(false, |obj| obj.is_empty()))
+                .then_some(metadata),
         }
     }
 }

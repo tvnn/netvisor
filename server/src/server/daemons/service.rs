@@ -1,14 +1,20 @@
-use anyhow::{Error, Result};
-use uuid::Uuid;
-use std::sync::Arc;
-use crate::server::{daemons::{
-        storage::DaemonStorage, 
+use crate::server::{
+    daemons::{
+        storage::DaemonStorage,
         types::{
             api::{
-                DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse
-            }, base::Daemon
-        }
-    }, hosts::types::ports::PortBase, services::types::endpoints::{ApplicationProtocol, Endpoint}, shared::types::api::ApiResponse};
+                DaemonDiscoveryCancellationRequest, DaemonDiscoveryRequest, DaemonDiscoveryResponse,
+            },
+            base::Daemon,
+        },
+    },
+    hosts::types::ports::PortBase,
+    services::types::endpoints::{ApplicationProtocol, Endpoint},
+    shared::types::api::ApiResponse,
+};
+use anyhow::{Error, Result};
+use std::sync::Arc;
+use uuid::Uuid;
 
 pub struct DaemonService {
     daemon_storage: Arc<dyn DaemonStorage>,
@@ -47,53 +53,75 @@ impl DaemonService {
     }
 
     /// Send discovery request to daemon
-    pub async fn send_discovery_request(&self, daemon: &Daemon, request: DaemonDiscoveryRequest) -> Result<(), Error> {        
-        
+    pub async fn send_discovery_request(
+        &self,
+        daemon: &Daemon,
+        request: DaemonDiscoveryRequest,
+    ) -> Result<(), Error> {
         let endpoint = Endpoint {
             ip: Some(daemon.base.ip),
             port_base: PortBase::new_tcp(daemon.base.port),
             protocol: ApplicationProtocol::Http,
-            path: None
+            path: None,
         };
-                
-        let response = self.client
+
+        let response = self
+            .client
             .post(format!("{}/api/discovery/initiate", endpoint))
             .json(&request)
             .send()
             .await?;
 
         if !response.status().is_success() {
-            anyhow::bail!("Failed to send discovery request: HTTP {}", response.status());
+            anyhow::bail!(
+                "Failed to send discovery request: HTTP {}",
+                response.status()
+            );
         }
 
         let api_response: ApiResponse<DaemonDiscoveryResponse> = response.json().await?;
 
         if !api_response.success {
-            anyhow::bail!("Failed to send discovery request to daemon {}: {}", daemon.id, api_response.error.unwrap_or("Unknown error".to_string()));
+            anyhow::bail!(
+                "Failed to send discovery request to daemon {}: {}",
+                daemon.id,
+                api_response.error.unwrap_or("Unknown error".to_string())
+            );
         }
 
-        tracing::info!("Discovery request sent to daemon {} for session {}", daemon.id, request.session_id);
+        tracing::info!(
+            "Discovery request sent to daemon {} for session {}",
+            daemon.id,
+            request.session_id
+        );
         Ok(())
     }
 
-    pub async fn send_discovery_cancellation(&self, daemon: &Daemon, session_id: Uuid) -> Result<(), anyhow::Error> {
-
+    pub async fn send_discovery_cancellation(
+        &self,
+        daemon: &Daemon,
+        session_id: Uuid,
+    ) -> Result<(), anyhow::Error> {
         let endpoint = Endpoint {
             ip: Some(daemon.base.ip),
             port_base: PortBase::new_tcp(daemon.base.port),
             protocol: ApplicationProtocol::Http,
-            path: None
+            path: None,
         };
-                
-        let response = self.client
+
+        let response = self
+            .client
             .post(format!("{}/api/discovery/cancel", endpoint))
             .json(&DaemonDiscoveryCancellationRequest { session_id })
             .send()
             .await?;
 
         if !response.status().is_success() {
-            anyhow::bail!("Failed to send discovery cancellation to daemon {}: HTTP {}", 
-                         daemon.id, response.status());
+            anyhow::bail!(
+                "Failed to send discovery cancellation to daemon {}: HTTP {}",
+                daemon.id,
+                response.status()
+            );
         }
 
         Ok(())

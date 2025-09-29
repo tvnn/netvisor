@@ -1,15 +1,18 @@
-use std::collections::HashMap;
 use anyhow::Error;
+use chrono::Utc;
+use std::collections::HashMap;
 use tokio::sync::RwLock;
 use uuid::Uuid;
-use chrono::{Utc};
 
-use crate::{daemon::discovery::types::base::DiscoveryPhase, server::daemons::types::api::DaemonDiscoveryUpdate};
+use crate::{
+    daemon::discovery::types::base::DiscoveryPhase,
+    server::daemons::types::api::DaemonDiscoveryUpdate,
+};
 
 /// Server-side session management for discovery
 pub struct DiscoverySessionManager {
     sessions: RwLock<HashMap<Uuid, DaemonDiscoveryUpdate>>, // session_id -> session state mapping
-    daemon_sessions: RwLock<HashMap<Uuid, Uuid>>, // daemon_id -> session_id mapping
+    daemon_sessions: RwLock<HashMap<Uuid, Uuid>>,           // daemon_id -> session_id mapping
 }
 
 impl DiscoverySessionManager {
@@ -21,7 +24,11 @@ impl DiscoverySessionManager {
     }
 
     /// Create a new discovery session
-    pub async fn create_session(&self, session_id: Uuid, daemon_id: Uuid) -> Result<DaemonDiscoveryUpdate, anyhow::Error> {
+    pub async fn create_session(
+        &self,
+        session_id: Uuid,
+        daemon_id: Uuid,
+    ) -> Result<DaemonDiscoveryUpdate, anyhow::Error> {
         // Check if daemon is already running discovery
         if self.daemon_sessions.read().await.contains_key(&daemon_id) {
             return Err(anyhow::anyhow!("Daemon is already running discovery"));
@@ -29,10 +36,20 @@ impl DiscoverySessionManager {
 
         let session_state = DaemonDiscoveryUpdate::new(session_id, daemon_id);
 
-        self.sessions.write().await.insert(session_id, session_state.clone());
-        self.daemon_sessions.write().await.insert(daemon_id, session_id);
+        self.sessions
+            .write()
+            .await
+            .insert(session_id, session_state.clone());
+        self.daemon_sessions
+            .write()
+            .await
+            .insert(daemon_id, session_id);
 
-        tracing::info!("Created discovery session {} for daemon {}", session_id, daemon_id);
+        tracing::info!(
+            "Created discovery session {} for daemon {}",
+            session_id,
+            daemon_id
+        );
         Ok(session_state)
     }
 
@@ -45,19 +62,37 @@ impl DiscoverySessionManager {
     pub async fn update_session(&self, update: DaemonDiscoveryUpdate) -> Result<Uuid, Error> {
         if let Some(session) = self.sessions.write().await.get_mut(&update.session_id) {
             let daemon_id = session.daemon_id;
-            tracing::debug!("Updated session {}: {} ({}/{})", 
-                           update.session_id, update.phase,
-                           update.completed,
-                           update.total);
+            tracing::debug!(
+                "Updated session {}: {} ({}/{})",
+                update.session_id,
+                update.phase,
+                update.completed,
+                update.total
+            );
             *session = update;
 
-            if matches!(session.phase, DiscoveryPhase::Cancelled | DiscoveryPhase::Complete | DiscoveryPhase::Finished) {
+            if matches!(
+                session.phase,
+                DiscoveryPhase::Cancelled | DiscoveryPhase::Complete | DiscoveryPhase::Finished
+            ) {
                 // Remove from daemon sessions mapping
                 match &session.error {
-                    Some(e) => tracing::error!("{} discovery session {} with error {}", &session.phase, &session.session_id, e),
-                    None => tracing::info!("{} discovery session {}", &session.phase, &session.session_id)
+                    Some(e) => tracing::error!(
+                        "{} discovery session {} with error {}",
+                        &session.phase,
+                        &session.session_id,
+                        e
+                    ),
+                    None => tracing::info!(
+                        "{} discovery session {}",
+                        &session.phase,
+                        &session.session_id
+                    ),
                 }
-                self.daemon_sessions.write().await.remove(&session.daemon_id);
+                self.daemon_sessions
+                    .write()
+                    .await
+                    .remove(&session.daemon_id);
                 session.finished_at = Some(Utc::now());
             }
 
@@ -77,7 +112,7 @@ impl DiscoverySessionManager {
         let cutoff = Utc::now() - chrono::Duration::hours(max_age_hours);
         let mut sessions = self.sessions.write().await;
         let mut daemon_sessions = self.daemon_sessions.write().await;
-        
+
         let mut to_remove = Vec::new();
         for (session_id, session) in sessions.iter() {
             if let Some(finished_at) = session.finished_at {
@@ -86,7 +121,7 @@ impl DiscoverySessionManager {
                 }
             }
         }
-        
+
         for session_id in to_remove {
             if let Some(session) = sessions.remove(&session_id) {
                 daemon_sessions.remove(&session.daemon_id);
@@ -97,12 +132,16 @@ impl DiscoverySessionManager {
 
     /// Get active session count for monitoring
     pub async fn get_active_sessions(&self) -> Vec<DaemonDiscoveryUpdate> {
-        self.sessions.read().await
+        self.sessions
+            .read()
+            .await
             .values()
-            .filter(|session| !matches!(
-                session.phase, 
-                DiscoveryPhase::Cancelled | DiscoveryPhase::Complete | DiscoveryPhase::Finished
-            ))
+            .filter(|session| {
+                !matches!(
+                    session.phase,
+                    DiscoveryPhase::Cancelled | DiscoveryPhase::Complete | DiscoveryPhase::Finished
+                )
+            })
             .cloned()
             .collect()
     }

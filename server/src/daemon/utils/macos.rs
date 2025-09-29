@@ -1,17 +1,17 @@
-#[cfg(target_os = "macos")] 
+#[cfg(target_os = "macos")]
 use crate::daemon::utils::base::DaemonUtils;
-#[cfg(target_os = "macos")] 
+#[cfg(target_os = "macos")]
 use crate::server::utils::base::NetworkUtils;
 
-#[cfg(target_os = "macos")] 
+#[cfg(target_os = "macos")]
 #[derive(Clone)]
 pub struct MacOsDaemonUtils;
 
-#[cfg(target_os = "macos")] 
+#[cfg(target_os = "macos")]
 use anyhow::{anyhow, Error, Result};
-#[cfg(target_os = "macos")] 
+#[cfg(target_os = "macos")]
 use mac_address::MacAddress;
-#[cfg(target_os = "macos")] 
+#[cfg(target_os = "macos")]
 impl MacOsDaemonUtils {
     /// Parse MAC address from macOS format (handles missing leading zeros)
     fn parse_macos_mac_address(&self, mac_str: &str) -> Result<MacAddress, Error> {
@@ -19,37 +19,34 @@ impl MacOsDaemonUtils {
         if parts.len() != 6 {
             return Err(anyhow!("Invalid MAC address format: {}", mac_str));
         }
-        
+
         let mut mac_bytes = [0u8; 6];
         for (i, part) in parts.iter().enumerate() {
             // Handle macOS format where leading zeros are omitted (e.g., "0:22:7" instead of "00:22:07")
             mac_bytes[i] = u8::from_str_radix(part, 16)
                 .map_err(|_| anyhow!("Invalid hex in MAC address: {}", part))?;
         }
-        
+
         Ok(MacAddress::new(mac_bytes))
     }
 }
 
-#[cfg(target_os = "macos")] 
+#[cfg(target_os = "macos")]
 impl NetworkUtils for MacOsDaemonUtils {
     fn new() -> Self {
         Self
     }
 }
 
-#[cfg(target_os = "macos")] 
+#[cfg(target_os = "macos")]
 use async_trait::async_trait;
-#[cfg(target_os = "macos")] 
-use std::net::{IpAddr};
-#[cfg(target_os = "macos")] 
+#[cfg(target_os = "macos")]
+use std::net::IpAddr;
+#[cfg(target_os = "macos")]
 #[async_trait]
 impl DaemonUtils for MacOsDaemonUtils {
-
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>, Error> {
-        
         use tokio::process::Command;
-        
 
         tracing::debug!("Attempting to get MAC address for IP: {}", ip);
 
@@ -79,12 +76,19 @@ impl DaemonUtils for MacOsDaemonUtils {
                                         return Ok(Some(mac));
                                     }
                                     Err(e) => {
-                                        tracing::warn!("Failed to parse MAC address '{}': {:?}", mac_str, e);
+                                        tracing::warn!(
+                                            "Failed to parse MAC address '{}': {:?}",
+                                            mac_str,
+                                            e
+                                        );
                                         return Err(e);
                                     }
                                 }
                             } else {
-                                tracing::debug!("MAC string does not have expected format: {}", mac_str);
+                                tracing::debug!(
+                                    "MAC string does not have expected format: {}",
+                                    mac_str
+                                );
                             }
                         } else {
                             tracing::debug!("No space found after MAC string in line: {}", line);

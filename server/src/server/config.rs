@@ -1,11 +1,14 @@
 use anyhow::{Error, Result};
+use figment::{
+    providers::{Env, Serialized},
+    Figment,
+};
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
-use figment::{Figment, providers::{Env, Serialized}};
 
-use crate::server::{discovery::manager::DiscoverySessionManager, utils::base::ServerNetworkUtils};
 use crate::server::shared::services::ServiceFactory;
 use crate::server::shared::types::storage::StorageFactory;
+use crate::server::{discovery::manager::DiscoverySessionManager, utils::base::ServerNetworkUtils};
 
 /// CLI arguments structure (for figment integration)
 #[derive(Debug)]
@@ -20,16 +23,15 @@ pub struct CliArgs {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
     // Server settings
-
     /// What port the server should listen on
     pub port: u16,
 
     /// Level of logs to show
     pub log_level: String,
-    
+
     /// Where database should be located
     pub database_path: PathBuf,
-    
+
     /// Where static web assets are located for serving
     pub web_external_path: Option<PathBuf>,
 }
@@ -67,7 +69,8 @@ impl ServerConfig {
             figment = figment.merge(("web_external_path", web_external_path));
         }
 
-        let config: ServerConfig = figment.extract()
+        let config: ServerConfig = figment
+            .extract()
             .map_err(|e| Error::msg(format!("Configuration error: {}", e)))?;
 
         // Ensure database directory exists
@@ -92,14 +95,24 @@ pub struct AppState {
     pub storage: StorageFactory,
     pub services: ServiceFactory,
     pub discovery_manager: DiscoverySessionManager,
-    pub utils: ServerNetworkUtils
+    pub utils: ServerNetworkUtils,
 }
 
 impl AppState {
-    pub async fn new(config: ServerConfig, discovery_manager: DiscoverySessionManager, utils: ServerNetworkUtils) -> Result<Arc<Self>, Error> {
+    pub async fn new(
+        config: ServerConfig,
+        discovery_manager: DiscoverySessionManager,
+        utils: ServerNetworkUtils,
+    ) -> Result<Arc<Self>, Error> {
         let storage = StorageFactory::new_sqlite(&config.database_url()).await?;
         let services = ServiceFactory::new(&storage).await?;
-        
-        Ok(Arc::new(Self { config, storage, services, discovery_manager, utils }))
+
+        Ok(Arc::new(Self {
+            config,
+            storage,
+            services,
+            discovery_manager,
+            utils,
+        }))
     }
 }
