@@ -29,7 +29,7 @@ lint:
 	@echo "Linting Server..."
 	cd server && cargo fmt -- --check && cargo clippy -- -D warnings
 	@echo "Linting UI..."
-	cd ui && npm run lint && npm run check
+	cd ui && npm run lint && npm run format -- --check && npm run check
 
 clean:
 	docker compose down -v

@@ -145,7 +145,10 @@ impl DaemonRuntimeService {
 
         let response = self
             .client
-            .put(format!("{}/api/daemons/{}/heartbeat", server_target, daemon_id))
+            .put(format!(
+                "{}/api/daemons/{}/heartbeat",
+                server_target, daemon_id
+            ))
             .send()
             .await?;
 

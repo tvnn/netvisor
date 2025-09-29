@@ -3,7 +3,7 @@
 	import GroupTab from '$lib/features/groups/components/GroupTab.svelte';
 	import { groups } from '$lib/features/groups/store';
 	import HostTab from '$lib/features/hosts/components/HostTab.svelte';
-  import TopologyTab from '$lib/features/topology/components/TopologyTab.svelte';
+	import TopologyTab from '$lib/features/topology/components/TopologyTab.svelte';
 	import { hosts } from '$lib/features/hosts/store';
 	import SubnetTab from '$lib/features/subnets/components/SubnetTab.svelte';
 	import { getSubnets } from '$lib/features/subnets/store';
@@ -14,112 +14,117 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { getServices, services } from '$lib/features/services/store';
 	import { watchStores } from '$lib/shared/utils/storeWatcher';
-  
-  let activeTab = 'hosts';
-  let appInitialized = false;
 
-  // Valid tab names for validation
-  const validTabs = ['hosts', 'subnets', 'groups', 'topology'];
-  
-  // Function to get initial tab from URL hash
-  function getInitialTab(): string {
-    if (typeof window !== "undefined") {
-      const hash = window.location.hash.substring(1); // Remove the #
-      return validTabs.includes(hash) ? hash : 'hosts';
-    }
-    return 'hosts';
-  }
-  
-  function handleTabChange(tab: string) {
-    if (validTabs.includes(tab)) {
-      activeTab = tab;
-      
-      // Update URL hash without triggering page reload
-      if (typeof window !== "undefined") {
-        window.location.hash = tab;
-      }
-    }
-  }
+	let activeTab = 'hosts';
+	let appInitialized = false;
 
-  // Function to handle browser navigation (back/forward)
-  function handleHashChange() {
-    if (typeof window !== "undefined") {
-      const hash = window.location.hash.substring(1);
-      if (validTabs.includes(hash) && hash !== activeTab) {
-        activeTab = hash;
-      }
-    }
-  }
+	// Valid tab names for validation
+	const validTabs = ['hosts', 'subnets', 'groups', 'topology'];
 
-  let storeWatcherUnsubs: (() => void)[] = [];
+	// Function to get initial tab from URL hash
+	function getInitialTab(): string {
+		if (typeof window !== 'undefined') {
+			const hash = window.location.hash.substring(1); // Remove the #
+			return validTabs.includes(hash) ? hash : 'hosts';
+		}
+		return 'hosts';
+	}
 
-  onMount(async () => {
-    // Set initial tab from URL hash
-    activeTab = getInitialTab();
-    
-    // Listen for hash changes (browser back/forward)
-    if (typeof window !== "undefined") {
-      window.addEventListener('hashchange', handleHashChange);
-    }
+	function handleTabChange(tab: string) {
+		if (validTabs.includes(tab)) {
+			activeTab = tab;
 
-    // Load initial data
-    storeWatcherUnsubs = [
-      watchStores([hosts], () => {getServices()}),  
-      watchStores([hosts, services], () => {getSubnets()}),
-      watchStores([groups], () => {getServices()}),
-    ].flatMap(w => w)
-    await getMetadata().then(() => appInitialized = true);
-    startDiscoveryPolling();
-  });
+			// Update URL hash without triggering page reload
+			if (typeof window !== 'undefined') {
+				window.location.hash = tab;
+			}
+		}
+	}
 
-  onDestroy(() => {
-    stopDiscoveryPolling();
+	// Function to handle browser navigation (back/forward)
+	function handleHashChange() {
+		if (typeof window !== 'undefined') {
+			const hash = window.location.hash.substring(1);
+			if (validTabs.includes(hash) && hash !== activeTab) {
+				activeTab = hash;
+			}
+		}
+	}
 
-    storeWatcherUnsubs.forEach(unsub => {
-      unsub()
-    });
+	let storeWatcherUnsubs: (() => void)[] = [];
 
-    if (typeof window !== "undefined") {
-      window.removeEventListener('hashchange', handleHashChange);
-    }
-  });
+	onMount(async () => {
+		// Set initial tab from URL hash
+		activeTab = getInitialTab();
 
+		// Listen for hash changes (browser back/forward)
+		if (typeof window !== 'undefined') {
+			window.addEventListener('hashchange', handleHashChange);
+		}
+
+		// Load initial data
+		storeWatcherUnsubs = [
+			watchStores([hosts], () => {
+				getServices();
+			}),
+			watchStores([hosts, services], () => {
+				getSubnets();
+			}),
+			watchStores([groups], () => {
+				getServices();
+			})
+		].flatMap((w) => w);
+		await getMetadata().then(() => (appInitialized = true));
+		startDiscoveryPolling();
+	});
+
+	onDestroy(() => {
+		stopDiscoveryPolling();
+
+		storeWatcherUnsubs.forEach((unsub) => {
+			unsub();
+		});
+
+		if (typeof window !== 'undefined') {
+			window.removeEventListener('hashchange', handleHashChange);
+		}
+	});
 </script>
+
 {#if appInitialized}
-  <div class="min-h-screen bg-gray-900 text-white flex">
-    <!-- Sidebar -->
-    <Sidebar {activeTab} onTabChange={handleTabChange} />
-    
-    <!-- Main Content -->
-    <main class="flex-1 overflow-auto">
-      <div class="p-8">
-        {#if (!appInitialized)}
-          <Loading />
-        {:else if activeTab === 'hosts'}
-          <HostTab />
-        {:else if activeTab === 'subnets'}
-          <SubnetTab />
-        {:else if activeTab === 'groups'}
-          <GroupTab />
-        {:else if activeTab === 'topology'}
-          <TopologyTab />
-        {/if}
-      </div>
+	<div class="flex min-h-screen bg-gray-900 text-white">
+		<!-- Sidebar -->
+		<Sidebar {activeTab} onTabChange={handleTabChange} />
 
-      <Toast />
+		<!-- Main Content -->
+		<main class="flex-1 overflow-auto">
+			<div class="p-8">
+				{#if !appInitialized}
+					<Loading />
+				{:else if activeTab === 'hosts'}
+					<HostTab />
+				{:else if activeTab === 'subnets'}
+					<SubnetTab />
+				{:else if activeTab === 'groups'}
+					<GroupTab />
+				{:else if activeTab === 'topology'}
+					<TopologyTab />
+				{/if}
+			</div>
 
-    </main>
-  </div>
+			<Toast />
+		</main>
+	</div>
 {/if}
 
 <style>
-  :global(html) {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  }
-  
-  :global(body) {
-    margin: 0;
-    padding: 0;
-    background: #111827;
-  }
+	:global(html) {
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	}
+
+	:global(body) {
+		margin: 0;
+		padding: 0;
+		background: #111827;
+	}
 </style>

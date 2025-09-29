@@ -6,49 +6,49 @@ import type { Writable } from 'svelte/store';
  * Debounces callbacks by default to prevent cascading updates
  */
 export function watchStores(
-  stores: Writable<any>[],
-  callback: () => void | Promise<void>,
-  debounceMs: number = 100 // Default 100ms debounce
+	stores: Writable<any>[],
+	callback: () => void | Promise<void>,
+	debounceMs: number = 100 // Default 100ms debounce
 ) {
-  const lastVersions = new Map<Writable<any>, number>();
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  
-  // Initialize version tracking
-  stores.forEach(store => {
-    lastVersions.set(store, 0);
-  });
-  
-  const debouncedCallback = () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    
-    timeoutId = setTimeout(() => {
-      callback();
-      timeoutId = null;
-    }, debounceMs);
-  };
-  
-  // Subscribe to each store
-  const unsubscribes = stores.map(store => 
-    store.subscribe(() => {
-      const lastVersion = lastVersions.get(store) || 0;
-      const currentVersion = Date.now();
-      
-      // Only trigger callback if this isn't the initial subscription
-      if (lastVersion > 0) {
-        debouncedCallback();
-      }
-      
-      lastVersions.set(store, currentVersion);
-    })
-  );
+	const lastVersions = new Map<Writable<any>, number>();
+	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-  // Return cleanup function that also clears any pending timeout
-  return () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    unsubscribes.forEach(unsubscribe => unsubscribe());
-  };
+	// Initialize version tracking
+	stores.forEach((store) => {
+		lastVersions.set(store, 0);
+	});
+
+	const debouncedCallback = () => {
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+		}
+
+		timeoutId = setTimeout(() => {
+			callback();
+			timeoutId = null;
+		}, debounceMs);
+	};
+
+	// Subscribe to each store
+	const unsubscribes = stores.map((store) =>
+		store.subscribe(() => {
+			const lastVersion = lastVersions.get(store) || 0;
+			const currentVersion = Date.now();
+
+			// Only trigger callback if this isn't the initial subscription
+			if (lastVersion > 0) {
+				debouncedCallback();
+			}
+
+			lastVersions.set(store, currentVersion);
+		})
+	);
+
+	// Return cleanup function that also clears any pending timeout
+	return () => {
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+		}
+		unsubscribes.forEach((unsubscribe) => unsubscribe());
+	};
 }

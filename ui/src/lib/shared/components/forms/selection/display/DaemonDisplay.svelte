@@ -1,18 +1,18 @@
 <script lang="ts" context="module">
-  import { Network } from 'lucide-svelte';
-  import type { Host } from '$lib/features/hosts/types/base';
-  import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
+	import { Network } from 'lucide-svelte';
+	import type { Host } from '$lib/features/hosts/types/base';
+	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 
-  export const DaemonDisplay: EntityDisplayComponent<Daemon> = {
-    getId: (daemon: Daemon) => daemon.id,
-    getLabel: (daemon: Daemon) => getDaemonHost(daemon.id)?.name || "Unknown Daemon",
-    getDescription: (daemon: Daemon) => getDaemonHost(daemon.id)?.description || "",
-    getIcon: () => entities.getIconComponent("Daemon"),
-    getIconColor: () => entities.getColorHelper("Daemon").icon,
-    getTags: (daemon: Daemon) => [],
-    getIsDisabled: () => false,
-    getCategory: () => null
-  };
+	export const DaemonDisplay: EntityDisplayComponent<Daemon> = {
+		getId: (daemon: Daemon) => daemon.id,
+		getLabel: (daemon: Daemon) => getDaemonHost(daemon.id)?.name || 'Unknown Daemon',
+		getDescription: (daemon: Daemon) => getDaemonHost(daemon.id)?.description || '',
+		getIcon: () => entities.getIconComponent('Daemon'),
+		getIconColor: () => entities.getColorHelper('Daemon').icon,
+		getTags: (daemon: Daemon) => [],
+		getIsDisabled: () => false,
+		getCategory: () => null
+	};
 </script>
 
 <script lang="ts">
@@ -24,10 +24,10 @@
 	import type { Daemon } from '$lib/features/daemons/types/base';
 	import { getDaemonHost } from '$lib/features/daemons/store';
 	import { createColorHelper } from '$lib/shared/utils/styling';
-  
-  type $$Props = DisplayComponentProps<Daemon>;
-  
-  export let item: Daemon;
+
+	type $$Props = DisplayComponentProps<Daemon>;
+
+	export let item: Daemon;
 </script>
 
-<ListSelectItem item={item} displayComponent={DaemonDisplay} />
+<ListSelectItem {item} displayComponent={DaemonDisplay} />

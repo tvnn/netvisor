@@ -76,11 +76,11 @@ impl Subnet {
     }
 
     pub fn from_discovery(
-        interface_name: &String,
+        interface_name: String,
         ip_network: &IpNetwork,
         daemon_id: Uuid,
     ) -> Option<Self> {
-        let subnet_type = SubnetType::from_interface_name(interface_name);
+        let subnet_type = SubnetType::from_interface_name(&interface_name);
 
         match ip_network {
             IpNetwork::V6(_) => None,

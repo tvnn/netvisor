@@ -1,8 +1,8 @@
 <script lang="ts">
-  export let message: string = "Loading...";
+	export let message: string = 'Loading...';
 </script>
 
-<div class="text-center py-8">
-    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-    <p class="text-gray-400 mt-2">{message}</p>
+<div class="py-8 text-center">
+	<div class="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-blue-500"></div>
+	<p class="mt-2 text-gray-400">{message}</p>
 </div>

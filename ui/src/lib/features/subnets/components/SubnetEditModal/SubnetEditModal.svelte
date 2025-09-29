@@ -1,256 +1,259 @@
 <script lang="ts">
-  import { Network, Router, Search } from 'lucide-svelte';
-  import { createEmptySubnetFormData } from '../../store';
-  import EditModal from '$lib/shared/components/forms/EditModal.svelte';
-  import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-  import { entities, serviceDefinitions, subnetTypes } from '$lib/shared/stores/metadata';
-  import { hosts } from '$lib/features/hosts/store';
-  import type { Host } from '$lib/features/hosts/types/base';
+	import { Network, Router, Search } from 'lucide-svelte';
+	import { createEmptySubnetFormData } from '../../store';
+	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
+	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
+	import { entities, serviceDefinitions, subnetTypes } from '$lib/shared/stores/metadata';
+	import { hosts } from '$lib/features/hosts/store';
+	import type { Host } from '$lib/features/hosts/types/base';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
 	import { serviceHasInterfaceOnSubnet, services } from '$lib/features/services/store';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
 	import SubnetDetailsForm from './SubnetDetailsForm.svelte';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
-  
-  export let subnet: Subnet | null = null;
-  export let isOpen = false;
-  export let onCreate: (data: Subnet) => Promise<void> | void;
-  export let onUpdate: (id: string, data: Subnet) => Promise<void> | void;
-  export let onClose: () => void;
-  export let onDelete: ((id: string) => Promise<void> | void) | null = null;
-  
-  let loading = false;
-  let deleting = false;
-  
-  $: isEditing = subnet !== null;
-  $: title = isEditing ? `Edit ${subnet?.name}` : 'Create Subnet';
-  
-  let formData: Subnet = createEmptySubnetFormData();
-  
-  // Initialize form data when subnet changes or modal opens
-  $: if (isOpen) {
-    resetForm();
-  }
-  
-  function resetForm() {
-    formData = subnet ? { ...subnet } : createEmptySubnetFormData();
-  }
 
-  $: dnsServices = $services.filter(service => {
-    const isDnsResolver = serviceDefinitions.getMetadata(service.service_definition)?.is_dns_resolver;
-    const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
-    return isDnsResolver && hasInterfaceOnSubnet;
-  });
+	export let subnet: Subnet | null = null;
+	export let isOpen = false;
+	export let onCreate: (data: Subnet) => Promise<void> | void;
+	export let onUpdate: (id: string, data: Subnet) => Promise<void> | void;
+	export let onClose: () => void;
+	export let onDelete: ((id: string) => Promise<void> | void) | null = null;
 
-  $: gatewayServices = $services.filter(service => {
-    const isGateway = serviceDefinitions.getMetadata(service.service_definition)?.is_gateway;
-    const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
-    return isGateway && hasInterfaceOnSubnet;
-  });
+	let loading = false;
+	let deleting = false;
 
-  $: reverseProxyServices = $services.filter(service => {
-    const isReverseProxy = serviceDefinitions.getMetadata(service.service_definition)?.is_reverse_proxy;
-    const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
-    return isReverseProxy && hasInterfaceOnSubnet;
-  });
-      
-  // Available services (filtered out already selected)
-  $: availableDns = dnsServices.filter(service => !formData.dns_resolvers?.includes(service.id));
-  $: selectedDns = $services.filter(s => formData.dns_resolvers.includes(s.id))
-  
-  $: availableGateways = gatewayServices.filter(service => !formData.gateways?.includes(service.id));
-  $: selectedGateways = $services.filter(s => formData.gateways.includes(s.id))
-  
-  $: availableReverseProxies = reverseProxyServices.filter(service => !formData.reverse_proxies?.includes(service.id));
-  $: selectedReverseProxies = $services.filter(s => formData.reverse_proxies.includes(s.id))
-  
-  async function handleSubmit() {
-    // Clean up the data before sending
-    const subnetData: Subnet = {
-      ...formData,
-      name: formData.name.trim(),
-      description: formData.description?.trim() || '',
-      cidr: formData.cidr.trim(),
-    };
-    
-    loading = true;
-    try {
-      if (isEditing && subnet) {
-        await onUpdate(subnet.id, subnetData);
-      } else {
-        await onCreate(subnetData);
-      }
-    } finally {
-      loading = false;
-    }
-  }
-  
-  async function handleDelete() {
-    if (onDelete && subnet) {
-      deleting = true;
-      try {
-        await onDelete(subnet.id);
-      } finally {
-        deleting = false;
-      }
-    }
-  }
-  
-  // Event handlers for DNS resolvers
-  function handleAddDnsResolver(hostId: string) {
-    if (!formData.dns_resolvers?.includes(hostId)) {
-      formData.dns_resolvers = [...(formData.dns_resolvers || []), hostId];
-    }
-  }
-  
-  function handleRemoveDnsResolver(index: number) {
-    formData.dns_resolvers = formData.dns_resolvers?.filter((_, i) => i !== index) || [];
-  }
-  
-  // Event handlers for gateways
-  function handleAddGateway(hostId: string) {
-    if (!formData.gateways?.includes(hostId)) {
-      formData.gateways = [...(formData.gateways || []), hostId];
-    }
-  }
-  
-  function handleRemoveGateway(index: number) {
-    formData.gateways = formData.gateways?.filter((_, i) => i !== index) || [];
-  }
-  
-  // Event handlers for reverse proxies
-  function handleAddReverseProxy(hostId: string) {
-    if (!formData.reverse_proxies?.includes(hostId)) {
-      formData.reverse_proxies = [...(formData.reverse_proxies || []), hostId];
-    }
-  }
-  
-  function handleRemoveReverseProxy(index: number) {
-    formData.reverse_proxies = formData.reverse_proxies?.filter((_, i) => i !== index) || [];
-  }
-  
-  // Dynamic labels based on create/edit mode
-  $: saveLabel = isEditing ? 'Update Subnet' : 'Create Subnet';
-  $: cancelLabel = 'Cancel';
+	$: isEditing = subnet !== null;
+	$: title = isEditing ? `Edit ${subnet?.name}` : 'Create Subnet';
 
-  let colorHelper = entities.getColorHelper("Subnet");
+	let formData: Subnet = createEmptySubnetFormData();
+
+	// Initialize form data when subnet changes or modal opens
+	$: if (isOpen) {
+		resetForm();
+	}
+
+	function resetForm() {
+		formData = subnet ? { ...subnet } : createEmptySubnetFormData();
+	}
+
+	$: dnsServices = $services.filter((service) => {
+		const isDnsResolver = serviceDefinitions.getMetadata(
+			service.service_definition
+		)?.is_dns_resolver;
+		const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
+		return isDnsResolver && hasInterfaceOnSubnet;
+	});
+
+	$: gatewayServices = $services.filter((service) => {
+		const isGateway = serviceDefinitions.getMetadata(service.service_definition)?.is_gateway;
+		const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
+		return isGateway && hasInterfaceOnSubnet;
+	});
+
+	$: reverseProxyServices = $services.filter((service) => {
+		const isReverseProxy = serviceDefinitions.getMetadata(
+			service.service_definition
+		)?.is_reverse_proxy;
+		const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
+		return isReverseProxy && hasInterfaceOnSubnet;
+	});
+
+	// Available services (filtered out already selected)
+	$: availableDns = dnsServices.filter((service) => !formData.dns_resolvers?.includes(service.id));
+	$: selectedDns = $services.filter((s) => formData.dns_resolvers.includes(s.id));
+
+	$: availableGateways = gatewayServices.filter(
+		(service) => !formData.gateways?.includes(service.id)
+	);
+	$: selectedGateways = $services.filter((s) => formData.gateways.includes(s.id));
+
+	$: availableReverseProxies = reverseProxyServices.filter(
+		(service) => !formData.reverse_proxies?.includes(service.id)
+	);
+	$: selectedReverseProxies = $services.filter((s) => formData.reverse_proxies.includes(s.id));
+
+	async function handleSubmit() {
+		// Clean up the data before sending
+		const subnetData: Subnet = {
+			...formData,
+			name: formData.name.trim(),
+			description: formData.description?.trim() || '',
+			cidr: formData.cidr.trim()
+		};
+
+		loading = true;
+		try {
+			if (isEditing && subnet) {
+				await onUpdate(subnet.id, subnetData);
+			} else {
+				await onCreate(subnetData);
+			}
+		} finally {
+			loading = false;
+		}
+	}
+
+	async function handleDelete() {
+		if (onDelete && subnet) {
+			deleting = true;
+			try {
+				await onDelete(subnet.id);
+			} finally {
+				deleting = false;
+			}
+		}
+	}
+
+	// Event handlers for DNS resolvers
+	function handleAddDnsResolver(hostId: string) {
+		if (!formData.dns_resolvers?.includes(hostId)) {
+			formData.dns_resolvers = [...(formData.dns_resolvers || []), hostId];
+		}
+	}
+
+	function handleRemoveDnsResolver(index: number) {
+		formData.dns_resolvers = formData.dns_resolvers?.filter((_, i) => i !== index) || [];
+	}
+
+	// Event handlers for gateways
+	function handleAddGateway(hostId: string) {
+		if (!formData.gateways?.includes(hostId)) {
+			formData.gateways = [...(formData.gateways || []), hostId];
+		}
+	}
+
+	function handleRemoveGateway(index: number) {
+		formData.gateways = formData.gateways?.filter((_, i) => i !== index) || [];
+	}
+
+	// Event handlers for reverse proxies
+	function handleAddReverseProxy(hostId: string) {
+		if (!formData.reverse_proxies?.includes(hostId)) {
+			formData.reverse_proxies = [...(formData.reverse_proxies || []), hostId];
+		}
+	}
+
+	function handleRemoveReverseProxy(index: number) {
+		formData.reverse_proxies = formData.reverse_proxies?.filter((_, i) => i !== index) || [];
+	}
+
+	// Dynamic labels based on create/edit mode
+	$: saveLabel = isEditing ? 'Update Subnet' : 'Create Subnet';
+	$: cancelLabel = 'Cancel';
+
+	let colorHelper = entities.getColorHelper('Subnet');
 </script>
 
 <EditModal
-  {isOpen}
-  {title}
-  {loading}
-  {deleting}
-  {saveLabel}
-  {cancelLabel}
-  onSave={handleSubmit}
-  onCancel={onClose}
-  onDelete={isEditing ? handleDelete : null}
-  size="xl"
-  let:form
-  let:formApi
+	{isOpen}
+	{title}
+	{loading}
+	{deleting}
+	{saveLabel}
+	{cancelLabel}
+	onSave={handleSubmit}
+	onCancel={onClose}
+	onDelete={isEditing ? handleDelete : null}
+	size="xl"
+	let:form
+	let:formApi
 >
-  <!-- Header icon -->
-  <svelte:fragment slot="header-icon">
-    <ModalHeaderIcon icon={entities.getIconComponent("Subnet")} color={colorHelper.string}/>
-  </svelte:fragment>
-  
-  <!-- Content -->
-  <div class="h-full flex flex-col overflow-hidden">
-    <div class="flex-1 overflow-y-auto">
-      <div class="space-y-8 p-6">
+	<!-- Header icon -->
+	<svelte:fragment slot="header-icon">
+		<ModalHeaderIcon icon={entities.getIconComponent('Subnet')} color={colorHelper.string} />
+	</svelte:fragment>
 
-        <SubnetDetailsForm {form} {formApi} bind:formData={formData} />
+	<!-- Content -->
+	<div class="flex h-full flex-col overflow-hidden">
+		<div class="flex-1 overflow-y-auto">
+			<div class="space-y-8 p-6">
+				<SubnetDetailsForm {form} {formApi} bind:formData />
 
-        <!-- DNS Resolvers Section -->
-        <div class="space-y-4">
-          <div class="border-t border-gray-700 pt-6">
-            <h3 class="text-lg font-medium text-white mb-4">DNS Resolvers</h3>
-            <div class="bg-gray-800/50 rounded-lg p-4">
-              <ListManager
-                label="DNS Resolvers"
-                helpText="Select hosts that provide DNS resolution services for this subnet"
-                placeholder="Select a DNS server to add..."
-                emptyMessage="No DNS resolvers configured. DNS capable hosts will appear here."
-                allowReorder={false}
-                showSearch={true}
-                
-                options={availableDns}
-                items={selectedDns}
-                allowItemEdit={() => false}
-                
-                optionDisplayComponent={ServiceWithHostDisplay}
-                itemDisplayComponent={ServiceWithHostDisplay}
-                
-                onAdd={handleAddDnsResolver}
-                onRemove={handleRemoveDnsResolver}
-                onEdit={() => {}}
-              />
-            </div>
-          </div>
-        </div>
+				<!-- DNS Resolvers Section -->
+				<div class="space-y-4">
+					<div class="border-t border-gray-700 pt-6">
+						<h3 class="mb-4 text-lg font-medium text-white">DNS Resolvers</h3>
+						<div class="rounded-lg bg-gray-800/50 p-4">
+							<ListManager
+								label="DNS Resolvers"
+								helpText="Select hosts that provide DNS resolution services for this subnet"
+								placeholder="Select a DNS server to add..."
+								emptyMessage="No DNS resolvers configured. DNS capable hosts will appear here."
+								allowReorder={false}
+								showSearch={true}
+								options={availableDns}
+								items={selectedDns}
+								allowItemEdit={() => false}
+								optionDisplayComponent={ServiceWithHostDisplay}
+								itemDisplayComponent={ServiceWithHostDisplay}
+								onAdd={handleAddDnsResolver}
+								onRemove={handleRemoveDnsResolver}
+								onEdit={() => {}}
+							/>
+						</div>
+					</div>
+				</div>
 
-        <!-- Gateways Section -->
-        <div class="space-y-4">
-          <div class="border-t border-gray-700 pt-6">
-            <h3 class="text-lg font-medium text-white mb-4">Gateways</h3>
-            <div class="bg-gray-800/50 rounded-lg p-4">
-              <ListManager
-                label="Gateways"
-                helpText="Select hosts that provide gateway/routing services for this subnet"
-                placeholder="Select a gateway to add..."
-                emptyMessage="No gateways configured. Gateway-capable hosts will appear here."
-                allowReorder={false}
-                showSearch={true}
-                
-                options={availableGateways}
-                items={selectedGateways}
-                allowItemEdit={() => false}
-                
-                optionDisplayComponent={ServiceWithHostDisplay}
-                itemDisplayComponent={ServiceWithHostDisplay}
-                
-                onAdd={handleAddGateway}
-                onRemove={handleRemoveGateway}
-                onEdit={() => {}}
-              />
-            </div>
-          </div>
-        </div>
+				<!-- Gateways Section -->
+				<div class="space-y-4">
+					<div class="border-t border-gray-700 pt-6">
+						<h3 class="mb-4 text-lg font-medium text-white">Gateways</h3>
+						<div class="rounded-lg bg-gray-800/50 p-4">
+							<ListManager
+								label="Gateways"
+								helpText="Select hosts that provide gateway/routing services for this subnet"
+								placeholder="Select a gateway to add..."
+								emptyMessage="No gateways configured. Gateway-capable hosts will appear here."
+								allowReorder={false}
+								showSearch={true}
+								options={availableGateways}
+								items={selectedGateways}
+								allowItemEdit={() => false}
+								optionDisplayComponent={ServiceWithHostDisplay}
+								itemDisplayComponent={ServiceWithHostDisplay}
+								onAdd={handleAddGateway}
+								onRemove={handleRemoveGateway}
+								onEdit={() => {}}
+							/>
+						</div>
+					</div>
+				</div>
 
-        <!-- Reverse Proxies Section -->
-        <div class="space-y-4">
-          <div class="border-t border-gray-700 pt-6">
-            <h3 class="text-lg font-medium text-white mb-4">Reverse Proxies</h3>
-            <div class="bg-gray-800/50 rounded-lg p-4">
-              <ListManager
-                label="Reverse Proxies"
-                helpText="Select hosts that provide reverse proxy services for this subnet"
-                placeholder="Select a reverse proxy to add..."
-                emptyMessage="No reverse proxies configured. Reverse proxy-capable hosts will appear here."
-                allowReorder={false}
-                showSearch={true}
-                
-                options={availableReverseProxies}
-                items={selectedReverseProxies}
-                allowItemEdit={() => false}
-                
-                optionDisplayComponent={ServiceWithHostDisplay}
-                itemDisplayComponent={ServiceWithHostDisplay}
-                
-                onAdd={handleAddReverseProxy}
-                onRemove={handleRemoveReverseProxy}
-                onEdit={() => {}}
-              />
-            </div>
-          </div>
-        </div>
+				<!-- Reverse Proxies Section -->
+				<div class="space-y-4">
+					<div class="border-t border-gray-700 pt-6">
+						<h3 class="mb-4 text-lg font-medium text-white">Reverse Proxies</h3>
+						<div class="rounded-lg bg-gray-800/50 p-4">
+							<ListManager
+								label="Reverse Proxies"
+								helpText="Select hosts that provide reverse proxy services for this subnet"
+								placeholder="Select a reverse proxy to add..."
+								emptyMessage="No reverse proxies configured. Reverse proxy-capable hosts will appear here."
+								allowReorder={false}
+								showSearch={true}
+								options={availableReverseProxies}
+								items={selectedReverseProxies}
+								allowItemEdit={() => false}
+								optionDisplayComponent={ServiceWithHostDisplay}
+								itemDisplayComponent={ServiceWithHostDisplay}
+								onAdd={handleAddReverseProxy}
+								onRemove={handleRemoveReverseProxy}
+								onEdit={() => {}}
+							/>
+						</div>
+					</div>
+				</div>
 
-        {#if isEditing}
-          <EntityMetadataSection entity={subnet} id={formData.id} createdAt={formData.created_at} updatedAt={formData.updated_at}/>
-        {/if}
-      </div>
-    </div>
-  </div>
+				{#if isEditing}
+					<EntityMetadataSection
+						entity={subnet}
+						id={formData.id}
+						createdAt={formData.created_at}
+						updatedAt={formData.updated_at}
+					/>
+				{/if}
+			</div>
+		</div>
+	</div>
 </EditModal>
