@@ -8,14 +8,30 @@ use crate::server::{hosts::types::ports::{Port, PortBase}, services::types::{end
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pattern {
-    Port(PortBase),                 // Whether or not a specific port matches
-    Endpoint(EndpointResponse),         // Whether or not a specific endpoint matches
-    AnyOf(Vec<Pattern>),        // Match any of the listed patterns
-    AllOf(Vec<Pattern>),        // Must match all of the listed patterns
-    AnyPort(Vec<PortBase>),         // Match if at least one port is open
-    AllPort(Vec<PortBase>),           // Match if ALL of these ports are open
-    AnyEndpoints(Vec<EndpointResponse>), // Match if at least one endpoint response contains the response string
-    WebService(&'static str, &'static str), // Match on a string response from a path on endpoints using standard HTTP/HTTPS ports
+    
+    /// Whether or not a specific port is open on the host
+    Port(PortBase),                 
+    
+    /// Whether or not an endpoint provided a specific response
+    Endpoint(EndpointResponse),         
+    
+    /// Match any of the listed patterns
+    AnyOf(Vec<Pattern>),        
+    
+    /// Must match all of the listed patterns
+    AllOf(Vec<Pattern>),        
+    
+    /// Match if at least one port is open
+    AnyPort(Vec<PortBase>),         
+    
+    /// Match if ALL of these ports are open
+    AllPort(Vec<PortBase>),           
+    
+    /// Match if at least one endpoint response contains the response string
+    AnyEndpoints(Vec<EndpointResponse>), 
+    
+    /// path, response - match on a string response from a path on endpoints using standard HTTP/HTTPS ports
+    WebService(&'static str, &'static str),
     SubnetIsType(SubnetType),
     SubnetIsNotType(SubnetType),
     IsGatewayIp,

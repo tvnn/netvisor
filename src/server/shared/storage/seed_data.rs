@@ -30,8 +30,7 @@ pub fn create_remote_subnet() -> Subnet {
         cidr: cidr::IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(0, 0, 0, 0), 0).expect("Cidr for internet subnet")),
         description: Some("This subnet uses the 0.0.0.0/0 CIDR as an organizational container \
         for hosts on remote networks (e.g., mobile connections, \
-        friend's networks, public WiFi, etc.), representing the client-side perspective \
-        when connecting from outside your home network.".to_string()),
+        friend's networks, public WiFi, etc.).".to_string()),
         dns_resolvers: vec!(),
         gateways: vec!(),
         reverse_proxies: vec!(),

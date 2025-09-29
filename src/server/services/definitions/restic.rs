@@ -13,7 +13,10 @@ impl ServiceDefinition for Restic {
     fn category(&self) -> ServiceCategory { ServiceCategory::Backup }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::Port(PortBase::new_tcp(8000))
+        Pattern::AllOf(vec!(
+            Pattern::Port(PortBase::new_tcp(8000)),
+            Pattern::WebService("/", "restic")
+        ))
     }
 
     // Does not support SVG

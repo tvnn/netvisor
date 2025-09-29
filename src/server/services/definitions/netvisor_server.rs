@@ -8,7 +8,7 @@ use crate::server::services::types::categories::ServiceCategory;
 pub struct NetvisorServer;
 
 impl ServiceDefinition for NetvisorServer {
-    fn name(&self) -> &'static str { "Netvisor Server" }
+    fn name(&self) -> &'static str { "NetVisor Server" }
     fn description(&self) -> &'static str { "NetVisor server for network management" }
     fn category(&self) -> ServiceCategory { ServiceCategory::Netvisor }
 
