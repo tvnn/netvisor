@@ -6,10 +6,12 @@ import type { Writable } from 'svelte/store';
  * Debounces callbacks by default to prevent cascading updates
  */
 export function watchStores(
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	stores: Writable<any>[],
 	callback: () => void | Promise<void>,
 	debounceMs: number = 100 // Default 100ms debounce
 ) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const lastVersions = new Map<Writable<any>, number>();
 	let timeoutId: ReturnType<typeof setTimeout> | null = null;
 

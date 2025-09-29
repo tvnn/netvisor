@@ -14,7 +14,8 @@
 
 	const subnetColorHelper = subnetTypes.getColorHelper(subnet.subnet_type);
 	const grayColorHelper = createColorHelper('gray');
-	let IconComponent = subnetTypes.getIconComponent(subnet.subnet_type);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	let IconComponent = subnetTypes.getIconComponent(subnet.subnet_type) as any;
 	let cidr = subnet.cidr;
 
 	let label =
@@ -140,6 +141,7 @@
 		>
 			<!-- Icon -->
 			{#if IconComponent}
+				<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
 				<IconComponent class={`h-3 w-3 ${subnetColorHelper.icon}`} />
 			{/if}
 

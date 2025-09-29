@@ -7,6 +7,7 @@
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import { isContainerSubnet } from '../../store';
+	import type { Subnet } from '../../types/base';
 
 	export let formApi: FormApi;
 	export let formData: Subnet;

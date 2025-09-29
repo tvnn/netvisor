@@ -27,8 +27,8 @@
 
 	// Item interaction
 	export let allowDuplicates: boolean = false;
-	export let allowItemEdit: (item: T) => boolean = (_item) => true;
-	export let allowItemRemove: (item: T) => boolean = (_item) => true;
+	export let allowItemEdit: (item: T) => boolean = () => true;
+	export let allowItemRemove: (item: T) => boolean = () => true;
 
 	// Interaction handlers
 	export let onCreateNew: (() => void) | null = null;

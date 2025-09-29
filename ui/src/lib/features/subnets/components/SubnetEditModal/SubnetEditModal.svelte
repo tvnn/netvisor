@@ -8,6 +8,7 @@
 	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
 	import SubnetDetailsForm from './SubnetDetailsForm.svelte';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
+	import type { Subnet } from '../../types/base';
 
 	export let subnet: Subnet | null = null;
 	export let isOpen = false;
@@ -136,7 +137,6 @@
 
 	// Dynamic labels based on create/edit mode
 	$: saveLabel = isEditing ? 'Update Subnet' : 'Create Subnet';
-	$: cancelLabel = 'Cancel';
 
 	let colorHelper = entities.getColorHelper('Subnet');
 </script>
@@ -147,7 +147,7 @@
 	{loading}
 	{deleting}
 	{saveLabel}
-	{cancelLabel}
+	cancelLabel="Cancel"
 	onSave={handleSubmit}
 	onCancel={onClose}
 	onDelete={isEditing ? handleDelete : null}
@@ -156,7 +156,7 @@
 >
 	<!-- Header icon -->
 	<svelte:fragment slot="header-icon">
-		<ModalHeaderIcon icon={entities.getIconComponent('Subnet')} color={colorHelper.string} />
+		<ModalHeaderIcon Icon={entities.getIconComponent('Subnet')} color={colorHelper.string} />
 	</svelte:fragment>
 
 	<!-- Content -->

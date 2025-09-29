@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Server, Info } from 'lucide-svelte';
+	import { Info } from 'lucide-svelte';
 	import type { Host, HostWithServicesRequest } from '$lib/features/hosts/types/base';
 	import { createEmptyHostFormData } from '$lib/features/hosts/store';
 	import DetailsForm from './Details/HostDetailsForm.svelte';
@@ -150,7 +150,10 @@
 >
 	<!-- Header icon -->
 	<svelte:fragment slot="header-icon">
-		<ModalHeaderIcon icon={Server} color={entities.getColorString('Host')} />
+		<ModalHeaderIcon
+			Icon={entities.getIconComponent('Host')}
+			color={entities.getColorString('Host')}
+		/>
 	</svelte:fragment>
 
 	<!-- Content -->

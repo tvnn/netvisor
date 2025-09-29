@@ -9,9 +9,11 @@ interface ApiResponse<T> {
 }
 
 interface RequestCache {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	promise: Promise<any>;
 	timestamp: number;
 	completed: boolean;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	result?: any;
 }
 
@@ -105,7 +107,7 @@ class ApiClient {
 				cacheEntry.completed = true;
 				cacheEntry.result = result;
 			})
-			.catch((_error) => {
+			.catch(() => {
 				cacheEntry.completed = true;
 				cacheEntry.result = null;
 			});

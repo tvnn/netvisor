@@ -1,17 +1,12 @@
 import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
+import type { Subnet } from './types/base';
 
 export const subnets = writable<Subnet[]>([]);
 
 export async function getSubnets() {
-	return await api.request<Subnet[]>(
-		'/subnets',
-		subnets,
-		(subnets) => subnets,
-		{ method: 'GET' },
-		true
-	);
+	return await api.request<Subnet[]>('/subnets', subnets, (subnets) => subnets, { method: 'GET' });
 }
 
 export async function createSubnet(subnet: Subnet) {

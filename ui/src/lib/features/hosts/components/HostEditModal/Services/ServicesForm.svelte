@@ -16,7 +16,7 @@
 	export let currentServices: Service[] = [];
 
 	// Available service types for adding
-	$: availableServiceTypes =
+	const availableServiceTypes =
 		serviceDefinitions
 			.getItems()
 			?.filter((service) => service.metadata?.can_be_added !== false)
@@ -27,7 +27,7 @@
 		const serviceMetadata = serviceDefinitions.getItems()?.find((s) => s.id === serviceTypeId);
 		if (!serviceMetadata) return;
 
-		const defaultPorts = serviceMetadata.metadata?.default_ports || [];
+		const defaultPorts = (serviceMetadata.metadata?.default_ports as string[]) || [];
 
 		const newService: Service = createDefaultService(
 			serviceTypeId,

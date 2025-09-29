@@ -1,3 +1,6 @@
+import type { HelpCircle } from 'lucide-svelte';
+import type { Component } from 'svelte';
+
 export interface TagProps {
 	label: string;
 	textColor?: string;
@@ -7,7 +10,7 @@ export interface TagProps {
 
 export interface CardAction {
 	label: string;
-	icon: any; // Svelte component
+	icon: typeof HelpCircle; // Svelte component
 	color?: string;
 	hoverColor?: string;
 	bgHover?: string;
@@ -24,12 +27,12 @@ export interface CardSection {
 export interface CardListItem {
 	id: string;
 	label: string;
-	icon?: any; // Svelte component instead of HTML
+	icon?: Component; // Svelte component instead of HTML
 	iconColor?: string;
 	bgColor?: string;
 	color?: string;
 	disabled?: boolean;
-	metadata?: any;
+	metadata?: Record<string, unknown>;
 	badge?: string; // For things like "5m", "Critical", etc.
 	badgeColor?: string;
 }

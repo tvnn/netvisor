@@ -23,7 +23,7 @@ export interface TopologyEdgeData {
 export interface TopologyResponse {
 	edge_property: string;
 	edges: Array<[number, number, TopologyEdgeData]>;
-	node_holes: any[];
+	node_holes: unknown[];
 	nodes: TopologyNodeData[];
 }
 

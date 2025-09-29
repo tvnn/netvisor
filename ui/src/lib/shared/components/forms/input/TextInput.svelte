@@ -16,7 +16,6 @@
 	// Enable validation on user interaction
 	function enableValidation() {
 		showValidation = true;
-		if ($field) $field.valid;
 	}
 </script>
 
@@ -38,6 +37,8 @@
 		{disabled}
 		class={getInputClasses(showValidation && $field.errors.length > 0)}
 		on:blur={enableValidation}
-		on:input={() => showValidation && field.validate()}
+		on:input={() => {
+			if (showValidation) field.validate();
+		}}
 	/>
 </FormField>

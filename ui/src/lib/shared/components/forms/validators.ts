@@ -4,7 +4,7 @@ import pkg from 'ipaddr.js';
 const { isValid, isValidCIDR, parse, parseCIDR } = pkg;
 
 // IP Address validator
-export const ipAddress = (): Validator => (value: any) => {
+export const ipAddress = (): Validator => (value: string) => {
 	if (!value) return { valid: true, name: 'Valid IP' }; // Allow empty if not required
 
 	if (!isValid(value)) {
@@ -18,7 +18,7 @@ export const ipAddress = (): Validator => (value: any) => {
 };
 
 // CIDR validator
-export const cidr = (): Validator => (value: any) => {
+export const cidr = (): Validator => (value: string) => {
 	if (!value) return { valid: true, name: 'Valid CIDR' }; // Allow empty if not required
 
 	if (!isValidCIDR(value)) return { valid: false, name: `${cidr} is not valid CIDR notation` };
@@ -32,7 +32,7 @@ export const cidr = (): Validator => (value: any) => {
 // IP in CIDR validator
 export const ipAddressInCidr =
 	(cidr: string): Validator =>
-	(value: any) => {
+	(value: string) => {
 		if (!isValidCIDR(cidr)) return { valid: false, name: `${cidr} is not valid CIDR notation` };
 		if (!isValid(value))
 			return { valid: true, name: `IP invalid, ipAddress validator will handle` };
@@ -46,7 +46,7 @@ export const ipAddressInCidr =
 	};
 
 // MAC address validator
-export const mac = (): Validator => (value: any) => {
+export const mac = (): Validator => (value: string) => {
 	if (!value) return { name: 'validMac', valid: true }; // Optional field
 
 	const macRegex = /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/;

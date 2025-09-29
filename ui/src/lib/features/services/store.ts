@@ -46,13 +46,9 @@ export async function deleteService(serviceId: string) {
 
 // Get all services
 export async function getServices() {
-	return await api.request<Service[]>(
-		'/services',
-		services,
-		(services) => services,
-		{ method: 'GET' },
-		true
-	);
+	return await api.request<Service[]>('/services', services, (services) => services, {
+		method: 'GET'
+	});
 }
 
 // Bulk operations for host editing

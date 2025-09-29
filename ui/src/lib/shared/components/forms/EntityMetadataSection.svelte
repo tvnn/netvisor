@@ -1,11 +1,14 @@
 <script lang="ts">
+	import type { Group } from '$lib/features/groups/types/base';
+	import type { Subnet } from '$lib/features/subnets/types/base';
+	import type { Host } from '$lib/features/hosts/types/base';
 	import { formatId, formatTimestamp } from '$lib/shared/utils/formatting';
 	import { Calendar, Clock, Hash, ChevronDown, ChevronRight } from 'lucide-svelte';
 
 	export let id: string;
 	export let createdAt: string;
 	export let updatedAt: string;
-	export let entity: any = null;
+	export let entity: Group | Host | Subnet | null = null;
 
 	let isJsonExpanded = false;
 

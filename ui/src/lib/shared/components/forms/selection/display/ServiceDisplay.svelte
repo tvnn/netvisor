@@ -20,7 +20,7 @@
 		getIcon: (service: Service) => serviceDefinitions.getIconComponent(service.service_definition),
 		getIconColor: (service: Service) =>
 			serviceDefinitions.getColorHelper(service.service_definition).icon,
-		getTags: (_service: Service) => [],
+		getTags: () => [],
 		getIsDisabled: () => false,
 		getCategory: () => null
 	};

@@ -8,6 +8,7 @@
 	import { loadData } from '$lib/shared/utils/dataLoader';
 	import { getHosts } from '$lib/features/hosts/store';
 	import { getServices } from '$lib/features/services/store';
+	import type { Subnet } from '../types/base';
 
 	let searchTerm = '';
 	let showSubnetEditor = false;

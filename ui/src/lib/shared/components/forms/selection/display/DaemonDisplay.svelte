@@ -7,7 +7,7 @@
 		getDescription: (daemon: Daemon) => getDaemonHost(daemon.id)?.description || '',
 		getIcon: () => entities.getIconComponent('Daemon'),
 		getIconColor: () => entities.getColorHelper('Daemon').icon,
-		getTags: (_daemon: Daemon) => [],
+		getTags: () => [],
 		getIsDisabled: () => false,
 		getCategory: () => null
 	};

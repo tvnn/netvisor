@@ -63,10 +63,7 @@
 				});
 
 				const flowEdges: Edge[] = $topology.edges.map(
-					(
-						[_sourceIdx, _targetIdx, edgeData]: [number, number, TopologyEdgeData],
-						index: number
-					): Edge => {
+					([, , edgeData]: [number, number, TopologyEdgeData], index: number): Edge => {
 						const edgeType = edgeData.edge_type as string;
 						const edgeLabel = edgeTypes.getName(edgeType);
 						let edgeMetadata = edgeTypes.getMetadata(edgeType);

@@ -1,4 +1,4 @@
-interface Subnet {
+export interface Subnet {
 	id: string;
 	created_at: string;
 	updated_at: string;

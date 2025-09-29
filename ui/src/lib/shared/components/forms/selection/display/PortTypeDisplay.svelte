@@ -4,14 +4,14 @@
 		getLabel: (portType: TypeMetadata) => portType.name,
 		getDescription: (portType: TypeMetadata) => portType.description,
 		getIcon: (portType: TypeMetadata) => createIconComponent(portType.icon),
-		getIconColor: (_portType: TypeMetadata) => entities.getColorHelper('Port').icon,
+		getIconColor: () => entities.getColorHelper('Port').icon,
 		getTags: (portType: TypeMetadata) => [
 			{
-				label: portType.metadata.protocol,
+				label: portType.metadata.protocol as string,
 				color: portType.metadata.protocol == 'Tcp' ? 'blue' : 'purple'
 			},
 			{
-				label: portType.metadata.number,
+				label: portType.metadata.number as string,
 				color: 'purple'
 			}
 		],

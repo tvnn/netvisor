@@ -126,7 +126,6 @@
 
 	// Dynamic labels based on create/edit mode
 	$: saveLabel = isEditing ? 'Update Group' : 'Create Group';
-	$: cancelLabel = 'Cancel';
 
 	let colorHelper = entities.getColorHelper('Group');
 </script>
@@ -137,7 +136,7 @@
 	{loading}
 	{deleting}
 	{saveLabel}
-	{cancelLabel}
+	cancelLabel="Cance"
 	onSave={handleSubmit}
 	onCancel={onClose}
 	onDelete={isEditing ? handleDelete : null}
@@ -146,7 +145,7 @@
 >
 	<!-- Header icon -->
 	<svelte:fragment slot="header-icon">
-		<ModalHeaderIcon icon={entities.getIconComponent('Group')} color={colorHelper.string} />
+		<ModalHeaderIcon Icon={entities.getIconComponent('Group')} color={colorHelper.string} />
 	</svelte:fragment>
 
 	<!-- Content -->

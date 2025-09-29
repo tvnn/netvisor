@@ -1,6 +1,7 @@
 export interface PollerConfig {
 	intervalMs: number;
 	onPoll: () => Promise<void>;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	onError?: (error: any) => void;
 	name?: string; // For debugging
 }

@@ -1,4 +1,4 @@
-import { writable, derived, get } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 import { api } from '../utils/api';
 import {
 	createColorHelper,
@@ -15,7 +15,7 @@ export interface TypeMetadata {
 	category: string;
 	icon: string;
 	color: string;
-	metadata: Record<string, any>;
+	metadata: Record<string, unknown>;
 }
 
 export interface EntityMetadata {

@@ -50,8 +50,7 @@ export async function initiateDiscovery(data: InitiateDiscoveryRequest) {
 			map.set(update.daemon_id, update);
 			return map;
 		},
-		{ method: 'POST', body: JSON.stringify(data) },
-		true
+		{ method: 'POST', body: JSON.stringify(data) }
 	);
 
 	if (result?.success && !discoveryPoller?.getIsRunning) {
@@ -64,8 +63,7 @@ export async function cancelDiscovery(id: string) {
 		`/discovery/${id}/cancel`,
 		null,
 		null,
-		{ method: 'POST' },
-		true
+		{ method: 'POST' }
 	);
 }
 
@@ -108,8 +106,7 @@ export async function getActiveDiscoverySessions() {
 			// No changes - return current to prevent reactive updates
 			return current;
 		},
-		{ method: 'GET' },
-		true
+		{ method: 'GET' }
 	);
 
 	if (result?.success && result.data && result.data?.length > 0) {

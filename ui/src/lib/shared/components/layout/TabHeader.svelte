@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Component } from 'svelte';
+	import type { IconComponent } from '$lib/shared/utils/types';
 
 	export let title: string;
 	export let subtitle: string;
@@ -7,7 +7,7 @@
 		cta: string;
 		onClick: () => void;
 		disabled?: boolean;
-		IconComponent?: Component;
+		IconComponent?: IconComponent;
 	}[] = [];
 </script>
 

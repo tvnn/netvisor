@@ -39,5 +39,11 @@ export default [
 				svelteConfig
 			}
 		}
+	},
+	{
+		files: ['**/GenericCard.svelte'],
+		rules: {
+			'svelte/no-navigation-without-resolve': 'off'
+		}
 	}
 ];

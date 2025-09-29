@@ -27,13 +27,15 @@
 
 	const formApi: FormApi = {
 		registerField: (id: string, field: FieldType) => {
-			if (!formFields[id]) formFields = { ...formFields, [id]: field };
+			if (!Object.prototype.hasOwnProperty.call(formFields, id)) {
+				formFields = { ...formFields, [id]: field };
+			}
 		},
 		unregisterField: (id: string) => {
-			if (formFields[id]) {
-				let newFields = formFields;
-				delete newFields[id];
-				formFields = { ...newFields };
+			if (Object.prototype.hasOwnProperty.call(formFields, id)) {
+				// eslint-disable-next-line @typescript-eslint/no-unused-vars
+				const { [id]: _, ...newFields } = formFields;
+				formFields = newFields;
 			}
 		}
 	};
@@ -87,6 +89,7 @@
 			{/if}
 
 			<!-- Form fields slot -->
+			<!-- eslint-disable-next-line svelte/require-store-reactive-access -->
 			<slot {form} {formApi} />
 		</div>
 	</form>

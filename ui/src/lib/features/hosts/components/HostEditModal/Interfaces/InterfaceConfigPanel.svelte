@@ -11,6 +11,7 @@
 	import type { FormApi } from '$lib/shared/components/forms/types';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
+	import type { Subnet } from '$lib/features/subnets/types/base';
 
 	export let formApi: FormApi;
 	export let iface: Interface;

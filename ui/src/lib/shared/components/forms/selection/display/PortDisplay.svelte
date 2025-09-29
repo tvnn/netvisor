@@ -4,7 +4,7 @@
 	export const PortDisplay: EntityDisplayComponent<Port> = {
 		getId: (port: Port) => `${port.number}-${port.protocol}`,
 		getLabel: (port: Port) => `Port ${port.number}`,
-		getDescription: (_port: Port) => '',
+		getDescription: () => '',
 		getIcon: () => entities.getIconComponent('Port'),
 		getIconColor: () => entities.getColorHelper('Port').icon,
 		getTags: (port: Port) => [

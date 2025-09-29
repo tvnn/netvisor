@@ -6,6 +6,7 @@
 	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
 	import { getServiceHost } from '$lib/features/services/store';
 	import { isContainerSubnet } from '../store';
+	import type { Subnet } from '../types/base';
 
 	export let subnet: Subnet;
 	export let onEdit: (subnet: Subnet) => void = () => {};

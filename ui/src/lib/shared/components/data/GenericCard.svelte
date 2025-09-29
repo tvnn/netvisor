@@ -1,19 +1,22 @@
 <script lang="ts">
 	import type { CardAction, CardSection, CardList } from './types';
 	import Tag from './Tag.svelte';
+	import type { Component } from 'svelte';
+	import { type IconComponent } from '$lib/shared/utils/types';
 
 	export let title: string;
 	export let link: string = '';
 	export let subtitle: string = '';
 	export let status: string = '';
 	export let statusColor: string = 'text-gray-400';
-	export let icon: any = null; // Expects Svelte component, not string
+	export let icon: IconComponent | null = null; // Expects Svelte component, not string
 	export let iconColor: string = 'text-blue-400';
 	export let actions: CardAction[] = [];
 	export let sections: CardSection[] = [];
 	export let lists: CardList[] = [];
-	export let footerComponent: any = null; // Optional footer component
-	export let footerProps: any = {}; // Props to pass to footer component
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	export let footerComponent: Component<any> | null = null; // Optional footer component
+	export let footerProps: Record<string, unknown> = {}; // Props to pass to footer component
 </script>
 
 <div

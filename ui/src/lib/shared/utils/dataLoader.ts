@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { pushError } from '../stores/feedback';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function loadData(loaders: (() => Promise<any>)[]) {
 	const loading = writable(false);
 

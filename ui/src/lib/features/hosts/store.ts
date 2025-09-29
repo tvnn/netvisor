@@ -9,7 +9,7 @@ export const hosts = writable<Host[]>([]);
 export const polling = writable(false);
 
 export async function getHosts() {
-	return await api.request<Host[]>('/hosts', hosts, (hosts) => hosts, { method: 'GET' }, true);
+	return await api.request<Host[]>('/hosts', hosts, (hosts) => hosts, { method: 'GET' });
 }
 
 export async function createHost(data: HostWithServicesRequest) {
@@ -77,15 +77,17 @@ export function createEmptyHostFormData(): Host {
 
 export function getHostTargetString(host: Host): string | null {
 	switch (host.target.type) {
-		case 'ServiceBinding':
+		case 'ServiceBinding': {
 			const iface = getInterfaceFromId(host.target.config.interface_id);
 			const port = getPortFromId(host.target.config.port_id);
-
 			return iface && port ? iface.ip_address + ':' + port.number : null;
-		case 'None':
+		}
+		case 'None': {
 			return 'None';
-		case 'Hostname':
+		}
+		case 'Hostname': {
 			return host.hostname;
+		}
 	}
 }
 

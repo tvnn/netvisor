@@ -29,7 +29,7 @@ export function formatTimestamp(timestamp: string): string {
 			second: '2-digit',
 			hour12: false
 		});
-	} catch (error) {
+	} catch {
 		return timestamp; // Fallback to raw string if parsing fails
 	}
 }
@@ -43,8 +43,4 @@ export function formatId(id: string): string {
 }
 export function formatPort(port: Port): string {
 	return `${port.number}${port.protocol == 'Tcp' ? '/tcp' : '/udp'}`;
-}
-
-export function pluralizeArray(array: any[], prefix: string) {
-	array.length == 1 ? 'binding' : 'bindings';
 }

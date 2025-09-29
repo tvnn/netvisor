@@ -86,7 +86,7 @@
 	<!-- Header icon -->
 	<svelte:fragment slot="header-icon">
 		<ModalHeaderIcon
-			icon={entities.getIconComponent('Host')}
+			Icon={entities.getIconComponent('Host')}
 			color={entities.getColorString('Host')}
 		/>
 	</svelte:fragment>

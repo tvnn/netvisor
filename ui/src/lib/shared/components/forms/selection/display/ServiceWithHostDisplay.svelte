@@ -14,7 +14,7 @@
 		getIcon: (service: Service) => serviceDefinitions.getIconComponent(service.service_definition),
 		getIconColor: (service: Service) =>
 			serviceDefinitions.getColorHelper(service.service_definition).icon,
-		getTags: (_service: Service) => [
+		getTags: () => [
 			// {
 			//   label: service.
 			// }
@@ -32,9 +32,6 @@
 	import { getHostTargetString } from '$lib/features/hosts/store';
 
 	export let item: Service;
-
-	// Get the host for this service
-	$: host = getServiceHost(item.id);
 </script>
 
 <ListSelectItem {item} displayComponent={ServiceWithHostDisplay} />

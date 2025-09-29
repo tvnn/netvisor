@@ -1,5 +1,6 @@
 import * as LucideIcons from 'lucide-svelte';
 import HomarrIcon from '$lib/shared/components/data/HomarrIcon.svelte';
+import type { IconComponent } from './types';
 
 export interface ColorStyle {
 	text: string;
@@ -154,7 +155,7 @@ export function createColorHelper(colorName: string | null): ColorStyle {
 }
 
 // Icon helper that converts string to component
-export function createIconComponent(iconName: string | null) {
+export function createIconComponent(iconName: string | null): IconComponent {
 	if (!iconName || iconName == null) return LucideIcons.HelpCircle;
 
 	// Convert kebab-case to PascalCase for Lucide component names
@@ -164,15 +165,17 @@ export function createIconComponent(iconName: string | null) {
 		.join('');
 
 	// Return the component or fallback
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return (LucideIcons as any)[componentName] || LucideIcons.HelpCircle;
 }
 
 // Icon helper that turns a string into an SVG from homarr icons: https://dashboardicons.com/
-export function createHomarrIconComponent(iconName: string | null) {
+export function createHomarrIconComponent(iconName: string | null): IconComponent {
 	if (!iconName || iconName == null) return LucideIcons.HelpCircle;
 
 	// Create a wrapper component that pre-binds the iconName
-	const BoundHomarrIcon = ($$payload: any, $$props: any) => {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const BoundHomarrIcon = ($$payload: any, $$props: Omit<any, 'iconName'>) => {
 		return HomarrIcon($$payload, { iconName, ...$$props });
 	};
 
