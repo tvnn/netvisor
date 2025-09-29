@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  ui:
+    build: 
+      context: ./netvisor-ui
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./netvisor-ui:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+
+  server:
+    build: 
+      context: ./netvisor-server
+      dockerfile: Dockerfile.dev
+    ports:
+      - "60072:60072"
+    environment:
+      - RUST_LOG=debug
+      - NETVISOR_DATABASE_PATH=/data/netvisor.db
+      - NETVISOR_WEB_EXTERNAL_PATH=/app/static
+    volumes:
+      - ./data:/data
+      - ui-build:/app/static:ro
+    depends_on:
+      - ui
+
+volumes:
+  ui-build:

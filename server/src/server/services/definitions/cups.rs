@@ -1,0 +1,27 @@
+use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
+use crate::server::services::types::patterns::Pattern;
+use crate::server::hosts::types::ports::PortBase;
+use crate::server::services::types::types::ServiceDefinition;
+use crate::server::services::types::categories::ServiceCategory;
+
+#[derive(Default, Clone, Eq, PartialEq, Hash)]
+pub struct CUPS;
+
+impl ServiceDefinition for CUPS {
+    fn name(&self) -> &'static str { "CUPS" }
+    fn description(&self) -> &'static str { "Common Unix Printing System" }
+    fn category(&self) -> ServiceCategory { ServiceCategory::Printer }
+
+    fn discovery_pattern(&self) -> Pattern {
+        Pattern::AllOf(vec!(
+            Pattern::AnyPort(vec!(PortBase::Ipp)), 
+            Pattern::WebService("/", "CUPS")
+        ))
+    }
+
+    fn icon(&self) -> &'static str {
+        "cups"
+    }
+}
+
+inventory::submit!(ServiceDefinitionFactory::new(create_service::<CUPS>));

@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  ui:
+    image: mayanayza/netvisor-ui:latest
+    volumes:
+      - ui-build:/app/build
+
+  server:
+    image: mayanayza/netvisor-server:latest
+    ports:
+      - "60072:60072"
+    environment:
+      - RUST_LOG=info
+      - NETVISOR_DATABASE_PATH=/data/netvisor.db
+      - NETVISOR_WEB_EXTERNAL_PATH=/app/static
+      - PUBLIC_SERVER_HOSTNAME=default # default -> uses window.location.hostname
+      # - PUBLIC_SERVER_PORT=60072
+    volumes:
+      - ./data:/data
+      - ui-build:/app/static:ro
+    depends_on:
+      - ui
+    restart: unless-stopped
+
+volumes:
+  ui-build:
