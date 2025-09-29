@@ -1,7 +1,16 @@
 #[cfg(target_family = "windows")]
-use crate::daemon::utils::base::DaemonUtils;
+use crate::daemon::utils::base::{DaemonUtils, SystemUtils};
 #[cfg(target_family = "windows")]
 use crate::server::utils::base::NetworkUtils;
+
+#[cfg(target_family = "windows")]
+use async_trait::async_trait;
+#[cfg(target_family = "windows")]
+use anyhow::{anyhow, Result};
+#[cfg(target_family = "windows")]
+use std::net::{IpAddr, Ipv4Addr};
+#[cfg(target_family = "windows")]
+use mac_address::MacAddress;
 
 #[cfg(target_family = "windows")]
 pub struct WindowsDaemonUtils;
@@ -21,17 +30,10 @@ impl NetworkUtils for WindowsDaemonUtils {
 }
 
 #[cfg(target_family = "windows")]
-use async_trait::async_trait;
-#[cfg(target_family = "windows")]
-use anyhow::{anyhow, Result, Error};
-#[cfg(target_family = "windows")]
 #[async_trait]
 impl SystemUtils for WindowsDaemonUtils {
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>> {
-
-        use std::net::IpAddr;
         use windows::Win32::NetworkManagement::IpHelper::{GetIpNetTable, MIB_IPNETTABLE};
-        use mac_address::MacAddress;
         
         let ipv4_addr = match ip {
             IpAddr::V4(addr) => addr,
