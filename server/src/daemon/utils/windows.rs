@@ -22,6 +22,13 @@ impl WindowsDaemonUtils {
     }
 }
 
+#[cfg(target_os = "linux")]
+impl Default for WindowsDaemonUtils {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(target_family = "windows")]
 impl NetworkUtils for WindowsDaemonUtils {
     fn new() -> Self {

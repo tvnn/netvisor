@@ -14,6 +14,13 @@ impl LinuxDaemonUtils {
 }
 
 #[cfg(target_os = "linux")]
+impl Default for LinuxDaemonUtils {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(target_os = "linux")]
 impl NetworkUtils for LinuxDaemonUtils {
     fn new() -> Self {
         Self

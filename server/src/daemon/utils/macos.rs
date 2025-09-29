@@ -32,6 +32,13 @@ impl MacOsDaemonUtils {
 }
 
 #[cfg(target_os = "macos")]
+impl Default for MacOsDaemonUtils {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(target_os = "macos")]
 impl NetworkUtils for MacOsDaemonUtils {
     fn new() -> Self {
         Self

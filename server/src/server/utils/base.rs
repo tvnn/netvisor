@@ -5,8 +5,6 @@ use local_ip_address::local_ip;
 use pnet::datalink::NetworkInterface;
 use std::net::IpAddr;
 
-pub struct ServerNetworkUtils {}
-
 pub trait NetworkUtils {
     fn new() -> Self;
 
@@ -18,6 +16,8 @@ pub trait NetworkUtils {
         local_ip().map_err(|e| anyhow!("Failed to get local IP address: {}", e))
     }
 }
+
+pub struct ServerNetworkUtils {}
 
 impl NetworkUtils for ServerNetworkUtils {
     fn new() -> Self {

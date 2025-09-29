@@ -1,15 +1,16 @@
-.PHONY: help dev build test clean install-dev
+.PHONY: help dev build test clean install-dev dev-container format
 
 help:
 	@echo "NetVisor Development Commands"
 	@echo ""
-	@echo "  make dev          - Start development environment"
-	@echo "  make dev          - Start containerized development environment using docker-compose.dev.yml"
-	@echo "  make build        - Build production Docker images"
-	@echo "  make test         - Run all tests"
-	@echo "  make lint         - Run all linters"
-	@echo "  make clean        - Clean build artifacts and containers"
-	@echo "  make install-dev  - Install local development dependencies"
+	@echo "  make dev            - Start development environment"
+	@echo "  make dev-container  - Start containerized development environment using docker-compose.dev.yml"
+	@echo "  make build          - Build production Docker images"
+	@echo "  make test           - Run all tests"
+	@echo "  make lint           - Run all linters"
+	@echo "  make format         - Format all code"
+	@echo "  make clean          - Clean build artifacts and containers"
+	@echo "  make install-dev    - Install local development dependencies"
 
 dev:
 	cd server && cargo run
@@ -24,6 +25,13 @@ build:
 test:
 	@echo "Testing Server..."
 	cd server && cargo test
+
+format:
+	@echo "Formatting Server..."
+	cd server && cargo fmt
+	@echo "Formatting UI..."
+	cd ui && npm run format
+	@echo "All code formatted!"
 
 lint:
 	@echo "Linting Server..."
