@@ -1,19 +1,15 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import { 
     SvelteFlow, 
     Controls, 
     Background, 
-    MiniMap,
     BackgroundVariant,
-    MarkerType
   } from '@xyflow/svelte';
-  import { type Node, type Edge, Position, type Position as PositionType } from '@xyflow/svelte';
+  import { type Node, type Edge } from '@xyflow/svelte';
   import '@xyflow/svelte/dist/style.css';
   import { getDistanceToNode, getNextHandle, topology } from '../store';
-  import { edgeTypes, entities } from '$lib/shared/stores/metadata';
-  import { createIconComponent } from '$lib/shared/utils/styling';
+  import { edgeTypes } from '$lib/shared/stores/metadata';
   import { pushError } from '$lib/shared/stores/feedback';
   
   // Import custom node components
@@ -169,7 +165,7 @@
   }
 </script>
 
-<div class="w-full h-[calc(100vh-200px)] bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+<div class="w-full h-[calc(100vh-200px)] rounded-lg border border-gray-700 overflow-hidden">
   <SvelteFlow 
     nodes={$nodes} 
     edges={$edges}
@@ -196,3 +192,12 @@
     />
   </SvelteFlow>
 </div>
+
+<style>
+  :global(.svelte-flow.hide-for-export .svelte-flow__controls),
+  :global(.svelte-flow.hide-for-export .svelte-flow__resize-control),
+  :global(.svelte-flow.hide-for-export .svelte-flow__minimap),
+  :global(.svelte-flow.hide-for-export .svelte-flow__panel) {
+    display: none !important;
+  }
+</style>

@@ -1,8 +1,6 @@
 import type { Writable } from "svelte/store";
 import { pushError } from "../stores/feedback";
-
-const API_BASE = `${window.location.protocol}//${window.location.host}/api`;
-console.log("Sending API requests to: ", API_BASE)
+import { PUBLIC_SERVER_HOSTNAME, PUBLIC_SERVER_PORT } from '$env/static/public';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -72,8 +70,15 @@ class ApiClient {
       }
     }
 
-    const url = `${API_BASE}${endpoint}`;
+    let hostname = PUBLIC_SERVER_HOSTNAME == "default" ? window.location.hostname : PUBLIC_SERVER_HOSTNAME
+
+    const url = URL.parse(`${window.location.protocol}/${hostname}:${PUBLIC_SERVER_PORT}/api${endpoint}`)
     const baseErrorMessage = `Failed to ${method} from ${endpoint}`;
+
+    if (!url) {
+      pushError("Invalid url")
+      return null
+    }
     
     const requestPromise = this.executeRequest<TResponseData, TStoreData>(
       url, dataStore, storeAction, options, baseErrorMessage
@@ -102,7 +107,7 @@ class ApiClient {
   }
 
   private async executeRequest<TResponseData, TStoreData = TResponseData>(
-    url: string,
+    url: URL,
     dataStore: Writable<TStoreData> | null,
     storeAction: ((data: TResponseData, current: TStoreData) => TStoreData) | null,
     options: RequestInit,

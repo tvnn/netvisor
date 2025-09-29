@@ -8,6 +8,14 @@ RUN npm ci --frozen-lockfile
 # Copy source code
 COPY . .
 
+# Accept build args
+ARG PUBLIC_SERVER_HOSTNAME=default
+ARG PUBLIC_SERVER_PORT=60072
+
+# Make available during build
+ENV PUBLIC_SERVER_HOSTNAME=$PUBLIC_SERVER_HOSTNAME
+ENV PUBLIC_SERVER_PORT=$PUBLIC_SERVER_PORT
+
 # Build static site
 RUN npm run build
 

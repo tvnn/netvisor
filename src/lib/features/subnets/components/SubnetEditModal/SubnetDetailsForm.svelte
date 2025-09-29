@@ -9,6 +9,7 @@
     import type { FieldType, FormApi, FormType } from '$lib/shared/components/forms/types';
     import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
     import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
+	import { isContainerSubnet } from '../../store';
   
   export let formApi: FormApi;
   export let form: FormType;
@@ -41,6 +42,7 @@
       label="CIDR" 
       id="name" 
       {formApi}
+      disabled={!!isContainerSubnet(formData.id)}
       placeholder="192.168.1.0/24"
       helpText="Network address and prefix length (e.g., 192.168.1.0/24)"
       required={true}

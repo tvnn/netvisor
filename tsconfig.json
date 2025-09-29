@@ -13,15 +13,16 @@
     "moduleResolution": "bundler",
     "typeRoots": ["./node_modules/@types", "./src/lib/features/topology/types"]
   },
-  "include": [
-    "src/**/*",
-    "./src/lib/features/topology/types/**/*"
-  ],
+  // "include": [
+  //   "src/**/*",
+  //   "./src/lib/features/topology/types/**/*",
+  //   ".svelte-kit/ambient.d.ts"
+  // ],
   "svelteCompilerOptions": {
     "version": "5"
   },
-  "exclude": [
-    "node_modules/**/*",
-    ".svelte-kit/**/*"
-  ]
+  // "exclude": [
+  //   "node_modules/**/*",
+  //   ".svelte-kit/**/*"
+  // ]
 }

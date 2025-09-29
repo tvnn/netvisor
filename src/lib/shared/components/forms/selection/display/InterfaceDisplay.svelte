@@ -1,6 +1,6 @@
 <script lang="ts" context="module">
   import { Network } from 'lucide-svelte';
-  import { subnets } from '$lib/features/subnets/store';
+  import { isContainerSubnet, subnets } from '$lib/features/subnets/store';
   import { get } from 'svelte/store';
   
   // Helper function to find subnet by ID
@@ -25,7 +25,7 @@
     getTags: (iface: Interface) => {
       const subnet = findSubnetById(iface.subnet_id);
       const tags = [];
-      if (subnet) {
+      if (subnet && !isContainerSubnet(subnet.id)) {
         tags.push({
           label: subnet.cidr,
           color: entities.getColorHelper("Subnet").string

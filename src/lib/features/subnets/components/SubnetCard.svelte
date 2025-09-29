@@ -5,6 +5,7 @@
 	import { get } from 'svelte/store';
 	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
 	import { getServiceHost, services } from '$lib/features/services/store';
+	import { isContainerSubnet } from '../store';
   
   export let subnet: Subnet;
   export let onEdit: (subnet: Subnet) => void = () => {};
@@ -17,7 +18,7 @@
   // Build card data
   $: cardData = {
     title: subnet.name,
-    subtitle: subnet.cidr,
+    subtitle: isContainerSubnet(subnet.id) ? "" : subnet.cidr,
     iconColor: entities.getColorHelper("Subnet").icon,
     icon: entities.getIconComponent("Subnet"),
     

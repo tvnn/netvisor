@@ -3,8 +3,8 @@
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import TopologyViewer from './TopologyViewer.svelte';
 	import { loadData } from '$lib/shared/utils/dataLoader';
-	import { getTopology } from '../store';
-	import { RefreshCcw } from 'lucide-svelte';
+	import { exportToPNG, getTopology } from '../store';
+	import { Download, RefreshCcw } from 'lucide-svelte';
 
   const loading = loadData([getTopology]);
 </script>
@@ -14,11 +14,10 @@
    <TabHeader
     title="Topology"
     subtitle="Generate and view network topology"
-    buttons={[{
-      cta: "Reload",
-      onClick: getTopology,
-      IconComponent: RefreshCcw
-    }]}
+    buttons={[
+      {cta: "Export", onClick: exportToPNG, IconComponent: Download},
+      {cta: "Reload", onClick: getTopology, IconComponent: RefreshCcw}
+    ]}
      />
     {#if $loading}
       <Loading/>  

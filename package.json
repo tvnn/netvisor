@@ -38,6 +38,7 @@
 		"@types/jquery": "^3.5.33",
 		"@xyflow/svelte": "^1.2.4",
 		"elkjs": "^0.10.0",
+		"html-to-image": "^1.11.13",
 		"ipaddr.js": "^2.2.0",
 		"jquery": "^3.7.1",
 		"postcss": "^8.5.6",

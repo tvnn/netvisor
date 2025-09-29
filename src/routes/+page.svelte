@@ -1,19 +1,17 @@
 <script lang="ts">
-	import { getDaemons } from '$lib/features/daemons/store';
-	import { getActiveDiscoverySessions, startDiscoveryPolling, stopDiscoveryPolling } from '$lib/features/discovery/store';
+	import { startDiscoveryPolling, stopDiscoveryPolling } from '$lib/features/discovery/store';
 	import GroupTab from '$lib/features/groups/components/GroupTab.svelte';
-	import { getGroups, groups } from '$lib/features/groups/store';
+	import { groups } from '$lib/features/groups/store';
 	import HostTab from '$lib/features/hosts/components/HostTab.svelte';
   import TopologyTab from '$lib/features/topology/components/TopologyTab.svelte';
-	import { getHosts, hosts } from '$lib/features/hosts/store';
+	import { hosts } from '$lib/features/hosts/store';
 	import SubnetTab from '$lib/features/subnets/components/SubnetTab.svelte';
-	import { getSubnets, subnets } from '$lib/features/subnets/store';
+	import { getSubnets } from '$lib/features/subnets/store';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import Toast from '$lib/shared/components/feedback/Toast.svelte';
 	import Sidebar from '$lib/shared/components/layout/Sidebar.svelte';
 	import { getMetadata } from '$lib/shared/stores/metadata';
 	import { onDestroy, onMount } from 'svelte';
-	import { getTopology } from '$lib/features/topology/store';
 	import { getServices, services } from '$lib/features/services/store';
 	import { watchStores } from '$lib/shared/utils/storeWatcher';
   
