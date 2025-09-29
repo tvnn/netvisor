@@ -2,4 +2,4 @@ pub mod base;
 pub mod categories;
 pub mod endpoints;
 pub mod patterns;
-pub mod types;
+pub mod definitions;

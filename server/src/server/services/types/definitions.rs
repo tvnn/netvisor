@@ -130,7 +130,7 @@ impl EntityMetadataProvider for Box<dyn ServiceDefinition> {
     }
     fn icon(&self) -> &'static str {
         let logo_icon = ServiceDefinition::icon(self);
-        if logo_icon.len() > 0 {
+        if !logo_icon.is_empty() {
             return logo_icon;
         }
         ServiceDefinition::category(self).icon()
@@ -155,7 +155,7 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
         let is_reverse_proxy = self.is_reverse_proxy();
         let is_gateway = self.is_gateway();
         let is_generic = self.is_generic();
-        let has_homarr_icon = ServiceDefinition::icon(self).len() > 0;
+        let has_homarr_icon = !ServiceDefinition::icon(self).is_empty();
         serde_json::json!({
             // "default_ports": default_ports,
             // "default_endpoints": default_endpoints,
@@ -196,7 +196,7 @@ impl Serialize for Box<dyn ServiceDefinition> {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.id())
+        serializer.serialize_str(self.id())
     }
 }
 

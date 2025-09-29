@@ -157,7 +157,7 @@ impl ConfigStore {
     }
 
     async fn save(&self, config: &AppConfig) -> Result<()> {
-        let json = serde_json::to_string_pretty(&*config).context("Failed to serialize config")?;
+        let json = serde_json::to_string_pretty(config).context("Failed to serialize config")?;
 
         // Atomic write: write to temp file then rename
         let temp_path = self.path.with_extension("tmp");

@@ -109,15 +109,9 @@ pub async fn test_snmp_service(ip: IpAddr) -> Result<Option<u16>, Error> {
             let sys_descr_oid = Oid::from(&[1, 3, 6, 1, 2, 1, 1, 1, 0]).unwrap();
 
             match timeout(Duration::from_millis(2000), session.get(&sys_descr_oid)).await {
-                Ok(Ok(response)) => {
-                    // Check if we got any varbinds back by trying to iterate
-                    let mut varbind_count = 0;
-                    for _varbind in response.varbinds {
-                        varbind_count += 1;
-                        break; // Just check if there's at least one
-                    }
+                Ok(Ok(mut response)) => {
 
-                    if varbind_count > 0 {
+                    if let Some(_varbind) = response.varbinds.next() {
                         tracing::debug!("✅ SNMP server responding at {}:161", ip);
                         Ok(Some(161))
                     } else {

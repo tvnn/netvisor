@@ -86,8 +86,7 @@ where
             category: (!category.is_empty()).then_some(category),
             icon: (!icon.is_empty()).then_some(icon),
             color: (!color.is_empty()).then_some(color),
-            metadata: (!metadata.as_object().map_or(false, |obj| obj.is_empty()))
-                .then_some(metadata),
+            metadata: (!metadata.as_object().is_some_and(|obj| obj.is_empty())).then_some(metadata)
         }
     }
 }

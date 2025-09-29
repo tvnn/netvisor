@@ -1,4 +1,5 @@
-use crate::server::services::types::types::ServiceDefinitionExt;
+use crate::server::services::types::base::ServiceFromDiscoveryParams;
+use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::{
     daemon::discovery::service::base::DaemonDiscoveryService,
     server::{
@@ -9,7 +10,7 @@ use crate::{
         },
         services::{
             definitions::{vpn_gateway::VpnGateway, ServiceDefinitionRegistry},
-            types::types::ServiceDefinition,
+            types::definitions::ServiceDefinition,
         },
         shared::types::metadata::HasId,
     },
@@ -39,6 +40,17 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 const CONCURRENT_SCANS: usize = 15;
+
+pub struct HostScanParams<'a> {
+    subnet: &'a Subnet,
+    session_id: Uuid,
+    daemon_id: Uuid,
+    started_at: DateTime<Utc>,
+    cancel: CancellationToken,
+    discovered_count: Arc<std::sync::atomic::AtomicUsize>,
+    scanned_count: Arc<std::sync::atomic::AtomicUsize>,
+    total_ips_across_subnets: usize,
+}
 
 impl DaemonDiscoveryService {
     pub async fn run_network_discovery(
@@ -82,16 +94,17 @@ impl DaemonDiscoveryService {
         .await?;
 
         let discovery_futures = subnets.iter().map(|subnet| {
-            self.scan_and_process_hosts(
+            let params = HostScanParams{
                 subnet,
                 session_id,
                 daemon_id,
                 started_at,
-                cancel.clone(),
-                discovered_count.clone(),
-                scanned_count.clone(),
+                cancel: cancel.clone(),
+                discovered_count: discovered_count.clone(),
+                scanned_count: scanned_count.clone(),
                 total_ips_across_subnets,
-            )
+            };
+            self.scan_and_process_hosts(params)
         });
 
         let discovery_result = try_join_all(discovery_futures).await;
@@ -170,17 +183,22 @@ impl DaemonDiscoveryService {
     }
 
     /// Scan subnet concurrently and process hosts immediately as they're discovered
-    async fn scan_and_process_hosts(
+    async fn scan_and_process_hosts<'a>(
         &self,
-        subnet: &Subnet,
-        session_id: Uuid,
-        daemon_id: Uuid,
-        started_at: DateTime<Utc>,
-        cancel: CancellationToken,
-        discovered_count: Arc<std::sync::atomic::AtomicUsize>,
-        scanned_count: Arc<std::sync::atomic::AtomicUsize>,
-        total_ips_across_subnets: usize,
+        scan_params: HostScanParams<'a>
     ) -> Result<Vec<Host>> {
+
+        let HostScanParams { 
+            subnet, 
+            session_id, 
+            daemon_id, 
+            started_at, 
+            cancel, 
+            discovered_count, 
+            scanned_count, 
+            total_ips_across_subnets
+        } = scan_params;
+
         tracing::info!(
             "Scanning subnet {} concurrently for hosts with open ports",
             subnet.base.cidr
@@ -361,7 +379,7 @@ impl DaemonDiscoveryService {
             mac_address: mac,
         });
 
-        let interface_id = interface.id.clone();
+        let interface_id = interface.id;
 
         let interfaces = vec![interface];
         let interface_bindings = vec![interface_id];
@@ -405,17 +423,17 @@ impl DaemonDiscoveryService {
 
         // Add services from detected ports
         for service_definition in sorted_service_definitions {
-            if let (Some(service), mut matched_ports) = Service::from_discovery(
+            if let (Some(service), mut matched_ports) = Service::from_discovery(ServiceFromDiscoveryParams{
                 service_definition,
-                host_ip,
-                &unclaimed_ports,
-                &endpoint_responses,
-                &subnet,
-                mac,
-                &host.id,
-                &interface_bindings,
-                &matched_service_definitions,
-            ) {
+                ip: host_ip,
+                open_ports: &unclaimed_ports,
+                endpoint_responses: &endpoint_responses,
+                subnet: &subnet,
+                mac_address: mac,
+                host_id: &host.id,
+                interface_bindings: &interface_bindings,
+                matched_service_definitions: &matched_service_definitions,
+            }) {
                 if !service.base.service_definition.is_generic() {
                     host.base.name = service.base.service_definition.name().to_string();
                 }
@@ -449,7 +467,7 @@ impl DaemonDiscoveryService {
 
         host.base
             .ports
-            .extend(unclaimed_ports.into_iter().map(|p| Port::new(p)));
+            .extend(unclaimed_ports.into_iter().map(Port::new));
 
         tracing::info!("Processed host for host {}", host_ip);
         Ok(Some((host, services)))

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Display, net::IpAddr};
 use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter};
+use std::hash::Hash;
 
 #[derive(
     Debug,
@@ -24,7 +25,7 @@ pub enum ApplicationProtocol {
     Https,
 }
 
-#[derive(Debug, Clone, Eq, Hash)]
+#[derive(Debug, Clone, Eq)]
 pub struct Endpoint {
     pub protocol: ApplicationProtocol,
     pub ip: Option<IpAddr>,
@@ -56,7 +57,7 @@ impl Endpoint {
         Endpoint {
             protocol: ApplicationProtocol::Http,
             port_base: PortBase::Http,
-            ip: ip.clone(),
+            ip,
             path: Some(path.to_string()),
         }
     }
@@ -65,7 +66,7 @@ impl Endpoint {
         Endpoint {
             protocol: ApplicationProtocol::Https,
             port_base: PortBase::Https,
-            ip: ip.clone(),
+            ip,
             path: Some(path.to_string()),
         }
     }
@@ -74,7 +75,7 @@ impl Endpoint {
         Endpoint {
             protocol: ApplicationProtocol::Http,
             port_base: PortBase::HttpAlt,
-            ip: ip.clone(),
+            ip,
             path: Some(path.to_string()),
         }
     }
@@ -83,7 +84,7 @@ impl Endpoint {
         Endpoint {
             protocol: ApplicationProtocol::Https,
             port_base: PortBase::HttpsAlt,
-            ip: ip.clone(),
+            ip,
             path: Some(path.to_string()),
         }
     }
@@ -96,7 +97,7 @@ impl Endpoint {
     ) -> Self {
         Endpoint {
             protocol: protocol.clone(),
-            ip: ip.clone(),
+            ip: ip,
             port_base: port_base.clone(),
             path: path.clone(),
         }
@@ -127,5 +128,14 @@ impl PartialEq for Endpoint {
             && self.ip == other.ip
             && self.port_base.number() == other.port_base.number()
             && self.path == other.path
+    }
+}
+
+impl Hash for Endpoint {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.protocol.hash(state);
+        self.ip.hash(state);
+        self.port_base.hash(state);
+        self.path.hash(state);
     }
 }

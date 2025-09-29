@@ -146,3 +146,9 @@ impl DiscoverySessionManager {
             .collect()
     }
 }
+
+impl Default for DiscoverySessionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}

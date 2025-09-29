@@ -143,7 +143,7 @@ impl ServiceService {
             data.push(format!("{} groups", group_updates))
         };
 
-        if data.len() > 0 {
+        if !data.is_empty() {
             tracing::info!(
                 "Upserted service {}: {} with new data: {}",
                 existing_service.base.name,
@@ -179,8 +179,7 @@ impl ServiceService {
             .await?
             .ok_or_else(|| anyhow!("Could not find service"))?;
 
-        self.remove_subnet_service_relationships(&current_service)
-            .await?;
+        self.remove_subnet_service_relationships(&current_service).await?;
         self.create_subnet_service_relationships(&service).await?;
 
         service.updated_at = chrono::Utc::now();
@@ -292,7 +291,7 @@ impl ServiceService {
                     .into_iter()
                     .map(|mut subnet| {
                         subnet.create_service_relationships(service, &host);
-                        return self.subnet_service.update_subnet(subnet);
+                        self.subnet_service.update_subnet(subnet)
                     })
                     .collect();
 
@@ -308,7 +307,7 @@ impl ServiceService {
             .get()
             .ok_or_else(|| anyhow::anyhow!("Group service not initialized"))?;
         let service = self
-            .get_service(&id)
+            .get_service(id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Service {} not found", id))?;
         self.remove_subnet_service_relationships(&service).await?;

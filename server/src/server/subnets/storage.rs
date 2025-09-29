@@ -9,7 +9,7 @@ use uuid::Uuid;
 pub trait SubnetStorage: Send + Sync {
     async fn create(&self, subnet: &Subnet) -> Result<()>;
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Subnet>>;
-    async fn get_by_ids(&self, ids: &Vec<Uuid>) -> Result<Vec<Subnet>>;
+    async fn get_by_ids(&self, ids: &[Uuid]) -> Result<Vec<Subnet>>;
     async fn get_all(&self) -> Result<Vec<Subnet>>;
     async fn update(&self, subnet: &Subnet) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
@@ -54,8 +54,8 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(reverse_proxies_str)
         .bind(subnet_type_str)
         .bind(subnet_source_str)
-        .bind(&subnet.created_at.to_rfc3339())
-        .bind(&subnet.updated_at.to_rfc3339())
+        .bind(subnet.created_at.to_rfc3339())
+        .bind(subnet.updated_at.to_rfc3339())
         .execute(&self.pool)
         .await?;
 
@@ -74,7 +74,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         }
     }
 
-    async fn get_by_ids(&self, ids: &Vec<Uuid>) -> Result<Vec<Subnet>> {
+    async fn get_by_ids(&self, ids: &[Uuid]) -> Result<Vec<Subnet>> {
         if ids.is_empty() {
             return Ok(vec![]);
         }
@@ -90,7 +90,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         let rows = query_builder.fetch_all(&self.pool).await?;
 
         rows.into_iter()
-            .map(|row| row_to_subnet(row))
+            .map(row_to_subnet)
             .collect::<Result<Vec<_>, _>>()
     }
 
@@ -133,7 +133,7 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(reverse_proxies_str)
         .bind(subnet_type_str)
         .bind(subnet_source_str)
-        .bind(&subnet.updated_at.to_rfc3339())
+        .bind(subnet.updated_at.to_rfc3339())
         .bind(blob_uuid::to_blob(&subnet.id))
         .execute(&self.pool)
         .await?;

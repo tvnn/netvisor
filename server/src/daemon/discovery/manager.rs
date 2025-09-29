@@ -90,3 +90,9 @@ impl DaemonDiscoverySessionManager {
         }
     }
 }
+
+impl Default for DaemonDiscoverySessionManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}

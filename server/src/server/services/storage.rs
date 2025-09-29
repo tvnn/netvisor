@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::server::services::types::{
     base::{Service, ServiceBase},
-    types::ServiceDefinition,
+    definitions::ServiceDefinition,
 };
 
 #[async_trait]
@@ -51,8 +51,8 @@ impl ServiceStorage for SqliteServiceStorage {
         .bind(port_bindings_str)
         .bind(interface_bindings_str)
         .bind(groups_str)
-        .bind(&service.created_at.to_rfc3339())
-        .bind(&service.updated_at.to_rfc3339())
+        .bind(service.created_at.to_rfc3339())
+        .bind(service.updated_at.to_rfc3339())
         .execute(&self.pool)
         .await?;
 
@@ -76,12 +76,12 @@ impl ServiceStorage for SqliteServiceStorage {
             .fetch_all(&self.pool)
             .await?;
 
-        let mut subnets = Vec::new();
+        let mut services = Vec::new();
         for row in rows {
-            subnets.push(row_to_service(row)?);
+            services.push(row_to_service(row)?);
         }
 
-        Ok(subnets)
+        Ok(services)
     }
 
     async fn get_services_for_host(&self, host_id: &Uuid) -> Result<Vec<Service>> {
@@ -117,7 +117,7 @@ impl ServiceStorage for SqliteServiceStorage {
         .bind(port_bindings_str)
         .bind(interface_bindings_str)
         .bind(groups_str)
-        .bind(&service.updated_at.to_rfc3339())
+        .bind(service.updated_at.to_rfc3339())
         .bind(blob_uuid::to_blob(&service.id))
         .execute(&self.pool)
         .await?;

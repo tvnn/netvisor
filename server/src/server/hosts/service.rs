@@ -88,7 +88,7 @@ impl HostService {
     }
 
     /// Merge new discovery data with existing host
-    async fn upsert_host<'a>(&self, mut existing_host: Host, new_host: Host) -> Result<Host> {
+    async fn upsert_host(&self, mut existing_host: Host, new_host: Host) -> Result<Host> {
         let mut interface_updates = 0;
         let mut port_updates = 0;
         let mut hostname_update = false;
@@ -96,12 +96,7 @@ impl HostService {
 
         // Merge interfaces - add any new interfaces not already present
         for new_host_interface in new_host.base.interfaces {
-            if !existing_host
-                .base
-                .interfaces
-                .iter()
-                .any(|existing| *existing == new_host_interface)
-            {
+            if !existing_host.base.interfaces.contains(&new_host_interface) {
                 interface_updates += 1;
                 existing_host.base.interfaces.push(new_host_interface);
             }
@@ -109,12 +104,7 @@ impl HostService {
 
         // Merge open ports - add any new ports not already present
         for new_port in new_host.base.ports {
-            if !existing_host
-                .base
-                .ports
-                .iter()
-                .any(|existing| *existing == new_port)
-            {
+            if !existing_host.base.ports.contains(&new_port) {
                 port_updates += 1;
                 existing_host.base.ports.push(new_port);
             }
@@ -153,7 +143,7 @@ impl HostService {
             data.push("new description".to_string())
         }
 
-        if data.len() > 0 {
+        if !data.is_empty() {
             tracing::info!(
                 "Upserted host {}: {} with new discovery data: {}",
                 existing_host.base.name,
@@ -197,7 +187,7 @@ impl HostService {
 
         try_join_all(service_update_futures).await?;
 
-        self.delete_host(&other_host_id, true).await?;
+        self.delete_host(other_host_id, true).await?;
         tracing::info!(
             "Consolidated host {}: {} into {}: {}",
             other_host_name,
@@ -231,7 +221,7 @@ impl HostService {
                         subnet.create_host_relationship(host)
                     };
 
-                    return self.subnet_service.update_subnet(subnet.clone());
+                    self.subnet_service.update_subnet(subnet.clone())
                 })
                 .collect();
 

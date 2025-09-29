@@ -44,7 +44,7 @@ impl DaemonDiscoveryService {
 
         let response = self
             .client
-            .post(format!("{}/api/hosts", server_target.to_string()))
+            .post(format!("{}/api/hosts", server_target))
             .json(&HostWithServicesRequest { host, services })
             .send()
             .await?;
@@ -77,7 +77,7 @@ impl DaemonDiscoveryService {
 
         let response = self
             .client
-            .post(format!("{}/api/subnets", server_target.to_string()))
+            .post(format!("{}/api/subnets", server_target))
             .json(&subnet)
             .send()
             .await?;
@@ -110,7 +110,7 @@ impl DaemonDiscoveryService {
 
         let response = self
             .client
-            .post(format!("{}/api/services", server_target.to_string()))
+            .post(format!("{}/api/services", server_target))
             .json(&service)
             .send()
             .await?;
@@ -148,10 +148,7 @@ impl DaemonDiscoveryService {
 
         let response = self
             .client
-            .post(format!(
-                "{}/api/daemons/discovery_update",
-                server_target.to_string()
-            ))
+            .post(format!("{}/api/daemons/discovery_update", server_target))
             .json(&update)
             .send()
             .await?;

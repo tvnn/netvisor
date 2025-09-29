@@ -3,6 +3,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr};
 use uuid::Uuid;
+use std::hash::Hash;
 
 use crate::server::subnets::types::base::Subnet;
 
@@ -27,11 +28,18 @@ impl InterfaceBase {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct Interface {
     pub id: Uuid,
     #[serde(flatten)]
     pub base: InterfaceBase,
+}
+
+impl Hash for Interface {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.base.ip_address.hash(state);
+        self.base.subnet_id.hash(state);
+    }
 }
 
 impl PartialEq for Interface {

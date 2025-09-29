@@ -53,8 +53,8 @@ impl HostStorage for SqliteHostStorage {
         .bind(services_str)
         .bind(interfaces_str)
         .bind(ports_str)
-        .bind(&host.created_at.to_rfc3339())
-        .bind(&host.updated_at.to_rfc3339())
+        .bind(host.created_at.to_rfc3339())
+        .bind(host.updated_at.to_rfc3339())
         .execute(&self.pool)
         .await?;
 
@@ -108,7 +108,7 @@ impl HostStorage for SqliteHostStorage {
         .bind(interfaces_str)
         .bind(ports_str)
         .bind(services_str)
-        .bind(&host.updated_at)
+        .bind(host.updated_at)
         .bind(blob_uuid::to_blob(&host.id))
         .execute(&self.pool)
         .await?;

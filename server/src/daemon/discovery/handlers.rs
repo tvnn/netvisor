@@ -19,14 +19,14 @@ async fn handle_discovery_request(
     State(state): State<Arc<DaemonAppState>>,
     Json(request): Json<DaemonDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonDiscoveryResponse>>> {
-    let session_id = request.session_id.clone();
+    let session_id = request.session_id;
     tracing::info!("Received discovery request for session {}", session_id);
 
     let discovery_service = state.services.discovery_service.clone();
     let manager = discovery_service.discovery_manager.clone();
 
     if manager.is_discovery_running().await {
-        return Err(ApiError::conflict(&"Discovery session already running"));
+        Err(ApiError::conflict("Discovery session already running"))
     } else {
         let cancel_token = manager.start_new_session().await;
 

@@ -8,7 +8,7 @@ use crate::server::{
     hosts::types::ports::{Port, PortBase},
     services::types::{
         endpoints::{Endpoint, EndpointResponse},
-        types::ServiceDefinition,
+        definitions::ServiceDefinition,
     },
     subnets::types::base::{Subnet, SubnetType},
 };
@@ -211,7 +211,7 @@ impl Pattern {
             Pattern::AnyPort(port_bases) => {
                 let matched_ports: Vec<Option<Port>> = open_ports
                     .into_iter()
-                    .filter(|p| port_bases.contains(&p))
+                    .filter(|p| port_bases.contains(p))
                     .map(|p| Some(Port::new(p)))
                     .collect();
 
@@ -225,7 +225,7 @@ impl Pattern {
             Pattern::AllPort(port_bases) => {
                 let matched_ports: Vec<Option<Port>> = open_ports
                     .into_iter()
-                    .filter(|p| port_bases.contains(&p))
+                    .filter(|p| port_bases.contains(p))
                     .map(|p| Some(Port::new(p)))
                     .collect();
 
@@ -239,7 +239,7 @@ impl Pattern {
             Pattern::WebService(path, resp) => {
                 let endpoints = web_service_endpoint_responses(Some(ip), path, resp)
                     .into_iter()
-                    .map(|e| Pattern::Endpoint(e))
+                    .map(Pattern::Endpoint)
                     .collect();
                 Pattern::AnyOf(endpoints).matches(
                     open_ports,
@@ -337,7 +337,7 @@ impl Pattern {
             }
 
             Pattern::HasAnyMatchedService => {
-                if matched_service_definitions.len() > 0 {
+                if matched_service_definitions.is_empty() {
                     Ok(vec![None])
                 } else {
                     no_match
@@ -347,7 +347,7 @@ impl Pattern {
             Pattern::AnyMatchedService(constraint_function) => {
                 let any = matched_service_definitions
                     .iter()
-                    .any(|s| constraint_function(s));
+                    .any(constraint_function);
                 if any {
                     Ok(vec![None])
                 } else {
@@ -358,7 +358,7 @@ impl Pattern {
             Pattern::AllMatchedService(constraint_function) => {
                 let any = matched_service_definitions
                     .iter()
-                    .all(|s| constraint_function(s));
+                    .all(constraint_function);
                 if any {
                     Ok(vec![None])
                 } else {

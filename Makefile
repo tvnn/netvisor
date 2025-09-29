@@ -4,6 +4,7 @@ help:
 	@echo "NetVisor Development Commands"
 	@echo ""
 	@echo "  make dev          - Start development environment"
+	@echo "  make dev          - Start containerized development environment using docker-compose.dev.yml"
 	@echo "  make build        - Build production Docker images"
 	@echo "  make test         - Run all tests"
 	@echo "  make lint         - Run all linters"
@@ -11,6 +12,10 @@ help:
 	@echo "  make install-dev  - Install local development dependencies"
 
 dev:
+	cd server && cargo run
+	cd ui && npm run dev
+
+dev-container:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 build:

@@ -151,7 +151,8 @@ pub trait DaemonUtils: NetworkUtils {
         let discovery_ports = Service::all_discovery_ports();
         let ports: Vec<u16> = discovery_ports
             .iter()
-            .filter_map(|p| (p.protocol() == TransportProtocol::Tcp).then(|| p.number()))
+            .filter(|p| p.protocol() == TransportProtocol::Tcp)
+            .map(|p| p.number())
             .collect();
         let mut open_ports = Vec::new();
 
@@ -160,12 +161,9 @@ pub trait DaemonUtils: NetworkUtils {
                 break;
             }
 
-            match timeout(SCAN_TIMEOUT, TcpStream::connect((ip, port))).await {
-                Ok(Ok(_)) => {
-                    open_ports.push(PortBase::new_tcp(port));
-                    tracing::debug!("Found open TCP port {}:{}", ip, port);
-                }
-                _ => {} // Port closed or timeout
+            if let Ok(Ok(_)) = timeout(SCAN_TIMEOUT, TcpStream::connect((ip, port))).await {
+                open_ports.push(PortBase::new_tcp(port));
+                tracing::debug!("Found open TCP port {}:{}", ip, port);
             }
         }
 
@@ -180,7 +178,8 @@ pub trait DaemonUtils: NetworkUtils {
         let discovery_ports = Service::all_discovery_ports();
         let ports: Vec<u16> = discovery_ports
             .iter()
-            .filter_map(|p| (p.protocol() == TransportProtocol::Udp).then(|| p.number()))
+            .filter(|p| p.protocol() == TransportProtocol::Udp)
+            .map(|p| p.number())
             .collect();
 
         let mut open_ports = Vec::new();
@@ -231,16 +230,13 @@ pub trait DaemonUtils: NetworkUtils {
             let url = endpoint.to_string();
 
             // No need for additional timeout() wrapper since client has timeout configured
-            match client.get(&url).send().await {
-                Ok(response) => {
-                    if let Ok(text) = response.text().await {
-                        responses.push(EndpointResponse {
-                            endpoint,
-                            response: text,
-                        });
-                    }
+            if let Ok(response) =  client.get(&url).send().await {
+                if let Ok(text) = response.text().await {
+                    responses.push(EndpointResponse {
+                        endpoint,
+                        response: text,
+                    });
                 }
-                Err(_) => {} // Endpoint not responding or timed out
             }
         }
 

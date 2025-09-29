@@ -16,10 +16,16 @@ pub enum TransportProtocol {
     Tcp,
 }
 
-#[derive(Debug, Clone, Eq, Hash)]
+#[derive(Debug, Clone, Eq)]
 pub struct Port {
     pub id: Uuid,
     pub base: PortBase,
+}
+
+impl Hash for Port {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.base.hash(state);
+    }
 }
 
 impl PartialEq for Port {
@@ -297,7 +303,7 @@ impl<'de> Deserialize<'de> for Port {
                 let config = variant.config();
                 config.number == temp.number && config.protocol == temp.protocol
             })
-            .unwrap_or_else(|| {
+            .unwrap_or({
                 // If no predefined port matches, create a Custom variant
                 PortBase::Custom(PortConfig {
                     number: temp.number,

@@ -4,8 +4,11 @@ use crate::server::{
 };
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
+use std::{hash::Hash, net::IpAddr};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+const INVALID_MACS_BYTES: &[[u8; 6]; 2] = &[[0x00, 0x00, 0x00, 0x00, 0x00, 0x00], [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]];
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct HostBase {
@@ -18,7 +21,7 @@ pub struct HostBase {
     pub ports: Vec<Port>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq)]
 pub struct Host {
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
@@ -27,8 +30,37 @@ pub struct Host {
     pub base: HostBase,
 }
 
+impl Hash for Host {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let invalid_macs = INVALID_MACS_BYTES.map(|b| MacAddress::new(b));
+        // Collect valid MAC addresses
+        let mut valid_macs: Vec<MacAddress> = self
+            .base
+            .interfaces
+            .iter()
+            .filter_map(|iface| iface.base.mac_address)
+            .filter(|mac| !invalid_macs.contains(mac))
+            .collect();
+        valid_macs.sort_unstable();
+
+        // Collect (subnet_id, ip_address) pairs
+        let mut subnet_ips: Vec<(Uuid, IpAddr)> = self
+            .base
+            .interfaces
+            .iter()
+            .map(|iface| (iface.base.subnet_id, iface.base.ip_address))
+            .collect();
+        subnet_ips.sort_unstable();
+
+        // Hash both collections
+        valid_macs.hash(state);
+        subnet_ips.hash(state);
+    }
+}
+
 impl PartialEq for Host {
     fn eq(&self, other: &Self) -> bool {
+        let invalid_macs = INVALID_MACS_BYTES.map(|b| MacAddress::new(b));
         let macs_a: Vec<Option<MacAddress>> = self
             .base
             .interfaces
@@ -44,14 +76,7 @@ impl PartialEq for Host {
 
         let mac_match = macs_a.iter().any(|mac_a| {
             macs_b.iter().any(|mac_b| match (mac_a, mac_b) {
-                (Some(a), Some(b)) => {
-                    !vec![
-                        MacAddress::new([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
-                        MacAddress::new([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]),
-                    ]
-                    .contains(&a)
-                        && a == b
-                }
+                (Some(a), Some(b)) => !invalid_macs.contains(a) && a == b,
                 (_, _) => false,
             })
         });

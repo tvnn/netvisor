@@ -4,7 +4,7 @@ use crate::{
         hosts::types::ports::{Port, PortBase},
         services::{
             definitions::netvisor_daemon::NetvisorDaemon,
-            types::{base::ServiceBase, types::ServiceDefinition},
+            types::{base::ServiceBase, definitions::ServiceDefinition},
         },
         utils::base::NetworkUtils,
     },

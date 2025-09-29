@@ -3,8 +3,8 @@ use std::net::IpAddr;
 use crate::server::hosts::types::ports::{Port, PortBase};
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::types::ServiceDefinitionExt;
-use crate::server::services::types::types::{DefaultServiceDefinition, ServiceDefinition};
+use crate::server::services::types::definitions::ServiceDefinitionExt;
+use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::subnets::types::base::Subnet;
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
@@ -41,6 +41,18 @@ pub struct Service {
     pub updated_at: DateTime<Utc>,
     #[serde(flatten)]
     pub base: ServiceBase,
+}
+
+pub struct ServiceFromDiscoveryParams<'a> {
+    pub service_definition: Box<dyn ServiceDefinition>,
+    pub ip: IpAddr,
+    pub open_ports: &'a [PortBase],
+    pub endpoint_responses: &'a [EndpointResponse],
+    pub subnet: &'a Subnet,
+    pub mac_address: Option<MacAddress>,
+    pub host_id: &'a Uuid,
+    pub interface_bindings: &'a [Uuid],
+    pub matched_service_definitions: &'a Vec<Box<dyn ServiceDefinition>>,
 }
 
 impl Service {
@@ -82,26 +94,29 @@ impl Service {
         endpoints
     }
 
-    pub fn from_discovery(
-        service_definition: Box<dyn ServiceDefinition>,
-        ip: IpAddr,
-        open_ports: &Vec<PortBase>,
-        endpoint_responses: &Vec<EndpointResponse>,
-        subnet: &Subnet,
-        mac_address: Option<MacAddress>,
-        host_id: &Uuid,
-        interface_bindings: &Vec<Uuid>,
-        matched_service_definitions: &Vec<Box<dyn ServiceDefinition>>,
-    ) -> (Option<Self>, Vec<Port>) {
+    pub fn from_discovery(params: ServiceFromDiscoveryParams) -> (Option<Self>, Vec<Port>) {
+
+        let ServiceFromDiscoveryParams {
+            service_definition,
+            ip,
+            open_ports,
+            endpoint_responses,
+            subnet,
+            mac_address,
+            host_id,
+            interface_bindings,
+            matched_service_definitions,
+        } = params;
+
         if let Ok(result) = service_definition.discovery_pattern().matches(
-            open_ports.clone(),
-            endpoint_responses.clone(),
+            open_ports.to_owned(),
+            endpoint_responses.to_owned(),
             ip,
             subnet,
             mac_address,
             matched_service_definitions,
         ) {
-            let matched_ports: Vec<Port> = result.into_iter().filter_map(|p| p).collect();
+            let matched_ports: Vec<Port> = result.into_iter().flatten().collect();
 
             tracing::info!(
                 "✅ Service {:?} matched for {} with ports {:?}",
@@ -118,13 +133,13 @@ impl Service {
                 service_definition,
                 name,
                 port_bindings,
-                interface_bindings: interface_bindings.clone(),
+                interface_bindings: interface_bindings.to_owned(),
                 groups: Vec::new(),
             });
 
-            return (Some(service), matched_ports);
+            (Some(service), matched_ports)
         } else {
-            return (None, Vec::new());
+            (None, Vec::new())
         }
     }
 }

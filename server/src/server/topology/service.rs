@@ -109,7 +109,7 @@ impl TopologyService {
         let mut rows: Vec<Vec<(Uuid, NodeLayout)>> = vec![Vec::new(); container_grid.y];
 
         for (idx, (id, size)) in child_sizes.into_iter().enumerate() {
-            let grid_position = self.calculate_child_coordinates_in_grid(&container_grid, idx);
+            let grid_position = self.calculate_child_coordinates_in_grid(container_grid, idx);
             rows[grid_position.y].push((
                 id,
                 NodeLayout {
@@ -189,8 +189,8 @@ impl TopologyService {
         hosts
             .iter()
             .flat_map(|host| {
-                if host.base.interfaces.len() > 0 {
-                    return host
+                if !host.base.interfaces.is_empty() {
+                    host
                         .base
                         .interfaces
                         .iter()
@@ -215,9 +215,9 @@ impl TopologyService {
                             (interface.base.subnet_id, subnet_child)
                         })
                         .collect::<Vec<_>>()
-                        .into_iter();
+                        .into_iter()
                 } else {
-                    return vec![(
+                    vec![(
                         self.no_subnet_id,
                         SubnetChild {
                             id: host.id,
@@ -226,7 +226,7 @@ impl TopologyService {
                             size: SubnetChildNodeSize::Small,
                         },
                     )]
-                    .into_iter();
+                    .into_iter()
                 }
             })
             .fold(HashMap::new(), |mut acc, (subnet_id, child)| {

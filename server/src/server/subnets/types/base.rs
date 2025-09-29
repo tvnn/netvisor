@@ -1,10 +1,11 @@
 use std::net::Ipv4Addr;
 
-use crate::server::services::types::types::ServiceDefinitionExt;
+use crate::server::services::types::definitions::ServiceDefinitionExt;
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
 use itertools::Itertools;
 use pnet::ipnetwork::IpNetwork;
+use std::hash::Hash;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
@@ -54,7 +55,7 @@ impl Default for SubnetBase {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Subnet {
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
@@ -79,7 +80,7 @@ impl Subnet {
         ip_network: &IpNetwork,
         daemon_id: Uuid,
     ) -> Option<Self> {
-        let subnet_type = SubnetType::from_interface_name(&interface_name);
+        let subnet_type = SubnetType::from_interface_name(interface_name);
 
         match ip_network {
             IpNetwork::V6(_) => None,
@@ -186,18 +187,22 @@ impl Subnet {
 
 impl PartialEq for Subnet {
     fn eq(&self, other: &Self) -> bool {
-        let cidr_match = &self.base.cidr == &other.base.cidr;
+        &self.base.cidr == &other.base.cidr
         // let sources_match = match (&self.base.source, &other.base.source) {
         //     (SubnetSource::Discovery(daemon_id), SubnetSource::Discovery(other_daemon_id))  => {
         //         daemon_id == other_daemon_id
         //     },
         //     _ => false
         // };
-        cidr_match
+        // cidr_match
     }
 }
 
-impl Eq for Subnet {}
+impl Hash for Subnet {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.base.cidr.hash(state);
+    }
+}
 
 #[derive(
     Debug,
@@ -222,7 +227,7 @@ pub enum SubnetType {
 }
 
 impl SubnetType {
-    pub fn from_interface_name(interface_name: &String) -> Self {
+    pub fn from_interface_name(interface_name: &str) -> Self {
         if Self::match_interface_names(&["docker", "br-"], interface_name) {
             return SubnetType::DockerBridge;
         }
@@ -240,7 +245,7 @@ impl SubnetType {
         SubnetType::Unknown
     }
 
-    fn match_interface_names(patterns: &[&str], interface_name: &String) -> bool {
+    fn match_interface_names(patterns: &[&str], interface_name: &str) -> bool {
         let name_lower = interface_name.to_lowercase();
         patterns.iter().any(|pattern| {
             if *pattern == "br-" {

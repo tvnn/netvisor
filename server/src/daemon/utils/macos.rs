@@ -51,7 +51,7 @@ impl DaemonUtils for MacOsDaemonUtils {
         tracing::debug!("Attempting to get MAC address for IP: {}", ip);
 
         let output = Command::new("arp")
-            .args(&["-n", &ip.to_string()])
+            .args(["-n", &ip.to_string()])
             .output()
             .await?;
 
