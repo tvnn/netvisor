@@ -1,0 +1,54 @@
+name: Server CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-ci.yml'
+  pull_request:
+    paths:
+      - 'server/**'
+      - '.github/workflows/server-ci.yml'
+
+defaults:
+  run:
+    working-directory: ./server
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: server
+      
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config
+      
+      - name: Check formatting
+        run: cargo fmt -- --check
+      
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      
+      - name: Test server binary
+        run: cargo test --bin server
+      
+      - name: Test daemon binary
+        run: cargo test --bin daemon
+      
+      - name: Build server (release)
+        run: cargo build --release --bin server
+      
+      - name: Build daemon (release)
+        run: cargo build --release --bin daemon
