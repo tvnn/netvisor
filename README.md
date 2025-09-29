@@ -1,6 +1,8 @@
 # NetVisor
 
-Network discovery and topology visualization for home labs and small networks.
+**Automatically discover and visually document network topology.**
+
+NetVisor scans your network, identifies hosts and services, and generates an interactive visualization showing how everything connects, letting you easily create and maintain network documentation.
 
 ## Quick Start
 
