@@ -9,10 +9,12 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 ### 1. Start the Server
 `curl -O https://raw.githubusercontent.com/mayanayza/netvisor-server/refs/heads/main/docker-compose.yml && docker compose up -d`
 
+The server collects data from the daemon(s) and generates the topology visualization. The server can support multiple daemon instances in case you want to collect data from the perspective of multiple hosts on your network.
+
 ### 2. Install the Daemon  
 `curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor-server/refs/heads/main/install.sh | bash`
 
-The daemon should run directly on the host - running in a container environment will compromise discovery functionality.
+The daemon is used to scan the network and should run directly on the host to access host network interfaces - running in a containerized environment will compromise discovery functionality. Running in a VM or other virtualization is fine.
 
 ### 3. Connect Daemon to Server
 `netvisor-daemon --server-target YOUR_SERVER_IP --server-port 60072`
@@ -25,12 +27,14 @@ Once you connect a daemon to the server, a host will be created with a discovery
   <img src="./images/discovery_host.png" width="400" alt="Run Discovery">
 </p>
 
-The NetVisor Daemon discovers hosts on your network by scanning all ipv4 addresses on subnets that the host it runs on has a network interface with. For each IP on the network, the daemon:
+The NetVisor Daemon discovers hosts on your network by scanning all IPv4 addresses on subnets that the host it runs on has a network interface with. For each IP on the network, the daemon:
 
 - **Detects services**: Uses rule based pattern matching to recognize running services using open ports, HTTP endpoints responses, and other data from the host.
 - **Maps interfaces**: Detects host network interfaces and their subnet membership
 
 Discovery creates hosts with their interfaces, services, and subnet relationships.
+
+Discovery can take tens of minutes depending on how many subnets the daemon's host is connected and the network mask for those subnets, as it needs to scan every IP address on the subnet.
 
 ### Consolidating Hosts
 The discovery process does its best to merge duplicate hosts, but this isn't always possible. You can consolidate hosts that actually represent multiple interfaces or services on the same host using the Consolidate feature. This migrates all ports, interfaces, and services to a single host record.
@@ -41,35 +45,41 @@ The discovery process does its best to merge duplicate hosts, but this isn't alw
 
 ## Network Organization
 
-### Groups
-You can use Groups to represent data flows between services and network paths.
-
-<p align="center">
-  <img src="./images/group.png" width="400" alt="Group">
-</p>
-
 ### Subnets
-Subnets organize your network into logical segments of hosts.
+Subnets organize your network into logical segments of hosts. Subnets are automatically created during discovery.
 
 <p align="center">
   <img src="./images/subnet.png" width="400" alt="Subnet">
 </p>
 
-**Infrastructure Services**: During discovery, host providing infrastructure services (DNS, gateway, reverse proxy) services are flagged for visualization purposes.
 
-**Organizational Subnets**: Subnets with 0.0.0.0/0 CIDR can be used to organize hosts that are outside of your network but which you still want to represent in your network topology (ie internet services, remote hosts)
+### Groups
+Groups let you visualize logical connections between services, such as a web app talking to its database, or representing network paths between different parts of your infrastructure. You'll need to create groups manually.
+
+<p align="center">
+  <img src="./images/group.png" width="400" alt="Group">
+</p>
+
+**Infrastructure Services**: During discovery, hosts providing infrastructure services (DNS, gateway, reverse proxy) services are flagged for visualization purposes.
+
+**Organizational Subnets**: Subnets with 0.0.0.0/0 CIDR can be used to organize external resources (like internet services or remote hosts) that aren't on your local network but you want to include in your topology.
 
 ## Topology Visualization
+The topology auto-generates from your hosts, subnets, and service groups, creating living documentation that updates as your network changes.
 
-Using the information above, NetVisor generates an interactive network graph showing:
-- Hosts and their relationships
-- Subnet boundaries and containment
-- Service connections within groups
-- Multi-interface devices (interfaces connected to primary)
+You can customize the visualization:
+- **Anchor points**: Click edges to change where they connect to nodes
+- **Subnet sizing**: Drag subnet boundaries to resize
+- **Layout**: Drag hosts and subnets to organize your topology
 
-The topology auto-generates from your hosts, subnets, and service groups.
+## Uninstall Daemon
 
-You can customize the visualization as follows:
-- Change the anchor point of edges by clicking on the edge.
-- Resize subnets
-- Move hosts and subnets
+#### Linux
+
+sudo rm /usr/local/bin/netvisor-daemon
+rm -rf ~/.config/netvisor/daemon
+
+#### Mac
+
+sudo rm /usr/local/bin/netvisor-daemon
+rm -rf ~/Library/Application\ Support/com.netvisor.daemon

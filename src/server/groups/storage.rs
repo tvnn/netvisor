@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use anyhow::{Error, Result};
 use sqlx::{SqlitePool, Row};
 use uuid::Uuid;
-use crate::server::{groups::types::{Group, GroupBase}, hosts::types::targets::ServiceBinding};
+use crate::server::{groups::types::{Group, GroupBase, GroupType}, hosts::types::targets::ServiceBinding};
 
 #[async_trait]
 pub trait GroupStorage: Send + Sync {
@@ -27,11 +27,12 @@ impl SqliteGroupStorage {
 impl GroupStorage for SqliteGroupStorage {
     async fn create(&self, group: &Group) -> Result<()> {
         let services_json = serde_json::to_string(&group.base.service_bindings)?;
+        let group_type_json = serde_json::to_string(&group.base.group_type)?;
 
         sqlx::query(
             r#"
             INSERT INTO groups (
-                id, name, description, service_bindings,
+                id, name, description, service_bindings, group_type
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?)
             "#
@@ -40,6 +41,7 @@ impl GroupStorage for SqliteGroupStorage {
         .bind(&group.base.name)
         .bind(&group.base.description)
         .bind(services_json)
+        .bind(group_type_json)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
@@ -107,6 +109,7 @@ impl GroupStorage for SqliteGroupStorage {
 
 fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group, Error> {
     let service_bindings: Vec<ServiceBinding> = serde_json::from_str(&row.get::<String, _>("service_bindings")).or(Err(Error::msg("Failed to deserialize service bindings")))?;
+    let group_type: GroupType = serde_json::from_str(&row.get::<String, _>("group_type")).or(Err(Error::msg("Failed to deserialize group_type")))?;
 
     Ok(Group {
         id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize ID")))?,
@@ -116,6 +119,7 @@ fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group, Error> {
             name: row.get("name"),
             description: row.get("description"),
             service_bindings,
+            group_type
         }  
     })
 }

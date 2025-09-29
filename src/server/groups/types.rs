@@ -4,11 +4,17 @@ use uuid::Uuid;
 use crate::server::{hosts::types::targets::ServiceBinding, shared::types::api::deserialize_empty_string_as_none};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum GroupType {
+    NetworkPath
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GroupBase {
     pub name: String,
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
     pub service_bindings: Vec<ServiceBinding>,
+    pub group_type: GroupType
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,15 +35,5 @@ impl Group {
             updated_at: now,
             base,
         }
-    }
-
-    pub fn from_name(name: String) -> Self {
-        let base = GroupBase {
-            name,
-            description: None,
-            service_bindings: Vec::new(),
-        };
-
-        Self::new(base)
     }
 }
