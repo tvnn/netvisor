@@ -22,7 +22,7 @@ impl WindowsDaemonUtils {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(target_os = "windows")]
 impl Default for WindowsDaemonUtils {
     fn default() -> Self {
         Self::new()
