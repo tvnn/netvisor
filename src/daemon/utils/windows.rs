@@ -31,7 +31,7 @@ impl NetworkUtils for WindowsDaemonUtils {
 
 #[cfg(target_family = "windows")]
 #[async_trait]
-impl SystemUtils for WindowsDaemonUtils {
+impl DaemonUtils for WindowsDaemonUtils {
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>> {
         use windows::Win32::NetworkManagement::IpHelper::{GetIpNetTable, MIB_IPNETTABLE};
         

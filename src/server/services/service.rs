@@ -61,26 +61,46 @@ impl ServiceService {
     }
 
     pub async fn upsert_service(&self, mut existing_service: Service, new_service: Service) -> Result<Service> {
+        
+        let mut interface_updates = 0;
+        let mut group_updates = 0;
+        let mut port_updates = 0;
+        
         for new_service_binding in new_service.base.interface_bindings {
             if !existing_service.base.interface_bindings.contains(&new_service_binding) {
+                interface_updates += 1;
                 existing_service.base.interface_bindings.push(new_service_binding);
             }
         }
 
         for new_service_group in new_service.base.groups {
             if !existing_service.base.groups.contains(&new_service_group) {
+                group_updates += 1;
                 existing_service.base.groups.push(new_service_group)
             }
         }
 
         for new_service_port in new_service.base.port_bindings {
             if !existing_service.base.port_bindings.contains(&new_service_port) {
+                port_updates += 1;
                 existing_service.base.port_bindings.push(new_service_port)
             }
         }
 
         self.storage.update(&existing_service).await?;
-        tracing::info!("Upserted service {}: {} with new data", existing_service.base.name, existing_service.id);
+
+        let mut data = Vec::new();
+        
+        if port_updates > 0 {data.push(format!("{} ports", port_updates))};
+        if interface_updates > 0 {data.push(format!("{} interfaces", interface_updates))};
+        if group_updates > 0 {data.push(format!("{} groups", group_updates))};
+
+        if data.len() > 0 {
+            tracing::info!("Upserted service {}: {} with new data: {}", existing_service.base.name, existing_service.id, data.join(", "));
+        }
+        tracing::info!("No new informationt to upsert from service {} to service {}: {}", new_service.base.name, existing_service.base.name, existing_service.id);
+
+        
         Ok(existing_service)
     }
 

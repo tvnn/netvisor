@@ -75,11 +75,17 @@ impl HostService {
     }
 
     /// Merge new discovery data with existing host
-    async fn upsert_host(&self, mut existing_host: Host, new_host: Host) -> Result<Host> {
+    async fn upsert_host<'a>(&self, mut existing_host: Host, new_host: Host) -> Result<Host> {
+
+        let mut interface_updates = 0;
+        let mut port_updates = 0;
+        let mut hostname_update = false;
+        let mut description_update = false;
 
         // Merge interfaces - add any new interfaces not already present
         for new_host_interface in new_host.base.interfaces {
             if !existing_host.base.interfaces.iter().any(|existing| *existing == new_host_interface) {
+                interface_updates += 1;
                 existing_host.base.interfaces.push(new_host_interface);
             }
         }
@@ -87,6 +93,7 @@ impl HostService {
         // Merge open ports - add any new ports not already present
         for new_port in new_host.base.ports {
             if !existing_host.base.ports.iter().any(|existing| *existing == new_port) {
+                port_updates += 1;
                 existing_host.base.ports.push(new_port);
             }
         }
@@ -95,10 +102,12 @@ impl HostService {
 
         // Update other fields if they have more information
         if existing_host.base.hostname.is_none() && new_host.base.hostname.is_some() {
+            hostname_update = true;
             existing_host.base.hostname = new_host.base.hostname;
         }
         
         if existing_host.base.description.is_none() && new_host.base.description.is_some() {
+            description_update = true;
             existing_host.base.description = new_host.base.description;
         }
 
@@ -106,7 +115,16 @@ impl HostService {
 
         // Update the existing host
         self.storage.update(&existing_host).await?;
-        tracing::info!("Upserted host {}: {} with new discovery data", existing_host.base.name, existing_host.id);
+        let mut data = Vec::new();
+        if port_updates > 0 {data.push(format!("{} ports", port_updates))};
+        if interface_updates > 0 {data.push(format!("{} interfaces", interface_updates))};
+        if hostname_update {data.push("new hostname".to_string())}
+        if description_update {data.push("new description".to_string())}
+        
+        if data.len() > 0 {
+            tracing::info!("Upserted host {}: {} with new discovery data: {}", existing_host.base.name, existing_host.id, data.join(", "));
+        }
+        tracing::info!("No new informationt to upsert from host {} to host {}: {}", new_host.base.name, existing_host.base.name, existing_host.id);
         
         Ok(existing_host)
     }
