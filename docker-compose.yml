@@ -19,6 +19,7 @@ services:
       - ui-build:/app/static:ro
     depends_on:
       - ui
+    restart: unless-stopped
 
 volumes:
   ui-build:

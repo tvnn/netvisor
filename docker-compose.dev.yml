@@ -3,14 +3,17 @@ version: '3.8'
 services:
   ui:
     build: 
-      context: ../netvisor-ui
+      context: ./netvisor-ui
       dockerfile: Dockerfile.dev
     volumes:
-      - ui-build:/app/build
+      - ./netvisor-ui:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
 
   server:
     build: 
-      context: ./
+      context: ./netvisor-server
       dockerfile: Dockerfile.dev
     ports:
       - "60072:60072"
@@ -23,5 +26,6 @@ services:
       - ui-build:/app/static:ro
     depends_on:
       - ui
+
 volumes:
   ui-build:
