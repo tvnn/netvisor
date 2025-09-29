@@ -20,9 +20,6 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             binary: netvisor-daemon-darwin-arm64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            binary: netvisor-daemon-windows-x86_64.exe
     
     steps:
       - uses: actions/checkout@v4
@@ -39,16 +36,10 @@ jobs:
       - name: Build
         run: cargo build --release --bin daemon --target ${{ matrix.target }}
       
-      - name: Prepare binary (Unix)
-        if: matrix.os != 'windows-latest'
+      - name: Prepare binary
         run: |
           cp target/${{ matrix.target }}/release/daemon ${{ matrix.binary }}
           chmod +x ${{ matrix.binary }}
-      
-      - name: Prepare binary (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          cp target/${{ matrix.target }}/release/daemon.exe ${{ matrix.binary }}
       
       - name: Upload to release
         uses: softprops/action-gh-release@v2
