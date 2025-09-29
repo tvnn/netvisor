@@ -1,6 +1,6 @@
 import type { Writable } from 'svelte/store';
 import { pushError } from '../stores/feedback';
-import { PUBLIC_SERVER_HOSTNAME, PUBLIC_SERVER_PORT } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 interface ApiResponse<T> {
 	success: boolean;
@@ -71,10 +71,12 @@ class ApiClient {
 		}
 
 		const hostname =
-			PUBLIC_SERVER_HOSTNAME == 'default' ? window.location.hostname : PUBLIC_SERVER_HOSTNAME;
+			env.PUBLIC_SERVER_HOSTNAME == 'default'
+				? window.location.hostname
+				: env.PUBLIC_SERVER_HOSTNAME;
 
 		const url = URL.parse(
-			`${window.location.protocol}/${hostname}:${PUBLIC_SERVER_PORT}/api${endpoint}`
+			`${window.location.protocol}/${hostname}:${env.PUBLIC_SERVER_PORT}/api${endpoint}`
 		);
 		const baseErrorMessage = `Failed to ${method} from ${endpoint}`;
 
