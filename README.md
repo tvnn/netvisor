@@ -5,49 +5,53 @@ Network discovery and topology visualization for home labs and small networks.
 ## Quick Start
 
 ### 1. Start the Server
-
 `curl -O https://raw.githubusercontent.com/mayanayza/netvisor-server/refs/heads/main/docker-compose.yml && docker compose up -d`
 
 ### 2. Install the Daemon  
 `curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor-server/refs/heads/main/install.sh | bash`
 
-Daemon should run directly on the host - running in a container environment will compromise discovery functionality.
+The daemon should run directly on the host - running in a container environment will compromise discovery functionality.
 
 ### 3. Connect Daemon to Server
 `netvisor-daemon --server-target YOUR_SERVER_IP --server-port 60072`
 
 ## Network Discovery
 
-The NetVisor Daemon discovers hosts on your network by scanning all ipv4 addresses on subnets that the host it runs on has a network interface with. For each IP on the network, the daemon will:
+Once you connect a daemon to the server, a host will be created with a discovery button. Click to start discovery.
 
-- **Detect services**: Uses rule based pattern matching to recognize running services using open ports, HTTP endpoints responses, and other data from the host.
-- **Interface mapping**: Detects network interfaces and their subnet membership
+![Run Discovery](./images/discovery_host.png)
+
+The NetVisor Daemon discovers hosts on your network by scanning all ipv4 addresses on subnets that the host it runs on has a network interface with. For each IP on the network, the daemon:
+
+- **Detects services**: Uses rule based pattern matching to recognize running services using open ports, HTTP endpoints responses, and other data from the host.
+- **Maps interfaces**: Detects host network interfaces and their subnet membership
 
 Discovery creates hosts with their interfaces, services, and subnet relationships.
 
-## Managing Hosts
-
-### Creating and Editing Hosts
-You can customize discovered hosts with names, descriptions, and metadata, as well as create your own hosts from scratch.
-
 ### Consolidating Hosts
-The discovery process will do its best to merge duplicate hosts, but this isn't always possible. You can consolidate hosts that actually represent multiple interfaces or services on the same host using the Consolidate feature This will migrate all ports, interfaces, and services to a single host record.
+The discovery process does its best to merge duplicate hosts, but this isn't always possible. You can consolidate hosts that actually represent multiple interfaces or services on the same host using the Consolidate feature. This migrates all ports, interfaces, and services to a single host record.
+
+![Consolidate Host](./images/consolidate_host)
 
 ## Network Organization
 
 ### Groups
 You can use Groups to represent data flows between services and network paths.
 
+![Group](./images/group)
+
 ### Subnets
 Subnets organize your network into logical segments of hosts.
 
-**Infrastructure Services**: During discovery, host providing infrastructure services (DNS, gateway, reverse proxy) services will be flagged for visualization purposes.
+![Group](./images/subnet)
+
+**Infrastructure Services**: During discovery, host providing infrastructure services (DNS, gateway, reverse proxy) services are flagged for visualization purposes.
 
 **Organizational Subnets**: Subnets with 0.0.0.0/0 CIDR can be used to organize hosts that are outside of your network but which you still want to represent in your network topology (ie internet services, remote hosts)
 
 ## Topology Visualization
 
-Using the information above, NetVisor will generate an interactive network graph showing:
+Using the information above, NetVisor generates an interactive network graph showing:
 - Hosts and their relationships
 - Subnet boundaries and containment
 - Service connections within groups
