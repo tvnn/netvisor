@@ -6,25 +6,20 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-echo "🚀 Creating NetVisor release ${VERSION}"
+echo "Creating NetVisor release ${VERSION}"
 
-# Build daemon with platform-specific name
-cargo build --release --bin daemon
-mkdir -p releases
-cp target/release/daemon releases/netvisor-daemon-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)
+# Setup Docker buildx
+docker buildx create --name multiarch --use --bootstrap 2>/dev/null || docker buildx use multiarch
 
 # Build and push Docker images
-docker build -t mayanayza/netvisor-ui:${VERSION} ../netvisor-ui
-docker build -t mayanayza/netvisor-server:${VERSION} .
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t mayanayza/netvisor-ui:${VERSION} \
+  -t mayanayza/netvisor-ui:latest \
+  --push ../netvisor-ui
 
-docker push mayanayza/netvisor-ui:${VERSION}
-docker push mayanayza/netvisor-server:${VERSION}
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t mayanayza/netvisor-server:${VERSION} \
+  -t mayanayza/netvisor-server:latest \
+  --push .
 
-# Also tag as latest
-docker tag mayanayza/netvisor-ui:${VERSION} mayanayza/netvisor-ui:latest
-docker tag mayanayza/netvisor-server:${VERSION} mayanayza/netvisor-server:latest
-docker push mayanayza/netvisor-ui:latest
-docker push mayanayza/netvisor-server:latest
-
-echo "✅ Release ${VERSION} ready"
-echo "📦 Upload this binary to GitHub release: releases/netvisor-daemon-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)"
+echo "Docker images pushed. Now create GitHub release ${VERSION} and Actions will build binaries."

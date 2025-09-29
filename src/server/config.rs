@@ -10,7 +10,6 @@ use crate::server::shared::types::storage::StorageFactory;
 /// CLI arguments structure (for figment integration)
 #[derive(Debug)]
 pub struct CliArgs {
-    pub host: Option<String>,
     pub port: Option<u16>,
     pub log_level: Option<String>,
     pub database_path: Option<String>,
@@ -21,21 +20,23 @@ pub struct CliArgs {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
     // Server settings
-    pub host: String,
+
+    /// What port the server should listen on
     pub port: u16,
+
+    /// Level of logs to show
     pub log_level: String,
     
-    // Database settings
+    /// Where database should be located
     pub database_path: PathBuf,
     
-    // Web settings
+    /// Where static web assets are located for serving
     pub web_external_path: Option<PathBuf>,
 }
 
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            host: "0.0.0.0".to_string(),
             port: 60072,
             log_level: "info".to_string(),
             database_path: PathBuf::from("./netvisor.db"),
@@ -53,9 +54,6 @@ impl ServerConfig {
         figment = figment.merge(Env::prefixed("NETVISOR_"));
 
         // Add CLI overrides (highest priority) - only if explicitly provided
-        if let Some(host) = cli_args.host {
-            figment = figment.merge(("host", host));
-        }
         if let Some(port) = cli_args.port {
             figment = figment.merge(("port", port));
         }

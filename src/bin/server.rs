@@ -14,9 +14,6 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 #[command(name = "netvisor-server")]
 #[command(about = "NetVisor server")]
 struct Cli {
-    /// Override server host
-    #[arg(long)]
-    host: Option<String>,
     
     /// Override server port
     #[arg(long)]
@@ -38,7 +35,6 @@ struct Cli {
 impl From<Cli> for CliArgs {
     fn from(cli: Cli) -> Self {
         Self {
-            host: cli.host,
             port: cli.port,
             log_level: cli.log_level,
             database_path: cli.database_path,
@@ -56,9 +52,8 @@ async fn main() -> anyhow::Result<()> {
     
     // Load configuration using figment
     let config = ServerConfig::load(cli_args)?;
+    let listen_addr = format!("0.0.0.0:{}", &config.port);
 
-    let listen_addr = format!("{}:{}", &config.host, &config.port);
-    
     // Initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(&config.log_level))
@@ -67,7 +62,6 @@ async fn main() -> anyhow::Result<()> {
         
     // Create app state
     let state = AppState::new(config, DiscoverySessionManager::new(), ServerNetworkUtils::new()).await?;
-    let own_ip = state.utils.get_own_ip_address()?;
 
     // Create discovery cleanup task
     let cleanup_state = state.clone();
@@ -113,9 +107,8 @@ async fn main() -> anyhow::Result<()> {
     let actual_port = listener.local_addr()?.port();
 
     tracing::info!("🚀 NetVisor server started successfully");
-
-    tracing::info!("📊 Web UI: http://{}:{}", own_ip, actual_port);
-    tracing::info!("🔧 API: http://{}:{}/api", own_ip, actual_port);
+    tracing::info!("📊 Web UI: http://<your-ip>:{}", actual_port);
+    tracing::info!("🔧 API: http://<your-ip>:{}/api", actual_port);
     
     axum::serve(listener, app).await?;
     
