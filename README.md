@@ -19,7 +19,9 @@ The daemon should run directly on the host - running in a container environment 
 
 Once you connect a daemon to the server, a host will be created with a discovery button. Click to start discovery.
 
-<img src="./images/discovery_host.png" width="600" alt="Run Discovery">
+<p align="center">
+  <img src="./images/discovery_host.png" width="400" alt="Run Discovery">
+</p>
 
 The NetVisor Daemon discovers hosts on your network by scanning all ipv4 addresses on subnets that the host it runs on has a network interface with. For each IP on the network, the daemon:
 
@@ -31,19 +33,25 @@ Discovery creates hosts with their interfaces, services, and subnet relationship
 ### Consolidating Hosts
 The discovery process does its best to merge duplicate hosts, but this isn't always possible. You can consolidate hosts that actually represent multiple interfaces or services on the same host using the Consolidate feature. This migrates all ports, interfaces, and services to a single host record.
 
-<img src="./images/consolidate_host.png" width="600" alt="Consolidate Host">
+<p align="center">
+  <img src="./images/consolidate_host.png" width="400" alt="Consolidate Host">
+</p>
 
 ## Network Organization
 
 ### Groups
 You can use Groups to represent data flows between services and network paths.
 
-<img src="./images/group.png" width="600" alt="Group">
+<p align="center">
+  <img src="./images/group.png" width="400" alt="Group">
+</p>
 
 ### Subnets
 Subnets organize your network into logical segments of hosts.
 
-<img src="./images/subnet.png" width="600" alt="Subnet">
+<p align="center">
+  <img src="./images/subnet.png" width="400" alt="Subnet">
+</p>
 
 **Infrastructure Services**: During discovery, host providing infrastructure services (DNS, gateway, reverse proxy) services are flagged for visualization purposes.
 
