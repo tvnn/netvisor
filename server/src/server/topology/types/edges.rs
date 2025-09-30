@@ -4,7 +4,8 @@ use crate::server::{
     shared::{
         constants::Entity,
         types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
-    }, subnets::types::base::Subnet,
+    },
+    subnets::types::base::Subnet,
 };
 use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
@@ -33,12 +34,16 @@ pub struct EdgeInfo<'a> {
 
 impl<'a> EdgeInfo<'a> {
     // Convert to actual Edge when node_indices are available
-    pub fn to_edge(&self, node_indices: &HashMap<Uuid, NodeIndex>) -> Option<(NodeIndex, NodeIndex, Edge)> {
+    pub fn to_edge(
+        &self,
+        node_indices: &HashMap<Uuid, NodeIndex>,
+    ) -> Option<(NodeIndex, NodeIndex, Edge)> {
         let source_idx = node_indices.get(&self.source_id)?;
         let target_idx = node_indices.get(&self.target_id)?;
-        
-        let (source_handle, target_handle) = EdgeHandle::from_subnet_layers(self.source_subnet, self.target_subnet);
-        
+
+        let (source_handle, target_handle) =
+            EdgeHandle::from_subnet_layers(self.source_subnet, self.target_subnet);
+
         Some((
             *source_idx,
             *target_idx,
@@ -49,7 +54,7 @@ impl<'a> EdgeInfo<'a> {
                 target: self.target_id,
                 source_handle,
                 target_handle,
-            }
+            },
         ))
     }
 }
@@ -76,7 +81,6 @@ impl EdgeHandle {
         source_subnet: &Subnet,
         target_subnet: &Subnet,
     ) -> (EdgeHandle, EdgeHandle) {
-
         let source_layer = source_subnet.base.subnet_type.default_layer();
         let source_priority = source_subnet.base.subnet_type.layer_priority();
         let target_layer = target_subnet.base.subnet_type.default_layer();
@@ -96,17 +100,11 @@ impl EdgeHandle {
             std::cmp::Ordering::Equal => {
                 match source_priority.cmp(&target_priority) {
                     // Source has lower priority (leftmost) -> flows right
-                    std::cmp::Ordering::Less => {
-                        (EdgeHandle::Right, EdgeHandle::Left)
-                    }
+                    std::cmp::Ordering::Less => (EdgeHandle::Right, EdgeHandle::Left),
                     // Source has higher priority (rightmost) -> flows left
-                    std::cmp::Ordering::Greater => {
-                        (EdgeHandle::Left, EdgeHandle::Right)
-                    }
+                    std::cmp::Ordering::Greater => (EdgeHandle::Left, EdgeHandle::Right),
                     // Same priority (shouldn't happen, but handle it)
-                    std::cmp::Ordering::Equal => {
-                        (EdgeHandle::Right, EdgeHandle::Left)
-                    }
+                    std::cmp::Ordering::Equal => (EdgeHandle::Right, EdgeHandle::Left),
                 }
             }
         }

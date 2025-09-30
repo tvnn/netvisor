@@ -5,7 +5,15 @@ use petgraph::{graph::NodeIndex, Graph};
 use uuid::Uuid;
 
 use crate::server::{
-    groups::service::GroupService, hosts::service::HostService, services::service::ServiceService, subnets::service::SubnetService, topology::{service::{edges::TopologyEdgePlanner, nodes::TopologyNodePlanner}, types::{edges::Edge, nodes::Node}}};
+    groups::service::GroupService,
+    hosts::service::HostService,
+    services::service::ServiceService,
+    subnets::service::SubnetService,
+    topology::{
+        service::{edges::TopologyEdgePlanner, nodes::TopologyNodePlanner},
+        types::{edges::Edge, nodes::Node},
+    },
+};
 
 pub struct TopologyService {
     host_service: Arc<HostService>,

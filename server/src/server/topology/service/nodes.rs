@@ -1,11 +1,20 @@
-use std::{collections::HashMap};
-use itertools::Itertools;
-use uuid::Uuid;
 use crate::server::{
-    groups::types::Group, hosts::types::base::Host, services::types::base::Service, subnets::types::base::{Subnet, SubnetType}, topology::{service::{edges::TopologyEdgePlanner, utils::TopologyUtils}, types::{base::{SubnetLayout, XY}, edges::{EdgeHandle, EdgeInfo}, nodes::{
-        Node, NodeType, SubnetChild, SubnetChildNodeSize,
-    }}}
+    groups::types::Group,
+    hosts::types::base::Host,
+    services::types::base::Service,
+    subnets::types::base::{Subnet, SubnetType},
+    topology::{
+        service::{edges::TopologyEdgePlanner, utils::TopologyUtils},
+        types::{
+            base::{SubnetLayout, XY},
+            edges::{EdgeHandle, EdgeInfo},
+            nodes::{Node, NodeType, SubnetChild, SubnetChildNodeSize},
+        },
+    },
 };
+use itertools::Itertools;
+use std::collections::HashMap;
+use uuid::Uuid;
 
 const SUBNET_PADDING: XY = XY { x: 75, y: 75 };
 const NODE_PADDING: XY = XY { x: 50, y: 50 };
@@ -16,10 +25,15 @@ pub struct TopologyNodePlanner {
     no_subnet_id: Uuid,
 }
 
-impl TopologyNodePlanner {
+impl Default for TopologyNodePlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
+impl TopologyNodePlanner {
     pub fn new() -> Self {
-        Self{
+        Self {
             utils: TopologyUtils::new(),
             edge_planner: TopologyEdgePlanner::new(),
             no_subnet_id: Uuid::new_v4(),
@@ -75,7 +89,8 @@ impl TopologyNodePlanner {
 
         for edge in child_edges {
             // Determine which handle applies to this child
-            let (source_handle, target_handle) = EdgeHandle::from_subnet_layers(edge.source_subnet, edge.target_subnet);
+            let (source_handle, target_handle) =
+                EdgeHandle::from_subnet_layers(edge.source_subnet, edge.target_subnet);
             let relevant_handle = if edge.source_id == child_id {
                 &source_handle
             } else {
@@ -99,11 +114,12 @@ impl TopologyNodePlanner {
         hosts: &[Host],
         services: &[Service],
         groups: &[Group],
-        subnets: &[Subnet]
+        subnets: &[Subnet],
     ) -> HashMap<Uuid, Vec<SubnetChild>> {
-
         let interface_edges = self.edge_planner.get_interface_edge_info(hosts, subnets);
-        let group_edges = self.edge_planner.get_group_edge_info(groups, hosts, subnets);
+        let group_edges = self
+            .edge_planner
+            .get_group_edge_info(groups, hosts, subnets);
         let all_edges: Vec<_> = interface_edges.into_iter().chain(group_edges).collect();
 
         hosts
@@ -125,10 +141,8 @@ impl TopologyNodePlanner {
                                 })
                                 .collect();
 
-                            let (primary_handle, anchor_count) = self.analyze_child_anchors(
-                                interface.id,
-                                &all_edges,
-                            );
+                            let (primary_handle, anchor_count) =
+                                self.analyze_child_anchors(interface.id, &all_edges);
 
                             let subnet_child = SubnetChild {
                                 id: interface.id,
@@ -136,7 +150,7 @@ impl TopologyNodePlanner {
                                 interface_id: Some(interface.id),
                                 size: SubnetChildNodeSize::from_service_count(services.len()),
                                 primary_handle,
-                                anchor_count
+                                anchor_count,
                             };
                             (interface.base.subnet_id, subnet_child)
                         })
@@ -151,7 +165,7 @@ impl TopologyNodePlanner {
                             interface_id: None,
                             size: SubnetChildNodeSize::Small,
                             primary_handle: None,
-                            anchor_count: 0
+                            anchor_count: 0,
                         },
                     )]
                     .into_iter()
@@ -186,29 +200,32 @@ impl TopologyNodePlanner {
                     .collect();
 
                 let (infrastructure, regular): (Vec<SubnetChild>, Vec<SubnetChild>) = children
-                    .into_iter()
+                    .iter()
                     .sorted_by_key(|c| c.size.size().y)
                     .cloned()
-                    .partition(|c | infrastructure_host_ids.contains(&c.host_id));
+                    .partition(|c| infrastructure_host_ids.contains(&c.host_id));
 
                 (infrastructure, regular)
             } else {
-                (Vec::new(), children.into_iter().cloned().collect())
+                (Vec::new(), children.to_vec())
             };
 
         // Calculate regular nodes layout
         let (regular_grid_size, regular_grid_dimensions, regular_child_positions) = {
-            let regular_grid_dimensions =
-                self.utils.calculate_container_grid_dimensions(regular_children.len());
-            
-            let nearest_square_regular_child_grid_positions = self.utils
-                .calculate_anchor_based_child_positions(&regular_children,&regular_grid_dimensions);
+            let regular_grid_dimensions = self
+                .utils
+                .calculate_container_grid_dimensions(regular_children.len());
 
-            let (regular_child_positions, regular_grid_size) = self.utils
-                .calculate_container_size(
-                    nearest_square_regular_child_grid_positions,
-                    &NODE_PADDING,
+            let nearest_square_regular_child_grid_positions =
+                self.utils.calculate_anchor_based_child_positions(
+                    &regular_children,
+                    &regular_grid_dimensions,
                 );
+
+            let (regular_child_positions, regular_grid_size) = self.utils.calculate_container_size(
+                nearest_square_regular_child_grid_positions,
+                &NODE_PADDING,
+            );
             (
                 regular_grid_size,
                 regular_grid_dimensions,
@@ -227,14 +244,15 @@ impl TopologyNodePlanner {
                 y: regular_grid_dimensions.y,
             };
 
-            let nearest_square_infra_child_grid_positions = self.utils
-                .calculate_anchor_based_child_positions(&infrastructure_children,&infra_grid_dimensions);
-
-            let (infra_child_positions, infra_grid_size) = self.utils
-                .calculate_container_size(
-                    nearest_square_infra_child_grid_positions,
-                    &NODE_PADDING,
+            let nearest_square_infra_child_grid_positions =
+                self.utils.calculate_anchor_based_child_positions(
+                    &infrastructure_children,
+                    &infra_grid_dimensions,
                 );
+
+            let (infra_child_positions, infra_grid_size) = self
+                .utils
+                .calculate_container_size(nearest_square_infra_child_grid_positions, &NODE_PADDING);
             (infra_grid_size, infra_child_positions, infra_cols)
         };
 
@@ -288,9 +306,12 @@ impl TopologyNodePlanner {
         subnets: &[Subnet],
         layouts: &HashMap<Uuid, SubnetLayout>,
     ) -> Vec<Node> {
-
-        let subnet_grid_positions = self.utils.calculate_subnet_grid_positions_by_layer(subnets, layouts);
-        let (positions, _) = self.utils.calculate_container_size(subnet_grid_positions, &SUBNET_PADDING);
+        let subnet_grid_positions = self
+            .utils
+            .calculate_subnet_grid_positions_by_layer(subnets, layouts);
+        let (positions, _) = self
+            .utils
+            .calculate_container_size(subnet_grid_positions, &SUBNET_PADDING);
 
         layouts
             .iter()

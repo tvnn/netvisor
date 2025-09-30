@@ -16,4 +16,3 @@ pub struct SubnetLayout {
     pub size: XY,
     pub infra_width: usize,
 }
-

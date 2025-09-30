@@ -24,7 +24,7 @@
 	} from '../store';
 	import { getGroups, groups } from '$lib/features/groups/store';
 	import { loadData } from '$lib/shared/utils/dataLoader';
-	import { getServices, getServicesForHost } from '$lib/features/services/store';
+	import { getServices } from '$lib/features/services/store';
 	import { getSubnets } from '$lib/features/subnets/store';
 
 	const loading = loadData([
@@ -58,10 +58,11 @@
 
 	$: hostGroups = new Map(
 		$hosts.map((host) => {
-			const serviceGroups = getServicesForHost(host.id).flatMap((s) => s.groups);
-			const foundGroups = serviceGroups
-				.map((group_id) => $groups.find((g) => g.id === group_id))
-				.filter((group) => group !== undefined);
+			const foundGroups = $groups.filter((g) => {
+				g.service_bindings.some((b) => {
+					host.services.includes(b.service_id);
+				});
+			});
 
 			return [host.id, foundGroups];
 		})

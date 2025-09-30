@@ -3,12 +3,20 @@
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { entities, ports, serviceDefinitions } from '$lib/shared/stores/metadata';
-	import { getServiceBindingsFromService, serviceHasInterfaceOnSubnet, services } from '$lib/features/services/store';
+	import {
+		getServiceBindingsFromService,
+		serviceHasInterfaceOnSubnet,
+		services
+	} from '$lib/features/services/store';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import SubnetDetailsForm from './SubnetDetailsForm.svelte';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import type { Subnet } from '../../types/base';
-	import { getPortFromId, serviceBindingIdToObj, serviceBindingToId } from '$lib/features/hosts/store';
+	import {
+		getPortFromId,
+		serviceBindingIdToObj,
+		serviceBindingToId
+	} from '$lib/features/hosts/store';
 	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
 	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
 
@@ -36,45 +44,61 @@
 		formData = subnet ? { ...subnet } : createEmptySubnetFormData();
 	}
 
-	$: dnsServiceBindings = $services.filter((service) => {
-		const isDnsResolver = serviceDefinitions.getMetadata(
-			service.service_definition
-		)?.is_dns_resolver;
-		const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
-		return isDnsResolver && hasInterfaceOnSubnet;
-	})
-	.flatMap(service => getServiceBindingsFromService(service))
-	.filter(sb => !formData.dns_resolvers.some(resolver => serviceBindingToId(resolver) == serviceBindingToId(sb)))
-	.filter(sb => {
-		let port = getPortFromId(sb.port_id)
-		console.log(port)
-		if (port) {
-			let metadata = ports.getMetadata(port.type)
-			console.log(metadata)
-			return ports.getMetadata(port.type).is_dns
-		}
-		return false
-	});
+	$: dnsServiceBindings = $services
+		.filter((service) => {
+			const isDnsResolver = serviceDefinitions.getMetadata(
+				service.service_definition
+			)?.is_dns_resolver;
+			const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
+			return isDnsResolver && hasInterfaceOnSubnet;
+		})
+		.flatMap((service) => getServiceBindingsFromService(service))
+		.filter(
+			(sb) =>
+				!formData.dns_resolvers.some(
+					(resolver) => serviceBindingToId(resolver) == serviceBindingToId(sb)
+				)
+		)
+		.filter((sb) => {
+			let port = getPortFromId(sb.port_id);
+			console.log(port);
+			if (port) {
+				let metadata = ports.getMetadata(port.type);
+				console.log(metadata);
+				return ports.getMetadata(port.type).is_dns;
+			}
+			return false;
+		});
 
 	$: gatewayServices = $services.filter((service) => {
 		const isGateway = serviceDefinitions.getMetadata(service.service_definition)?.is_gateway;
 		const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
 		return isGateway && hasInterfaceOnSubnet;
-	})
+	});
 
-	$: reverseProxyServiceBindings = $services.filter((service) => {
-		const isReverseProxy = serviceDefinitions.getMetadata(
-			service.service_definition
-		)?.is_reverse_proxy;
-		const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
-		return isReverseProxy && hasInterfaceOnSubnet;
-	}).flatMap(service => getServiceBindingsFromService(service))
+	$: reverseProxyServiceBindings = $services
+		.filter((service) => {
+			const isReverseProxy = serviceDefinitions.getMetadata(
+				service.service_definition
+			)?.is_reverse_proxy;
+			const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
+			return isReverseProxy && hasInterfaceOnSubnet;
+		})
+		.flatMap((service) => getServiceBindingsFromService(service));
 
 	// Available services (filtered out already selected)
-	$: availableDns = dnsServiceBindings.filter(sb => !formData.dns_resolvers.some(resolver => serviceBindingToId(resolver) == serviceBindingToId(sb)))
-	$: availableGateways = gatewayServices.filter(s => !formData.gateways.includes(s.id))
-	$: selectedGateways = $services.filter(s => formData.gateways.includes(s.id));
-	$: availableReverseProxies = reverseProxyServiceBindings.filter(sb => !formData.reverse_proxies.some(proxy => serviceBindingToId(proxy) == serviceBindingToId(sb)))
+	$: availableDns = dnsServiceBindings.filter(
+		(sb) =>
+			!formData.dns_resolvers.some(
+				(resolver) => serviceBindingToId(resolver) == serviceBindingToId(sb)
+			)
+	);
+	$: availableGateways = gatewayServices.filter((s) => !formData.gateways.includes(s.id));
+	$: selectedGateways = $services.filter((s) => formData.gateways.includes(s.id));
+	$: availableReverseProxies = reverseProxyServiceBindings.filter(
+		(sb) =>
+			!formData.reverse_proxies.some((proxy) => serviceBindingToId(proxy) == serviceBindingToId(sb))
+	);
 
 	async function handleSubmit() {
 		// Clean up the data before sending
@@ -110,10 +134,10 @@
 
 	// Event handlers for DNS resolvers
 	function handleAddDnsResolver(serviceBindingId: string) {
-		let serviceBindingObj = serviceBindingIdToObj(serviceBindingId)
+		let serviceBindingObj = serviceBindingIdToObj(serviceBindingId);
 
 		if (serviceBindingObj) {
-			formData.dns_resolvers = [...(formData.dns_resolvers || []), serviceBindingObj];	
+			formData.dns_resolvers = [...(formData.dns_resolvers || []), serviceBindingObj];
 		}
 	}
 
@@ -132,7 +156,7 @@
 
 	// Event handlers for reverse proxies
 	function handleAddReverseProxy(serviceBindingId: string) {
-		let serviceBindingObj = serviceBindingIdToObj(serviceBindingId)
+		let serviceBindingObj = serviceBindingIdToObj(serviceBindingId);
 
 		if (serviceBindingObj) {
 			formData.reverse_proxies = [...(formData.reverse_proxies || []), serviceBindingObj];

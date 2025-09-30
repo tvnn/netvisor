@@ -29,21 +29,20 @@ export function createDefaultService(
 		service_definition: serviceType,
 		name: serviceName || serviceType,
 		port_bindings: defaultPorts ? [...defaultPorts] : [],
-		interface_bindings: [],
+		interface_bindings: []
 	};
 }
 
 export function formatServiceAsHost(service_id: string): string {
-	let service = getServiceById(service_id)
-	let host = getServiceHost(service_id)
+	const service = getServiceById(service_id);
+	const host = getServiceHost(service_id);
 
 	if (host && service) {
-		if (host.name == service.name) return host.name
-		else return host.name + ": " + service.name
-	} 
-	else if (host && !service) return host.name + ": " + "Unknown Service"
-	else if (!host && service) return service.name + "(Unknown Host)"
-	else return "Unknown Service"
+		if (host.name == service.name) return host.name;
+		else return host.name + ': ' + service.name;
+	} else if (host && !service) return host.name + ': ' + 'Unknown Service';
+	else if (!host && service) return service.name + '(Unknown Host)';
+	else return 'Unknown Service';
 }
 
 export function getServiceById(service_id: string): Service | null {
@@ -123,5 +122,5 @@ export function getServiceBindingsFromService(service: Service): ServiceBinding[
 					port_id: port.id
 				} as ServiceBinding;
 			})
-	)
+	);
 }

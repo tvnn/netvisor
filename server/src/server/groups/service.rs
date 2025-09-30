@@ -9,9 +9,7 @@ pub struct GroupService {
 
 impl GroupService {
     pub fn new(group_storage: Arc<dyn GroupStorage>) -> Self {
-        Self {
-            group_storage,
-        }
+        Self { group_storage }
     }
 
     /// Create a new group

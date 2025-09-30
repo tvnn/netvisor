@@ -9,7 +9,7 @@
 	import { sessions } from '$lib/features/discovery/store';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import type { Group } from '$lib/features/groups/types/base';
-	import { getServicesForHost, getServicesForHostReactive } from '$lib/features/services/store';
+	import { getServicesForHostReactive } from '$lib/features/services/store';
 
 	export let host: Host;
 	export let daemon: Daemon | null;

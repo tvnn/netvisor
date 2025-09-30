@@ -66,17 +66,21 @@ impl Service {
     }
 
     pub fn to_bindings(&self) -> Vec<ServiceBinding> {
-        self.base.interface_bindings.iter().flat_map(|i| {
-            self.base.port_bindings.iter().map(|p| {
-                ServiceBinding {
-                    service_id: self.id,
-                    port_id: *p,
-                    interface_id: *i
-                }
+        self.base
+            .interface_bindings
+            .iter()
+            .flat_map(|i| {
+                self.base
+                    .port_bindings
+                    .iter()
+                    .map(|p| ServiceBinding {
+                        service_id: self.id,
+                        port_id: *p,
+                        interface_id: *i,
+                    })
+                    .collect::<Vec<ServiceBinding>>()
             })
-            .collect::<Vec<ServiceBinding>>()
-        })
-        .collect()
+            .collect()
     }
 
     pub fn all_discovery_ports() -> Vec<PortBase> {

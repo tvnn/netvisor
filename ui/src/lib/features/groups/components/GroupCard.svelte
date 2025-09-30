@@ -3,14 +3,11 @@
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import type { Group } from '../types/base';
 	import { entities } from '$lib/shared/stores/metadata';
-	import { formatServiceAsHost, getServiceById } from '$lib/features/services/store';
-	import { getHostFromId } from '$lib/features/hosts/store';
+	import { formatServiceAsHost } from '$lib/features/services/store';
 
 	export let group: Group;
 	export let onEdit: (group: Group) => void = () => {};
 	export let onDelete: (group: Group) => void = () => {};
-
-	
 
 	// Build card data
 	$: cardData = {

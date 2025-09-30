@@ -19,7 +19,7 @@ pub enum Entity {
     Gateway,
     ReverseProxy,
     IoT,
-    Storage
+    Storage,
 }
 
 impl HasId for Entity {
@@ -46,7 +46,7 @@ impl EntityMetadataProvider for Entity {
             Entity::Topology => "pink",
 
             Entity::IoT => "yellow",
-            Entity::Storage => "green"
+            Entity::Storage => "green",
         }
     }
 
@@ -64,7 +64,7 @@ impl EntityMetadataProvider for Entity {
             Entity::Group => "Group",
             Entity::Topology => "ChartNetwork",
             Entity::IoT => "Cpu",
-            Entity::Storage => "HardDrive"
+            Entity::Storage => "HardDrive",
         }
     }
 }

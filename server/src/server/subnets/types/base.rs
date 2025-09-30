@@ -1,6 +1,9 @@
 use std::net::Ipv4Addr;
 
-use crate::server::{hosts::types::{ports::PortBase, targets::ServiceBinding}, services::types::definitions::ServiceDefinitionExt};
+use crate::server::{
+    hosts::types::{ports::PortBase, targets::ServiceBinding},
+    services::types::definitions::ServiceDefinitionExt,
+};
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
 use itertools::Itertools;
@@ -31,10 +34,10 @@ pub struct SubnetBase {
     pub cidr: IpCidr,
     pub name: String, // "Home LAN", "VPN Network", etc.
     pub description: Option<String>,
-    pub dns_resolvers: Vec<ServiceBinding>, 
-    pub gateways: Vec<Uuid>,      // services
+    pub dns_resolvers: Vec<ServiceBinding>,
+    pub gateways: Vec<Uuid>, // services
     pub reverse_proxies: Vec<ServiceBinding>,
-    pub hosts: Vec<Uuid>,           // hosts
+    pub hosts: Vec<Uuid>, // hosts
     pub subnet_type: SubnetType,
     pub source: SubnetSource,
 }
@@ -151,14 +154,16 @@ impl Subnet {
 
         if has_interface_on_subnet {
             if service.base.service_definition.is_dns_resolver() {
-
-                let dns_port_bindings: Vec<ServiceBinding> = service.to_bindings().into_iter().filter(|b| {
-                    if let Some(port) = host.get_port(&b.port_id) {
-                        return port.base == PortBase::DnsUdp || port.base == PortBase::DnsUdp;
-                    }
-                    false
-                })
-                .collect();
+                let dns_port_bindings: Vec<ServiceBinding> = service
+                    .to_bindings()
+                    .into_iter()
+                    .filter(|b| {
+                        if let Some(port) = host.get_port(&b.port_id) {
+                            return port.base == PortBase::DnsUdp || port.base == PortBase::DnsTcp;
+                        }
+                        false
+                    })
+                    .collect();
 
                 self.base.dns_resolvers.extend(dns_port_bindings);
             }
@@ -166,7 +171,7 @@ impl Subnet {
                 self.base.gateways.push(service.id)
             }
             if service.base.service_definition.is_reverse_proxy() {
-                self.base.reverse_proxies.extend(service.to_bindings().into_iter())
+                self.base.reverse_proxies.extend(service.to_bindings())
             }
         }
     }
@@ -238,11 +243,11 @@ pub enum SubnetType {
     WiFi,
     IoT,
     Guest,
-    
+
     DockerBridge,
     Management,
     Storage,
-    
+
     Unknown,
     None,
 }
@@ -255,7 +260,8 @@ impl SubnetType {
         }
 
         // VPN tunnels
-        if Self::match_interface_names(&["tun", "utun", "wg", "tap", "ppp", "vpn"], interface_name) {
+        if Self::match_interface_names(&["tun", "utun", "wg", "tap", "ppp", "vpn"], interface_name)
+        {
             return SubnetType::VpnTunnel;
         }
 
@@ -334,7 +340,7 @@ impl EntityMetadataProvider for SubnetType {
         match self {
             SubnetType::Internet => "blue",
             SubnetType::Remote => Entity::Subnet.color(),
-            
+
             SubnetType::Gateway => Entity::Gateway.color(),
             SubnetType::VpnTunnel => Entity::Vpn.color(),
             SubnetType::Dmz => "rose",
@@ -343,11 +349,11 @@ impl EntityMetadataProvider for SubnetType {
             SubnetType::IoT => Entity::IoT.color(),
             SubnetType::Guest => "green",
             SubnetType::WiFi => "teal",
-            
+
             SubnetType::Management => "gray",
             SubnetType::DockerBridge => "blue",
             SubnetType::Storage => Entity::Storage.color(),
-            
+
             SubnetType::Unknown => "gray",
             SubnetType::None => "gray",
         }
@@ -367,9 +373,9 @@ impl EntityMetadataProvider for SubnetType {
             SubnetType::WiFi => "WiFi",
 
             SubnetType::Management => "ServerCog",
-            SubnetType::DockerBridge => "Box",            
+            SubnetType::DockerBridge => "Box",
             SubnetType::Storage => Entity::Storage.icon(),
-            
+
             SubnetType::Unknown => Entity::Subnet.icon(),
             SubnetType::None => Entity::Subnet.icon(),
         }
@@ -392,9 +398,9 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::WiFi => "WiFi",
 
             SubnetType::Management => "Management",
-            SubnetType::DockerBridge => "Docker Bridge",            
+            SubnetType::DockerBridge => "Docker Bridge",
             SubnetType::Storage => "Storage",
-            
+
             SubnetType::Unknown => "Unknown",
             SubnetType::None => "No Subnet",
         }
@@ -415,9 +421,9 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::WiFi => "WiFi network",
 
             SubnetType::Management => "Management network",
-            SubnetType::DockerBridge => "Docker bridge network",            
+            SubnetType::DockerBridge => "Docker bridge network",
             SubnetType::Storage => "Storage network",
-            
+
             SubnetType::Unknown => "Unknown network type",
             SubnetType::None => "No Subnet",
         }

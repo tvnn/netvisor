@@ -1,4 +1,4 @@
-import type { ServiceBinding } from "$lib/features/hosts/types/base";
+import type { ServiceBinding } from '$lib/features/hosts/types/base';
 
 export interface Subnet {
 	id: string;

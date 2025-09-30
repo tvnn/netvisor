@@ -4,7 +4,7 @@
 	import { hosts, serviceBindingToId } from '$lib/features/hosts/store';
 	import { get } from 'svelte/store';
 	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
-	import { formatServiceAsHost, getServiceById, getServiceHost } from '$lib/features/services/store';
+	import { formatServiceAsHost } from '$lib/features/services/store';
 	import { isContainerSubnet } from '../store';
 	import type { Subnet } from '../types/base';
 

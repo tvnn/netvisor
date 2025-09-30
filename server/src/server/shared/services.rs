@@ -27,14 +27,13 @@ impl ServiceFactory {
         let service_service = Arc::new(ServiceService::new(
             storage.services.clone(),
             subnet_service.clone(),
-            group_service.clone()
+            group_service.clone(),
         ));
-        
 
         let host_service = Arc::new(HostService::new(
             storage.hosts.clone(),
             subnet_service.clone(),
-            service_service.clone()
+            service_service.clone(),
         ));
 
         let _ = subnet_service.set_host_service(host_service.clone());
