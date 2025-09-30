@@ -32,7 +32,7 @@ pub struct EdgeInfo<'a> {
     pub label: String,
 }
 
-impl<'a> EdgeInfo<'a> {
+impl EdgeInfo<'_> {
     // Convert to actual Edge when node_indices are available
     pub fn to_edge(
         &self,

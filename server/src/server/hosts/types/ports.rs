@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
-use validator::Validate;
 use std::fmt::Display;
 use std::hash::Hash;
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
+use validator::Validate;
 
 use crate::server::shared::{
     constants::Entity,
@@ -74,7 +74,7 @@ impl PartialEq for PortBase {
 
 #[derive(Debug, Clone, Validate, Default, Eq, Serialize, Deserialize)]
 pub struct PortConfig {
-    #[validate(range(min=1, max=65535))]
+    #[validate(range(min = 1, max = 65535))]
     pub number: u16,
     pub protocol: TransportProtocol,
 }

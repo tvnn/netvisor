@@ -172,7 +172,7 @@ impl TopologyNodePlanner {
                 }
             })
             .fold(HashMap::new(), |mut acc, (subnet_id, child)| {
-                acc.entry(subnet_id).or_insert_with(Vec::new).push(child);
+                acc.entry(subnet_id).or_default().push(child);
                 acc
             })
     }

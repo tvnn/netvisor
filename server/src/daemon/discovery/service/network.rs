@@ -183,10 +183,7 @@ impl DaemonDiscoveryService {
     }
 
     /// Scan subnet concurrently and process hosts immediately as they're discovered
-    async fn scan_and_process_hosts<'a>(
-        &self,
-        scan_params: HostScanParams<'a>,
-    ) -> Result<Vec<Host>> {
+    async fn scan_and_process_hosts(&self, scan_params: HostScanParams<'_>) -> Result<Vec<Host>> {
         let HostScanParams {
             subnet,
             session_id,

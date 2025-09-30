@@ -17,7 +17,7 @@ use validator::Validate;
 pub struct ServiceBase {
     pub host_id: Uuid,
     pub service_definition: Box<dyn ServiceDefinition>,
-    #[validate(length(min=1, max=100))]
+    #[validate(length(min = 1, max = 100))]
     pub name: String,
     pub port_bindings: Vec<Uuid>,
     pub interface_bindings: Vec<Uuid>,

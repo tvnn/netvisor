@@ -68,7 +68,6 @@
 	}
 
 	$: isEditing = host !== null;
-	$: isOnLastTab = currentTabIndex == tabs.length;
 	$: title = isEditing ? `Edit ${host?.name}` : 'Create Host';
 
 	let formData: Host = createEmptyHostFormData();

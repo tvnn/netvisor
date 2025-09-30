@@ -13,7 +13,7 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 ### 0. Install Requirements
 
 #### Daemon
-- Rust 1.85 or later
+- Rust 1.90+
 - Must run directly on host (not containerized) for network access
 
 #### Server (Docker - Recommended)

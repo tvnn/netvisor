@@ -62,7 +62,7 @@ export const hostname = (): Validator => (value: string) => {
 	if (!value) return { valid: true, name: 'hostname' }; // Allow empty if not required
 
 	const hostnameRegex =
-		/^(?=.{1,255}$)(?:(?!-)[-a-zA-Z0-9]{1,63}(?:\.[a-zA-Z0-9][-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,63}$/;
+		/^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$/;
 	return {
 		valid: hostnameRegex.test(value.trim()),
 		name: 'Please enter a valid hostname',

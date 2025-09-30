@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { AlertCircle } from 'lucide-svelte';
 	import { form as createForm } from 'svelte-forms';
 	import GenericModal from '../layout/GenericModal.svelte';
 	import type { FieldType, FormApi } from './types';
@@ -38,12 +37,10 @@
 		}
 	};
 
-	async function handleFormSubmit() {		
+	async function handleFormSubmit() {
 		// Force validation on all fields
-		await Promise.all(
-			Object.values(formFields).map(field => field.validate())
-		);
-		
+		await Promise.all(Object.values(formFields).map((field) => field.validate()));
+
 		// Check if current fields are valid
 		if (!$form.valid) {
 			return; // Don't proceed if validation fails

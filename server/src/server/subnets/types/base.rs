@@ -1,21 +1,19 @@
 use std::net::Ipv4Addr;
 
+use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use crate::server::{
     hosts::types::{ports::PortBase, targets::ServiceBinding},
     services::types::definitions::ServiceDefinitionExt,
-};
-use crate::server::{
-    shared::types::api::deserialize_empty_string_as_none,
 };
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
 use itertools::Itertools;
 use pnet::ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
 use std::hash::Hash;
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
+use validator::Validate;
 
 use crate::server::{
     hosts::types::base::Host,
@@ -36,9 +34,9 @@ pub enum SubnetSource {
 #[derive(Debug, Clone, Validate, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SubnetBase {
     pub cidr: IpCidr,
-    #[validate(length(min=1, max=100))]
+    #[validate(length(min = 1, max = 100))]
     pub name: String, // "Home LAN", "VPN Network", etc.
-    #[validate(length(min=1, max=500))]
+    #[validate(length(min = 1, max = 500))]
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
     pub dns_resolvers: Vec<ServiceBinding>,
