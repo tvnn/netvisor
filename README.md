@@ -6,13 +6,30 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 
 ## Quick Start
 
+### 0. Install Requirements
+
+#### Daemon
+- Rust 1.85 or later
+- Must run directly on host (not containerized) for network access
+
+#### Server (Docker - Recommended)
+- Docker
+- Docker Compose
+
+#### Server (Building from source)
+- Rust 1.85 or later
+- Node.js 20 or later
+
+####
+- Linux or mac 
+
 ### 1. Start the Server
-`curl -O https://raw.githubusercontent.com/mayanayza/netvisor-server/refs/heads/main/docker-compose.yml && docker compose up -d`
+`curl -O https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/docker-compose.yml && docker compose up -d`
 
 The server collects data from the daemon(s) and generates the topology visualization. The server can support multiple daemon instances in case you want to collect data from the perspective of multiple hosts on your network.
 
 ### 2. Install the Daemon  
-`curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor-server/refs/heads/main/install.sh | bash`
+`curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/install.sh | bash`
 
 The daemon is used to scan the network and should run directly on the host to access host network interfaces - running in a containerized environment will compromise discovery functionality. Running in a VM or other virtualization is fine.
 
