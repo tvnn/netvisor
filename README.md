@@ -4,6 +4,10 @@
 
 NetVisor scans your network, identifies hosts and services, and generates an interactive visualization showing how everything connects, letting you easily create and maintain network documentation.
 
+<p align="center">
+  <img src="./media/example_visualization.png" width="400" alt="Example Visualization">
+</p>
+
 ## Quick Start
 
 ### 0. Install Requirements
