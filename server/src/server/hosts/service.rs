@@ -2,9 +2,7 @@ use crate::server::{
     hosts::{
         storage::HostStorage,
         types::base::{Host, HostBase},
-    },
-    services::service::ServiceService,
-    subnets::service::SubnetService,
+    }, services::{service::ServiceService, types::base::Service}, subnets::service::SubnetService
 };
 use anyhow::{anyhow, Error, Result};
 use futures::future::try_join_all;
@@ -77,8 +75,9 @@ impl HostService {
             .await?
             .ok_or_else(|| anyhow!("Host '{}' not found", host.id))?;
 
-        self.update_subnet_host_relationships(&current_host, true)
-            .await?;
+        self.update_services(&current_host, &host).await?;
+
+        self.update_subnet_host_relationships(&current_host, true).await?;
         self.update_subnet_host_relationships(&host, false).await?;
 
         host.updated_at = chrono::Utc::now();
@@ -187,7 +186,8 @@ impl HostService {
 
         try_join_all(service_update_futures).await?;
 
-        self.delete_host(other_host_id, true).await?;
+        // Ignore services because they are just being moved to other host
+        self.delete_host(other_host_id, false).await?;
         tracing::info!(
             "Consolidated host {}: {} into {}: {}",
             other_host_name,
@@ -196,6 +196,50 @@ impl HostService {
             updated_host.id
         );
         Ok(updated_host)
+    }
+    
+    pub async fn update_services(
+        &self,
+        current_host: &Host,
+        updates: &Host
+    ) -> Result<(), Error> {
+
+        let services = self.service_service.get_services_for_host(&current_host.id).await?;
+
+        let (update_services, delete_services): (Vec<Service>, Vec<Service>) = services.into_iter().partition(|s| updates.base.services.contains(&s.id));
+
+        let delete_service_futures = delete_services.iter().map(|s| self.service_service.delete_service(&s.id));
+
+        try_join_all(delete_service_futures).await?;
+
+        let update_service_futures = update_services.into_iter()
+            .filter_map(|mut service| {
+                
+                let initial_interface_bindings_count = service.base.interface_bindings.len();
+                let initial_port_bindings_count = service.base.port_bindings.len();
+                
+                service.base.interface_bindings
+                    .retain(|b| {
+                        // Remove if current host has interface, updated host doesn't have
+                        !(current_host.get_interface(&b).is_some() && updates.get_interface(&b).is_none())
+                    });
+
+                service.base.port_bindings
+                    .retain(|b| {
+                        // Remove if current host has port, updated host doesn't have
+                        !(current_host.get_port(&b).is_some() && updates.get_port(&b).is_none())
+                    });
+
+                if initial_interface_bindings_count != service.base.interface_bindings.len() || initial_port_bindings_count != service.base.port_bindings.len() {
+                    return Some(self.service_service.update_service(service));
+                }
+                None
+            });
+
+        try_join_all(update_service_futures).await?;
+
+        Ok(())
+        
     }
 
     pub async fn update_subnet_host_relationships(
@@ -230,16 +274,16 @@ impl HostService {
         Ok(())
     }
 
-    pub async fn delete_host(&self, id: &Uuid, ignore_services: bool) -> Result<()> {
+    pub async fn delete_host(&self, id: &Uuid, delete_services: bool) -> Result<()> {
         let host = self
             .get_host(id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Host {} not found", id))?;
 
-        if !ignore_services {
+        if delete_services {
             for service_id in &host.base.services {
                 self.service_service
-                    .delete_service(service_id, false)
+                    .delete_service(service_id)
                     .await?;
             }
         }
@@ -248,10 +292,10 @@ impl HostService {
 
         self.storage.delete(id).await?;
         tracing::info!(
-            "Deleted host {}: {}; deleted services: {}",
+            "Deleted host {}: {}; deleted service + associated subnet/group bindings: {}",
             host.base.name,
             host.id,
-            !ignore_services
+            !delete_services
         );
         Ok(())
     }

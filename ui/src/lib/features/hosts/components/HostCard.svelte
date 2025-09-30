@@ -9,7 +9,7 @@
 	import { sessions } from '$lib/features/discovery/store';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import type { Group } from '$lib/features/groups/types/base';
-	import { getServicesForHost } from '$lib/features/services/store';
+	import { getServicesForHost, getServicesForHostReactive } from '$lib/features/services/store';
 
 	export let host: Host;
 	export let daemon: Daemon | null;
@@ -30,7 +30,8 @@
 	$: discoveryData =
 		hostIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;
 
-	$: hostServices = getServicesForHost(host.id);
+	$: hostServicesStore = getServicesForHostReactive(host.id);
+	$: hostServices = $hostServicesStore;
 
 	// Build card data
 	$: cardData = {

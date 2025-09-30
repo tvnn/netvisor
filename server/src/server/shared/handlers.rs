@@ -2,7 +2,7 @@ use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::shared::constants::Entity;
 use crate::server::shared::types::metadata::{MetadataProvider, MetadataRegistry};
-use crate::server::topology::types::base::EdgeType;
+use crate::server::topology::types::edges::EdgeType;
 use crate::server::{
     config::AppState,
     daemons::handlers as daemon_handlers,

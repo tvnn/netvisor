@@ -15,28 +15,21 @@ pub struct ServiceService {
     storage: Arc<dyn ServiceStorage>,
     subnet_service: Arc<SubnetService>,
     host_service: OnceLock<Arc<HostService>>,
-    group_service: OnceLock<Arc<GroupService>>,
+    group_service: Arc<GroupService>,
 }
 
 impl ServiceService {
-    pub fn new(storage: Arc<dyn ServiceStorage>, subnet_service: Arc<SubnetService>) -> Self {
+    pub fn new(storage: Arc<dyn ServiceStorage>, subnet_service: Arc<SubnetService>, group_service: Arc<GroupService>) -> Self {
         Self {
             storage,
             subnet_service,
+            group_service,
             host_service: OnceLock::new(),
-            group_service: OnceLock::new(),
         }
     }
 
     pub fn set_host_service(&self, host_service: Arc<HostService>) -> Result<(), Arc<HostService>> {
         self.host_service.set(host_service)
-    }
-
-    pub fn set_group_service(
-        &self,
-        group_service: Arc<GroupService>,
-    ) -> Result<(), Arc<GroupService>> {
-        self.group_service.set(group_service)
     }
 
     pub async fn create_service(&self, service: Service) -> Result<Service> {
@@ -75,7 +68,7 @@ impl ServiceService {
             }
             None => {
                 self.storage.create(&service).await?;
-                self.create_subnet_service_relationships(&service).await?;
+                self.update_subnet_service_bindings(None, Some(&service)).await?;
                 tracing::info!(
                     "Created service {} for host {}",
                     service.base.service_definition.name(),
@@ -94,7 +87,6 @@ impl ServiceService {
         new_service: Service,
     ) -> Result<Service> {
         let mut interface_updates = 0;
-        let mut group_updates = 0;
         let mut port_updates = 0;
 
         for new_service_binding in new_service.base.interface_bindings {
@@ -108,13 +100,6 @@ impl ServiceService {
                     .base
                     .interface_bindings
                     .push(new_service_binding);
-            }
-        }
-
-        for new_service_group in new_service.base.groups {
-            if !existing_service.base.groups.contains(&new_service_group) {
-                group_updates += 1;
-                existing_service.base.groups.push(new_service_group)
             }
         }
 
@@ -138,9 +123,6 @@ impl ServiceService {
         };
         if interface_updates > 0 {
             data.push(format!("{} interfaces", interface_updates))
-        };
-        if group_updates > 0 {
-            data.push(format!("{} groups", group_updates))
         };
 
         if !data.is_empty() {
@@ -179,9 +161,8 @@ impl ServiceService {
             .await?
             .ok_or_else(|| anyhow!("Could not find service"))?;
 
-        self.remove_subnet_service_relationships(&current_service)
-            .await?;
-        self.create_subnet_service_relationships(&service).await?;
+        self.update_group_service_bindings(&current_service, Some(&service)).await?;
+        self.update_subnet_service_bindings(Some(&current_service), Some(&service)).await?;
 
         service.updated_at = chrono::Utc::now();
 
@@ -193,6 +174,89 @@ impl ServiceService {
             service.base.host_id
         );
         Ok(service)
+    }
+
+    pub async fn update_group_service_bindings(
+        &self,
+        current_service: &Service,
+        updates: Option<&Service>
+    ) -> Result<(), Error> {
+
+        let groups = self.group_service.get_all_groups().await?;
+
+        let group_futures = groups.into_iter().filter_map(|mut group| {
+            
+            let initial_bindings_length = group.base.service_bindings.len();
+            
+            group.base.service_bindings
+                .retain(|b| {
+                    
+                    // Remove if current service has interface/port bound, updated service doesn't have (or updated service is None aka getting deleted)
+
+                    let bindings_exist_after_updates = match updates {
+                        Some(updated_service) => updated_service.base.interface_bindings.contains(&b.interface_id) && updated_service.base.port_bindings.contains(&b.port_id),
+                        None => false
+                    };
+
+                    !((current_service.base.interface_bindings.contains(&b.interface_id) || current_service.base.port_bindings.contains(&b.port_id)) && !bindings_exist_after_updates)
+                });
+
+            if group.base.service_bindings.len() != initial_bindings_length{
+                return Some(self.group_service.update_group(group));
+            }
+            None
+        });
+
+        try_join_all(group_futures).await?;
+
+        Ok(())
+    }
+
+    pub async fn update_subnet_service_bindings(
+        &self,
+        current_service: Option<&Service>,
+        updates: Option<&Service>
+    ) -> Result<(), Error> {
+
+        let host_service = self
+            .host_service
+            .get()
+            .ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
+
+        let host = match updates {
+            Some(updated_service) => Some(host_service.get_host(&updated_service.base.host_id).await?.ok_or_else(|| anyhow::anyhow!("Could not find host for service {}: {}", updated_service.base.name, updated_service.id))?),
+            None => None
+        };
+
+        let subnets = self.subnet_service.get_all_subnets().await?;
+
+        let subnet_futures = subnets.into_iter().filter_map(|mut subnet| {
+            
+            let initial_dns = subnet.base.dns_resolvers.clone();
+            let initial_gateways = subnet.base.gateways.clone();
+            let initial_reverse_proxies = subnet.base.reverse_proxies.clone();
+
+            if let Some(current) = current_service {
+                subnet.remove_service_relationships(current);
+            }
+
+            if let (Some(updated_service), Some(h)) = (updates, &host) {
+                subnet.create_service_relationships(updated_service, h);
+            }
+
+            let new_dns = subnet.base.dns_resolvers.clone();
+            let new_gateways = subnet.base.gateways.clone();
+            let new_reverse_proxies = subnet.base.reverse_proxies.clone();
+
+            if initial_dns != new_dns || initial_gateways != new_gateways || initial_reverse_proxies != new_reverse_proxies {
+                return Some(self.subnet_service.update_subnet(subnet));
+            }
+            None
+        });
+
+        try_join_all(subnet_futures).await?;
+
+        Ok(())
     }
 
     pub fn transfer_service_to_new_host(
@@ -242,116 +306,15 @@ impl ServiceService {
         service.clone()
     }
 
-    pub async fn remove_subnet_service_relationships(
-        &self,
-        service: &Service,
-    ) -> Result<(), Error> {
-        let all_subnets = self.subnet_service.get_all_subnets().await?;
-        let affected_subnets: Vec<_> = all_subnets
-            .into_iter()
-            .filter(|subnet| {
-                subnet.base.dns_resolvers.contains(&service.id)
-                    || subnet.base.gateways.contains(&service.id)
-                    || subnet.base.reverse_proxies.contains(&service.id)
-            })
-            .collect();
+    pub async fn delete_service(&self, id: &Uuid) -> Result<()> {
 
-        let subnet_futures: Vec<_> = affected_subnets
-            .into_iter()
-            .map(|mut subnet| {
-                subnet.remove_service_relationships(service);
-                self.subnet_service.update_subnet(subnet)
-            })
-            .collect();
-
-        try_join_all(subnet_futures).await?;
-
-        Ok(())
-    }
-
-    pub async fn create_subnet_service_relationships(
-        &self,
-        service: &Service,
-    ) -> Result<(), Error> {
-        let host_service = self
-            .host_service
-            .get()
-            .ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
-
-        if let Some(host) = host_service.get_host(&service.base.host_id).await? {
-            let subnet_ids: Vec<Uuid> = service
-                .base
-                .interface_bindings
-                .iter()
-                .filter_map(|b| host.get_interface(b))
-                .map(|i| i.base.subnet_id)
-                .collect();
-
-            if let Ok(subnets) = self.subnet_service.get_by_ids(&subnet_ids).await {
-                let subnet_futures: Vec<_> = subnets
-                    .into_iter()
-                    .map(|mut subnet| {
-                        subnet.create_service_relationships(service, &host);
-                        self.subnet_service.update_subnet(subnet)
-                    })
-                    .collect();
-
-                try_join_all(subnet_futures).await?;
-            };
-        }
-        Ok(())
-    }
-
-    pub async fn delete_service(&self, id: &Uuid, update_host: bool) -> Result<()> {
-        let group_service = self
-            .group_service
-            .get()
-            .ok_or_else(|| anyhow::anyhow!("Group service not initialized"))?;
         let service = self
             .get_service(id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Service {} not found", id))?;
-        self.remove_subnet_service_relationships(&service).await?;
-
-        let all_groups = group_service.get_all_groups().await?;
-
-        // Remove service from all groups that contain it
-        for mut group in all_groups {
-            if group
-                .base
-                .service_bindings
-                .iter()
-                .any(|sb| service.id == sb.service_id)
-            {
-                group
-                    .base
-                    .service_bindings
-                    .retain(|sb| sb.service_id != *id);
-                group.updated_at = chrono::Utc::now();
-                group_service.update_group(group).await?;
-            }
-        }
-
-        if update_host {
-            let host_service = self
-                .host_service
-                .get()
-                .ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
-
-            let mut host = host_service
-                .get_host(&service.base.host_id)
-                .await?
-                .ok_or_else(|| anyhow::anyhow!("Host {} not found", service.base.host_id))?;
-            host.base.services = host
-                .base
-                .services
-                .iter()
-                .filter(|s| *s != id)
-                .cloned()
-                .collect();
-
-            host_service.update_host(host).await?;
-        };
+        
+        self.update_group_service_bindings(&service, None).await?;
+        self.update_subnet_service_bindings(Some(&service), None).await?;
 
         self.storage.delete(id).await?;
         tracing::info!(

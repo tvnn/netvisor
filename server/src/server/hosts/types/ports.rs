@@ -250,6 +250,8 @@ impl TypeMetadataProvider for PortBase {
                 | PortBase::HttpsAlt
         );
 
+        let is_dns = matches!(self, PortBase::DnsUdp | PortBase::DnsTcp);
+
         let number = self.number();
         let protocol = self.protocol();
 
@@ -257,6 +259,7 @@ impl TypeMetadataProvider for PortBase {
 
         serde_json::json!({
             "is_management": is_management,
+            "is_dns": is_dns,
             "can_be_added": can_be_added,
             "number": number,
             "protocol": protocol

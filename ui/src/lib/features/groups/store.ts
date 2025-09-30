@@ -62,6 +62,7 @@ export function createEmptyGroupFormData(): Group {
 		description: '',
 		service_bindings: [],
 		created_at: utcTimeZoneSentinel,
-		updated_at: utcTimeZoneSentinel
+		updated_at: utcTimeZoneSentinel,
+		group_type: 'NetworkPath'
 	};
 }

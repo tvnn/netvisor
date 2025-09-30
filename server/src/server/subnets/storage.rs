@@ -1,4 +1,4 @@
-use crate::server::subnets::types::base::{Subnet, SubnetBase, SubnetSource, SubnetType};
+use crate::server::{hosts::types::targets::ServiceBinding, subnets::types::base::{Subnet, SubnetBase, SubnetSource, SubnetType}};
 use anyhow::{Error, Result};
 use async_trait::async_trait;
 use cidr::IpCidr;
@@ -157,11 +157,11 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet, Error> {
         .or(Err(Error::msg("Failed to deserialize cidr")))?;
     let hosts: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("hosts"))
         .or(Err(Error::msg("Failed to deserialize hosts")))?;
-    let dns_resolvers: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("dns_resolvers"))
+    let dns_resolvers: Vec<ServiceBinding> = serde_json::from_str(&row.get::<String, _>("dns_resolvers"))
         .or(Err(Error::msg("Failed to deserialize dns_resolvers")))?;
     let gateways: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("gateways"))
         .or(Err(Error::msg("Failed to deserialize gateways")))?;
-    let reverse_proxies: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("reverse_proxies"))
+    let reverse_proxies: Vec<ServiceBinding> = serde_json::from_str(&row.get::<String, _>("reverse_proxies"))
         .or(Err(Error::msg("Failed to deserialize reverse_proxies")))?;
     let subnet_type: SubnetType = serde_json::from_str(&row.get::<String, _>("subnet_type"))
         .or(Err(Error::msg("Failed to deserialize subnet_type")))?;

@@ -2,13 +2,15 @@
 	import { createEmptySubnetFormData } from '../../store';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
-	import { serviceHasInterfaceOnSubnet, services } from '$lib/features/services/store';
+	import { entities, ports, serviceDefinitions } from '$lib/shared/stores/metadata';
+	import { getServiceBindingsFromService, serviceHasInterfaceOnSubnet, services } from '$lib/features/services/store';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
-	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
 	import SubnetDetailsForm from './SubnetDetailsForm.svelte';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import type { Subnet } from '../../types/base';
+	import { getPortFromId, serviceBindingIdToObj, serviceBindingToId } from '$lib/features/hosts/store';
+	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
+	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
 
 	export let subnet: Subnet | null = null;
 	export let isOpen = false;
@@ -34,41 +36,45 @@
 		formData = subnet ? { ...subnet } : createEmptySubnetFormData();
 	}
 
-	$: dnsServices = $services.filter((service) => {
+	$: dnsServiceBindings = $services.filter((service) => {
 		const isDnsResolver = serviceDefinitions.getMetadata(
 			service.service_definition
 		)?.is_dns_resolver;
 		const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
 		return isDnsResolver && hasInterfaceOnSubnet;
+	})
+	.flatMap(service => getServiceBindingsFromService(service))
+	.filter(sb => !formData.dns_resolvers.some(resolver => serviceBindingToId(resolver) == serviceBindingToId(sb)))
+	.filter(sb => {
+		let port = getPortFromId(sb.port_id)
+		console.log(port)
+		if (port) {
+			let metadata = ports.getMetadata(port.type)
+			console.log(metadata)
+			return ports.getMetadata(port.type).is_dns
+		}
+		return false
 	});
 
 	$: gatewayServices = $services.filter((service) => {
 		const isGateway = serviceDefinitions.getMetadata(service.service_definition)?.is_gateway;
 		const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
 		return isGateway && hasInterfaceOnSubnet;
-	});
+	})
 
-	$: reverseProxyServices = $services.filter((service) => {
+	$: reverseProxyServiceBindings = $services.filter((service) => {
 		const isReverseProxy = serviceDefinitions.getMetadata(
 			service.service_definition
 		)?.is_reverse_proxy;
 		const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
 		return isReverseProxy && hasInterfaceOnSubnet;
-	});
+	}).flatMap(service => getServiceBindingsFromService(service))
 
 	// Available services (filtered out already selected)
-	$: availableDns = dnsServices.filter((service) => !formData.dns_resolvers?.includes(service.id));
-	$: selectedDns = $services.filter((s) => formData.dns_resolvers.includes(s.id));
-
-	$: availableGateways = gatewayServices.filter(
-		(service) => !formData.gateways?.includes(service.id)
-	);
-	$: selectedGateways = $services.filter((s) => formData.gateways.includes(s.id));
-
-	$: availableReverseProxies = reverseProxyServices.filter(
-		(service) => !formData.reverse_proxies?.includes(service.id)
-	);
-	$: selectedReverseProxies = $services.filter((s) => formData.reverse_proxies.includes(s.id));
+	$: availableDns = dnsServiceBindings.filter(sb => !formData.dns_resolvers.some(resolver => serviceBindingToId(resolver) == serviceBindingToId(sb)))
+	$: availableGateways = gatewayServices.filter(s => !formData.gateways.includes(s.id))
+	$: selectedGateways = $services.filter(s => formData.gateways.includes(s.id));
+	$: availableReverseProxies = reverseProxyServiceBindings.filter(sb => !formData.reverse_proxies.some(proxy => serviceBindingToId(proxy) == serviceBindingToId(sb)))
 
 	async function handleSubmit() {
 		// Clean up the data before sending
@@ -103,9 +109,11 @@
 	}
 
 	// Event handlers for DNS resolvers
-	function handleAddDnsResolver(hostId: string) {
-		if (!formData.dns_resolvers?.includes(hostId)) {
-			formData.dns_resolvers = [...(formData.dns_resolvers || []), hostId];
+	function handleAddDnsResolver(serviceBindingId: string) {
+		let serviceBindingObj = serviceBindingIdToObj(serviceBindingId)
+
+		if (serviceBindingObj) {
+			formData.dns_resolvers = [...(formData.dns_resolvers || []), serviceBindingObj];	
 		}
 	}
 
@@ -114,10 +122,8 @@
 	}
 
 	// Event handlers for gateways
-	function handleAddGateway(hostId: string) {
-		if (!formData.gateways?.includes(hostId)) {
-			formData.gateways = [...(formData.gateways || []), hostId];
-		}
+	function handleAddGateway(serviceId: string) {
+		formData.gateways = [...(formData.gateways || []), serviceId];
 	}
 
 	function handleRemoveGateway(index: number) {
@@ -125,9 +131,11 @@
 	}
 
 	// Event handlers for reverse proxies
-	function handleAddReverseProxy(hostId: string) {
-		if (!formData.reverse_proxies?.includes(hostId)) {
-			formData.reverse_proxies = [...(formData.reverse_proxies || []), hostId];
+	function handleAddReverseProxy(serviceBindingId: string) {
+		let serviceBindingObj = serviceBindingIdToObj(serviceBindingId)
+
+		if (serviceBindingObj) {
+			formData.reverse_proxies = [...(formData.reverse_proxies || []), serviceBindingObj];
 		}
 	}
 
@@ -178,10 +186,10 @@
 								allowReorder={false}
 								showSearch={true}
 								options={availableDns}
-								items={selectedDns}
+								items={formData.dns_resolvers}
 								allowItemEdit={() => false}
-								optionDisplayComponent={ServiceWithHostDisplay}
-								itemDisplayComponent={ServiceWithHostDisplay}
+								optionDisplayComponent={ServiceBindingDisplay}
+								itemDisplayComponent={ServiceBindingDisplay}
 								onAdd={handleAddDnsResolver}
 								onRemove={handleRemoveDnsResolver}
 								onEdit={() => {}}
@@ -228,10 +236,10 @@
 								allowReorder={false}
 								showSearch={true}
 								options={availableReverseProxies}
-								items={selectedReverseProxies}
+								items={formData.reverse_proxies}
 								allowItemEdit={() => false}
-								optionDisplayComponent={ServiceWithHostDisplay}
-								itemDisplayComponent={ServiceWithHostDisplay}
+								optionDisplayComponent={ServiceBindingDisplay}
+								itemDisplayComponent={ServiceBindingDisplay}
 								onAdd={handleAddReverseProxy}
 								onRemove={handleRemoveReverseProxy}
 								onEdit={() => {}}

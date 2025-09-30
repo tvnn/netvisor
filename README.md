@@ -34,7 +34,7 @@ The NetVisor Daemon discovers hosts on your network by scanning all IPv4 address
 
 Discovery creates hosts with their interfaces, services, and subnet relationships.
 
-Discovery can take tens of minutes depending on how many subnets the daemon's host is connected and the network mask for those subnets, as it needs to scan every IP address on the subnet.
+Discovery can take 5-10+ minutes depending on how many subnets the daemon's host is connected and the network mask for those subnets, as it needs to scan every IP address on the subnet.
 
 ### Consolidating Hosts
 The discovery process does its best to merge duplicate hosts, but this isn't always possible. You can consolidate hosts that actually represent multiple interfaces or services on the same host using the Consolidate feature. This migrates all ports, interfaces, and services to a single host record.

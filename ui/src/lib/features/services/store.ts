@@ -1,79 +1,17 @@
-import { writable, get } from 'svelte/store';
+import { writable, get, derived } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { Service } from './types/base';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
-import { hosts } from '../hosts/store';
-import type { Host } from '../hosts/types/base';
+import { getPortFromId, hosts } from '../hosts/store';
+import type { Host, ServiceBinding } from '../hosts/types/base';
 
 export const services = writable<Service[]>([]);
-
-// Create a new service
-export async function createService(service: Omit<Service, 'id' | 'created_at' | 'updated_at'>) {
-	return await api.request<Service, Service[]>(
-		'/services',
-		services,
-		(newService: Service, currentServices: Service[]) => [...currentServices, newService],
-		{
-			method: 'POST',
-			body: JSON.stringify(service)
-		}
-	);
-}
-
-// Update an existing service
-export async function updateService(serviceId: string, updates: Partial<Service>) {
-	return await api.request<Service, Service[]>(
-		`/services/${serviceId}`,
-		services,
-		(updatedService: Service, currentServices: Service[]) =>
-			currentServices.map((s) => (s.id === serviceId ? updatedService : s)),
-		{
-			method: 'PUT',
-			body: JSON.stringify(updates)
-		}
-	);
-}
-
-// Delete a service
-export async function deleteService(serviceId: string) {
-	return await api.request<void, Service[]>(
-		`/services/${serviceId}`,
-		services,
-		(_, currentServices: Service[]) => currentServices.filter((s) => s.id !== serviceId),
-		{ method: 'DELETE' }
-	);
-}
 
 // Get all services
 export async function getServices() {
 	return await api.request<Service[]>('/services', services, (services) => services, {
 		method: 'GET'
 	});
-}
-
-// Bulk operations for host editing
-export async function updateHostServices(
-	hostId: string,
-	servicesToUpdate: Service[],
-	servicesToDelete: string[] = []
-) {
-	const promises = [];
-
-	// Delete services first
-	for (const serviceId of servicesToDelete) {
-		promises.push(deleteService(serviceId));
-	}
-
-	// Update/create services
-	for (const service of servicesToUpdate) {
-		if (service.id) {
-			promises.push(updateService(service.id, service));
-		} else {
-			promises.push(createService({ ...service, host_id: hostId }));
-		}
-	}
-
-	await Promise.all(promises);
 }
 
 // Helper functions for working with services and the MetadataRegistry
@@ -92,8 +30,20 @@ export function createDefaultService(
 		name: serviceName || serviceType,
 		port_bindings: defaultPorts ? [...defaultPorts] : [],
 		interface_bindings: [],
-		groups: []
 	};
+}
+
+export function formatServiceAsHost(service_id: string): string {
+	let service = getServiceById(service_id)
+	let host = getServiceHost(service_id)
+
+	if (host && service) {
+		if (host.name == service.name) return host.name
+		else return host.name + ": " + service.name
+	} 
+	else if (host && !service) return host.name + ": " + "Unknown Service"
+	else if (!host && service) return service.name + "(Unknown Host)"
+	else return "Unknown Service"
 }
 
 export function getServiceById(service_id: string): Service | null {
@@ -118,6 +68,19 @@ export function getServicesForHost(host_id: string): Service[] {
 	} else {
 		return [];
 	}
+}
+
+export function getServicesForHostReactive(host_id: string) {
+	return derived([hosts, services], ([$hosts, $services]) => {
+		const host = $hosts.find((h) => h.id === host_id);
+
+		if (host) {
+			const serviceMap = new Map($services.map((s) => [s.id, s]));
+			return host.services.map((id) => serviceMap.get(id)).filter((s) => s !== undefined);
+		} else {
+			return [];
+		}
+	});
 }
 
 export function serviceHasInterfaceOnSubnet(service: Service, subnetId: string): boolean {
@@ -146,4 +109,19 @@ export function getServicesForPort(port_id: string): Service[] {
 	} else {
 		return [];
 	}
+}
+
+export function getServiceBindingsFromService(service: Service): ServiceBinding[] {
+	return service.interface_bindings.flatMap((interface_id) =>
+		service.port_bindings
+			.map((port_id) => getPortFromId(port_id))
+			.filter((port) => port != undefined)
+			.map((port) => {
+				return {
+					service_id: service.id,
+					interface_id,
+					port_id: port.id
+				} as ServiceBinding;
+			})
+	)
 }

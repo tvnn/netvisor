@@ -35,9 +35,9 @@ impl GroupStorage for SqliteGroupStorage {
         sqlx::query(
             r#"
             INSERT INTO groups (
-                id, name, description, service_bindings, group_type
+                id, name, description, service_bindings, group_type,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(blob_uuid::to_blob(&group.id))
@@ -80,11 +80,12 @@ impl GroupStorage for SqliteGroupStorage {
 
     async fn update(&self, group: &Group) -> Result<()> {
         let services_json = serde_json::to_string(&group.base.service_bindings)?;
+        let group_type_json = serde_json::to_string(&group.base.group_type)?;
 
         sqlx::query(
             r#"
             UPDATE groups SET 
-                name = ?, description = ?, service_bindings = ?, 
+                name = ?, description = ?, service_bindings = ?, group_type = ?,
                 updated_at = ?
             WHERE id = ?
             "#,
@@ -92,6 +93,7 @@ impl GroupStorage for SqliteGroupStorage {
         .bind(&group.base.name)
         .bind(&group.base.description)
         .bind(services_json)
+        .bind(group_type_json)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(blob_uuid::to_blob(&group.id))
         .execute(&self.pool)

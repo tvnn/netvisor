@@ -3,17 +3,11 @@ version: '3.8'
 services:
   ui:
     image: mayanayza/netvisor-ui:latest
-    build:
-      context: ./ui
-      dockerfile: Dockerfile
     volumes:
       - ui-build:/app/build
 
   server:
     image: mayanayza/netvisor-server:latest
-    build:
-      context: ./server
-      dockerfile: Dockerfile
     ports:
       - "60072:60072"
     environment:

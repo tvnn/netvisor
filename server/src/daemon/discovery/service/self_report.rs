@@ -76,7 +76,6 @@ impl DaemonDiscoveryService {
             port_bindings: vec![own_port_id],
             host_id: host.id,
             interface_bindings,
-            groups: Vec::new(),
         });
 
         let created_host = self.create_host(host, vec![daemon_service]).await?;

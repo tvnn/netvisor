@@ -88,7 +88,7 @@ impl EntityMetadataProvider for ServiceCategory {
             // End devices
             ServiceCategory::Workstation => "Monitor",
             ServiceCategory::Mobile => "Smartphone",
-            ServiceCategory::IoT => "Cpu",
+            ServiceCategory::IoT => Entity::IoT.icon(),
             ServiceCategory::Printer => "Printer",
 
             // Application
@@ -128,7 +128,7 @@ impl EntityMetadataProvider for ServiceCategory {
             // End devices
             ServiceCategory::Workstation => "green",
             ServiceCategory::Mobile => "blue",
-            ServiceCategory::IoT => "yellow",
+            ServiceCategory::IoT => Entity::IoT.color(),
             ServiceCategory::Printer => "gray",
 
             // Application

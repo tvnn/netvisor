@@ -1,6 +1,7 @@
 use std::net::IpAddr;
 
 use crate::server::hosts::types::ports::{Port, PortBase};
+use crate::server::hosts::types::targets::ServiceBinding;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
@@ -18,7 +19,6 @@ pub struct ServiceBase {
     pub name: String,
     pub port_bindings: Vec<Uuid>,
     pub interface_bindings: Vec<Uuid>,
-    pub groups: Vec<Uuid>,
 }
 
 impl Default for ServiceBase {
@@ -29,7 +29,6 @@ impl Default for ServiceBase {
             name: String::new(),
             port_bindings: Vec::new(),
             interface_bindings: Vec::new(),
-            groups: Vec::new(),
         }
     }
 }
@@ -64,6 +63,20 @@ impl Service {
             updated_at: now,
             base,
         }
+    }
+
+    pub fn to_bindings(&self) -> Vec<ServiceBinding> {
+        self.base.interface_bindings.iter().flat_map(|i| {
+            self.base.port_bindings.iter().map(|p| {
+                ServiceBinding {
+                    service_id: self.id,
+                    port_id: *p,
+                    interface_id: *i
+                }
+            })
+            .collect::<Vec<ServiceBinding>>()
+        })
+        .collect()
     }
 
     pub fn all_discovery_ports() -> Vec<PortBase> {
@@ -133,7 +146,6 @@ impl Service {
                 name,
                 port_bindings,
                 interface_bindings: interface_bindings.to_owned(),
-                groups: Vec::new(),
             });
 
             (Some(service), matched_ports)

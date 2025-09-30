@@ -7,5 +7,4 @@ export interface Service {
 	name: string;
 	port_bindings: string[];
 	interface_bindings: string[];
-	groups: string[];
 }

@@ -34,14 +34,14 @@ impl ServiceStorage for SqliteServiceStorage {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
         let port_bindings_str = serde_json::to_string(&service.base.port_bindings)?;
         let interface_bindings_str = serde_json::to_string(&service.base.interface_bindings)?;
-        let groups_str = serde_json::to_string(&service.base.groups)?;
+        // let groups_str = serde_json::to_string(&service.base.groups)?;
 
         // Try to insert, ignore if constraint sviolation
         sqlx::query(
             r#"
             INSERT INTO services (
-                id, name, host_id, service_definition, port_bindings, interface_bindings, groups, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, name, host_id, service_definition, port_bindings, interface_bindings, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#
         )
         .bind(blob_uuid::to_blob(&service.id))
@@ -50,7 +50,7 @@ impl ServiceStorage for SqliteServiceStorage {
         .bind(service_def_str)
         .bind(port_bindings_str)
         .bind(interface_bindings_str)
-        .bind(groups_str)
+        // .bind(groups_str)
         .bind(service.created_at.to_rfc3339())
         .bind(service.updated_at.to_rfc3339())
         .execute(&self.pool)
@@ -102,12 +102,12 @@ impl ServiceStorage for SqliteServiceStorage {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
         let port_bindings_str = serde_json::to_string(&service.base.port_bindings)?;
         let interface_bindings_str = serde_json::to_string(&service.base.interface_bindings)?;
-        let groups_str = serde_json::to_string(&service.base.groups)?;
+        // let groups_str = serde_json::to_string(&service.base.groups)?;
 
         sqlx::query(
             r#"
             UPDATE services SET 
-                name = ?, host_id = ?, service_definition = ?, port_bindings = ?, interface_bindings = ?, groups = ?, updated_at = ?
+                name = ?, host_id = ?, service_definition = ?, port_bindings = ?, interface_bindings = ?, updated_at = ?
             WHERE id = ?
             "#
         )
@@ -116,7 +116,7 @@ impl ServiceStorage for SqliteServiceStorage {
         .bind(service_def_str)
         .bind(port_bindings_str)
         .bind(interface_bindings_str)
-        .bind(groups_str)
+        // .bind(groups_str)
         .bind(service.updated_at.to_rfc3339())
         .bind(blob_uuid::to_blob(&service.id))
         .execute(&self.pool)
@@ -145,8 +145,6 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
     let interface_bindings: Vec<Uuid> =
         serde_json::from_str(&row.get::<String, _>("interface_bindings"))
             .or(Err(Error::msg("Failed to deserialize interface_bindings")))?;
-    let groups: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("groups"))
-        .or(Err(Error::msg("Failed to deserialize groups")))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -164,7 +162,6 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
             service_definition,
             port_bindings,
             interface_bindings,
-            groups,
         },
     })
 }

@@ -7,26 +7,31 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
-# Build dependencies in debug mode (faster for development)
+# Build dependencies only (not the final binary)
 RUN cargo chef cook --recipe-path recipe.json
-COPY . .
-# Build server in debug mode for faster iteration
-RUN cargo build --bin server
+
+# Install cargo-watch for hot reload
+RUN cargo install cargo-watch
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
+    build-essential \
+    pkg-config \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy debug binary
-COPY --from=builder /app/target/debug/server /usr/local/bin/server
-RUN chmod +x /usr/local/bin/server
+# Copy cargo binaries including cargo-watch
+COPY --from=builder /usr/local/cargo /usr/local/cargo
+ENV PATH="/usr/local/cargo/bin:${PATH}"
+
+WORKDIR /app
 
 EXPOSE 60072
 
-# Add health check
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
     CMD curl -f http://localhost:60072/api/health || exit 1
 
-CMD ["sh", "-c", "mkdir -p /data && touch /data/netvisor.db && server"]
+# Use cargo-watch to rebuild on file changes
+CMD ["sh", "-c", "mkdir -p /data && touch /data/netvisor.db && cargo watch -x 'run --bin server'"]

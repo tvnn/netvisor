@@ -136,7 +136,7 @@ async fn delete_host(
         return Err(ApiError::not_found(&format!("Host '{}' not found", &id)));
     }
 
-    service.delete_host(&id, false).await?;
+    service.delete_host(&id, true).await?;
 
     Ok(Json(ApiResponse::success(())))
 }

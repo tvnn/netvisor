@@ -7,4 +7,5 @@ export interface Group {
 	name: string;
 	description: string;
 	service_bindings: ServiceBinding[];
+	group_type: string;
 }

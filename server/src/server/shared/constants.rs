@@ -18,6 +18,8 @@ pub enum Entity {
     Vpn,
     Gateway,
     ReverseProxy,
+    IoT,
+    Storage
 }
 
 impl HasId for Entity {
@@ -42,6 +44,9 @@ impl EntityMetadataProvider for Entity {
             Entity::Subnet => "orange",
             Entity::Group => "rose",
             Entity::Topology => "pink",
+
+            Entity::IoT => "yellow",
+            Entity::Storage => "green"
         }
     }
 
@@ -58,6 +63,8 @@ impl EntityMetadataProvider for Entity {
             Entity::Subnet => "Network",
             Entity::Group => "Group",
             Entity::Topology => "ChartNetwork",
+            Entity::IoT => "Cpu",
+            Entity::Storage => "HardDrive"
         }
     }
 }
