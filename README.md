@@ -24,7 +24,7 @@ The daemon is used to scan the network and should run directly on the host to ac
 Once you connect a daemon to the server, a host will be created with a discovery button. Click to start discovery.
 
 <p align="center">
-  <img src="./images/discovery_host.png" width="400" alt="Run Discovery">
+  <img src="./media/discovery_host.png" width="400" alt="Run Discovery">
 </p>
 
 The NetVisor Daemon discovers hosts on your network by scanning all IPv4 addresses on subnets that the host it runs on has a network interface with. For each IP on the network, the daemon:
@@ -40,7 +40,7 @@ Discovery can take 5-10+ minutes depending on how many subnets the daemon's host
 The discovery process does its best to merge duplicate hosts, but this isn't always possible. You can consolidate hosts that actually represent multiple interfaces or services on the same host using the Consolidate feature. This migrates all ports, interfaces, and services to a single host record.
 
 <p align="center">
-  <img src="./images/consolidate_host.png" width="400" alt="Consolidate Host">
+  <img src="./media/consolidate_host.png" width="400" alt="Consolidate Host">
 </p>
 
 ## Network Organization
@@ -49,7 +49,7 @@ The discovery process does its best to merge duplicate hosts, but this isn't alw
 Subnets organize your network into logical segments of hosts. Subnets are automatically created during discovery.
 
 <p align="center">
-  <img src="./images/subnet.png" width="400" alt="Subnet">
+  <img src="./media/subnet.png" width="400" alt="Subnet">
 </p>
 
 
@@ -57,7 +57,7 @@ Subnets organize your network into logical segments of hosts. Subnets are automa
 Groups let you visualize logical connections between services, such as a web app talking to its database, or representing network paths between different parts of your infrastructure. You'll need to create groups manually.
 
 <p align="center">
-  <img src="./images/group.png" width="400" alt="Group">
+  <img src="./media/group.png" width="400" alt="Group">
 </p>
 
 **Infrastructure Services**: During discovery, hosts providing infrastructure services (DNS, gateway, reverse proxy) services are flagged for visualization purposes.

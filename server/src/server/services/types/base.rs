@@ -11,11 +11,13 @@ use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use validator::Validate;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash)]
 pub struct ServiceBase {
     pub host_id: Uuid,
     pub service_definition: Box<dyn ServiceDefinition>,
+    #[validate(length(min=1, max=100))]
     pub name: String,
     pub port_bindings: Vec<Uuid>,
     pub interface_bindings: Vec<Uuid>,
@@ -33,12 +35,13 @@ impl Default for ServiceBase {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Validate, Serialize, Deserialize, Hash)]
 pub struct Service {
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     #[serde(flatten)]
+    #[validate(nested)]
     pub base: ServiceBase,
 }
 

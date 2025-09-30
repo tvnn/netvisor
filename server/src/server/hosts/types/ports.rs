@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use validator::Validate;
 use std::fmt::Display;
 use std::hash::Hash;
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
@@ -16,7 +17,7 @@ pub enum TransportProtocol {
     Tcp,
 }
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Validate, Clone, Eq)]
 pub struct Port {
     pub id: Uuid,
     pub base: PortBase,
@@ -71,8 +72,9 @@ impl PartialEq for PortBase {
     }
 }
 
-#[derive(Debug, Clone, Default, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Validate, Default, Eq, Serialize, Deserialize)]
 pub struct PortConfig {
+    #[validate(range(min=1, max=65535))]
     pub number: u16,
     pub protocol: TransportProtocol,
 }

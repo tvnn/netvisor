@@ -4,16 +4,19 @@ use crate::server::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use validator::Validate;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum GroupType {
     NetworkPath,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Validate, Deserialize)]
 pub struct GroupBase {
+    #[validate(length(min=1, max=100))]
     pub name: String,
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
+    #[validate(length(min=0, max=500))]
     pub description: Option<String>,
     pub service_bindings: Vec<ServiceBinding>,
     pub group_type: GroupType,

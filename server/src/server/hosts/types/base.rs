@@ -2,21 +2,34 @@ use crate::server::{
     hosts::types::ports::Port,
     hosts::types::{interfaces::Interface, targets::HostTarget},
 };
+use crate::server::{
+    shared::types::api::deserialize_empty_string_as_none,
+};
+use regex::Regex;
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
-use std::{hash::Hash, net::IpAddr};
+use std::{hash::Hash, net::IpAddr, sync::LazyLock};
 use uuid::Uuid;
+use validator::Validate;
 
-const INVALID_MACS_BYTES: &[[u8; 6]; 2] = &[
+static HOSTNAME_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^(?=.{1,255}$)(?:(?!-)[-a-zA-Z0-9]{1,63}(?:\.[a-zA-Z0-9][-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,63}$").unwrap()
+});
+
+static INVALID_MACS_BYTES: &[[u8; 6]; 2] = &[
     [0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
     [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF],
 ];
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Validate, Deserialize, Eq, PartialEq, Hash)]
 pub struct HostBase {
+    #[validate(length(min=1, max=100))]
     pub name: String,
+    #[validate(regex(path = *HOSTNAME_REGEX))]
     pub hostname: Option<String>,
+    #[validate(length(min=1, max=100))]
+    #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
     pub target: HostTarget,
     pub interfaces: Vec<Interface>,
