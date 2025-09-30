@@ -16,14 +16,12 @@
 	export let loading: boolean = false;
 	export let deleting: boolean = false;
 	export let onDelete: (() => void) | null = null;
-	export let isOnLastTab: boolean = true;
 
 	// Create a container for fields that child components will populate
 	let formFields: Record<string, FieldType> = {};
 
 	// Create the actual form reactively based on registered fields
 	$: form = createForm(...Object.values(formFields));
-	let formErrors: string[] = [];
 
 	const formApi: FormApi = {
 		registerField: (id: string, field: FieldType) => {
@@ -40,12 +38,17 @@
 		}
 	};
 
-	function handleFormSubmit() {
-		// Only submit if form is valid
-		if ($form.valid) {
-			onSave?.();
+	async function handleFormSubmit() {		
+		// Force validation on all fields
+		await Promise.all(
+			Object.values(formFields).map(field => field.validate())
+		);
+		
+		// Check if current fields are valid
+		if (!$form.valid) {
+			return; // Don't proceed if validation fails
 		} else {
-			formErrors = $form.errors;
+			onSave?.();
 		}
 	}
 
@@ -58,7 +61,7 @@
 	}
 
 	// Disable save button if form validation fails or explicitly disabled
-	$: actualDisableSave = disableSave || loading || deleting || (isOnLastTab && !$form.valid);
+	$: actualDisableSave = disableSave || loading || deleting;
 </script>
 
 <GenericModal {isOpen} {title} {size} {preventCloseOnClickOutside} onClose={handleCancel}>
@@ -71,23 +74,6 @@
 	<form on:submit|preventDefault={handleFormSubmit} class="flex h-full flex-col">
 		<!-- Form content -->
 		<div class="flex-1 overflow-auto p-6">
-			<!-- Error display -->
-			{#if formErrors.length > 0}
-				<div class="mb-4 rounded-lg border border-red-700/30 bg-red-900/20 p-3">
-					<div class="flex items-start gap-2">
-						<AlertCircle class="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
-						<div>
-							<p class="text-sm font-medium text-red-400">Please fix the following errors:</p>
-							<ul class="mt-1 list-inside list-disc text-sm text-red-300">
-								{#each formErrors as error (error)}
-									<li>{error}</li>
-								{/each}
-							</ul>
-						</div>
-					</div>
-				</div>
-			{/if}
-
 			<!-- Form fields slot -->
 			<!-- eslint-disable-next-line svelte/require-store-reactive-access -->
 			<slot {form} {formApi} />
@@ -131,7 +117,7 @@
 				<button
 					type="button"
 					disabled={actualDisableSave}
-					on:click={onSave}
+					on:click={handleFormSubmit}
 					class="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors
                  hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
 				>

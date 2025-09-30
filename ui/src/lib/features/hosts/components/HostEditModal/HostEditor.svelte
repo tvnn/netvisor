@@ -140,7 +140,6 @@
 	{deleting}
 	{saveLabel}
 	{cancelLabel}
-	{isOnLastTab}
 	onSave={handleFormSubmit}
 	onCancel={showCancel ? handleFormCancel : null}
 	onDelete={isEditing ? handleDelete : null}

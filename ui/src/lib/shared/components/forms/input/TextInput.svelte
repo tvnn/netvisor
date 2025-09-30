@@ -17,6 +17,10 @@
 	function enableValidation() {
 		showValidation = true;
 	}
+	
+	$: if ($field.errors.length > 0) {
+		showValidation = true;
+	}
 </script>
 
 <FormField
