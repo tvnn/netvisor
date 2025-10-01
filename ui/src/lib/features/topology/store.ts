@@ -29,7 +29,11 @@ export async function exportToPNG() {
 		return;
 	}
 
-	// Calculate bounding box of all nodes in viewport coordinates
+	// Get current transform to extract scale and translation
+	const currentTransform = new DOMMatrix(getComputedStyle(viewportElement).transform);
+	const scale = currentTransform.a; // scale factor
+
+	// Calculate bounding box of all nodes
 	let minX = Infinity,
 		minY = Infinity,
 		maxX = -Infinity,
@@ -39,20 +43,27 @@ export async function exportToPNG() {
 		const rect = node.getBoundingClientRect();
 		const viewportRect = viewportElement.getBoundingClientRect();
 
-		// Calculate position relative to viewport
-		const x = rect.left - viewportRect.left;
-		const y = rect.top - viewportRect.top;
+		// Calculate position in flow coordinates (accounting for scale)
+		const x = (rect.left - viewportRect.left) / scale;
+		const y = (rect.top - viewportRect.top) / scale;
+		const width = rect.width / scale;
+		const height = rect.height / scale;
 
 		minX = Math.min(minX, x);
 		minY = Math.min(minY, y);
-		maxX = Math.max(maxX, x + rect.width);
-		maxY = Math.max(maxY, y + rect.height);
+		maxX = Math.max(maxX, x + width);
+		maxY = Math.max(maxY, y + height);
 	});
 
-	// Add padding
+	// Add padding (in flow coordinates)
 	const padding = 40;
-	const contentWidth = maxX - minX + padding * 2;
-	const contentHeight = maxY - minY + padding * 2;
+	minX -= padding;
+	minY -= padding;
+	maxX += padding;
+	maxY += padding;
+
+	const contentWidth = (maxX - minX) * scale;
+	const contentHeight = (maxY - minY) * scale;
 
 	// Store original styles
 	const originalTransform = viewportElement.style.transform;
@@ -65,9 +76,10 @@ export async function exportToPNG() {
 	flowElement.style.height = `${contentHeight}px`;
 	flowElement.style.overflow = 'hidden';
 
-	// Shift viewport to show content from top-left with padding
-	const currentTransform = new DOMMatrix(getComputedStyle(viewportElement).transform);
-	viewportElement.style.transform = `translate(${-minX + padding + currentTransform.e}px, ${-minY + padding + currentTransform.f}px) scale(${currentTransform.a})`;
+	// Position viewport to show content from minX, minY
+	const newTranslateX = -minX * scale;
+	const newTranslateY = -minY * scale;
+	viewportElement.style.transform = `translate(${newTranslateX}px, ${newTranslateY}px) scale(${scale})`;
 
 	flowElement.classList.add('hide-for-export');
 
@@ -76,8 +88,8 @@ export async function exportToPNG() {
 	watermark.textContent = 'created with netvisor.io';
 	watermark.style.cssText = `
 		position: absolute;
-		bottom: 16px;
-		right: 16px;
+		bottom: 2px;
+		right: 10px;
 		font-size: 14px;
 		color: #9ca3af;
 		font-weight: 500;
