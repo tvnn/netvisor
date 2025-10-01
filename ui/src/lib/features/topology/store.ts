@@ -14,12 +14,60 @@ export async function getTopology() {
 }
 
 export async function exportToPNG() {
-	const flowElement = document.querySelector('.svelte-flow');
+	const flowElement = document.querySelector('.svelte-flow') as HTMLElement;
+	const viewportElement = document.querySelector('.svelte-flow__viewport') as HTMLElement;
 
-	if (!flowElement) {
+	if (!flowElement || !viewportElement) {
 		pushError('Could not find flow element');
 		return;
 	}
+
+	// Get all node elements to calculate bounds
+	const nodeElements = flowElement.querySelectorAll('.svelte-flow__node');
+	if (nodeElements.length === 0) {
+		pushError('No nodes to export');
+		return;
+	}
+
+	// Calculate bounding box of all nodes in viewport coordinates
+	let minX = Infinity,
+		minY = Infinity,
+		maxX = -Infinity,
+		maxY = -Infinity;
+
+	nodeElements.forEach((node) => {
+		const rect = node.getBoundingClientRect();
+		const viewportRect = viewportElement.getBoundingClientRect();
+
+		// Calculate position relative to viewport
+		const x = rect.left - viewportRect.left;
+		const y = rect.top - viewportRect.top;
+
+		minX = Math.min(minX, x);
+		minY = Math.min(minY, y);
+		maxX = Math.max(maxX, x + rect.width);
+		maxY = Math.max(maxY, y + rect.height);
+	});
+
+	// Add padding
+	const padding = 40;
+	const contentWidth = maxX - minX + padding * 2;
+	const contentHeight = maxY - minY + padding * 2;
+
+	// Store original styles
+	const originalTransform = viewportElement.style.transform;
+	const originalWidth = flowElement.style.width;
+	const originalHeight = flowElement.style.height;
+	const originalOverflow = flowElement.style.overflow;
+
+	// Adjust the flow element to fit content
+	flowElement.style.width = `${contentWidth}px`;
+	flowElement.style.height = `${contentHeight}px`;
+	flowElement.style.overflow = 'hidden';
+
+	// Shift viewport to show content from top-left with padding
+	const currentTransform = new DOMMatrix(getComputedStyle(viewportElement).transform);
+	viewportElement.style.transform = `translate(${-minX + padding + currentTransform.e}px, ${-minY + padding + currentTransform.f}px) scale(${currentTransform.a})`;
 
 	flowElement.classList.add('hide-for-export');
 
@@ -27,24 +75,23 @@ export async function exportToPNG() {
 	watermark.className = 'export-watermark';
 	watermark.textContent = 'created with netvisor.io';
 	watermark.style.cssText = `
-    position: absolute;
-    bottom: 16px;
-    right: 16px;
-    font-size: 16px;
-    color: #9ca3af;
-    font-weight: 500;
-    z-index: 1000;
-    pointer-events: none;
-  `;
+		position: absolute;
+		bottom: 16px;
+		right: 16px;
+		font-size: 14px;
+		color: #9ca3af;
+		font-weight: 500;
+		z-index: 1000;
+		pointer-events: none;
+	`;
 	flowElement.appendChild(watermark);
 
 	try {
-		const dataUrl = await toPng(flowElement as HTMLElement, {
+		const dataUrl = await toPng(flowElement, {
 			backgroundColor: '#1f2937',
 			pixelRatio: 2
 		});
 
-		// Download
 		const link = document.createElement('a');
 		link.download = `netvisor-topology-${new Date().toISOString().split('T')[0]}.png`;
 		link.href = dataUrl;
@@ -52,6 +99,11 @@ export async function exportToPNG() {
 	} catch (err) {
 		pushError(`Failed to export topology: ${err}`);
 	} finally {
+		// Restore original styles
+		viewportElement.style.transform = originalTransform;
+		flowElement.style.width = originalWidth;
+		flowElement.style.height = originalHeight;
+		flowElement.style.overflow = originalOverflow;
 		flowElement.classList.remove('hide-for-export');
 		watermark.remove();
 	}
