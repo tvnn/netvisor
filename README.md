@@ -13,7 +13,7 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 ### 0. Install Requirements
 
 #### Daemon
-- Rust 1.90+
+- Linux or mac host to run on
 - Must run directly on host (not containerized) for network access
 
 #### Server (Docker - Recommended)
@@ -21,11 +21,8 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 - Docker Compose
 
 #### Server (Building from source)
-- Rust 1.85 or later
+- Rust 1.90 or later
 - Node.js 20 or later
-
-####
-- Linux or mac 
 
 ### 1. Start the Server
 `curl -O https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/docker-compose.yml && docker compose up -d`
