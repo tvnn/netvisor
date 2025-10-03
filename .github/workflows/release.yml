@@ -34,6 +34,16 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+
+      - name: Debug OpenSSL dependency chain
+        if: matrix.use_cross
+        run: |
+          echo "=== Checking which dependency requires OpenSSL ==="
+          cargo tree --target ${{ matrix.target }} -i openssl-sys 2>&1 || echo "openssl-sys not found in initial check"
+          echo ""
+          echo "=== Full dependency tree (filtering for openssl) ==="
+          cargo tree --target ${{ matrix.target }} | grep -i openssl || echo "No openssl references found"
+        working-directory: ./server
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
