@@ -33,10 +33,6 @@ struct Cli {
     /// Override web external path
     #[arg(long)]
     web_external_path: Option<String>,
-
-    /// Daemon bind address
-    #[arg(long)]
-    bind_address: Option<String>,  // ADD THIS
 }
 
 impl From<Cli> for CliArgs {

@@ -51,7 +51,7 @@ struct Cli {
 
     /// Daemon bind address
     #[arg(long)]
-    bind_address: Option<String>,  // ADD THIS
+    bind_address: Option<String>,
 }
 
 impl From<Cli> for CliArgs {
