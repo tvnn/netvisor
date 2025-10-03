@@ -48,6 +48,10 @@ struct Cli {
     /// Heartbeat interval in seconds
     #[arg(long)]
     heartbeat_interval: Option<u64>,
+
+    /// Daemon bind address
+    #[arg(long)]
+    bind_address: Option<String>,  // ADD THIS
 }
 
 impl From<Cli> for CliArgs {
@@ -57,6 +61,7 @@ impl From<Cli> for CliArgs {
             server_port: cli.server_port,
             port: cli.port,
             name: cli.name,
+            bind_address: cli.bind_address,
             log_level: cli.log_level,
             heartbeat_interval: cli.heartbeat_interval,
         }
@@ -82,6 +87,8 @@ async fn main() -> anyhow::Result<()> {
     let config_store = Arc::new(ConfigStore::new(path.clone(), config.clone()));
     let utils = PlatformDaemonUtils::new();
 
+    let config_host_id = config_store.get_host_id().await?;
+    let daemon_id = config_store.get_id().await?;
     let own_addr = format!(
         "{}:{}",
         utils.get_own_ip_address()?,
@@ -89,7 +96,7 @@ async fn main() -> anyhow::Result<()> {
     );
     let server_addr = &config_store.get_server_endpoint().await?;
 
-    let state = DaemonAppState::new(config_store.clone(), utils).await?;
+    let state = DaemonAppState::new(config_store, utils).await?;
     let runtime_service = state.services.runtime_service.clone();
     let discovery_service = state.services.discovery_service.clone();
 
@@ -101,8 +108,6 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("🔗 Server at {}", server_addr);
 
-    let daemon_id = config_store.get_id().await?;
-
     // Get or register daemon ID
     if let Some(existing_id) = runtime_service.config_store.get_host_id().await? {
         tracing::info!("📋 Existing host ID, already registered: {}", existing_id);
@@ -111,7 +116,7 @@ async fn main() -> anyhow::Result<()> {
         // Create self as host, register with server, and save daemon ID
         discovery_service.run_self_report_discovery().await?;
 
-        if let Some(host_id) = config_store.get_host_id().await? {
+        if let Some(host_id) = config_host_id {
             runtime_service
                 .register_with_server(host_id, daemon_id)
                 .await?;
@@ -143,9 +148,11 @@ async fn main() -> anyhow::Result<()> {
             ),
     );
 
-    let listener = tokio::net::TcpListener::bind(&format!("0.0.0.0:{}", config.port)).await?;
+    let bind_addr = format!("{}:{}", config.bind_address, config.port);
+    let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
 
     tracing::info!("🔍 Discovery endpoint: http://{}/discover", own_addr);
+    tracing::info!("🌐 Listening on: {}", bind_addr);
     tracing::info!("📁 Config file: {:?}", path_str);
 
     axum::serve(listener, app).await?;

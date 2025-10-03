@@ -17,6 +17,7 @@ pub struct CliArgs {
     pub server_port: Option<u16>,
     pub port: Option<u16>,
     pub name: Option<String>,
+    pub bind_address: Option<String>,
     pub log_level: Option<String>,
     pub heartbeat_interval: Option<u64>,
 }
@@ -31,6 +32,7 @@ pub struct AppConfig {
     // Daemon settings (CLI/startup config)
     pub port: u16,
     pub name: String,
+    pub bind_address: String,
     pub log_level: String,
     pub heartbeat_interval: u64,
 
@@ -48,6 +50,7 @@ impl Default for AppConfig {
             server_target: None,
             server_port: 60072,
             port: 60073,
+            bind_address: "0.0.0.0".to_string(),
             name: "netvisor-daemon".to_string(),
             log_level: "info".to_string(),
             heartbeat_interval: 30,
@@ -98,6 +101,9 @@ impl AppConfig {
         }
         if let Some(heartbeat_interval) = cli_args.heartbeat_interval {
             figment = figment.merge(("heartbeat_interval", heartbeat_interval));
+        }
+        if let Some(bind_address) = cli_args.bind_address {
+            figment = figment.merge(("bind_address", bind_address));
         }
 
         let config: AppConfig = figment
