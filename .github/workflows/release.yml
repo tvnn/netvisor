@@ -34,6 +34,11 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Debug OpenSSL dependency chain
         if: matrix.use_cross
@@ -43,12 +48,7 @@ jobs:
           echo ""
           echo "=== Full dependency tree (filtering for openssl) ==="
           cargo tree --target ${{ matrix.target }} | grep -i openssl || echo "No openssl references found"
-        working-directory: ./server
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
+        working-directory: ./backend
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
