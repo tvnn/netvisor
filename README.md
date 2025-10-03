@@ -10,16 +10,16 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 
 ## Table of Contents
 
-- [Quick Start](#quick-start)
-- [Network Discovery](#network-discovery)
-- [Network Organization](#network-organization)
-- [Topology Visualization](#topology-visualization)
+- [0. Installation](#installation)
+- [1. Discover hosts on the network](#network-discovery)
+- [2. Organize hosts](#network-organization)
+- [3. Generate a visualization](#topology-visualization)
 - [Uninstall Daemon](#uninstall-daemon)
 - [FAQ](#faq)
   - [Are VLANs supported?](#are-vlans-supported)
   - [Is IPv6 supported?](#is-ipv6-supported)
 
-## Quick Start
+## Installation
 
 ### 0. Install Requirements
 
@@ -82,7 +82,7 @@ netvisor-daemon --server-target YOUR_SERVER_IP --server-port 60072
 
 If you used the Docker command above, the daemon is already connected and running.
 
-## Network Discovery
+## Discover hosts on the network
 
 Once you connect a daemon to the server, a host will be created with a discovery button. Click to start discovery.
 
@@ -99,6 +99,8 @@ Discovery creates hosts with their interfaces, services, and subnet relationship
 
 Discovery can take 5-10+ minutes depending on how many subnets the daemon's host is connected and the network mask for those subnets, as it needs to scan every IP address on the subnet.
 
+## Organize hosts
+
 ### Consolidating Hosts
 
 The discovery process does its best to merge duplicate hosts, but this isn't always possible. You can consolidate hosts that actually represent multiple interfaces or services on the same host using the Consolidate feature. This migrates all ports, interfaces, and services to a single host record.
@@ -107,7 +109,6 @@ The discovery process does its best to merge duplicate hosts, but this isn't alw
   <img src="./media/consolidate_host.png" width="400" alt="Consolidate Host">
 </p>
 
-## Network Organization
 
 ### Subnets
 
@@ -129,7 +130,7 @@ Groups let you visualize logical connections between services, such as a web app
 
 **Organizational Subnets**: Subnets with 0.0.0.0/0 CIDR can be used to organize external resources (like internet services or remote hosts) that aren't on your local network but you want to include in your topology.
 
-## Topology Visualization
+## Generate a visualization
 
 The topology auto-generates from your hosts, subnets, and service groups, creating living documentation that updates as your network changes.
 
