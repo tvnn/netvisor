@@ -11,9 +11,11 @@ services:
     ports:
       - "60072:60072"
     environment:
-      - RUST_LOG=info
-      - NETVISOR_DATABASE_PATH=/data/netvisor.db
-      - NETVISOR_WEB_EXTERNAL_PATH=/app/static
+      # Server configuration
+      - NETVISOR_PORT=${NETVISOR_PORT:-60072}
+      - NETVISOR_LOG_LEVEL=${NETVISOR_LOG_LEVEL:-info}
+      - NETVISOR_DATABASE_PATH=${NETVISOR_DATABASE_PATH:-/data/netvisor.db}
+      - NETVISOR_WEB_EXTERNAL_PATH=${NETVISOR_WEB_EXTERNAL_PATH:-/app/static}
     volumes:
       - ./data:/data
       - ui-build:/app/static:ro

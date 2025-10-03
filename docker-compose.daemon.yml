@@ -20,9 +20,6 @@ services:
       - NETVISOR_NAME=${NETVISOR_NAME:-netvisor-daemon}
       - NETVISOR_LOG_LEVEL=${NETVISOR_LOG_LEVEL:-info}
       - NETVISOR_HEARTBEAT_INTERVAL=${NETVISOR_HEARTBEAT_INTERVAL:-30}
-      
-      # Rust logging
-      - RUST_LOG=${RUST_LOG:-info}
     volumes:
       # Persist daemon configuration and ID
       - daemon-config:/root/.config/netvisor/daemon
