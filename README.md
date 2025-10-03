@@ -118,6 +118,10 @@ Subnets organize your network into logical segments of hosts. Subnets are automa
   <img src="./media/subnet.png" width="400" alt="Subnet">
 </p>
 
+**Infrastructure Services**: The discovery process identifies hosts providing infrastructure services (DNS, gateway, reverse proxy) on a subnet and flags them. You can edit this in the subnet if needed.
+
+**Organizational Subnets**: Subnets with 0.0.0.0/0 CIDR can be used to organize external resources (like internet services or remote hosts) that aren't on your local network but you want to include in your topology.
+
 ### Groups
 
 Groups let you visualize logical connections between services, such as a web app talking to its database, or representing network paths between different parts of your infrastructure. You'll need to create groups manually.
@@ -125,10 +129,6 @@ Groups let you visualize logical connections between services, such as a web app
 <p align="center">
   <img src="./media/group.png" width="400" alt="Group">
 </p>
-
-**Infrastructure Services**: During discovery, hosts providing infrastructure services (DNS, gateway, reverse proxy) services are flagged for visualization purposes.
-
-**Organizational Subnets**: Subnets with 0.0.0.0/0 CIDR can be used to organize external resources (like internet services or remote hosts) that aren't on your local network but you want to include in your topology.
 
 ## Generate a visualization
 
