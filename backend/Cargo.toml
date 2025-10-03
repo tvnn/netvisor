@@ -128,3 +128,5 @@ windows = { version = "0.52", features = [
     "Win32_NetworkManagement_IpHelper",
     "Win32_Foundation"
 ]}
+
+openssl = { version = "0.10.73", features = ["vendored"] }
