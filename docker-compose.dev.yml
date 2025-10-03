@@ -13,7 +13,7 @@ services:
 
   server:
     build: 
-      context: ./server
+      context: ./backend
       dockerfile: Dockerfile.dev
     ports:
       - "60072:60072"

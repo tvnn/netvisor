@@ -1,4 +1,3 @@
-// src/server/shared/services.rs
 use crate::server::{
     daemons::service::DaemonService, groups::service::GroupService, hosts::service::HostService,
     services::service::ServiceService, shared::types::storage::StorageFactory,

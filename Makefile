@@ -16,11 +16,11 @@ help:
 	@echo "  make install-dev    - Install local development dependencies"
 
 dev:
-	cd server && cargo run --bin server
+	cd backend && cargo run --bin server
 	cd ui && npm run dev
 
 dev-daemon:
-	cd server && cargo run --bin daemon -- --server-target 127.0.0.1 --server-port 60072
+	cd backend && cargo run --bin daemon -- --server-target 127.0.0.1 --server-port 60072
 
 dev-container:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
@@ -30,7 +30,7 @@ build:
 
 build-daemon:
 	@echo "Building daemon Docker image..."
-	docker build -f server/Dockerfile.daemon -t mayanayza/netvisor-daemon:latest server/
+	docker build -f backend/Dockerfile.daemon -t mayanayza/netvisor-daemon:latest server/
 	@echo "✓ Daemon image built: mayanayza/netvisor-daemon:latest"
 
 build-all: build build-daemon
@@ -38,28 +38,28 @@ build-all: build build-daemon
 
 test:
 	@echo "Testing Server..."
-	cd server && cargo test --bin server
+	cd backend && cargo test --bin server
 	@echo "Testing Daemon..."
-	cd server && cargo test --bin daemon
+	cd backend && cargo test --bin daemon
 
 format:
 	@echo "Formatting Server..."
-	cd server && cargo fmt
+	cd backend && cargo fmt
 	@echo "Formatting UI..."
 	cd ui && npm run format
 	@echo "All code formatted!"
 
 lint:
 	@echo "Linting Server..."
-	cd server && cargo fmt -- --check && cargo clippy --bin server -- -D warnings
+	cd backend && cargo fmt -- --check && cargo clippy --bin server -- -D warnings
 	@echo "Linting Daemon..."
-	cd server && cargo clippy --bin daemon -- -D warnings
+	cd backend && cargo clippy --bin daemon -- -D warnings
 	@echo "Linting UI..."
 	cd ui && npm run lint && npm run format -- --check && npm run check
 
 clean:
 	docker compose down -v
-	cd server && cargo clean
+	cd backend && cargo clean
 	cd ui && rm -rf node_modules dist build .svelte-kit
 
 install-dev:

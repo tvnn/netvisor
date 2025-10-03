@@ -4,16 +4,22 @@ on:
   push:
     branches: [main]
     paths:
-      - 'server/**'
+      - 'backend/src/server.rs'
+      - 'backend/src/server/**'
+      - 'backend/src/*.rs'
+      - 'backend/*'
       - '.github/workflows/server-ci.yml'
   pull_request:
     paths:
-      - 'server/**'
+      - 'backend/src/server.rs'
+      - 'backend/src/server/**'
+      - 'backend/src/*.rs'
+      - 'backend/*'
       - '.github/workflows/server-ci.yml'
 
 defaults:
   run:
-    working-directory: ./server
+    working-directory: ./backend
 
 jobs:
   test:
@@ -30,7 +36,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: server
+          workspaces: backend
       
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libssl-dev pkg-config

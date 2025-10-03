@@ -8,13 +8,24 @@ NetVisor scans your network, identifies hosts and services, and generates an int
   <img src="./media/example_visualization.png" width="1200" alt="Example Visualization">
 </p>
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Network Discovery](#network-discovery)
+- [Network Organization](#network-organization)
+- [Topology Visualization](#topology-visualization)
+- [Uninstall Daemon](#uninstall-daemon)
+- [FAQ](#faq)
+  - [Are VLANs supported?](#are-vlans-supported)
+  - [Is IPv6 supported?](#is-ipv6-supported)
+
 ## Quick Start
 
 ### 0. Install Requirements
 
 #### Daemon
-- Linux or mac host to run on
-- Must run directly on host (not containerized) for network access
+- **Linux**: Docker with host networking support, OR binary installation
+- **Mac/Windows**: Binary installation only (Docker Desktop does not support host networking)
 
 #### Server (Docker - Recommended)
 - Docker
@@ -25,17 +36,51 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 - Node.js 20 or later
 
 ### 1. Start the Server
-`curl -O https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/docker-compose.yml && docker compose up -d`
 
-The server collects data from the daemon(s) and generates the topology visualization. The server can support multiple daemon instances in case you want to collect data from the perspective of multiple hosts on your network.
+```bash
+curl -O https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/docker-compose.yml && docker compose up -d
+```
+
+The server collects data from the daemon(s) and generates the topology visualization. The server can support multiple daemon instances in case you want to collect data from the perspective of multiple hosts on your network (ie - mapping out vlans).
 
 ### 2. Install the Daemon  
-`curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/install.sh | bash`
 
-The daemon is used to scan the network and should run directly on the host to access host network interfaces - running in a containerized environment will compromise discovery functionality. Running in a VM or other virtualization is fine.
+The daemon scans the network and requires access to host network interfaces. 
+
+**Linux**: Can run in Docker with `--network host` and `--privileged` flags, or as a binary directly on the host.
+
+**Mac/Windows**: Docker Desktop does not support host networking, so the daemon must run as a binary directly on the host (not containerized).
+
+#### Linux (Docker - Recommended)
+
+Make sure to replace YOUR_SERVER_IP
+
+```bash
+curl -O https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/docker-compose.daemon.yml && \
+NETVISOR_SERVER_TARGET=YOUR_SERVER_IP docker compose -f docker-compose.daemon.yml up -d
+```
+
+#### Linux (Binary)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/install.sh | bash
+```
+
+#### Mac / Windows (Binary)
+
+```bash
+curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/install.sh | bash
+```
 
 ### 3. Connect Daemon to Server
-`netvisor-daemon --server-target YOUR_SERVER_IP --server-port 60072`
+
+If you installed the daemon as a binary (not using Docker), run:
+
+```bash
+netvisor-daemon --server-target YOUR_SERVER_IP --server-port 60072
+```
+
+If you used the Docker command above, the daemon is already connected and running.
 
 ## Network Discovery
 
@@ -55,6 +100,7 @@ Discovery creates hosts with their interfaces, services, and subnet relationship
 Discovery can take 5-10+ minutes depending on how many subnets the daemon's host is connected and the network mask for those subnets, as it needs to scan every IP address on the subnet.
 
 ### Consolidating Hosts
+
 The discovery process does its best to merge duplicate hosts, but this isn't always possible. You can consolidate hosts that actually represent multiple interfaces or services on the same host using the Consolidate feature. This migrates all ports, interfaces, and services to a single host record.
 
 <p align="center">
@@ -64,14 +110,15 @@ The discovery process does its best to merge duplicate hosts, but this isn't alw
 ## Network Organization
 
 ### Subnets
+
 Subnets organize your network into logical segments of hosts. Subnets are automatically created during discovery.
 
 <p align="center">
   <img src="./media/subnet.png" width="400" alt="Subnet">
 </p>
 
-
 ### Groups
+
 Groups let you visualize logical connections between services, such as a web app talking to its database, or representing network paths between different parts of your infrastructure. You'll need to create groups manually.
 
 <p align="center">
@@ -83,6 +130,7 @@ Groups let you visualize logical connections between services, such as a web app
 **Organizational Subnets**: Subnets with 0.0.0.0/0 CIDR can be used to organize external resources (like internet services or remote hosts) that aren't on your local network but you want to include in your topology.
 
 ## Topology Visualization
+
 The topology auto-generates from your hosts, subnets, and service groups, creating living documentation that updates as your network changes.
 
 You can customize the visualization:
@@ -92,12 +140,33 @@ You can customize the visualization:
 
 ## Uninstall Daemon
 
-#### Linux
+#### Linux (Docker)
 
+```bash
+docker stop netvisor-daemon
+docker rm netvisor-daemon
+```
+
+#### Linux (Binary)
+
+```bash
 sudo rm /usr/local/bin/netvisor-daemon
 rm -rf ~/.config/netvisor/daemon
+```
 
-#### Mac
+#### Mac (Binary)
 
+```bash
 sudo rm /usr/local/bin/netvisor-daemon
 rm -rf ~/Library/Application\ Support/com.netvisor.daemon
+```
+
+## FAQ
+
+### Are VLANs supported?
+
+Yes, you can collect information from hosts on multiple vlans by using multiple Daemon deployments. Simply install a daemon on a host that interfaces with each vlan you want to include in the visualization. You will probably need to use the [Consolidate](#consolidating-hosts) feature to combine IPs which are detected as distinct hosts.
+
+### Is IPv6 supported?
+
+Not currently. Future plans to support IPv6 will focus on collecting a host's IPv6 address during discovery and/or allowing manual entry of it during editing. Scanning the entire IPv6 space of a discovered subnet will never be supported as it will take too long to do so.
