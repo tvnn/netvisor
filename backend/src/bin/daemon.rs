@@ -87,7 +87,6 @@ async fn main() -> anyhow::Result<()> {
     let config_store = Arc::new(ConfigStore::new(path.clone(), config.clone()));
     let utils = PlatformDaemonUtils::new();
 
-    let config_host_id = config_store.get_host_id().await?;
     let daemon_id = config_store.get_id().await?;
     let own_addr = format!(
         "{}:{}",
@@ -116,14 +115,10 @@ async fn main() -> anyhow::Result<()> {
         // Create self as host, register with server, and save daemon ID
         discovery_service.run_self_report_discovery().await?;
 
-        if let Some(host_id) = config_host_id {
-            runtime_service
-                .register_with_server(host_id, daemon_id)
-                .await?;
-        } else {
-            tracing::error!("Failed to register daemon. Aborting.");
-            panic!()
-        };
+        let host_id = runtime_service.config_store.get_host_id().await?
+            .ok_or_else(|| anyhow::anyhow!("Host ID not set after self-report"))?;
+
+        runtime_service.register_with_server(host_id, daemon_id).await?;
     };
 
     tracing::info!("✅ Daemon ID: {}", daemon_id);

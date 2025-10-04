@@ -32,9 +32,10 @@ pub struct AppConfig {
     // Daemon settings (CLI/startup config)
     pub port: u16,
     pub name: String,
-    pub bind_address: String,
     pub log_level: String,
     pub heartbeat_interval: u64,
+    #[serde(default)]
+    pub bind_address: String,
 
     // Runtime state (persisted)
     pub id: Uuid,
