@@ -171,73 +171,6 @@ The daemon automatically creates and maintains a configuration file at:
 
 The configuration file persists runtime state (daemon ID, host ID, last heartbeat) alongside your configured settings.
 
-#### Example Configurations
-
-**Using CLI arguments:**
-```bash
-netvisor-daemon \
-  --server-target 192.168.1.100 \
-  --server-port 60072 \
-  --port 60073 \
-  --bind-address 192.168.1.50 \
-  --name "Living Room Daemon" \
-  --log-level debug
-```
-
-**Using environment variables:**
-```bash
-export NETVISOR_SERVER_TARGET=192.168.1.100
-export NETVISOR_SERVER_PORT=60072
-export NETVISOR_BIND_ADDRESS=192.168.1.50
-export NETVISOR_LOG_LEVEL=debug
-netvisor-daemon
-```
-
-**Using Docker Compose:**
-```yaml
-services:
-  daemon:
-    image: mayanayza/netvisor-daemon:latest
-    network_mode: host
-    privileged: true
-    environment:
-      - NETVISOR_SERVER_TARGET=192.168.1.100
-      - NETVISOR_SERVER_PORT=60072
-      - NETVISOR_BIND_ADDRESS=192.168.1.50  # Restrict to specific interface
-      - NETVISOR_PORT=60073
-      - NETVISOR_NAME=my-daemon
-      - NETVISOR_LOG_LEVEL=info
-```
-
-**Using config file** (`~/.config/netvisor/daemon/config.json`):
-```json
-{
-  "server_target": "192.168.1.100",
-  "server_port": 60072,
-  "port": 60073,
-  "bind_address": "192.168.1.50",
-  "name": "Living Room Daemon",
-  "log_level": "info",
-  "heartbeat_interval": 30
-}
-```
-
-#### Bind Address Use Case
-
-The `bind_address` parameter is particularly useful when running the daemon in Docker with `--network host` mode. By default, services bind to `0.0.0.0`, which means they listen on all network interfaces. When using host networking, this exposes the daemon on every interface your host has.
-
-For security and organization, you can restrict the daemon to listen only on a specific IP:
-
-```bash
-# Using .env file with docker-compose
-NETVISOR_BIND_ADDRESS=192.168.1.50 docker compose -f docker-compose.daemon.yml up -d
-```
-
-This allows you to:
-- Run multiple services on the same port (on different IPs)
-- Use DNS names instead of port numbers for service discovery
-- Prevent unnecessary exposure on public-facing interfaces
-
 ### Server Configuration
 
 The server supports the following configuration options:
@@ -248,40 +181,6 @@ The server supports the following configuration options:
 | Log Level | `--log-level` | `NETVISOR_LOG_LEVEL` | `info` | Logging verbosity (`trace`, `debug`, `info`, `warn`, `error`) |
 | Database Path | `--database-path` | `NETVISOR_DATABASE_PATH` | `./netvisor.db` | Path to the SQLite database file |
 | Web Assets Path | `--web-external-path` | `NETVISOR_WEB_EXTERNAL_PATH` | `None` | Path to static web UI assets (used in Docker builds) |
-
-#### Example Configurations
-
-**Using CLI arguments:**
-```bash
-netvisor-server \
-  --port 8080 \
-  --log-level debug \
-  --database-path /data/netvisor.db
-```
-
-**Using environment variables:**
-```bash
-export NETVISOR_PORT=8080
-export NETVISOR_LOG_LEVEL=debug
-export NETVISOR_DATABASE_PATH=/data/netvisor.db
-netvisor-server
-```
-
-**Using Docker Compose:**
-```yaml
-services:
-  server:
-    image: mayanayza/netvisor-server:latest
-    ports:
-      - "8080:8080"
-    environment:
-      - NETVISOR_PORT=8080
-      - NETVISOR_LOG_LEVEL=info
-      - NETVISOR_DATABASE_PATH=/data/netvisor.db
-      - NETVISOR_WEB_EXTERNAL_PATH=/app/static
-    volumes:
-      - ./data:/data
-```
 
 ## Uninstall Daemon
 
@@ -316,13 +215,3 @@ Yes, you can collect information from hosts on multiple vlans by using multiple 
 ### Is IPv6 supported?
 
 Not currently. Future plans to support IPv6 will focus on collecting a host's IPv6 address during discovery and/or allowing manual entry of it during editing. Scanning the entire IPv6 space of a discovered subnet will never be supported as it will take too long to do so.
-
-### How do I change the daemon configuration after installation?
-
-You can change daemon configuration in three ways:
-
-1. **Pass new CLI arguments** when starting the daemon
-2. **Set environment variables** before starting the daemon
-3. **Edit the config file** at `~/.config/netvisor/daemon/config.json` (Linux) or equivalent location for your OS
-
-Changes take effect the next time the daemon starts. The daemon must be restarted for configuration changes to apply.
