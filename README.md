@@ -215,13 +215,3 @@ Yes, you can collect information from hosts on multiple vlans by using multiple 
 ### Is IPv6 supported?
 
 Not currently. Future plans to support IPv6 will focus on collecting a host's IPv6 address during discovery and/or allowing manual entry of it during editing. Scanning the entire IPv6 space of a discovered subnet will never be supported as it will take too long to do so.
-
-### How do I change the daemon configuration after installation?
-
-You can change daemon configuration in three ways:
-
-1. **Pass new CLI arguments** when starting the daemon
-2. **Set environment variables** before starting the daemon
-3. **Edit the config file** at `~/.config/netvisor/daemon/config.json` (Linux) or equivalent location for your OS
-
-Changes take effect the next time the daemon starts. The daemon must be restarted for configuration changes to apply.
