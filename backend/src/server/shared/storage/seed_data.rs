@@ -2,15 +2,18 @@ use cidr::Ipv4Cidr;
 use std::net::{IpAddr, Ipv4Addr};
 
 use crate::server::{
-    discovery::types::base::EntitySource, hosts::types::{
+    discovery::types::base::EntitySource,
+    hosts::types::{
         base::{Host, HostBase},
         interfaces::{Interface, InterfaceBase},
         ports::{Port, PortBase},
         targets::{HostTarget, ServiceBinding},
-    }, services::{
+    },
+    services::{
         definitions::{client::Client, dns_server::DnsServer, web_service::WebService},
         types::base::{Service, ServiceBase},
-    }, subnets::types::base::{Subnet, SubnetBase, SubnetType}
+    },
+    subnets::types::base::{Subnet, SubnetBase, SubnetType},
 };
 
 pub fn create_wan_subnet() -> Subnet {
@@ -73,7 +76,7 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
         ports: vec![dynamic_port.clone()],
         services: Vec::new(),
         target: HostTarget::None,
-        source: EntitySource::System
+        source: EntitySource::System,
     };
 
     let mut host = Host::new(base);
@@ -112,7 +115,7 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
         ports: vec![https_port.clone()],
         services: Vec::new(),
         target: HostTarget::Hostname,
-        source: EntitySource::System
+        source: EntitySource::System,
     };
 
     let mut host = Host::new(base);
@@ -152,7 +155,7 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
         interfaces: vec![interface.clone()],
         ports: vec![dns_udp_port.clone()],
         services: Vec::new(),
-        source: EntitySource::System
+        source: EntitySource::System,
     };
 
     let mut host = Host::new(base);

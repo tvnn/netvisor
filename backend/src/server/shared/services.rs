@@ -33,7 +33,7 @@ impl ServiceFactory {
             storage.hosts.clone(),
             subnet_service.clone(),
             service_service.clone(),
-            daemon_service.clone()
+            daemon_service.clone(),
         ));
 
         let _ = subnet_service.set_host_service(host_service.clone());

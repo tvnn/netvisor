@@ -1,21 +1,25 @@
 use crate::server::{
-    daemons::service::DaemonService, discovery::types::base::EntitySourceDiscriminants, hosts::{
+    daemons::service::DaemonService,
+    discovery::types::base::EntitySourceDiscriminants,
+    hosts::{
         storage::HostStorage,
         types::base::{Host, HostBase},
-    }, services::{service::ServiceService, types::base::Service}, subnets::service::SubnetService
+    },
+    services::{service::ServiceService, types::base::Service},
+    subnets::service::SubnetService,
 };
 use anyhow::{anyhow, Error, Result};
 use futures::future::try_join_all;
 use itertools::Itertools;
-use strum::IntoDiscriminant;
 use std::sync::Arc;
+use strum::IntoDiscriminant;
 use uuid::Uuid;
 
 pub struct HostService {
     storage: Arc<dyn HostStorage>,
     subnet_service: Arc<SubnetService>,
     service_service: Arc<ServiceService>,
-    daemon_service: Arc<DaemonService>
+    daemon_service: Arc<DaemonService>,
 }
 
 impl HostService {
@@ -23,13 +27,13 @@ impl HostService {
         storage: Arc<dyn HostStorage>,
         subnet_service: Arc<SubnetService>,
         service_service: Arc<ServiceService>,
-        daemon_service: Arc<DaemonService>
+        daemon_service: Arc<DaemonService>,
     ) -> Self {
         Self {
             storage,
             subnet_service,
             service_service,
-            daemon_service
+            daemon_service,
         }
     }
 
@@ -81,7 +85,9 @@ impl HostService {
         let all_hosts = self.storage.get_all().await?;
 
         let host_from_storage = match all_hosts.into_iter().find(|h| host.eq(h)) {
-            Some(existing_host) if host.base.source.discriminant() == EntitySourceDiscriminants::Discovery => {
+            Some(existing_host)
+                if host.base.source.discriminant() == EntitySourceDiscriminants::Discovery =>
+            {
                 tracing::warn!(
                     "Duplicate host for {}: {} found, {}: {} - upserting discovery data...",
                     host.base.name,
@@ -211,8 +217,13 @@ impl HostService {
             return Err(anyhow!("Can't consolidate a host with itself"));
         }
 
-        if self.daemon_service.get_host_daemon(&other_host.id).await?.is_some() {
-            return Err(anyhow!("Can't consolidate a host that has a daemon. Consolidate the other host into the daemon host."))
+        if self
+            .daemon_service
+            .get_host_daemon(&other_host.id)
+            .await?
+            .is_some()
+        {
+            return Err(anyhow!("Can't consolidate a host that has a daemon. Consolidate the other host into the daemon host."));
         }
 
         let other_host_services = self
@@ -334,8 +345,8 @@ impl HostService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Host {} not found", id))?;
 
-        if self.daemon_service.get_host_daemon(&id).await?.is_some() {
-            return Err(anyhow!("Can't delete a host that has a daemon."))
+        if self.daemon_service.get_host_daemon(id).await?.is_some() {
+            return Err(anyhow!("Can't delete a host that has a daemon."));
         }
 
         if delete_services {

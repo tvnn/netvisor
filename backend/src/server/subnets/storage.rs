@@ -1,5 +1,7 @@
 use crate::server::{
-    discovery::types::base::EntitySource, hosts::types::targets::ServiceBinding, subnets::types::base::{Subnet, SubnetBase, SubnetType}
+    discovery::types::base::EntitySource,
+    hosts::types::targets::ServiceBinding,
+    subnets::types::base::{Subnet, SubnetBase, SubnetType},
 };
 use anyhow::{Error, Result};
 use async_trait::async_trait;

@@ -1,9 +1,12 @@
-use crate::server::{discovery::types::base::EntitySource, hosts::types::{
-    base::{Host, HostBase},
-    interfaces::Interface,
-    ports::Port,
-    targets::HostTarget,
-}};
+use crate::server::{
+    discovery::types::base::EntitySource,
+    hosts::types::{
+        base::{Host, HostBase},
+        interfaces::Interface,
+        ports::Port,
+        targets::HostTarget,
+    },
+};
 use anyhow::{Error, Result};
 use async_trait::async_trait;
 use sqlx::{Row, SqlitePool};
@@ -160,7 +163,7 @@ fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host, Error> {
             services,
             ports,
             interfaces,
-            source
+            source,
         },
     })
 }

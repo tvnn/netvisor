@@ -34,7 +34,7 @@ pub struct HostBase {
     pub interfaces: Vec<Interface>,
     pub services: Vec<Uuid>,
     pub ports: Vec<Port>,
-    pub source: EntitySource
+    pub source: EntitySource,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]

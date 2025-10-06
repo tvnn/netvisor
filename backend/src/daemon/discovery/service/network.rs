@@ -396,7 +396,7 @@ impl DaemonDiscoveryService {
             interfaces,
             services: Vec::new(),
             ports: Vec::new(),
-            source: EntitySource::Discovery(daemon_id)
+            source: EntitySource::Discovery(daemon_id),
         });
 
         let mut services = Vec::new();
