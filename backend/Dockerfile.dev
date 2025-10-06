@@ -10,28 +10,23 @@ COPY --from=planner /app/recipe.json recipe.json
 # Build dependencies only (not the final binary)
 RUN cargo chef cook --recipe-path recipe.json
 
-# Install cargo-watch for hot reload
-RUN cargo install cargo-watch
-
-FROM debian:bookworm-slim AS runtime
+FROM rust:1.90-bookworm AS runtime
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
-    build-essential \
-    pkg-config \
-    libssl-dev \
+    iproute2 \
+    iputils-ping \
+    net-tools \
+    procps \
+    tcpdump \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy cargo binaries including cargo-watch
-COPY --from=builder /usr/local/cargo /usr/local/cargo
-ENV PATH="/usr/local/cargo/bin:${PATH}"
+# Install cargo-watch in the runtime stage
+RUN cargo install cargo-watch
 
 WORKDIR /app
 
-EXPOSE 60072
+EXPOSE 60072 60073
 
-HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
-    CMD curl -f http://localhost:60072/api/health || exit 1
-
-# Use cargo-watch to rebuild on file changes
+# Default to server, but can be overridden
 CMD ["sh", "-c", "mkdir -p /data && touch /data/netvisor.db && cargo watch -x 'run --bin server'"]

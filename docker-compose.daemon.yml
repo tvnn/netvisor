@@ -1,7 +1,4 @@
 # This is meant to be used on Linux hosts where --network host actually works
-
-version: '3.8'
-
 services:
   daemon:
     image: mayanayza/netvisor-daemon:latest
@@ -23,11 +20,6 @@ services:
     volumes:
       # Persist daemon configuration and ID
       - daemon-config:/root/.config/netvisor/daemon
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:60073/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
 volumes:
   daemon-config:

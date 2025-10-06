@@ -5,6 +5,7 @@ use anyhow::Error;
 use anyhow::Result;
 use async_trait::async_trait;
 use sqlx::{Row, SqlitePool};
+use tracing::info;
 use uuid::Uuid;
 
 #[async_trait]
@@ -66,7 +67,11 @@ impl DaemonStorage for SqliteDaemonStorage {
     async fn get_all(&self) -> Result<Vec<Daemon>> {
         let rows = sqlx::query("SELECT * FROM daemons")
             .fetch_all(&self.pool)
-            .await?;
+            .await
+            .map_err(|e| {
+                info!("SQLx error in get_all: {:?}", e);
+                e
+            })?;
 
         let mut daemons = Vec::new();
         for row in rows {

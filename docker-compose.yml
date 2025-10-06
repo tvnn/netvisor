@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   ui:
     image: mayanayza/netvisor-ui:latest
@@ -22,11 +20,6 @@ services:
     depends_on:
       - ui
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:60072/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
   ui-build:

@@ -1,21 +1,21 @@
-.PHONY: help dev build test clean install-dev dev-container format dev-daemon build-daemon
+.PHONY: help build test clean install-dev dev-server dev-daemon dev-container dev-container-rebuild dev-container-rebuild-clean format
 
 help:
 	@echo "NetVisor Development Commands"
 	@echo ""
-	@echo "  make dev            - Start development environment (server + ui)"
-	@echo "  make dev-container  - Start containerized development environment using docker-compose.dev.yml (server + ui)"
+	@echo "  make dev-server     - Start development environment (server + ui)"
 	@echo "  make dev-daemon     - Start daemon"
-	@echo "  make build          - Build production Docker images (server + ui)"
-	@echo "  make build-daemon   - Build daemon Docker image"
-	@echo "  make build-all      - Build all Docker images (server + ui + daemon)"
+	@echo "  make dev-container  - Start containerized development environment using docker-compose.dev.yml (server + ui + daemon)"
+	@echo "  make dev-container-rebuild  - Rebuild and start containerized dev environment"
+	@echo "  make dev-container-rebuild-clean  - Rebuild, clean, and start containerized dev environment"
+	@echo "  make build          - Build production Docker images (server + ui + daemon)"
 	@echo "  make test           - Run all tests"
 	@echo "  make lint           - Run all linters"
 	@echo "  make format         - Format all code"
 	@echo "  make clean          - Clean build artifacts and containers"
 	@echo "  make install-dev    - Install local development dependencies"
 
-dev:
+dev-server:
 	cd backend && cargo run --bin server
 	cd ui && npm run dev
 
@@ -25,22 +25,23 @@ dev-daemon:
 dev-container:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
-build:
-	docker compose build
+dev-container-rebuild:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build --force-recreate
 
-build-daemon:
+dev-container-rebuild-clean:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+build:
+	@echo "Building server Docker image..."
+	docker compose build
 	@echo "Building daemon Docker image..."
 	docker build -f backend/Dockerfile.daemon -t mayanayza/netvisor-daemon:latest server/
 	@echo "✓ Daemon image built: mayanayza/netvisor-daemon:latest"
 
-build-all: build build-daemon
-	@echo "✓ All images built"
-
 test:
-	@echo "Testing Server..."
-	cd backend && cargo test --bin server
-	@echo "Testing Daemon..."
-	cd backend && cargo test --bin daemon
+	rm -rf ./data/*
+	cd backend && cargo test
 
 format:
 	@echo "Formatting Server..."

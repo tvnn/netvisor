@@ -16,6 +16,7 @@ use axum::{
     Router,
 };
 use std::sync::Arc;
+use tracing::info;
 use uuid::Uuid;
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -81,11 +82,12 @@ async fn get_all_daemons(
 ) -> ApiResult<Json<ApiResponse<Vec<Daemon>>>> {
     let service = &state.services.daemon_service;
 
-    let daemons = service
-        .get_all_daemons()
-        .await
-        .map_err(|e| ApiError::internal_error(&format!("Failed to get daemons: {}", e)))?;
+    let daemons = service.get_all_daemons().await.map_err(|e| {
+        info!("Error getting daemons: {}", e);
+        ApiError::internal_error(&format!("Failed to get daemons: {}", e))
+    })?;
 
+    info!("Successfully retrieved {} daemons", daemons.len());
     Ok(Json(ApiResponse::success(daemons)))
 }
 
@@ -102,6 +104,10 @@ async fn get_daemon(
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemon: {}", e)))?
         .ok_or_else(|| ApiError::not_found(&format!("Daemon '{}' not found", &id)))?;
 
+    info!(
+        "Successfully retrieved daemon {}: {}",
+        &daemon.base.ip, &daemon.id
+    );
     Ok(Json(ApiResponse::success(DaemonResponse { daemon })))
 }
 
