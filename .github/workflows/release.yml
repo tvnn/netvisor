@@ -43,6 +43,34 @@ jobs:
             exit 1
           fi
       
+      - name: Wait for daemon to initialize
+        run: |
+          echo "Waiting for daemon to create config file..."
+          
+          # Check if daemon container is running
+          echo "Daemon container status:"
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml ps daemon
+          
+          # Show daemon logs
+          echo "Daemon logs:"
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml logs daemon
+          
+          max_attempts=30
+          attempt=0
+          until [ -f "./data/daemon-config/config.json" ] || [ $attempt -eq $max_attempts ]; do
+            echo "Waiting for config.json... (attempt $((attempt+1))/$max_attempts)"
+            ls -la ./data/daemon-config/
+            sleep 5
+            attempt=$((attempt+1))
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Daemon config file was not created after $max_attempts attempts"
+            echo "Final daemon logs:"
+            docker compose -f docker-compose.yml -f docker-compose.dev.yml logs daemon
+            exit 1
+          fi
+          echo "✓ Daemon config file created"
+      
       - name: Extract fixtures from data directory
         run: |
           # Create tests directory if it doesn't exist
