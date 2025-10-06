@@ -250,3 +250,46 @@ impl ConfigStore {
         config.clone()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use crate::{daemon::shared::storage::AppConfig, tests::DAEMON_CONFIG_FIXTURE};
+
+    #[test]
+    fn test_daemon_config_backward_compatibility() {
+        // Try to load config from fixture (from latest release)
+        let config_path = Path::new(DAEMON_CONFIG_FIXTURE);
+
+        if config_path.exists() {
+            println!("Testing backward compatibility with fixture from latest release");
+            let config_json =
+                std::fs::read_to_string(config_path).expect("Failed to read daemon config fixture");
+
+            let loaded: Result<AppConfig, _> = serde_json::from_str(&config_json);
+
+            assert!(
+                loaded.is_ok(),
+                "Failed to load daemon config from latest release: {:?}",
+                loaded.err()
+            );
+
+            let config = loaded.unwrap();
+
+            // Verify required fields exist
+            assert!(!config.name.is_empty(), "Config name is empty");
+            assert!(config.port > 0, "Config port is invalid");
+
+            println!("✅ Successfully loaded daemon config from latest release");
+        } else {
+            println!(
+                "⚠️  No daemon config fixture found at {}",
+                DAEMON_CONFIG_FIXTURE
+            );
+            println!("   Run release workflow to generate fixtures");
+
+            assert!(false, "Failed to load config fixture");
+        }
+    }
+}

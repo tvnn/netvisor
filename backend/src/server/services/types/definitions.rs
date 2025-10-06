@@ -13,10 +13,10 @@ use std::hash::Hash;
 
 // Main trait used in service definition implementation
 pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
-    /// Service name, will also be used as unique identifier. < 15 characters.
+    /// Service name, will also be used as unique identifier. < 25 characters.
     fn name(&self) -> &'static str;
 
-    /// Service description. < 60 characters.
+    /// Service description. < 100 characters.
     fn description(&self) -> &'static str;
 
     /// Category from ServiceCategory enum
@@ -227,5 +227,133 @@ impl ServiceDefinition for DefaultServiceDefinition {
     }
     fn discovery_pattern(&self) -> Pattern {
         Pattern::None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::server::services::{
+        definitions::ServiceDefinitionRegistry,
+        types::{definitions::ServiceDefinition, patterns::Pattern},
+    };
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_all_service_definitions_register() {
+        // Get all registered services using inventory
+        let registry = ServiceDefinitionRegistry::all_service_definitions();
+
+        // Verify at least some services are registered
+        assert!(
+            !registry.is_empty(),
+            "No service definitions registered! Check inventory setup."
+        );
+
+        // Verify no duplicate names
+        let names: HashSet<_> = registry.iter().map(|s| s.name()).collect();
+        assert_eq!(
+            names.len(),
+            registry.len(),
+            "Duplicate service definition names found!"
+        );
+
+        // Print registered services for debugging
+        println!("Registered {} services:", registry.len());
+        for service in &registry {
+            println!("  - {}", service.name());
+        }
+    }
+
+    #[test]
+    fn test_service_definition_has_required_fields() {
+        let registry = ServiceDefinitionRegistry::all_service_definitions();
+
+        for service in registry {
+            // Every service must have non-empty name
+            assert!(!service.name().is_empty(), "Service has empty name");
+
+            // Name should be reasonable length (< 25 chars)
+            assert!(
+                service.name().len() < 25,
+                "Service name '{}' is too long; must be < 25 characters",
+                service.name()
+            );
+
+            // Every service must have description
+            assert!(
+                !service.description().is_empty(),
+                "Service '{}' has empty description",
+                service.name()
+            );
+
+            // Description should be reasonable length
+            assert!(
+                service.description().len() < 100,
+                "Service '{}' description is too long; must be < 100 characters",
+                service.name()
+            );
+
+            // Every service must have a category
+            let category = service.category();
+            // Just verify it doesn't panic
+            let _ = format!("{:?}", category);
+
+            // Discovery pattern must exist
+            let pattern = service.discovery_pattern();
+
+            // Verify pattern is one of the valid types
+            match pattern {
+                Pattern::Port(_)
+                | Pattern::AnyPort(_)
+                | Pattern::Endpoint(_)
+                | Pattern::AnyOf(_)
+                | Pattern::AllOf(_)
+                | Pattern::AllPort { .. }
+                | Pattern::IsGatewayIp
+                | Pattern::WebService(..)
+                | Pattern::None
+                | Pattern::MacVendor(..)
+                | Pattern::NotGatewayIp
+                | Pattern::SubnetIsType(_)
+                | Pattern::SubnetIsNotType(_)
+                | Pattern::IsVpnSubnetGateway
+                | Pattern::IsDockerHost
+                | Pattern::HasAnyMatchedService
+                | Pattern::AnyMatchedService(_)
+                | Pattern::AllMatchedService(_) => {
+                    // Valid pattern
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_service_definition_serialization() {
+        let registry = ServiceDefinitionRegistry::all_service_definitions();
+
+        // Test that we can serialize and deserialize service definitions
+        for service in registry.iter().take(5) {
+            // Test first 5 to save time
+            // Serialize to JSON
+            let json = serde_json::to_string(&service)
+                .expect(&format!("Failed to serialize {}", service.name()));
+
+            // Deserialize back
+            let deserialized: Box<dyn ServiceDefinition> = serde_json::from_str(&json)
+                .expect(&format!("Failed to deserialize {}", service.name()));
+
+            // Verify key fields match
+            assert_eq!(
+                service.name(),
+                deserialized.name(),
+                "Name mismatch after serialization"
+            );
+            assert_eq!(
+                service.description(),
+                deserialized.description(),
+                "Description mismatch after serialization"
+            );
+        }
     }
 }

@@ -422,11 +422,11 @@ impl DaemonDiscoveryService {
             if let (Some(service), mut matched_ports) =
                 Service::from_discovery(ServiceFromDiscoveryParams {
                     service_definition,
-                    ip: host_ip,
+                    ip: &host_ip,
                     open_ports: &unclaimed_ports,
                     endpoint_responses: &endpoint_responses,
                     subnet: &subnet,
-                    mac_address: mac,
+                    mac_address: &mac,
                     host_id: &host.id,
                     interface_bindings: &interface_bindings,
                     matched_service_definitions: &matched_service_definitions,

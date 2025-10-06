@@ -115,10 +115,15 @@ async fn main() -> anyhow::Result<()> {
         // Create self as host, register with server, and save daemon ID
         discovery_service.run_self_report_discovery().await?;
 
-        let host_id = runtime_service.config_store.get_host_id().await?
+        let host_id = runtime_service
+            .config_store
+            .get_host_id()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Host ID not set after self-report"))?;
 
-        runtime_service.register_with_server(host_id, daemon_id).await?;
+        runtime_service
+            .register_with_server(host_id, daemon_id)
+            .await?;
     };
 
     tracing::info!("✅ Daemon ID: {}", daemon_id);

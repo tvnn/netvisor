@@ -47,11 +47,11 @@ pub struct Service {
 
 pub struct ServiceFromDiscoveryParams<'a> {
     pub service_definition: Box<dyn ServiceDefinition>,
-    pub ip: IpAddr,
+    pub ip: &'a IpAddr,
     pub open_ports: &'a [PortBase],
     pub endpoint_responses: &'a [EndpointResponse],
     pub subnet: &'a Subnet,
-    pub mac_address: Option<MacAddress>,
+    pub mac_address: &'a Option<MacAddress>,
     pub host_id: &'a Uuid,
     pub interface_bindings: &'a [Uuid],
     pub matched_service_definitions: &'a Vec<Box<dyn ServiceDefinition>>,
@@ -128,8 +128,8 @@ impl Service {
         } = params;
 
         if let Ok(result) = service_definition.discovery_pattern().matches(
-            open_ports.to_owned(),
-            endpoint_responses.to_owned(),
+            open_ports,
+            endpoint_responses,
             ip,
             subnet,
             mac_address,

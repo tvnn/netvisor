@@ -39,9 +39,42 @@ impl HostService {
         self.storage.get_all().await
     }
 
+    pub async fn create_host_with_services(
+        &self,
+        host: Host,
+        services: Vec<Service>,
+    ) -> Result<(Host, Vec<Service>)> {
+        // Create host first (handles duplicates via upsert_host)
+        let mut created_host = self.create_host(&host.base).await?;
+
+        // Create services, handling case where created_host was upserted instead of created anew, which means that host ID + interfaces/port IDs
+        // are different from what's mapped to the service and they need to be updated
+        let service_futures = services.into_iter().map(|mut service| {
+            service = self.service_service.transfer_service_to_new_host(
+                &mut service,
+                &host,
+                &created_host,
+            );
+            self.service_service.create_service(service)
+        });
+
+        let services = try_join_all(service_futures).await?;
+
+        // Add all successfully created/found services to the host
+        for service in &services {
+            if !created_host.base.services.contains(&service.id) {
+                created_host.base.services.push(service.id);
+            }
+        }
+
+        let host_with_final_services = self.update_host(created_host).await?;
+
+        Ok((host_with_final_services, services))
+    }
+
     /// Create a new host
-    pub async fn create_host(&self, host_base: HostBase) -> Result<Host> {
-        let host = Host::new(host_base);
+    async fn create_host(&self, host_base: &HostBase) -> Result<Host> {
+        let host = Host::new(host_base.clone());
 
         let all_hosts = self.storage.get_all().await?;
 
@@ -77,7 +110,7 @@ impl HostService {
             .await?
             .ok_or_else(|| anyhow!("Host '{}' not found", host.id))?;
 
-        self.update_services(&current_host, &host).await?;
+        self.update_host_services(&current_host, &host).await?;
 
         self.update_subnet_host_relationships(&current_host, true)
             .await?;
@@ -91,6 +124,10 @@ impl HostService {
 
     /// Merge new discovery data with existing host
     async fn upsert_host(&self, mut existing_host: Host, new_host: Host) -> Result<Host> {
+        if existing_host.id == new_host.id {
+            return Err(anyhow!("Can't upsert a host with itself"));
+        }
+
         let mut interface_updates = 0;
         let mut port_updates = 0;
         let mut hostname_update = false;
@@ -168,6 +205,10 @@ impl HostService {
         destination_host: Host,
         other_host: Host,
     ) -> Result<Host> {
+        if destination_host.id == other_host.id {
+            return Err(anyhow!("Can't consolidate a host with itself"));
+        }
+
         let other_host_services = self
             .service_service
             .get_services_for_host(&other_host.id)
@@ -175,7 +216,7 @@ impl HostService {
         let (other_host_name, other_host_id) = (&other_host.base.name, &other_host.id);
 
         let updated_host = self
-            .upsert_host(destination_host, other_host.clone())
+            .upsert_host(destination_host.clone(), other_host.clone())
             .await?;
 
         let service_update_futures = other_host_services.into_iter().map(|mut s| {
@@ -184,6 +225,7 @@ impl HostService {
                 &other_host,
                 &updated_host,
             );
+
             self.service_service.update_service(s)
         });
 
@@ -201,7 +243,11 @@ impl HostService {
         Ok(updated_host)
     }
 
-    pub async fn update_services(&self, current_host: &Host, updates: &Host) -> Result<(), Error> {
+    pub async fn update_host_services(
+        &self,
+        current_host: &Host,
+        updates: &Host,
+    ) -> Result<(), Error> {
         let services = self
             .service_service
             .get_services_for_host(&current_host.id)
@@ -298,5 +344,188 @@ impl HostService {
             !delete_services
         );
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::tests::*;
+
+    #[tokio::test]
+    async fn test_host_deduplication_on_create() {
+        let (storage, services) = test_services().await;
+
+        let start_host_count = storage.hosts.get_all().await.unwrap().len();
+
+        // Create first host
+        let host1 = host();
+        let (created1, _) = services
+            .host_service
+            .create_host_with_services(host1.clone(), vec![])
+            .await
+            .unwrap();
+
+        // Try to create duplicate (same interfaces)
+        let host2 = host();
+        let (created2, _) = services
+            .host_service
+            .create_host_with_services(host2.clone(), vec![])
+            .await
+            .unwrap();
+
+        // Should return same host (upserted)
+        assert_eq!(created1.id, created2.id);
+
+        // Verify only one host in DB
+        let end_host_count = storage.hosts.get_all().await.unwrap().len();
+        assert_eq!(start_host_count + 1, end_host_count);
+    }
+
+    #[tokio::test]
+    async fn test_host_upsert_merges_new_data() {
+        let (_, services) = test_services().await;
+
+        // Create host with one interface
+        let mut host1 = host();
+        let subnet1 = subnet();
+        services
+            .subnet_service
+            .create_subnet(subnet1.clone())
+            .await
+            .unwrap();
+        host1.base.interfaces = vec![interface(&subnet1.id)];
+
+        let (created, _) = services
+            .host_service
+            .create_host_with_services(host1.clone(), vec![])
+            .await
+            .unwrap();
+
+        // Create "duplicate" with additional interface
+        let mut host2 = host();
+        let subnet2 = subnet();
+        services
+            .subnet_service
+            .create_subnet(subnet2.clone())
+            .await
+            .unwrap();
+        host2.base.interfaces = vec![interface(&subnet1.id), interface(&subnet2.id)];
+
+        let (upserted, _) = services
+            .host_service
+            .create_host_with_services(host2.clone(), vec![])
+            .await
+            .unwrap();
+
+        // Should have merged interfaces
+        assert_eq!(upserted.id, created.id);
+        assert_eq!(upserted.base.interfaces.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_host_consolidation() {
+        let (_, services) = test_services().await;
+
+        let subnet_obj = subnet();
+        services
+            .subnet_service
+            .create_subnet(subnet_obj.clone())
+            .await
+            .unwrap();
+
+        let mut host1 = host();
+        host1.base.interfaces = Vec::new();
+
+        let (created1, _) = services
+            .host_service
+            .create_host_with_services(host1.clone(), vec![])
+            .await
+            .unwrap();
+
+        let mut host2 = host();
+        host2.base.interfaces = vec![interface(&subnet_obj.id)];
+
+        let mut svc = service(&host2.id);
+        svc.base.port_bindings = vec![host2.base.ports[0].id];
+        svc.base.interface_bindings = vec![host2.base.interfaces[0].id];
+
+        let (created2, created_svcs) = services
+            .host_service
+            .create_host_with_services(host2.clone(), vec![svc])
+            .await
+            .unwrap();
+
+        let created_svc = &created_svcs[0];
+
+        // Consolidate host2 into host1
+        let consolidated = services
+            .host_service
+            .consolidate_hosts(created1.clone(), created2.clone())
+            .await
+            .unwrap();
+
+        // Host1 should have host2's service
+        assert!(consolidated.base.services.contains(&created_svc.id));
+
+        // Host2 should be deleted
+        let host2_after = services.host_service.get_host(&created2.id).await.unwrap();
+        assert!(host2_after.is_none());
+
+        // Service should now belong to host1
+        let svc_after = services
+            .service_service
+            .get_service(&created_svc.id)
+            .await
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(svc_after.base.host_id, consolidated.id);
+    }
+
+    #[tokio::test]
+    async fn test_host_deletion_removes_subnet_relationships() {
+        let (_, services) = test_services().await;
+
+        let subnet_obj = subnet();
+        let created_subnet = services
+            .subnet_service
+            .create_subnet(subnet_obj.clone())
+            .await
+            .unwrap();
+
+        // Create host with interface on subnet
+        let mut host_obj = host();
+        host_obj.base.interfaces = vec![interface(&created_subnet.id)];
+        let (created_host, _) = services
+            .host_service
+            .create_host_with_services(host_obj.clone(), vec![])
+            .await
+            .unwrap();
+
+        // Subnet should have host relationship
+        let subnet_after_create = services
+            .subnet_service
+            .get_subnet(&created_subnet.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(subnet_after_create.base.hosts.contains(&created_host.id));
+
+        // Delete host (with services)
+        services
+            .host_service
+            .delete_host(&created_host.id, true)
+            .await
+            .unwrap();
+
+        // Subnet should no longer have host relationship
+        let subnet_after_delete = services
+            .subnet_service
+            .get_subnet(&created_subnet.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(!subnet_after_delete.base.hosts.contains(&created_host.id));
     }
 }

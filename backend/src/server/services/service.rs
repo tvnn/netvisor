@@ -37,28 +37,27 @@ impl ServiceService {
     }
 
     pub async fn create_service(&self, service: Service) -> Result<Service> {
-        let host_service = self
-            .host_service
-            .get()
-            .ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
-        let all_hosts = host_service.get_all_hosts().await?;
         let existing_services = self.get_services_for_host(&service.base.host_id).await?;
 
         let service_from_storage = match existing_services.into_iter().find(|existing: &Service| {
-            if let (Some(existing_service_host), Some(new_service_host)) = (
-                all_hosts.iter().find(|h| h.id == existing.base.host_id),
-                all_hosts.iter().find(|h| h.id == service.base.host_id),
-            ) {
-                let port_match = new_service_host
+            // Duplicate if being created for same host, has same definition, and same ports
+            let host_match = existing.base.host_id == service.base.host_id;
+
+            let definition_match =
+                service.base.service_definition == existing.base.service_definition;
+
+            let port_match = service
+                .base
+                .port_bindings
+                .iter()
+                .all(|p| existing.base.port_bindings.contains(p))
+                && existing
                     .base
-                    .ports
+                    .port_bindings
                     .iter()
-                    .any(|p| existing_service_host.base.ports.contains(p));
-                let definition_match =
-                    service.base.service_definition == existing.base.service_definition;
-                return port_match && definition_match;
-            }
-            false
+                    .all(|p| service.base.port_bindings.contains(p));
+
+            host_match && definition_match && port_match
         }) {
             Some(existing_service) => {
                 tracing::warn!(
@@ -350,5 +349,147 @@ impl ServiceService {
             service.base.host_id
         );
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::tests::*;
+
+    #[tokio::test]
+    async fn test_service_deduplication_on_create() {
+        let (_, services) = test_services().await;
+
+        let subnet_obj = subnet();
+        services
+            .subnet_service
+            .create_subnet(subnet_obj.clone())
+            .await
+            .unwrap();
+
+        // Create first service + host
+        let mut host_obj = host();
+        host_obj.base.interfaces = vec![interface(&subnet_obj.id)];
+        let svc1 = service(&host_obj.id);
+        let (created_host, created1) = services
+            .host_service
+            .create_host_with_services(host_obj.clone(), vec![svc1])
+            .await
+            .unwrap();
+
+        // Try to create duplicate (same definition + matching ports)
+        let svc2 = service(&created_host.id);
+        let created2 = services
+            .service_service
+            .create_service(svc2.clone())
+            .await
+            .unwrap();
+
+        // Should return same service (upserted)
+        assert_eq!(created1[0].id, created2.id);
+
+        // Verify only one service in DB
+        let all_services = services
+            .service_service
+            .get_services_for_host(&created_host.id)
+            .await
+            .unwrap();
+        assert_eq!(all_services.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_service_update_maintains_subnet_relationships() {
+        let (_, services) = test_services().await;
+
+        let subnet_obj = subnet();
+        let created_subnet = services
+            .subnet_service
+            .create_subnet(subnet_obj.clone())
+            .await
+            .unwrap();
+
+        let mut host_obj = host();
+        host_obj.base.interfaces = vec![interface(&created_subnet.id)];
+
+        // Create router service (will add to subnet gateways)
+        let router_def =
+            crate::server::services::definitions::ServiceDefinitionRegistry::find_by_id("Router")
+                .unwrap();
+        let mut svc = service(&host_obj.id);
+        svc.base.service_definition = router_def;
+        svc.base.interface_bindings = vec![host_obj.base.interfaces[0].id];
+        svc.base.port_bindings = vec![host_obj.base.ports[0].id];
+
+        let (_, created_svcs) = services
+            .host_service
+            .create_host_with_services(host_obj.clone(), vec![svc])
+            .await
+            .unwrap();
+
+        // Subnet should have gateway relationship
+        let subnet_after = services
+            .subnet_service
+            .get_subnet(&created_subnet.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(!subnet_after.base.gateways.is_empty());
+        assert_eq!(subnet_after.base.gateways[0], created_svcs[0].id);
+    }
+
+    #[tokio::test]
+    async fn test_service_deletion_cleans_up_relationships() {
+        let (_, services) = test_services().await;
+
+        let subnet_obj = subnet();
+        let created_subnet = services
+            .subnet_service
+            .create_subnet(subnet_obj.clone())
+            .await
+            .unwrap();
+
+        let mut host_obj = host();
+        host_obj.base.interfaces = vec![interface(&created_subnet.id)];
+
+        // Create service in a group
+        let mut svc = service(&host_obj.id);
+        svc.base.port_bindings = vec![host_obj.base.ports[0].id];
+        svc.base.interface_bindings = vec![host_obj.base.interfaces[0].id];
+
+        let (created_host, created_svcs) = services
+            .host_service
+            .create_host_with_services(host_obj.clone(), vec![svc])
+            .await
+            .unwrap();
+        let created_svc = &created_svcs[0];
+
+        let mut group_obj = group();
+        group_obj.base.service_bindings =
+            vec![crate::server::hosts::types::targets::ServiceBinding {
+                service_id: created_svc.id,
+                port_id: created_host.base.ports[0].id,
+                interface_id: created_host.base.interfaces[0].id,
+            }];
+        let created_group = services
+            .group_service
+            .create_group(group_obj)
+            .await
+            .unwrap();
+
+        // Delete service
+        services
+            .service_service
+            .delete_service(&created_svc.id)
+            .await
+            .unwrap();
+
+        // Group should no longer have service binding
+        let group_after = services
+            .group_service
+            .get_group(&created_group.id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(group_after.base.service_bindings.is_empty());
     }
 }

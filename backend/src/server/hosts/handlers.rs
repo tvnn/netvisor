@@ -32,35 +32,12 @@ async fn create_host(
     Json(request): Json<HostWithServicesRequest>,
 ) -> ApiResult<Json<ApiResponse<Host>>> {
     let host_service = &state.services.host_service;
-    let service_service = &state.services.service_service;
 
-    let request_host = request.host.clone();
+    let (host, _) = host_service
+        .create_host_with_services(request.host, request.services)
+        .await?;
 
-    // Create host first (handles duplicates via upsert_host)
-    let mut created_host = host_service.create_host(request.host.base).await?;
-
-    // Create services, handling case where created_service was upserted from host in request instead of created anew and interfaces/ports were overwritten
-    let service_futures = request.services.into_iter().map(|mut service| {
-        service = service_service.transfer_service_to_new_host(
-            &mut service,
-            &request_host,
-            &created_host,
-        );
-        service_service.create_service(service)
-    });
-
-    let services = try_join_all(service_futures).await?;
-
-    // Add all successfully created/found services to the host
-    for service in &services {
-        if !created_host.base.services.contains(&service.id) {
-            created_host.base.services.push(service.id);
-        }
-    }
-
-    let host_with_final_services = host_service.update_host(created_host).await?;
-
-    Ok(Json(ApiResponse::success(host_with_final_services)))
+    Ok(Json(ApiResponse::success(host)))
 }
 
 async fn get_all_hosts(
