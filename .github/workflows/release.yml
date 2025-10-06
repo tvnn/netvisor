@@ -58,7 +58,7 @@ jobs:
           fi
           
           # Copy daemon config
-          if [ -f "./data/config.json" ]; then
+          if [ -f "./data/daemon-config/config.json" ]; then
             cp ./data/daemon-config/config.json ./src/tests/daemon_config.json
             echo "✓ Copied config.json to src/tests/daemon_config.json"
           else
