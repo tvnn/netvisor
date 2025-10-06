@@ -40,6 +40,11 @@ impl DaemonService {
         self.daemon_storage.get_by_id(id).await
     }
 
+    /// Get daemon by host ID
+    pub async fn get_host_daemon(&self, host_id: &Uuid) -> Result<Option<Daemon>> {
+        self.daemon_storage.get_by_host_id(host_id).await
+    }
+
     /// Get all registered daemons
     pub async fn get_all_daemons(&self) -> Result<Vec<Daemon>> {
         self.daemon_storage.get_all().await

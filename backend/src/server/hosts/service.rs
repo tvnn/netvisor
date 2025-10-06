@@ -1,10 +1,8 @@
 use crate::server::{
-    hosts::{
+    daemons::service::DaemonService, hosts::{
         storage::HostStorage,
         types::base::{Host, HostBase},
-    },
-    services::{service::ServiceService, types::base::Service},
-    subnets::service::SubnetService,
+    }, services::{service::ServiceService, types::base::Service}, subnets::service::SubnetService
 };
 use anyhow::{anyhow, Error, Result};
 use futures::future::try_join_all;
@@ -16,6 +14,7 @@ pub struct HostService {
     storage: Arc<dyn HostStorage>,
     subnet_service: Arc<SubnetService>,
     service_service: Arc<ServiceService>,
+    daemon_service: Arc<DaemonService>
 }
 
 impl HostService {
@@ -23,11 +22,13 @@ impl HostService {
         storage: Arc<dyn HostStorage>,
         subnet_service: Arc<SubnetService>,
         service_service: Arc<ServiceService>,
+        daemon_service: Arc<DaemonService>
     ) -> Self {
         Self {
             storage,
             subnet_service,
             service_service,
+            daemon_service
         }
     }
 
@@ -209,6 +210,10 @@ impl HostService {
             return Err(anyhow!("Can't consolidate a host with itself"));
         }
 
+        if self.daemon_service.get_host_daemon(&other_host.id).await?.is_some() {
+            return Err(anyhow!("Can't consolidate a host that has a daemon. Consolidate the other host into the daemon host."))
+        }
+
         let other_host_services = self
             .service_service
             .get_services_for_host(&other_host.id)
@@ -327,6 +332,10 @@ impl HostService {
             .get_host(id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Host {} not found", id))?;
+
+        if self.daemon_service.get_host_daemon(&id).await?.is_some() {
+            return Err(anyhow!("Can't delete a host that has a daemon."))
+        }
 
         if delete_services {
             for service_id in &host.base.services {

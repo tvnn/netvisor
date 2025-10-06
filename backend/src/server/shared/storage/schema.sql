@@ -59,3 +59,4 @@ CREATE TABLE IF NOT EXISTS services (
 );
 
 CREATE INDEX IF NOT EXISTS idx_services_host_id ON services(host_id)
+CREATE INDEX IF NOT EXISTS idx_daemon_host_id ON daemons(host_id)

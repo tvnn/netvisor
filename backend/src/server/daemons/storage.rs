@@ -12,6 +12,7 @@ use uuid::Uuid;
 pub trait DaemonStorage: Send + Sync {
     async fn create(&self, daemon: &Daemon) -> Result<()>;
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Daemon>>;
+    async fn get_by_host_id(&self, host_id: &Uuid)  -> Result<Option<Daemon>>;
     async fn get_all(&self) -> Result<Vec<Daemon>>;
     async fn update(&self, group: &Daemon) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
@@ -55,6 +56,18 @@ impl DaemonStorage for SqliteDaemonStorage {
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Daemon>> {
         let row = sqlx::query("SELECT * FROM daemons WHERE id = ?")
             .bind(blob_uuid::to_blob(id))
+            .fetch_optional(&self.pool)
+            .await?;
+
+        match row {
+            Some(row) => Ok(Some(row_to_daemon(row)?)),
+            None => Ok(None),
+        }
+    }
+
+    async fn get_by_host_id(&self, host_id: &Uuid) -> Result<Option<Daemon>> {
+        let row = sqlx::query("SELECT * FROM daemons WHERE host_id = ?")
+            .bind(blob_uuid::to_blob(host_id))
             .fetch_optional(&self.pool)
             .await?;
 
