@@ -9,114 +9,10 @@ permissions:
   packages: write
 
 jobs:
-  update-fixtures:
-    name: Update Test Fixtures
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Get release version
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-      
-      - name: Start dev environment
-        run: |
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
-          echo "Waiting for services to be ready..."
-          sleep 30
-      
-      - name: Wait for server health
-        run: |
-          max_attempts=30
-          attempt=0
-          until curl -f http://localhost:60072/api/health || [ $attempt -eq $max_attempts ]; do
-            echo "Waiting for server to be healthy... (attempt $((attempt+1))/$max_attempts)"
-            sleep 5
-            attempt=$((attempt+1))
-          done
-          if [ $attempt -eq $max_attempts ]; then
-            echo "Server failed to become healthy"
-            docker compose -f docker-compose.yml -f docker-compose.dev.yml logs
-            exit 1
-          fi
-      
-      - name: Wait for daemon to initialize
-        run: |
-          echo "Waiting for daemon to create config file..."
-          max_attempts=30
-          attempt=0
-          until [ -f "./data/daemon-config/config.json" ] || [ $attempt -eq $max_attempts ]; do
-            sleep 5
-            attempt=$((attempt+1))
-          done
-          if [ $attempt -eq $max_attempts ]; then
-            echo "Daemon config file was not created after 150 seconds"
-            docker compose -f docker-compose.yml -f docker-compose.dev.yml logs daemon
-            exit 1
-          fi
-          echo "✓ Daemon config file created"
-      
-      - name: Extract fixtures from data directory
-        run: |
-          # Create tests directory if it doesn't exist
-          mkdir -p src/tests
-          
-          # Debug: Show what's in the data directory
-          echo "Contents of ./data:"
-          ls -la ./data/ || echo "data directory not found"
-          echo "Contents of ./data/daemon-config:"
-          ls -la ./data/daemon-config/ || echo "daemon-config directory not found"
-          
-          # Copy database
-          if [ -f "./data/netvisor.db" ]; then
-            cp ./data/netvisor.db ./src/tests/netvisor.db
-            echo "✓ Copied netvisor.db to src/tests/netvisor.db"
-          else
-            echo "⚠ netvisor.db not found in data directory"
-            exit 1
-          fi
-          
-          # Copy daemon config
-          if [ -f "./data/daemon-config/config.json" ]; then
-            cp ./data/daemon-config/config.json ./src/tests/daemon_config.json
-            echo "✓ Copied config.json to src/tests/daemon_config.json"
-          else
-            echo "⚠ config.json not found at ./data/daemon-config/config.json"
-            exit 1
-          fi
-      
-      - name: Stop dev environment
-        if: always()
-        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
-      
-      - name: Configure Git for bot
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-      
-      - name: Commit and push fixtures
-        run: |
-          # Checkout main branch (we're in detached HEAD from the tag)
-          git fetch origin main
-          git checkout main
-          
-          # Copy the fixtures we extracted
-          git add src/tests/netvisor.db src/tests/daemon_config.json
-          
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "updating test fixture data stores for release ${{ steps.version.outputs.version }}"
-            git push origin main
-          fi
 
   build-binaries:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-    needs: update-fixtures
     strategy:
       matrix:
         include:
@@ -271,3 +167,101 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.binary }}
+
+  update-fixtures:
+    name: Update Test Fixtures
+    runs-on: ubuntu-latest
+    needs: upload-binaries
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Get release version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Start dev environment
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+          echo "Waiting for services to be ready..."
+          sleep 30
+      
+      - name: Wait for server health
+        run: |
+          max_attempts=30
+          attempt=0
+          until curl -f http://localhost:60072/api/health || [ $attempt -eq $max_attempts ]; do
+            echo "Waiting for server to be healthy... (attempt $((attempt+1))/$max_attempts)"
+            sleep 5
+            attempt=$((attempt+1))
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Server failed to become healthy"
+            docker compose -f docker-compose.yml -f docker-compose.dev.yml logs
+            exit 1
+          fi
+      
+      - name: Wait for daemon to initialize
+        run: |
+          echo "Waiting for daemon to create config file..."
+          max_attempts=30
+          attempt=0
+          until [ -f "./data/daemon-config/config.json" ] || [ $attempt -eq $max_attempts ]; do
+            sleep 5
+            attempt=$((attempt+1))
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Daemon config file was not created after 150 seconds"
+            docker compose -f docker-compose.yml -f docker-compose.dev.yml logs daemon
+            exit 1
+          fi
+          echo "✓ Daemon config file created"
+      
+      - name: Extract fixtures from data directory
+        run: |
+          # Create tests directory if it doesn't exist
+          mkdir -p backend/src/tests
+                    
+          # Copy database
+          if [ -f "./data/netvisor.db" ]; then
+            cp ./data/netvisor.db ./backend/src/tests/netvisor.db
+            echo "✓ Copied netvisor.db to backend/src/tests/netvisor.db"
+          else
+            echo "⚠ netvisor.db not found in data directory"
+            exit 1
+          fi
+          
+          # Copy daemon config
+          if [ -f "./data/daemon-config/config.json" ]; then
+            cp ./data/daemon-config/config.json ./backend/src/tests/daemon_config.json
+            echo "✓ Copied config.json to backend/src/tests/daemon_config.json"
+          else
+            echo "⚠ config.json not found at ./data/daemon-config/config.json"
+            exit 1
+          fi
+      
+      - name: Stop dev environment
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
+      
+      - name: Configure Git for bot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Commit and push fixtures
+        run: |
+          # Checkout main branch (we're in detached HEAD from the tag)
+          git fetch origin main
+          git checkout main
+          
+          # Copy the fixtures we extracted
+          git add backend/src/tests/netvisor.db backend/src/tests/daemon_config.json
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "updating test fixture data stores for release ${{ steps.version.outputs.version }}"
+            git push origin main
+          fi
