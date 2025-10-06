@@ -1,6 +1,5 @@
 /target/
 /releases/
-/migrations/
 /.vscode/
 .DS_STORE
 .env

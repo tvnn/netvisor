@@ -1,9 +1,9 @@
-use crate::server::hosts::types::{
+use crate::server::{discovery::types::base::EntitySource, hosts::types::{
     base::{Host, HostBase},
     interfaces::Interface,
     ports::Port,
     targets::HostTarget,
-};
+}};
 use anyhow::{Error, Result};
 use async_trait::async_trait;
 use sqlx::{Row, SqlitePool};
@@ -35,14 +35,15 @@ impl HostStorage for SqliteHostStorage {
         let interfaces_str = serde_json::to_string(&host.base.interfaces)?;
         let target_str = serde_json::to_string(&host.base.target)?;
         let ports_str = serde_json::to_string(&host.base.ports)?;
+        let source_str = serde_json::to_string(&host.base.source)?;
 
         sqlx::query(
             r#"
             INSERT INTO hosts (
                 id, name, hostname, target, description,
-                services, interfaces, ports,
+                services, interfaces, ports, source
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(blob_uuid::to_blob(&host.id))
@@ -53,6 +54,7 @@ impl HostStorage for SqliteHostStorage {
         .bind(services_str)
         .bind(interfaces_str)
         .bind(ports_str)
+        .bind(source_str)
         .bind(host.created_at.to_rfc3339())
         .bind(host.updated_at.to_rfc3339())
         .execute(&self.pool)
@@ -91,12 +93,13 @@ impl HostStorage for SqliteHostStorage {
         let interfaces_str = serde_json::to_string(&host.base.interfaces)?;
         let target_str = serde_json::to_string(&host.base.target)?;
         let ports_str = serde_json::to_string(&host.base.ports)?;
+        let source_str = serde_json::to_string(&host.base.source)?;
 
         sqlx::query(
             r#"
             UPDATE hosts SET 
                 name = ?, hostname = ?, description = ?,
-                target = ?, interfaces = ?, ports = ?, services = ?,
+                target = ?, interfaces = ?, ports = ?, source = ?, services = ?,
                 updated_at = ?
             WHERE id = ?
             "#,
@@ -107,6 +110,7 @@ impl HostStorage for SqliteHostStorage {
         .bind(target_str)
         .bind(interfaces_str)
         .bind(ports_str)
+        .bind(source_str)
         .bind(services_str)
         .bind(host.updated_at)
         .bind(blob_uuid::to_blob(&host.id))
@@ -136,6 +140,8 @@ fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host, Error> {
         .or(Err(Error::msg("Failed to deserialize target")))?;
     let ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("ports"))
         .or(Err(Error::msg("Failed to deserialize ports")))?;
+    let source: EntitySource = serde_json::from_str(&row.get::<String, _>("source"))
+        .or(Err(Error::msg("Failed to deserialize source")))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -154,6 +160,7 @@ fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host, Error> {
             services,
             ports,
             interfaces,
+            source
         },
     })
 }

@@ -1,5 +1,6 @@
 use std::net::Ipv4Addr;
 
+use crate::server::discovery::types::base::EntitySource;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use crate::server::{
     hosts::types::{ports::PortBase, targets::ServiceBinding},
@@ -24,13 +25,6 @@ use crate::server::{
     },
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub enum SubnetSource {
-    Manual,
-    System,
-    Discovery(Uuid),
-}
-
 #[derive(Debug, Clone, Validate, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SubnetBase {
     pub cidr: IpCidr,
@@ -44,7 +38,7 @@ pub struct SubnetBase {
     pub reverse_proxies: Vec<ServiceBinding>,
     pub hosts: Vec<Uuid>, // hosts
     pub subnet_type: SubnetType,
-    pub source: SubnetSource,
+    pub source: EntitySource,
 }
 
 impl Default for SubnetBase {
@@ -58,7 +52,7 @@ impl Default for SubnetBase {
             reverse_proxies: Vec::new(),
             hosts: Vec::new(),
             subnet_type: SubnetType::Unknown,
-            source: SubnetSource::Manual,
+            source: EntitySource::Manual,
         }
     }
 }
@@ -118,7 +112,7 @@ impl Subnet {
                     gateways: Vec::new(),
                     reverse_proxies: Vec::new(),
                     hosts: Vec::new(),
-                    source: SubnetSource::Discovery(daemon_id),
+                    source: EntitySource::Discovery(daemon_id),
                 }))
             }
         }

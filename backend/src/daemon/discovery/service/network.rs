@@ -1,3 +1,4 @@
+use crate::server::discovery::types::base::EntitySource;
 use crate::server::services::types::base::ServiceFromDiscoveryParams;
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::{
@@ -361,6 +362,7 @@ impl DaemonDiscoveryService {
             return Ok(None); // Skip hosts with no interesting services
         }
 
+        let daemon_id = self.config_store.get_id().await?;
         let hostname = self.utils.get_hostname_for_ip(host_ip).await?;
 
         let mac = match subnet.base.subnet_type {
@@ -394,6 +396,7 @@ impl DaemonDiscoveryService {
             interfaces,
             services: Vec::new(),
             ports: Vec::new(),
+            source: EntitySource::Discovery(daemon_id)
         });
 
         let mut services = Vec::new();

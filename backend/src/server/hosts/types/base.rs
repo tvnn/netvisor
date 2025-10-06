@@ -1,3 +1,4 @@
+use crate::server::discovery::types::base::EntitySource;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use crate::server::{
     hosts::types::ports::Port,
@@ -33,6 +34,7 @@ pub struct HostBase {
     pub interfaces: Vec<Interface>,
     pub services: Vec<Uuid>,
     pub ports: Vec<Port>,
+    pub source: EntitySource
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]

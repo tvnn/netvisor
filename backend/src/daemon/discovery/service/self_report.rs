@@ -1,12 +1,10 @@
 use crate::{
     daemon::discovery::service::base::DaemonDiscoveryService,
     server::{
-        hosts::types::ports::{Port, PortBase},
-        services::{
+        discovery::types::base::EntitySource, hosts::types::ports::{Port, PortBase}, services::{
             definitions::netvisor_daemon::NetvisorDaemon,
             types::{base::ServiceBase, definitions::ServiceDefinition},
-        },
-        utils::base::NetworkUtils,
+        }, utils::base::NetworkUtils
     },
 };
 use crate::{
@@ -64,6 +62,7 @@ impl DaemonDiscoveryService {
             services: Vec::new(),
             interfaces,
             ports: vec![own_port],
+            source: EntitySource::System
         };
 
         let host = Host::new(host_base);

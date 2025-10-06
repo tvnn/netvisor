@@ -1,6 +1,5 @@
 use crate::server::{
-    hosts::types::targets::ServiceBinding,
-    subnets::types::base::{Subnet, SubnetBase, SubnetSource, SubnetType},
+    discovery::types::base::EntitySource, hosts::types::targets::ServiceBinding, subnets::types::base::{Subnet, SubnetBase, SubnetType}
 };
 use anyhow::{Error, Result};
 use async_trait::async_trait;
@@ -170,7 +169,7 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet, Error> {
             .or(Err(Error::msg("Failed to deserialize reverse_proxies")))?;
     let subnet_type: SubnetType = serde_json::from_str(&row.get::<String, _>("subnet_type"))
         .or(Err(Error::msg("Failed to deserialize subnet_type")))?;
-    let source: SubnetSource = serde_json::from_str(&row.get::<String, _>("source"))
+    let source: EntitySource = serde_json::from_str(&row.get::<String, _>("source"))
         .or(Err(Error::msg("Failed to deserialize source")))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
