@@ -1,5 +1,5 @@
 use crate::server::{
-    daemons::service::DaemonService, hosts::{
+    daemons::service::DaemonService, discovery::types::base::EntitySourceDiscriminants, hosts::{
         storage::HostStorage,
         types::base::{Host, HostBase},
     }, services::{service::ServiceService, types::base::Service}, subnets::service::SubnetService
@@ -7,6 +7,7 @@ use crate::server::{
 use anyhow::{anyhow, Error, Result};
 use futures::future::try_join_all;
 use itertools::Itertools;
+use strum::IntoDiscriminant;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -80,7 +81,7 @@ impl HostService {
         let all_hosts = self.storage.get_all().await?;
 
         let host_from_storage = match all_hosts.into_iter().find(|h| host.eq(h)) {
-            Some(existing_host) => {
+            Some(existing_host) if host.base.source.discriminant() == EntitySourceDiscriminants::Discovery => {
                 tracing::warn!(
                     "Duplicate host for {}: {} found, {}: {} - upserting discovery data...",
                     host.base.name,
@@ -92,7 +93,7 @@ impl HostService {
                     .await?;
                 self.upsert_host(existing_host, host).await?
             }
-            None => {
+            _ => {
                 self.storage.create(&host).await?;
                 tracing::info!("Created host {}: {}", host.base.name, host.id);
                 host
