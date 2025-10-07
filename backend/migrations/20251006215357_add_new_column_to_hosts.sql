@@ -1,1 +1,0 @@
-ALTER TABLE hosts ADD COLUMN source TEXT DEFAULT '"Unknown"';

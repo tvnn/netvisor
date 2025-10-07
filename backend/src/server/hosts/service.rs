@@ -371,7 +371,9 @@ impl HostService {
 #[cfg(test)]
 mod tests {
 
-    use crate::tests::*;
+    use uuid::Uuid;
+
+    use crate::{server::discovery::types::base::EntitySource, tests::*};
 
     #[tokio::test]
     async fn test_host_deduplication_on_create() {
@@ -380,7 +382,8 @@ mod tests {
         let start_host_count = storage.hosts.get_all().await.unwrap().len();
 
         // Create first host
-        let host1 = host();
+        let mut host1 = host();
+        host1.base.source = EntitySource::Discovery(Uuid::new_v4());
         let (created1, _) = services
             .host_service
             .create_host_with_services(host1.clone(), vec![])
@@ -388,7 +391,8 @@ mod tests {
             .unwrap();
 
         // Try to create duplicate (same interfaces)
-        let host2 = host();
+        let mut host2 = host();
+        host2.base.source = EntitySource::Discovery(Uuid::new_v4());
         let (created2, _) = services
             .host_service
             .create_host_with_services(host2.clone(), vec![])
@@ -409,6 +413,7 @@ mod tests {
 
         // Create host with one interface
         let mut host1 = host();
+        host1.base.source = EntitySource::Discovery(Uuid::new_v4());
         let subnet1 = subnet();
         services
             .subnet_service
@@ -425,6 +430,7 @@ mod tests {
 
         // Create "duplicate" with additional interface
         let mut host2 = host();
+        host2.base.source = EntitySource::Discovery(Uuid::new_v4());
         let subnet2 = subnet();
         services
             .subnet_service

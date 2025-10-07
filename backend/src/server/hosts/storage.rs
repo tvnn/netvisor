@@ -44,7 +44,7 @@ impl HostStorage for SqliteHostStorage {
             r#"
             INSERT INTO hosts (
                 id, name, hostname, target, description,
-                services, interfaces, ports, source
+                services, interfaces, ports, source,
                 created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,

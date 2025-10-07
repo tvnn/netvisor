@@ -29,4 +29,4 @@ WORKDIR /app
 EXPOSE 60072 60073
 
 # Default to server, but can be overridden
-CMD ["sh", "-c", "mkdir -p /data && touch /data/netvisor.db && cargo watch -x 'run --bin server'"]
+CMD ["sh", "-c", "mkdir -p /data && touch /data/netvisor.db && mkdir -p /data/daemon-config/ && touch /data/daemon-config/ && cargo watch -x 'run --bin server'"]

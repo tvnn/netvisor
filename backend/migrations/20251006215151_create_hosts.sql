@@ -8,6 +8,5 @@ CREATE TABLE IF NOT EXISTS hosts (
     services TEXT,
     ports TEXT,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    source TEXT NOT NULL
+    updated_at TEXT NOT NULL
 );
