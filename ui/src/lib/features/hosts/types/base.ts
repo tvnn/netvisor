@@ -16,6 +16,7 @@ export interface Host {
 	services: string[];
 	ports: Port[];
 	interfaces: Interface[];
+	source: string;
 }
 
 export interface Interface {

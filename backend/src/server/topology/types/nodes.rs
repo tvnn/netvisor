@@ -1,27 +1,39 @@
 use crate::server::{
     subnets::types::base::SubnetType,
-    topology::types::{base::XY, edges::EdgeHandle},
+    topology::types::{
+        base::{Ixy, Uxy},
+        edges::EdgeHandle,
+    },
 };
 use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Node {
+    #[serde(flatten)]
     pub node_type: NodeType,
-    pub id: Uuid, // Principal ID used primarily to key off of for backend operations, will be the same as one of the below
-    pub parent_id: Option<Uuid>,
-    pub interface_id: Option<Uuid>,
-    pub host_id: Option<Uuid>,
-    pub position: XY,
-    pub size: XY,
-    pub infra_width: Option<usize>,
-    pub subnet_type: Option<SubnetType>,
+    pub id: Uuid,
+    pub position: Ixy,
+    pub size: Uxy,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, Clone)]
+#[derive(
+    Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, EnumDiscriminants, IntoStaticStr,
+)]
+#[serde(tag = "node_type")]
+#[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum NodeType {
-    SubnetNode,
-    HostNode,
+    SubnetNode {
+        infra_width: usize,
+        subnet_type: SubnetType,
+    },
+    HostNode {
+        subnet_id: Uuid,
+        host_id: Uuid,
+        interface_id: Option<Uuid>,
+        is_infra: bool,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -50,11 +62,11 @@ impl SubnetChildNodeSize {
         }
     }
 
-    pub fn size(&self) -> XY {
+    pub fn size(&self) -> Uxy {
         match self {
-            SubnetChildNodeSize::Small => XY { x: 175, y: 100 },
-            SubnetChildNodeSize::Medium => XY { x: 175, y: 125 },
-            SubnetChildNodeSize::Large => XY { x: 175, y: 150 },
+            SubnetChildNodeSize::Small => Uxy { x: 175, y: 100 },
+            SubnetChildNodeSize::Medium => Uxy { x: 175, y: 125 },
+            SubnetChildNodeSize::Large => Uxy { x: 175, y: 150 },
         }
     }
 }

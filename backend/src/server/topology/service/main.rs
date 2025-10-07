@@ -10,7 +10,9 @@ use crate::server::{
     services::service::ServiceService,
     subnets::service::SubnetService,
     topology::{
-        service::{edges::TopologyEdgePlanner, nodes::TopologyNodePlanner},
+        service::{
+            edges::TopologyEdgePlanner, nodes::TopologyNodePlanner, optimizer::TopologyOptimizer,
+        },
         types::{edges::Edge, nodes::Node},
     },
 };
@@ -51,11 +53,40 @@ impl TopologyService {
             node_planner.create_subnet_child_nodes(&hosts, &subnets, &services, &groups);
         let subnet_nodes = node_planner.create_subnet_nodes(&subnets, &subnet_sizes);
 
+        // Collect all edges for optimization
+        let interface_edge_infos = edge_planner.get_interface_edge_info(&hosts, &subnets);
+        let group_edge_infos = edge_planner.get_group_edge_info(&groups, &hosts, &subnets);
+
+        // Convert EdgeInfo to Edge for optimization (without needing node_indices yet)
+        let all_edges: Vec<Edge> = interface_edge_infos
+            .iter()
+            .chain(group_edge_infos.iter())
+            .map(|info| {
+                let (source_handle, target_handle) =
+                    crate::server::topology::types::edges::EdgeHandle::from_subnet_layers(
+                        info.source_subnet,
+                        info.target_subnet,
+                    );
+                Edge {
+                    source: info.source_id,
+                    target: info.target_id,
+                    edge_type: info.edge_type.clone(),
+                    label: info.label.clone(),
+                    source_handle,
+                    target_handle,
+                }
+            })
+            .collect();
+
+        // Optimize node positions to reduce edge crossings
+        let optimizer = TopologyOptimizer::new();
+        let mut all_nodes: Vec<Node> = subnet_nodes.into_iter().chain(child_nodes).collect();
+        optimizer.reduce_edge_crossings(&mut all_nodes, &all_edges);
+
         // Add nodes to graph
         let mut graph: Graph<Node, Edge> = Graph::new();
-        let node_indices: HashMap<Uuid, NodeIndex> = subnet_nodes
+        let node_indices: HashMap<Uuid, NodeIndex> = all_nodes
             .into_iter()
-            .chain(child_nodes.into_iter())
             .map(|node| {
                 let node_id = node.id;
                 let node_idx = graph.add_node(node);

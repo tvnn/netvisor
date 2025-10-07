@@ -6,7 +6,7 @@ use crate::server::{
     topology::{
         service::{edges::TopologyEdgePlanner, utils::TopologyUtils},
         types::{
-            base::{SubnetLayout, XY},
+            base::{Ixy, SubnetLayout, Uxy},
             edges::{EdgeHandle, EdgeInfo},
             nodes::{Node, NodeType, SubnetChild, SubnetChildNodeSize},
         },
@@ -16,8 +16,8 @@ use itertools::Itertools;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-const SUBNET_PADDING: XY = XY { x: 75, y: 75 };
-const NODE_PADDING: XY = XY { x: 50, y: 50 };
+const SUBNET_PADDING: Uxy = Uxy { x: 75, y: 75 };
+const NODE_PADDING: Uxy = Uxy { x: 50, y: 50 };
 
 pub struct TopologyNodePlanner {
     utils: TopologyUtils,
@@ -184,7 +184,7 @@ impl TopologyNodePlanner {
         subnets: &[Subnet],
         services: &[Service],
         child_nodes: &mut Vec<Node>,
-    ) -> (XY, usize) {
+    ) -> (Uxy, usize) {
         // Separate infrastructure from regular nodes
         let (infrastructure_children, regular_children) =
             if let Some(subnet) = subnets.iter().find(|s| s.id == subnet_id) {
@@ -239,7 +239,7 @@ impl TopologyNodePlanner {
             let infra_cols = (infrastructure_children.len() as f64
                 / regular_grid_dimensions.y as f64)
                 .ceil() as usize;
-            let infra_grid_dimensions = XY {
+            let infra_grid_dimensions = Uxy {
                 x: infra_cols,
                 y: regular_grid_dimensions.y,
             };
@@ -260,14 +260,14 @@ impl TopologyNodePlanner {
             if let Some(position) = infra_child_positions.get(&child.id) {
                 child_nodes.push(Node {
                     id: child.id,
-                    interface_id: child.interface_id,
-                    host_id: Some(child.host_id),
-                    node_type: NodeType::HostNode,
-                    parent_id: Some(subnet_id),
+                    node_type: NodeType::HostNode {
+                        subnet_id,
+                        interface_id: child.interface_id,
+                        host_id: child.host_id,
+                        is_infra: true,
+                    },
                     position: position.clone(),
                     size: child.size.size(),
-                    infra_width: None,
-                    subnet_type: None,
                 });
             }
         });
@@ -275,25 +275,30 @@ impl TopologyNodePlanner {
         regular_children.iter().for_each(|child| {
             if let Some(position) = regular_child_positions.get(&child.id) {
                 // Shift position to the right if there are infra columns
-                let node_position = XY {
-                    x: position.x + if infra_cols > 0 { infra_grid_size.x } else { 0 },
+                let node_position = Ixy {
+                    x: position.x
+                        + if infra_cols > 0 {
+                            infra_grid_size.x as isize
+                        } else {
+                            0
+                        },
                     y: position.y,
                 };
                 child_nodes.push(Node {
                     id: child.id,
-                    interface_id: child.interface_id,
-                    host_id: Some(child.host_id),
-                    node_type: NodeType::HostNode,
-                    parent_id: Some(subnet_id),
+                    node_type: NodeType::HostNode {
+                        subnet_id,
+                        interface_id: child.interface_id,
+                        host_id: child.host_id,
+                        is_infra: false,
+                    },
                     position: node_position,
                     size: child.size.size(),
-                    infra_width: None,
-                    subnet_type: None,
                 });
             };
         });
 
-        let total_size = XY {
+        let total_size = Uxy {
             x: regular_grid_size.x + infra_grid_size.x,
             y: regular_grid_size.y.max(infra_grid_size.y),
         };
@@ -321,14 +326,12 @@ impl TopologyNodePlanner {
                     if *subnet_id == self.no_subnet_id {
                         return Some(Node {
                             id: *subnet_id,
-                            parent_id: None,
-                            host_id: None,
-                            interface_id: None,
-                            node_type: NodeType::SubnetNode,
+                            node_type: NodeType::SubnetNode {
+                                infra_width: layout.infra_width,
+                                subnet_type: SubnetType::None,
+                            },
                             position: position.clone(),
                             size: layout.size.clone(),
-                            infra_width: Some(layout.infra_width),
-                            subnet_type: Some(SubnetType::None),
                         });
                     }
 
@@ -336,14 +339,12 @@ impl TopologyNodePlanner {
                     if let Some(subnet) = subnets.iter().find(|s| s.id == *subnet_id) {
                         return Some(Node {
                             id: *subnet_id,
-                            parent_id: None,
-                            host_id: None,
-                            interface_id: None,
-                            node_type: NodeType::SubnetNode,
+                            node_type: NodeType::SubnetNode {
+                                infra_width: layout.infra_width,
+                                subnet_type: subnet.base.subnet_type.clone(),
+                            },
                             position: position.clone(),
                             size: layout.size.clone(),
-                            infra_width: Some(layout.infra_width),
-                            subnet_type: Some(subnet.base.subnet_type.clone()),
                         });
                     }
                 }

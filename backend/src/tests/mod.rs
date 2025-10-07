@@ -1,7 +1,7 @@
 use crate::server::{
     config::{AppState, ServerConfig},
     daemons::types::base::{Daemon, DaemonBase},
-    discovery::manager::DiscoverySessionManager,
+    discovery::{manager::DiscoverySessionManager, types::base::EntitySource},
     groups::types::{Group, GroupBase, GroupType},
     hosts::types::{
         base::{Host, HostBase},
@@ -14,7 +14,7 @@ use crate::server::{
         types::base::{Service, ServiceBase},
     },
     shared::{services::ServiceFactory, types::storage::StorageFactory},
-    subnets::types::base::{Subnet, SubnetBase, SubnetSource, SubnetType},
+    subnets::types::base::{Subnet, SubnetBase, SubnetType},
     utils::base::{NetworkUtils, ServerNetworkUtils},
 };
 use axum::Router;
@@ -42,6 +42,7 @@ pub fn host() -> Host {
         interfaces: vec![interface(&Uuid::new_v4())],
         services: vec![],
         ports: vec![Port::new(PortBase::new_tcp(22))],
+        source: EntitySource::System,
     })
 }
 
@@ -60,7 +61,7 @@ pub fn subnet() -> Subnet {
         description: None,
         cidr: IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(192, 168, 1, 0), 24).unwrap()),
         subnet_type: SubnetType::Lan,
-        source: SubnetSource::System,
+        source: EntitySource::System,
         hosts: vec![],
         dns_resolvers: vec![],
         gateways: vec![],

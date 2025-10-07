@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::server::{
     subnets::types::base::Subnet,
     topology::types::{
-        base::{NodeLayout, SubnetLayout, XY},
+        base::{Ixy, NodeLayout, SubnetLayout, Uxy},
         edges::EdgeHandle,
         nodes::SubnetChild,
     },
@@ -25,19 +25,19 @@ impl TopologyUtils {
     }
 
     /// Figure out closest shape to square that can contain children
-    pub fn calculate_container_grid_dimensions(&self, children: usize) -> XY {
+    pub fn calculate_container_grid_dimensions(&self, children: usize) -> Uxy {
         if children == 0 {
-            return XY { x: 1, y: 1 };
+            return Uxy { x: 1, y: 1 };
         }
 
         let x = (children as f64).sqrt().ceil() as usize;
         let y = ((children as f64) / x as f64).ceil() as usize;
-        XY { x, y }
+        Uxy { x, y }
     }
 
     /// Calculate the coordinates of a child in a grid given its index
-    pub fn calculate_child_coordinates_in_grid(&self, grid: &XY, child_idx: usize) -> XY {
-        XY {
+    pub fn calculate_child_coordinates_in_grid(&self, grid: &Uxy, child_idx: usize) -> Uxy {
+        Uxy {
             x: child_idx % grid.x,
             y: ((child_idx / grid.x) as f64).floor() as usize,
         }
@@ -48,7 +48,7 @@ impl TopologyUtils {
     pub fn calculate_anchor_based_child_positions(
         &self,
         children: &[SubnetChild],
-        container_grid: &XY,
+        container_grid: &Uxy,
     ) -> Vec<Vec<(Uuid, NodeLayout)>> {
         if children.is_empty() {
             return vec![Vec::new(); container_grid.y];
@@ -163,7 +163,7 @@ impl TopologyUtils {
                         child.id,
                         NodeLayout {
                             size: child.size.size(),
-                            grid_position: XY {
+                            grid_position: Uxy {
                                 x: col_idx,
                                 y: row_idx,
                             },
@@ -220,7 +220,7 @@ impl TopologyUtils {
                             *id,
                             NodeLayout {
                                 size: layout.size.clone(),
-                                grid_position: XY { x: row_index, y }, // Use sequential row index
+                                grid_position: Uxy { x: row_index, y }, // Use sequential row index
                             },
                         )
                     })
@@ -233,8 +233,8 @@ impl TopologyUtils {
     pub fn calculate_container_size(
         &self,
         rows: Vec<Vec<(Uuid, NodeLayout)>>,
-        padding: &XY,
-    ) -> (HashMap<Uuid, XY>, XY) {
+        padding: &Uxy,
+    ) -> (HashMap<Uuid, Ixy>, Uxy) {
         let mut child_positions = HashMap::new();
 
         let mut current_y = padding.y;
@@ -252,9 +252,9 @@ impl TopologyUtils {
             for (id, layout) in row {
                 child_positions.insert(
                     id,
-                    XY {
-                        x: current_x,
-                        y: current_y,
+                    Ixy {
+                        x: current_x as isize,
+                        y: current_y as isize,
                     },
                 );
                 current_x += layout.size.x + padding.x;
@@ -266,7 +266,7 @@ impl TopologyUtils {
             max_y = max_y.max(current_y);
         }
 
-        let container_size = XY { x: max_x, y: max_y };
+        let container_size = Uxy { x: max_x, y: max_y };
 
         (child_positions, container_size)
     }

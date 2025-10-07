@@ -27,7 +27,8 @@
 
 					if (
 						!(servicesOnInterface.length > 0 && servicesOnInterface[0].name == host.name) &&
-						!host.name.includes('Unknown Device')
+						!host.name.includes('Unknown Device') &&
+						host.interfaces.length < 2
 					) {
 						headerText = host.name;
 					}

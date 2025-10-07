@@ -1,6 +1,7 @@
 import * as LucideIcons from 'lucide-svelte';
 import HomarrIcon from '$lib/shared/components/data/HomarrIcon.svelte';
 import type { IconComponent } from './types';
+import colors from 'tailwindcss/colors';
 
 export interface ColorStyle {
 	text: string;
@@ -189,4 +190,39 @@ export function createStyle(color: string | null, icon: string | null) {
 		IconComponent: createIconComponent(icon),
 		iconName: icon
 	};
+}
+
+/**
+ * Converts a Tailwind color string (e.g. "text-blue-400", "bg-blue-900/50", "blue-500")
+ * to an rgba() string with optional alpha override.
+ */
+export function twColorToRgba(twColor: string, alphaOverride?: number): string | null {
+	const match = twColor.match(/([a-zA-Z]+)-(\d{2,3})(?:\/(\d{1,3}))?/);
+	if (!match) return null;
+
+	const [, colorName, shade, opacityRaw] = match;
+
+	const palette = (colors as unknown as Record<string, Record<number, string>>)[colorName];
+	if (!palette) return null;
+
+	const hex = palette[parseInt(shade)];
+	if (!hex) return null;
+
+	const alpha =
+		typeof alphaOverride === 'number'
+			? alphaOverride
+			: opacityRaw
+				? parseInt(opacityRaw, 10) / 100
+				: 1;
+
+	return hexToRgba(hex, alpha);
+}
+
+function hexToRgba(hex: string, alpha = 1): string {
+	const cleanHex = hex.replace('#', '');
+	const bigint = parseInt(cleanHex, 16);
+	const r = (bigint >> 16) & 255;
+	const g = (bigint >> 8) & 255;
+	const b = bigint & 255;
+	return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

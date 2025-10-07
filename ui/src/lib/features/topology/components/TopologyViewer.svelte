@@ -4,13 +4,14 @@
 	import { type Node, type Edge } from '@xyflow/svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import { getDistanceToNode, getNextHandle, topology } from '../store';
-	import { edgeTypes } from '$lib/shared/stores/metadata';
+	import { edgeTypes, entities } from '$lib/shared/stores/metadata';
 	import { pushError } from '$lib/shared/stores/feedback';
 
 	// Import custom node components
 	import SubnetNode from './SubnetNode.svelte';
 	import HostNode from './HostNode.svelte';
 	import { EdgeHandle, type TopologyEdgeData } from '../types/base';
+	import { twColorToRgba } from '$lib/shared/utils/styling';
 
 	// Define custom edge data type
 	interface CustomEdgeData extends Record<string, unknown> {
@@ -45,18 +46,18 @@
 						width: node.size.x,
 						height: node.size.y,
 						expandParent: true,
-						parentId: node.parent_id || undefined,
-						extent: node.parent_id ? 'parent' : undefined,
+						deletable: false,
+						parentId: node.subnet_id || undefined,
+						extent: node.subnet_id ? 'parent' : undefined,
 						data: {
 							id: node.id,
 							host_id: node.host_id,
 							interface_id: node.interface_id,
 							infra_width: node.infra_width,
 							nodeType: node.node_type,
-							parentId: node.parent_id,
+							parentId: node.subnet_id,
 							width: node.size.x,
 							height: node.size.y,
-							subnet_label: node.subnet_label,
 							subnet_type: node.subnet_type
 						}
 					};
@@ -68,8 +69,15 @@
 						const edgeLabel = edgeTypes.getName(edgeType);
 						let edgeMetadata = edgeTypes.getMetadata(edgeType);
 						let edgeColorHelper = edgeTypes.getColorHelper(edgeType);
+						let hostColorHelper = entities.getColorHelper('Host');
 
 						const dashArray = edgeMetadata.is_dashed ? 'stroke-dasharray: 5,5;' : '';
+						const labelStyle =
+							edgeType === 'Interface'
+								? `background: ${twColorToRgba(hostColorHelper.bg)};
+								color: ${hostColorHelper.rgb};
+								border: 2px solid ${twColorToRgba(hostColorHelper.border)};`
+								: 'background: #374151; color: #f3f4f6; border: 1px solid #4b5563;';
 
 						const customData: CustomEdgeData = {
 							edgeType: edgeType,
@@ -87,7 +95,8 @@
 							type: 'smoothstep',
 							label: edgeData.label,
 							labelStyle:
-								'fill: #f3f4f6; font-size: 12px; font-weight: 500; background: #374151; padding: 2px 6px; border-radius: 4px; border: 1px solid #4b5563;',
+								labelStyle +
+								'font-size: 12px; font-weight: 500; padding: 2px 6px; border-radius: 4px;',
 							style: `stroke: ${edgeColorHelper.rgb}; stroke-width: 2px; ${dashArray}`,
 							data: customData
 						};

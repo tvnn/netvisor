@@ -71,7 +71,8 @@ export function createEmptyHostFormData(): Host {
 		},
 		services: [],
 		interfaces: [],
-		ports: []
+		ports: [],
+		source: 'Manual'
 	};
 }
 
