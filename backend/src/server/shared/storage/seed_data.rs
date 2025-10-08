@@ -7,11 +7,11 @@ use crate::server::{
         base::{Host, HostBase},
         interfaces::{Interface, InterfaceBase},
         ports::{Port, PortBase},
-        targets::{HostTarget, ServiceBinding},
+        targets::HostTarget,
     },
     services::{
         definitions::{client::Client, dns_server::DnsServer, web_service::WebService},
-        types::base::{PortInterfaceBinding, Service, ServiceBase},
+        types::{base::{Service, ServiceBase}, bindings::{Binding, ServiceBinding}},
     },
     subnets::types::base::{Subnet, SubnetBase, SubnetType},
 };
@@ -65,8 +65,8 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
     let interface = Interface::new(InterfaceBase::new_conceptual(remote_subnet));
 
     let dynamic_port = Port::new(PortBase::new_tcp(0)); // Ephemeral port
-    let binding = PortInterfaceBinding::new(dynamic_port.id, interface.id);
-    let binding_id = binding.id;
+    let binding = Binding::new_l4(dynamic_port.id, interface.id);
+    let binding_id = binding.id();
 
     let base = HostBase {
         name: "Mobile Phone".to_string(), // Device type in name, not service
@@ -101,8 +101,8 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
     let interface = Interface::new(InterfaceBase::new_conceptual(internet_subnet));
 
     let https_port = Port::new(PortBase::Https);
-    let binding = PortInterfaceBinding::new(https_port.id, interface.id);
-    let binding_id = binding.id;
+    let binding = Binding::new_l4(https_port.id, interface.id);
+    let binding_id = binding.id();
 
     let base = HostBase {
         name: "Google".to_string(),
@@ -138,8 +138,8 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
     let mut interface = Interface::new(InterfaceBase::new_conceptual(internet_subnet));
     interface.base.ip_address = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
     let dns_udp_port = Port::new(PortBase::DnsUdp);
-    let binding = PortInterfaceBinding::new(dns_udp_port.id, interface.id);
-    let binding_id = binding.id;
+    let binding = Binding::new_l4(dns_udp_port.id, interface.id);
+    let binding_id = binding.id();
 
     let base = HostBase {
         name: "Cloudflare".to_string(),

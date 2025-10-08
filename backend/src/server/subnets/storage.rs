@@ -1,7 +1,5 @@
 use crate::server::{
-    discovery::types::base::EntitySource,
-    hosts::types::targets::ServiceBinding,
-    subnets::types::base::{Subnet, SubnetBase, SubnetType},
+    discovery::types::base::EntitySource, services::types::bindings::ServiceBinding, subnets::types::base::{Subnet, SubnetBase, SubnetType}
 };
 use anyhow::{Error, Result};
 use async_trait::async_trait;
@@ -164,7 +162,7 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet, Error> {
     let dns_resolvers: Vec<ServiceBinding> =
         serde_json::from_str(&row.get::<String, _>("dns_resolvers"))
             .or(Err(Error::msg("Failed to deserialize dns_resolvers")))?;
-    let gateways: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("gateways"))
+    let gateways: Vec<ServiceBinding> = serde_json::from_str(&row.get::<String, _>("gateways"))
         .or(Err(Error::msg("Failed to deserialize gateways")))?;
     let reverse_proxies: Vec<ServiceBinding> =
         serde_json::from_str(&row.get::<String, _>("reverse_proxies"))

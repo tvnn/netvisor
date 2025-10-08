@@ -9,8 +9,7 @@ use crate::{
         services::{
             definitions::netvisor_daemon::NetvisorDaemon,
             types::{
-                base::{PortInterfaceBinding, ServiceBase},
-                definitions::ServiceDefinition,
+                base::ServiceBase, bindings::Binding, definitions::ServiceDefinition
             },
         },
         utils::base::NetworkUtils,
@@ -98,7 +97,7 @@ impl DaemonDiscoveryService {
             service_definition: Box::new(service_definition),
             bindings: daemon_service_bound_interfaces
                 .iter()
-                .map(|i| PortInterfaceBinding::new(own_port_id, i.id))
+                .map(|i| Binding::new_l4(own_port_id, i.id))
                 .collect(),
             host_id: host.id,
         });

@@ -4,8 +4,7 @@ use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
 use crate::server::services::types::{
-    base::{PortInterfaceBinding, Service, ServiceBase},
-    definitions::ServiceDefinition,
+    base::{Service, ServiceBase}, bindings::Binding, definitions::ServiceDefinition
 };
 
 #[async_trait]
@@ -132,7 +131,7 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
     let service_definition: Box<dyn ServiceDefinition> =
         serde_json::from_str(&row.get::<String, _>("service_definition"))
             .or(Err(Error::msg("Failed to deserialize service_definition")))?;
-    let bindings: Vec<PortInterfaceBinding> =
+    let bindings: Vec<Binding> =
         serde_json::from_str(&row.get::<String, _>("bindings"))
             .or(Err(Error::msg("Failed to deserialize bindings")))?;
 

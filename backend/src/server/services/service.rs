@@ -6,7 +6,7 @@ use crate::server::{
     },
     services::{
         storage::ServiceStorage,
-        types::base::{PortInterfaceBinding, Service},
+        types::{base::Service, bindings::Binding},
     },
     shared::types::metadata::TypeMetadataProvider,
     subnets::service::SubnetService,
@@ -52,25 +52,40 @@ impl ServiceService {
             let definition_match =
                 service.base.service_definition == existing.base.service_definition;
 
-            let binding_match = {
+            let l4_bindings_match = {
+
                 let existing_ports: std::collections::HashSet<_> = existing
-                    .base
-                    .bindings
+                    .get_l4_bindings()
                     .iter()
-                    .map(|b| b.base.port_id)
+                    .map(|b| b.port_id().unwrap())
                     .collect();
                 let service_ports: std::collections::HashSet<_> = service
-                    .base
-                    .bindings
+                    .get_l4_bindings()
                     .iter()
-                    .map(|b| b.base.port_id)
+                    .map(|b| b.port_id().unwrap())
                     .collect();
 
-                // Services match if they share any ports
+                // Services with L4 bindings match if they share any ports
                 !existing_ports.is_disjoint(&service_ports)
             };
 
-            host_match && definition_match && binding_match
+            let l3_bindings_match = {
+                let existing_interfaces: std::collections::HashSet<_> = existing
+                    .get_l3_bindings()
+                    .iter()
+                    .map(|b| b.interface_id())
+                    .collect();
+                let service_interfaces: std::collections::HashSet<_> = service
+                    .get_l3_bindings()
+                    .iter()
+                    .map(|b| b.interface_id())
+                    .collect();
+
+                // Services with L3 bindings match if they share interface
+                !existing_interfaces.is_disjoint(&service_interfaces)
+            };
+
+            host_match && definition_match && l4_bindings_match && l3_bindings_match
         }) {
             Some(existing_service) => {
                 tracing::warn!(
@@ -195,7 +210,7 @@ impl ServiceService {
                             .base
                             .bindings
                             .iter()
-                            .any(|pb| pb.id == sb.binding_id),
+                            .any(|pb| pb.id() == sb.binding_id),
                         None => false,
                     };
                 }
@@ -278,27 +293,50 @@ impl ServiceService {
         original_host: &Host,
         new_host: &Host,
     ) -> Service {
+        
         service.base.bindings = service
             .base
             .bindings
             .iter()
             .filter_map(|b| {
-                if let (Some(original_interface), Some(original_port)) = (
-                    original_host.get_interface(&b.base.interface_id),
-                    original_host.get_port(&b.base.port_id),
-                ) {
-                    let new_interface: Option<&Interface> = new_host
-                        .base
-                        .interfaces
-                        .iter()
-                        .find(|i| *i == original_interface);
-                    let new_port: Option<&Port> =
-                        new_host.base.ports.iter().find(|p| *p == original_port);
 
-                    if let (Some(new_interface), Some(new_port)) = (new_interface, new_port) {
-                        return Some(PortInterfaceBinding::new(new_port.id, new_interface.id));
+                let original_interface = original_host.get_interface(&b.interface_id());
+
+                match b {
+                    Binding::Layer3 { .. } => {
+                        if let Some(original_interface) = original_interface {
+                            let new_interface: Option<&Interface> = new_host
+                                .base
+                                .interfaces
+                                .iter()
+                                .find(|i| *i == original_interface);
+
+                            if let Some(new_interface) = new_interface {
+                                return Some(Binding::new_l3(new_interface.id));
+                            }
+                        }
+                    },
+                    Binding::Layer4 { port_id, .. } => {
+
+                        let original_port = original_host.get_port(&port_id);
+
+                        if let (Some(original_interface), Some(original_port)) = (original_interface, original_port) {
+                            let new_interface: Option<&Interface> = new_host
+                                .base
+                                .interfaces
+                                .iter()
+                                .find(|i| *i == original_interface);
+                            let new_port: Option<&Port> =
+                                new_host.base.ports.iter().find(|p| *p == original_port);
+
+                            if let (Some(new_interface), Some(new_port)) = (new_interface, new_port) {
+                                return Some(Binding::new_l4(new_port.id, new_interface.id));
+                            }
+                        }
+
                     }
-                }
+                };
+
                 None
             })
             .collect();
@@ -331,7 +369,7 @@ impl ServiceService {
 
 #[cfg(test)]
 mod tests {
-    use crate::{server::services::types::base::PortInterfaceBinding, tests::*};
+    use crate::{server::services::types::bindings::{Binding, ServiceBinding}, tests::*};
 
     #[tokio::test]
     async fn test_service_deduplication_on_create() {
@@ -388,16 +426,27 @@ mod tests {
         let mut host_obj = host();
         host_obj.base.interfaces = vec![interface(&created_subnet.id)];
 
-        // Create router service (will add to subnet gateways)
-        let router_def =
-            crate::server::services::definitions::ServiceDefinitionRegistry::find_by_id("Router")
+        // Create reverse proxy service (will add to subnet reverse proxies)
+        let reverse_proxy_def =
+            crate::server::services::definitions::ServiceDefinitionRegistry::find_by_id("Nginx Proxy Manager")
                 .unwrap();
         let mut svc = service(&host_obj.id);
-        svc.base.service_definition = router_def;
-        svc.base.bindings = vec![PortInterfaceBinding::new(
+        svc.base.service_definition = reverse_proxy_def;
+        svc.base.bindings = vec![Binding::new_l4(
             host_obj.base.ports[0].id,
             host_obj.base.interfaces[0].id,
         )];
+
+        // Create gateway service (will add to subnet gateways)
+        let gateway_def =
+            crate::server::services::definitions::ServiceDefinitionRegistry::find_by_id("Gateway")
+                .unwrap();
+        let mut svc = service(&host_obj.id);
+        svc.base.service_definition = gateway_def;
+        svc.base.bindings = vec![Binding::new_l3(
+            host_obj.base.interfaces[0].id,
+        )];
+
 
         let (_, created_svcs) = services
             .host_service
@@ -405,15 +454,19 @@ mod tests {
             .await
             .unwrap();
 
-        // Subnet should have gateway relationship
+        // Subnet should have gateway & reverse proxy relationship
         let subnet_after = services
             .subnet_service
             .get_subnet(&created_subnet.id)
             .await
             .unwrap()
             .unwrap();
+
+        assert!(!subnet_after.base.reverse_proxies.is_empty());
+        assert_eq!(subnet_after.base.reverse_proxies[0].service_id, created_svcs[0].id);
+
         assert!(!subnet_after.base.gateways.is_empty());
-        assert_eq!(subnet_after.base.gateways[0], created_svcs[0].id);
+        assert_eq!(subnet_after.base.gateways[0].service_id, created_svcs[0].id);
     }
 
     #[tokio::test]
@@ -433,7 +486,7 @@ mod tests {
         // Create service in a group
         let mut svc = service(&host_obj.id);
         let binding =
-            PortInterfaceBinding::new(host_obj.base.ports[0].id, host_obj.base.interfaces[0].id);
+            Binding::new_l4(host_obj.base.ports[0].id, host_obj.base.interfaces[0].id);
         svc.base.bindings = vec![binding];
 
         let (_, created_svcs) = services
@@ -445,9 +498,9 @@ mod tests {
 
         let mut group_obj = group();
         group_obj.base.service_bindings =
-            vec![crate::server::hosts::types::targets::ServiceBinding {
+            vec![ServiceBinding {
                 service_id: created_svc.id,
-                binding_id: created_svc.base.bindings[0].id,
+                binding_id: created_svc.base.bindings[0].id(),
             }];
         let created_group = services
             .group_service

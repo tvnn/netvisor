@@ -1,9 +1,10 @@
 use std::net::Ipv4Addr;
 
 use crate::server::discovery::types::base::EntitySource;
+use crate::server::services::types::bindings::ServiceBinding;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use crate::server::{
-    hosts::types::{ports::PortBase, targets::ServiceBinding},
+    hosts::types::{ports::PortBase},
     services::types::definitions::ServiceDefinitionExt,
 };
 use chrono::{DateTime, Utc};
@@ -34,9 +35,9 @@ pub struct SubnetBase {
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
     pub dns_resolvers: Vec<ServiceBinding>,
-    pub gateways: Vec<Uuid>, // services
+    pub gateways: Vec<ServiceBinding>,
     pub reverse_proxies: Vec<ServiceBinding>,
-    pub hosts: Vec<Uuid>, // hosts
+    pub hosts: Vec<Uuid>,
     pub subnet_type: SubnetType,
     pub source: EntitySource,
 }
@@ -130,7 +131,7 @@ impl Subnet {
             .base
             .gateways
             .iter()
-            .filter(|service_id| **service_id != service.id)
+            .filter(|binding| binding.service_id != service.id)
             .cloned()
             .collect();
         self.base.reverse_proxies = self
@@ -146,24 +147,23 @@ impl Subnet {
         // Only add service relationships if the service has an interface binding on this subnet
         let has_interface_on_subnet = service.base.bindings.iter().any(|binding| {
             host.base.interfaces.iter().any(|interface| {
-                interface.id == binding.base.interface_id && interface.base.subnet_id == self.id
+                interface.id == binding.interface_id() && interface.base.subnet_id == self.id
             })
         });
 
         if has_interface_on_subnet {
             if service.base.service_definition.is_dns_resolver() {
                 let dns_port_bindings: Vec<ServiceBinding> = service
-                    .base
-                    .bindings
+                    .get_l4_bindings()
                     .iter()
                     .filter(|b| {
-                        if let Some(port) = host.get_port(&b.base.port_id) {
+                        if let Some(port) = host.get_port(&b.port_id().unwrap()) {
                             return port.base == PortBase::DnsUdp || port.base == PortBase::DnsTcp;
                         }
                         false
                     })
                     .map(|b| ServiceBinding {
-                        binding_id: b.id,
+                        binding_id: b.id(),
                         service_id: service.id,
                     })
                     .collect();
@@ -171,7 +171,7 @@ impl Subnet {
                 self.base.dns_resolvers.extend(dns_port_bindings);
             }
             if service.base.service_definition.is_gateway() {
-                self.base.gateways.push(service.id)
+                self.base.gateways.extend(service.to_bindings())
             }
             if service.base.service_definition.is_reverse_proxy() {
                 self.base.reverse_proxies.extend(service.to_bindings())

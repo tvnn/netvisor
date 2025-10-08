@@ -79,7 +79,7 @@ impl TopologyEdgePlanner {
                     let interface_0 = services.iter().find_map(|s| {
                         if s.id == window[0].service_id {
                             if let Some(binding) = s.get_binding(window[0].binding_id) {
-                                return Some(binding.base.interface_id);
+                                return Some(binding.interface_id());
                             }
                         }
                         None
@@ -87,7 +87,7 @@ impl TopologyEdgePlanner {
                     let interface_1 = services.iter().find_map(|s| {
                         if s.id == window[1].service_id {
                             if let Some(binding) = s.get_binding(window[1].binding_id) {
-                                return Some(binding.base.interface_id);
+                                return Some(binding.interface_id());
                             }
                         }
                         None

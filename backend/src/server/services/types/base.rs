@@ -1,56 +1,19 @@
 use std::net::IpAddr;
 
 use crate::server::hosts::types::ports::{Port, PortBase};
-use crate::server::hosts::types::targets::ServiceBinding;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::subnets::types::base::Subnet;
+use crate::server::services::types::bindings::{Binding, BindingDiscriminants, ServiceBinding};
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
+use strum::IntoDiscriminant;
 use std::hash::Hash;
 use uuid::Uuid;
 use validator::Validate;
-
-#[derive(Debug, Clone, Serialize, Validate, Deserialize, Eq)]
-pub struct PortInterfaceBinding {
-    pub id: Uuid,
-    #[serde(flatten)]
-    pub base: PortInterfaceBindingBase,
-}
-
-impl PartialEq for PortInterfaceBinding {
-    fn eq(&self, other: &Self) -> bool {
-        self.base.interface_id == other.base.interface_id && self.base.port_id == other.base.port_id
-    }
-}
-
-impl Hash for PortInterfaceBinding {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.base.interface_id.hash(state);
-        self.base.port_id.hash(state);
-    }
-}
-
-impl PortInterfaceBinding {
-    pub fn new(port_id: Uuid, interface_id: Uuid) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            base: PortInterfaceBindingBase {
-                port_id,
-                interface_id,
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash)]
-pub struct PortInterfaceBindingBase {
-    pub port_id: Uuid,
-    pub interface_id: Uuid,
-}
 
 #[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash)]
 pub struct ServiceBase {
@@ -58,7 +21,7 @@ pub struct ServiceBase {
     pub service_definition: Box<dyn ServiceDefinition>,
     #[validate(length(min = 1, max = 100))]
     pub name: String,
-    pub bindings: Vec<PortInterfaceBinding>,
+    pub bindings: Vec<Binding>,
 }
 
 impl Default for ServiceBase {
@@ -105,8 +68,16 @@ impl Service {
         }
     }
 
-    pub fn get_binding(&self, id: Uuid) -> Option<&PortInterfaceBinding> {
-        self.base.bindings.iter().find(|b| b.id == id)
+    pub fn get_l3_bindings(&self) -> Vec<&Binding> {
+        self.base.bindings.iter().filter(|b| b.discriminant() == BindingDiscriminants::Layer3).collect()
+    }
+
+    pub fn get_l4_bindings(&self) -> Vec<&Binding> {
+        self.base.bindings.iter().filter(|b| b.discriminant() == BindingDiscriminants::Layer4).collect()
+    }
+
+    pub fn get_binding(&self, id: Uuid) -> Option<&Binding> {
+        self.base.bindings.iter().find(|b| b.id() == id)
     }
 
     pub fn to_bindings(&self) -> Vec<ServiceBinding> {
@@ -115,7 +86,7 @@ impl Service {
             .iter()
             .map(|b| ServiceBinding {
                 service_id: self.id,
-                binding_id: b.id,
+                binding_id: b.id(),
             })
             .collect()
     }
@@ -178,9 +149,9 @@ impl Service {
                 matched_ports
             );
 
-            let bindings: Vec<PortInterfaceBinding> = matched_ports
+            let bindings: Vec<Binding> = matched_ports
                 .iter()
-                .map(|p| PortInterfaceBinding::new(p.id, *interface_id))
+                .map(|p| Binding::new_l4(p.id, *interface_id))
                 .collect();
 
             let name = service_definition.name().to_string();

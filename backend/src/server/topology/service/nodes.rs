@@ -136,7 +136,7 @@ impl TopologyNodePlanner {
                                     if s.base
                                         .bindings
                                         .iter()
-                                        .map(|b| b.base.interface_id)
+                                        .map(|b| b.interface_id())
                                         .contains(&interface.id)
                                     {
                                         Some(s.id)
@@ -198,8 +198,8 @@ impl TopologyNodePlanner {
                     .dns_resolvers
                     .iter()
                     .chain(&subnet.base.reverse_proxies)
+                    .chain(&subnet.base.gateways)
                     .map(|binding| binding.service_id)
-                    .chain(subnet.base.gateways.iter().copied())
                     .filter_map(|service_id| services.iter().find(|s| s.id == service_id))
                     .map(|s| s.base.host_id)
                     .collect();

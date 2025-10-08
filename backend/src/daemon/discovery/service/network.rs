@@ -1,5 +1,6 @@
 use crate::server::discovery::types::base::EntitySource;
 use crate::server::services::types::base::ServiceFromDiscoveryParams;
+use crate::server::services::types::bindings::ServiceBinding;
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::{
     daemon::discovery::service::base::DaemonDiscoveryService,
@@ -7,7 +8,6 @@ use crate::{
         hosts::types::{
             interfaces::{Interface, InterfaceBase},
             ports::{Port, PortBase, TransportProtocol},
-            targets::ServiceBinding,
         },
         services::{
             definitions::{vpn_gateway::VpnGateway, ServiceDefinitionRegistry},
@@ -439,7 +439,7 @@ impl DaemonDiscoveryService {
 
                 if let (Some(binding), true) = (
                     service.base.bindings.iter().find(|b| {
-                        if let Some(port) = host.get_port(&b.base.port_id) {
+                        if let Some(port) = host.get_port(&b.port_id().expect("Services discovered through port scanning should always add L4 bindings")) {
                             return port.base.protocol() == TransportProtocol::Tcp;
                         }
                         false
@@ -447,7 +447,7 @@ impl DaemonDiscoveryService {
                     matches!(host.base.target, HostTarget::Hostname | HostTarget::None),
                 ) {
                     host.base.target = HostTarget::ServiceBinding(ServiceBinding {
-                        binding_id: binding.id,
+                        binding_id: binding.id(),
                         service_id: service.id,
                     })
                 }

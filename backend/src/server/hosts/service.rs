@@ -5,7 +5,7 @@ use crate::server::{
         storage::HostStorage,
         types::base::{Host, HostBase},
     },
-    services::{service::ServiceService, types::base::Service},
+    services::{service::ServiceService, types::{base::Service, bindings::Binding}},
     subnets::service::SubnetService,
 };
 use anyhow::{anyhow, Error, Result};
@@ -284,15 +284,21 @@ impl HostService {
             let initial_bindings_count = service.base.bindings.len();
 
             service.base.bindings.retain(|b| {
-                // Remove if current host has interface, updated host doesn't have
-                !(current_host.get_interface(&b.base.interface_id).is_some()
-                    && updates.get_interface(&b.base.interface_id).is_none())
+                // Remove binding if current host has interface, updated host doesn't have
+                !(current_host.get_interface(&b.interface_id()).is_some()
+                    && updates.get_interface(&b.interface_id()).is_none())
             });
 
             service.base.bindings.retain(|b| {
-                // Remove if current host has port, updated host doesn't have
-                !(current_host.get_port(&b.base.port_id).is_some()
-                    && updates.get_port(&b.base.port_id).is_none())
+                // Remove L4 bindings if current host has port, updated host doesn't have
+                match b {
+                    Binding::Layer3{..} => true,
+                    Binding::Layer4{port_id, ..} => {
+                        !(current_host.get_port(&port_id).is_some()
+                            && updates.get_port(&port_id).is_none())
+                    }
+                }
+                
             });
 
             if initial_bindings_count != service.base.bindings.len() {
@@ -374,7 +380,7 @@ mod tests {
 
     use crate::{
         server::{
-            discovery::types::base::EntitySource, services::types::base::PortInterfaceBinding,
+            discovery::types::base::EntitySource, services::types::bindings::Binding,
         },
         tests::*,
     };
@@ -478,7 +484,7 @@ mod tests {
         host2.base.interfaces = vec![interface(&subnet_obj.id)];
 
         let mut svc = service(&host2.id);
-        svc.base.bindings = vec![PortInterfaceBinding::new(
+        svc.base.bindings = vec![Binding::new_l4(
             host2.base.ports[0].id,
             host2.base.interfaces[0].id,
         )];
