@@ -144,23 +144,27 @@ impl Subnet {
 
     pub fn create_service_relationships(&mut self, service: &Service, host: &Host) {
         // Only add service relationships if the service has an interface binding on this subnet
-        let has_interface_on_subnet = service.base.interface_bindings.iter().any(|binding_id| {
-            host.base
-                .interfaces
-                .iter()
-                .any(|interface| interface.id == *binding_id && interface.base.subnet_id == self.id)
+        let has_interface_on_subnet = service.base.bindings.iter().any(|binding| {
+            host.base.interfaces.iter().any(|interface| {
+                interface.id == binding.base.interface_id && interface.base.subnet_id == self.id
+            })
         });
 
         if has_interface_on_subnet {
             if service.base.service_definition.is_dns_resolver() {
                 let dns_port_bindings: Vec<ServiceBinding> = service
-                    .to_bindings()
-                    .into_iter()
+                    .base
+                    .bindings
+                    .iter()
                     .filter(|b| {
-                        if let Some(port) = host.get_port(&b.port_id) {
+                        if let Some(port) = host.get_port(&b.base.port_id) {
                             return port.base == PortBase::DnsUdp || port.base == PortBase::DnsTcp;
                         }
                         false
+                    })
+                    .map(|b| ServiceBinding {
+                        binding_id: b.id,
+                        service_id: service.id,
                     })
                     .collect();
 

@@ -1,7 +1,13 @@
 use crate::server::{
     groups::service::GroupService,
-    hosts::{service::HostService, types::base::Host},
-    services::{storage::ServiceStorage, types::base::Service},
+    hosts::{
+        service::HostService,
+        types::{base::Host, interfaces::Interface, ports::Port},
+    },
+    services::{
+        storage::ServiceStorage,
+        types::base::{PortInterfaceBinding, Service},
+    },
     shared::types::metadata::TypeMetadataProvider,
     subnets::service::SubnetService,
 };
@@ -46,18 +52,25 @@ impl ServiceService {
             let definition_match =
                 service.base.service_definition == existing.base.service_definition;
 
-            let port_match = service
-                .base
-                .port_bindings
-                .iter()
-                .all(|p| existing.base.port_bindings.contains(p))
-                && existing
+            let binding_match = {
+                let existing_ports: std::collections::HashSet<_> = existing
                     .base
-                    .port_bindings
+                    .bindings
                     .iter()
-                    .all(|p| service.base.port_bindings.contains(p));
-
-            host_match && definition_match && port_match
+                    .map(|b| b.base.port_id)
+                    .collect();
+                let service_ports: std::collections::HashSet<_> = service
+                    .base
+                    .bindings
+                    .iter()
+                    .map(|b| b.base.port_id)
+                    .collect();
+                
+                // Services match if they share any ports
+                !existing_ports.is_disjoint(&service_ports)
+            };
+            
+            host_match && definition_match && binding_match
         }) {
             Some(existing_service) => {
                 tracing::warn!(
@@ -90,31 +103,16 @@ impl ServiceService {
         mut existing_service: Service,
         new_service: Service,
     ) -> Result<Service> {
-        let mut interface_updates = 0;
-        let mut port_updates = 0;
+        let mut binding_updates = 0;
 
-        for new_service_binding in new_service.base.interface_bindings {
+        for new_service_binding in new_service.base.bindings {
             if !existing_service
                 .base
-                .interface_bindings
+                .bindings
                 .contains(&new_service_binding)
             {
-                interface_updates += 1;
-                existing_service
-                    .base
-                    .interface_bindings
-                    .push(new_service_binding);
-            }
-        }
-
-        for new_service_port in new_service.base.port_bindings {
-            if !existing_service
-                .base
-                .port_bindings
-                .contains(&new_service_port)
-            {
-                port_updates += 1;
-                existing_service.base.port_bindings.push(new_service_port)
+                binding_updates += 1;
+                existing_service.base.bindings.push(new_service_binding);
             }
         }
 
@@ -122,11 +120,8 @@ impl ServiceService {
 
         let mut data = Vec::new();
 
-        if port_updates > 0 {
-            data.push(format!("{} ports", port_updates))
-        };
-        if interface_updates > 0 {
-            data.push(format!("{} interfaces", interface_updates))
+        if binding_updates > 0 {
+            data.push(format!("{} bindings", binding_updates))
         };
 
         if !data.is_empty() {
@@ -192,26 +187,19 @@ impl ServiceService {
         let group_futures = groups.into_iter().filter_map(|mut group| {
             let initial_bindings_length = group.base.service_bindings.len();
 
-            group.base.service_bindings.retain(|b| {
-                // Remove if current service has interface/port bound, updated service doesn't have (or updated service is None aka getting deleted)
-
-                let bindings_exist_after_updates = match updates {
-                    Some(updated_service) => {
-                        updated_service
+            group.base.service_bindings.retain(|sb| {
+                // Remove if updated service doesn't have binding (or updated service is None aka getting deleted)
+                if sb.service_id == current_service.id {
+                    return match updates {
+                        Some(updated_service) => updated_service
                             .base
-                            .interface_bindings
-                            .contains(&b.interface_id)
-                            && updated_service.base.port_bindings.contains(&b.port_id)
-                    }
-                    None => false,
-                };
-
-                !((current_service
-                    .base
-                    .interface_bindings
-                    .contains(&b.interface_id)
-                    || current_service.base.port_bindings.contains(&b.port_id))
-                    && !bindings_exist_after_updates)
+                            .bindings
+                            .iter()
+                            .any(|pb| pb.id == sb.binding_id),
+                        None => false,
+                    };
+                }
+                true
             });
 
             if group.base.service_bindings.len() != initial_bindings_length {
@@ -290,37 +278,26 @@ impl ServiceService {
         original_host: &Host,
         new_host: &Host,
     ) -> Service {
-        service.base.interface_bindings = service
+        service.base.bindings = service
             .base
-            .interface_bindings
+            .bindings
             .iter()
             .filter_map(|b| {
-                if let Some(original_binding) = original_host.get_interface(b) {
-                    return new_host.base.interfaces.iter().find_map(|i| {
-                        if i == original_binding {
-                            Some(i.id)
-                        } else {
-                            None
-                        }
-                    });
-                }
-                None
-            })
-            .collect();
+                if let (Some(original_interface), Some(original_port)) = (
+                    original_host.get_interface(&b.base.interface_id),
+                    original_host.get_port(&b.base.port_id),
+                ) {
+                    let new_interface: Option<&Interface> = new_host
+                        .base
+                        .interfaces
+                        .iter()
+                        .find(|i| *i == original_interface);
+                    let new_port: Option<&Port> =
+                        new_host.base.ports.iter().find(|p| *p == original_port);
 
-        service.base.port_bindings = service
-            .base
-            .port_bindings
-            .iter()
-            .filter_map(|b| {
-                if let Some(original_binding) = original_host.get_port(b) {
-                    return new_host.base.ports.iter().find_map(|p| {
-                        if p == original_binding {
-                            Some(p.id)
-                        } else {
-                            None
-                        }
-                    });
+                    if let (Some(new_interface), Some(new_port)) = (new_interface, new_port) {
+                        return Some(PortInterfaceBinding::new(new_port.id, new_interface.id));
+                    }
                 }
                 None
             })
@@ -354,7 +331,7 @@ impl ServiceService {
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::*;
+    use crate::{server::services::types::base::PortInterfaceBinding, tests::*};
 
     #[tokio::test]
     async fn test_service_deduplication_on_create() {
@@ -417,8 +394,10 @@ mod tests {
                 .unwrap();
         let mut svc = service(&host_obj.id);
         svc.base.service_definition = router_def;
-        svc.base.interface_bindings = vec![host_obj.base.interfaces[0].id];
-        svc.base.port_bindings = vec![host_obj.base.ports[0].id];
+        svc.base.bindings = vec![PortInterfaceBinding::new(
+            host_obj.base.ports[0].id,
+            host_obj.base.interfaces[0].id,
+        )];
 
         let (_, created_svcs) = services
             .host_service
@@ -453,10 +432,11 @@ mod tests {
 
         // Create service in a group
         let mut svc = service(&host_obj.id);
-        svc.base.port_bindings = vec![host_obj.base.ports[0].id];
-        svc.base.interface_bindings = vec![host_obj.base.interfaces[0].id];
+        let binding =
+            PortInterfaceBinding::new(host_obj.base.ports[0].id, host_obj.base.interfaces[0].id);
+        svc.base.bindings = vec![binding];
 
-        let (created_host, created_svcs) = services
+        let (_, created_svcs) = services
             .host_service
             .create_host_with_services(host_obj.clone(), vec![svc])
             .await
@@ -467,8 +447,7 @@ mod tests {
         group_obj.base.service_bindings =
             vec![crate::server::hosts::types::targets::ServiceBinding {
                 service_id: created_svc.id,
-                port_id: created_host.base.ports[0].id,
-                interface_id: created_host.base.interfaces[0].id,
+                binding_id: created_svc.base.bindings[0].id,
             }];
         let created_group = services
             .group_service

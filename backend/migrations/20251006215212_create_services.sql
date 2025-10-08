@@ -5,8 +5,7 @@ CREATE TABLE IF NOT EXISTS services (
     name TEXT NOT NULL,
     host_id BLOB NOT NULL,
     groups TEXT,
-    port_bindings TEXT NOT NULL,
-    interface_bindings TEXT NOT NULL,
+    bindings TEXT,
     service_definition TEXT NOT NULL,
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
 );

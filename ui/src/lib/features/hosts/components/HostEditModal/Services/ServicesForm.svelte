@@ -10,10 +10,12 @@
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
 	import type { FormApi } from '$lib/shared/components/forms/types';
 	import { pushError } from '$lib/shared/stores/feedback';
+	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 
 	export let formApi: FormApi;
 	export let formData: Host;
 	export let currentServices: Service[] = [];
+	export let isEditing: boolean;
 
 	// Available service types for adding
 	const availableServiceTypes =
@@ -27,13 +29,10 @@
 		const serviceMetadata = serviceDefinitions.getItems()?.find((s) => s.id === serviceTypeId);
 		if (!serviceMetadata) return;
 
-		const defaultPorts = (serviceMetadata.metadata?.default_ports as string[]) || [];
-
 		const newService: Service = createDefaultService(
 			serviceTypeId,
 			formData.id,
-			serviceDefinitions.getName(serviceTypeId),
-			defaultPorts
+			serviceDefinitions.getName(serviceTypeId)
 		);
 
 		currentServices = [...currentServices, newService as Service];
@@ -107,7 +106,6 @@
 					bind:formData
 					service={selectedItem}
 					onChange={(updatedService) => onChange(updatedService)}
-					host_interfaces={formData.interfaces}
 				/>
 			{:else}
 				<div class="flex min-h-0 flex-1 items-center justify-center text-gray-400">
@@ -119,4 +117,8 @@
 			{/if}
 		</svelte:fragment>
 	</ListConfigEditor>
+
+	{#if isEditing}
+		<EntityMetadataSection entities={currentServices} showSummary={false}/>
+	{/if}
 </div>

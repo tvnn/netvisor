@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS hosts (
     interfaces TEXT,
     services TEXT,
     ports TEXT,
+    source TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );

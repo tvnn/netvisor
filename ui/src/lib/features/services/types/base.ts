@@ -5,6 +5,11 @@ export interface Service {
 	host_id: string;
 	service_definition: string;
 	name: string;
-	port_bindings: string[];
-	interface_bindings: string[];
+	bindings: PortInterfaceBinding[];
+}
+
+export interface PortInterfaceBinding {
+	id: string;
+	port_id: string;
+	interface_id: string;
 }

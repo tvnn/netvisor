@@ -213,11 +213,10 @@ impl ConfigStore {
         self.save(&config.clone()).await
     }
 
-    // pub async fn set_server_ip(&self, ip: String) -> Result<()> {
-    //     let mut config = self.config.write().await;
-    //     config.server_ip = Some(ip);
-    //     self.save(&config.clone()).await
-    // }
+    pub async fn get_bind_address(&self) -> Result<String> {
+        let config = self.config.read().await;
+        Ok(config.bind_address.clone())
+    }
 
     pub async fn get_server_ip(&self) -> Result<Option<String>> {
         let config = self.config.read().await;

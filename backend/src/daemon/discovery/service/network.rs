@@ -378,9 +378,7 @@ impl DaemonDiscoveryService {
         });
 
         let interface_id = interface.id;
-
         let interfaces = vec![interface];
-        let interface_bindings = vec![interface_id];
 
         let (name, target) = match hostname.clone() {
             Some(hostname) => (hostname, HostTarget::Hostname),
@@ -431,7 +429,7 @@ impl DaemonDiscoveryService {
                     subnet: &subnet,
                     mac_address: &mac,
                     host_id: &host.id,
-                    interface_bindings: &interface_bindings,
+                    interface_id: &interface_id,
                     matched_service_definitions: &matched_service_definitions,
                 })
             {
@@ -439,16 +437,17 @@ impl DaemonDiscoveryService {
                     host.base.name = service.base.service_definition.name().to_string();
                 }
 
-                if let (Some(port), Some(interface_id), true) = (
-                    matched_ports
-                        .iter()
-                        .find(|p| p.base.protocol() == TransportProtocol::Tcp),
-                    service.base.interface_bindings.first(),
+                if let (Some(binding), true) = (
+                    service.base.bindings.iter().find(|b| {
+                        if let Some(port) = host.get_port(&b.base.port_id) {
+                            return port.base.protocol() == TransportProtocol::Tcp;
+                        }
+                        false
+                    }),
                     matches!(host.base.target, HostTarget::Hostname | HostTarget::None),
                 ) {
                     host.base.target = HostTarget::ServiceBinding(ServiceBinding {
-                        port_id: port.id,
-                        interface_id: *interface_id,
+                        binding_id: binding.id,
                         service_id: service.id,
                     })
                 }

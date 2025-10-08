@@ -119,7 +119,7 @@ impl TopologyNodePlanner {
         let interface_edges = self.edge_planner.get_interface_edge_info(hosts, subnets);
         let group_edges = self
             .edge_planner
-            .get_group_edge_info(groups, hosts, subnets);
+            .get_group_edge_info(groups, hosts, subnets, services);
         let all_edges: Vec<_> = interface_edges.into_iter().chain(group_edges).collect();
 
         hosts
@@ -133,7 +133,12 @@ impl TopologyNodePlanner {
                             let services: Vec<Uuid> = services
                                 .iter()
                                 .filter_map(|s| {
-                                    if s.base.interface_bindings.contains(&interface.id) {
+                                    if s.base
+                                        .bindings
+                                        .iter()
+                                        .map(|b| b.base.interface_id)
+                                        .contains(&interface.id)
+                                    {
                                         Some(s.id)
                                     } else {
                                         None

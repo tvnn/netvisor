@@ -5,6 +5,7 @@ use uuid::Uuid;
 use crate::server::{
     groups::types::Group,
     hosts::types::base::Host,
+    services::types::base::Service,
     subnets::types::base::Subnet,
     topology::types::{
         edges::{Edge, EdgeInfo, EdgeType},
@@ -68,25 +69,46 @@ impl TopologyEdgePlanner {
         groups: &'a [Group],
         hosts: &'a [Host],
         subnets: &'a [Subnet],
+        services: &'a [Service],
     ) -> Vec<EdgeInfo<'a>> {
         groups
             .iter()
             .flat_map(|group| {
                 let bindings = &group.base.service_bindings;
                 bindings.windows(2).filter_map(|window| {
-                    let source_subnet =
-                        self.get_subnet_from_interface_id(&window[0].interface_id, hosts, subnets)?;
-                    let target_subnet =
-                        self.get_subnet_from_interface_id(&window[1].interface_id, hosts, subnets)?;
+                    let interface_0 = services.iter().find_map(|s| {
+                        if s.id == window[0].service_id {
+                            if let Some(binding) = s.get_binding(window[0].binding_id) {
+                                return Some(binding.base.interface_id);
+                            }
+                        }
+                        None
+                    });
+                    let interface_1 = services.iter().find_map(|s| {
+                        if s.id == window[1].service_id {
+                            if let Some(binding) = s.get_binding(window[1].binding_id) {
+                                return Some(binding.base.interface_id);
+                            }
+                        }
+                        None
+                    });
 
-                    Some(EdgeInfo {
-                        source_id: window[0].interface_id,
-                        target_id: window[1].interface_id,
-                        source_subnet,
-                        target_subnet,
-                        edge_type: EdgeType::Group,
-                        label: group.base.name.to_string(),
-                    })
+                    if let (Some(interface_0), Some(interface_1)) = (interface_0, interface_1) {
+                        let source_subnet =
+                            self.get_subnet_from_interface_id(&interface_0, hosts, subnets)?;
+                        let target_subnet =
+                            self.get_subnet_from_interface_id(&interface_1, hosts, subnets)?;
+
+                        return Some(EdgeInfo {
+                            source_id: interface_0,
+                            target_id: interface_1,
+                            source_subnet,
+                            target_subnet,
+                            edge_type: EdgeType::Group,
+                            label: group.base.name.to_string(),
+                        });
+                    }
+                    None
                 })
             })
             .collect()
@@ -126,8 +148,9 @@ impl TopologyEdgePlanner {
         groups: &[Group],
         hosts: &[Host],
         subnets: &[Subnet],
+        services: &[Service],
     ) {
-        let edge_infos = self.get_group_edge_info(groups, hosts, subnets);
+        let edge_infos = self.get_group_edge_info(groups, hosts, subnets, services);
         self.add_edges(graph, node_indices, edge_infos);
     }
 

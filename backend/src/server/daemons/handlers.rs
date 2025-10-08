@@ -87,7 +87,6 @@ async fn get_all_daemons(
         ApiError::internal_error(&format!("Failed to get daemons: {}", e))
     })?;
 
-    info!("Successfully retrieved {} daemons", daemons.len());
     Ok(Json(ApiResponse::success(daemons)))
 }
 
@@ -104,10 +103,6 @@ async fn get_daemon(
         .map_err(|e| ApiError::internal_error(&format!("Failed to get daemon: {}", e)))?
         .ok_or_else(|| ApiError::not_found(&format!("Daemon '{}' not found", &id)))?;
 
-    info!(
-        "Successfully retrieved daemon {}: {}",
-        &daemon.base.ip, &daemon.id
-    );
     Ok(Json(ApiResponse::success(DaemonResponse { daemon })))
 }
 

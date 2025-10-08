@@ -1,12 +1,9 @@
 <script lang="ts">
 	import { field } from 'svelte-forms';
-	import type { Service } from '$lib/features/services/types/base';
-	import type { Host, Port } from '$lib/features/hosts/types/base';
-	import type { Interface } from '$lib/features/hosts/types/base';
+	import type { PortInterfaceBinding, Service } from '$lib/features/services/types/base';
+	import type { Host } from '$lib/features/hosts/types/base';
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-	import { PortDisplay } from '$lib/shared/components/forms/selection/display/PortDisplay.svelte';
-	import { InterfaceDisplay } from '$lib/shared/components/forms/selection/display/InterfaceDisplay.svelte';
 	import type { FormApi } from '$lib/shared/components/forms/types';
 	import { required } from 'svelte-forms/validators';
 	import { pushWarning } from '$lib/shared/stores/feedback';
@@ -14,11 +11,12 @@
 	import { maxLength } from '$lib/shared/components/forms/validators';
 	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
 	import { v4 as uuidv4 } from 'uuid';
+	import { PortInterfaceBindingDisplay } from '$lib/shared/components/forms/selection/display/PortInterfaceBindingDisplay.svelte';
+	import { getServicesForPort } from '$lib/features/services/store';
 
 	export let formApi: FormApi;
 	export let formData: Host;
 	export let service: Service;
-	export let host_interfaces: Interface[] = [];
 	export let onChange: (updatedService: Service) => void = () => {};
 
 	let currentServiceId: string = service.id;
@@ -31,14 +29,34 @@
 
 	$: serviceMetadata = service ? serviceDefinitions.getItem(service.service_definition) : null;
 
-	$: servicePorts = service.port_bindings
-		.map((portId) => formData.ports?.find((p) => p.id === portId))
-		.filter((p): p is Port => p !== undefined);
-
 	$: if (service.id !== currentServiceId) {
 		currentServiceId = service.id;
 		nameField = getNameField();
 	}
+
+	// Calculate available port+interface combinations
+	$: availableCombinations = formData.interfaces.flatMap((iface) => {
+		return formData.ports
+			.filter((port) => {
+				// Check if this port is already bound to this interface by ANY service
+				// First check services from the store (other services)
+				let otherServices = getServicesForPort(port.id).filter((s) => s.id !== service.id);
+				let bound_iface_ids = otherServices.flatMap((s) => s.bindings).map((b) => b.interface_id);
+
+				// Also check current service's bindings (from formData)
+				let currentServiceBindings = service.bindings
+					.filter((b) => b.port_id === port.id)
+					.map((b) => b.interface_id);
+
+				// Combine both checks
+				let allBoundIfaceIds = [...bound_iface_ids, ...currentServiceBindings];
+
+				return !allBoundIfaceIds.includes(iface.id);
+			})
+			.map((port) => ({ port, iface }));
+	});
+
+	$: canCreateNewBinding = availableCombinations.length > 0;
 
 	// Update service when field values change
 	$: if ($nameField) {
@@ -53,104 +71,72 @@
 		}
 	}
 
-	function handleCreateNewPort() {
-		if (!service) return;
+	function handleCreateNewBinding() {
+		if (!service) {
+			pushWarning('Could not find service to create binding for');
+			return;
+		}
 
-		// Create a new port with default values in editing state
-		const newPort: Port = {
-			number: 80, // Default port number
-			protocol: 'Tcp', // Default protocol
-			type: 'Custom',
-			id: uuidv4()
-		};
+		if (formData.interfaces.length == 0) {
+			pushWarning("Host does not have any interfaces, can't create binding");
+			return;
+		}
 
-		const updatedService = {
-			...service,
-			port_bindings: [...service.port_bindings, newPort.id]
-		};
+		if (formData.ports.length == 0) {
+			pushWarning("Host does not have any ports, can't create binding");
+			return;
+		}
 
-		let oldPorts = formData.ports;
-		oldPorts.push(newPort);
+		if (!canCreateNewBinding) {
+			pushWarning('No available port+interface combinations to bind');
+			return;
+		}
 
-		formData.ports = [...oldPorts];
+		// Use the first available combination
+		const firstAvailable = availableCombinations[0];
 
-		onChange(updatedService);
-	}
-
-	function handleRemovePort(index: number) {
-		if (!service) return;
-
-		let port_id = service.port_bindings[index];
-
-		const updatedService = {
-			...service,
-			port_bindings: service.port_bindings.filter((_, i) => i !== index)
-		};
-
-		formData.ports = [...formData.ports.filter((p) => p.id != port_id)];
-
-		onChange(updatedService);
-	}
-
-	function handleUpdatePort(port: Port, index: number) {
-		if (!service) return;
-
-		const updatedPorts = [...service.port_bindings];
-		updatedPorts[index] = port.id;
-
-		formData.ports = [...formData.ports.map((p) => (p.id == port.id ? port : p))];
-	}
-
-	// Interface binding management
-	function handleAddInterface(interfaceId: string) {
-		if (!service) return;
-
-		// Validate interface exists in host_interfaces
-		const interfaceExists = host_interfaces.find((iface) => iface.id === interfaceId);
-		if (!interfaceExists) return;
-		if (service.interface_bindings.includes(interfaceId)) return;
+		const binding = {
+			id: uuidv4(),
+			port_id: firstAvailable.port.id,
+			interface_id: firstAvailable.iface.id
+		} as PortInterfaceBinding;
 
 		const updatedService = {
 			...service,
-			interface_bindings: [...service.interface_bindings, interfaceId]
+			bindings: [...service.bindings, binding]
 		};
 
 		onChange(updatedService);
 	}
 
-	function handleRemoveInterface(index: number) {
-		if (!service) return;
-
-		if (index < 0 || index >= service.interface_bindings.length) return;
+	function handleRemoveBinding(index: number) {
+		if (!service) {
+			pushWarning('Could not find service to remove binding for');
+			return;
+		}
 
 		const updatedService = {
 			...service,
-			interface_bindings: service.interface_bindings.filter((_, i) => i !== index)
+			bindings: service.bindings.filter((_, i) => i !== index)
 		};
 
 		onChange(updatedService);
 	}
 
-	// Reactive statement for bound interfaces
-	$: boundInterfaces = service
-		? (service.interface_bindings
-				.map((id) => {
-					const iface = host_interfaces.find((iface) => iface.id === id);
-					if (!iface) {
-						pushWarning(
-							`Interface binding ${id} not found in host interfaces for service ${service.name}`
-						);
-					}
-					return iface;
-				})
-				.filter(Boolean) as Interface[])
-		: [];
+	function handleUpdateBinding(binding: PortInterfaceBinding, index: number) {
+		if (!service) return;
 
-	// Reactive statement for available interfaces
-	$: availableInterfaces = host_interfaces.filter((iface) => {
-		const isAlreadyBound = service?.interface_bindings.includes(iface.id) || false;
-		return !isAlreadyBound;
-	});
+		const updatedBindings = [...service.bindings];
+		updatedBindings[index].interface_id = binding.interface_id;
+		updatedBindings[index].port_id = binding.port_id;
+
+		const updatedService = {
+			...service,
+			bindings: updatedBindings
+		};
+
+		onChange(updatedService);
+	}
 </script>
 
 {#if service && serviceMetadata}
@@ -172,49 +158,29 @@
 			{/if}
 		</div>
 
-		<!-- Interface Bindings -->
+		<!-- Bindings -->
 		<div class="space-y-4">
 			{#key service.id}
 				<ListManager
-					label="Interface Bindings"
-					helpText="Select which network interfaces this service is bound to"
-					placeholder="Select an interface to bind..."
-					emptyMessage="No interfaces bound to this service. Add one to get started."
-					allowReorder={true}
-					allowDuplicates={false}
-					allowItemEdit={() => false}
-					allowItemRemove={() => true}
-					options={availableInterfaces}
-					items={boundInterfaces}
-					optionDisplayComponent={InterfaceDisplay}
-					itemDisplayComponent={InterfaceDisplay}
-					onAdd={handleAddInterface}
-					onRemove={handleRemoveInterface}
-					onEdit={() => {}}
-				/>
-			{/key}
-		</div>
-
-		<!-- Ports Configuration using ListManager -->
-		<div class="space-y-4">
-			{#key service.id}
-				<ListManager
-					label="Ports"
-					helpText="Configure which ports this service uses"
-					placeholder="Select a port to add"
-					createNewLabel="New Port"
+					label="Bindings"
+					helpText="Configure which ports and interfaces this service listens on"
+					placeholder="Select a binding to add"
+					createNewLabel="New Binding"
 					allowDuplicates={false}
 					allowItemEdit={() => true}
 					allowItemRemove={() => true}
 					allowReorder={false}
 					allowCreateNew={true}
-					options={[]}
-					items={servicePorts}
-					optionDisplayComponent={PortDisplay}
-					itemDisplayComponent={PortDisplay}
-					onCreateNew={handleCreateNewPort}
-					onRemove={handleRemovePort}
-					onEdit={handleUpdatePort}
+					allowAddFromOptions={false}
+					disableCreateNewButton={!canCreateNewBinding}
+					options={[] as PortInterfaceBinding[]}
+					optionDisplayComponent={PortInterfaceBindingDisplay}
+					itemDisplayComponent={PortInterfaceBindingDisplay}
+					items={service.bindings}
+					getItemContext={() => ({ service, host: formData })}
+					onCreateNew={handleCreateNewBinding}
+					onRemove={handleRemoveBinding}
+					onEdit={handleUpdateBinding}
 				/>
 			{/key}
 		</div>

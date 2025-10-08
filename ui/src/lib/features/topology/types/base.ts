@@ -32,3 +32,22 @@ export enum EdgeHandle {
 	Bottom = 'Bottom',
 	Left = 'Left'
 }
+
+export interface CustomEdgeData extends Record<string, unknown> {
+	edgeType: string;
+	label: string;
+	sourceHandle: EdgeHandle,
+	targetHandle: EdgeHandle
+}
+
+export interface CustomNodeData extends Record<string, unknown> {
+	id: string,
+	host_id: string | null,
+	interface_id: string | null,
+	infra_width: number | null,
+	nodeType: string,
+	parentId: string | null,
+	width: number,
+	height: number,
+	subnet_type: string | null
+}

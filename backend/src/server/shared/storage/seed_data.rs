@@ -11,7 +11,7 @@ use crate::server::{
     },
     services::{
         definitions::{client::Client, dns_server::DnsServer, web_service::WebService},
-        types::base::{Service, ServiceBase},
+        types::base::{PortInterfaceBinding, Service, ServiceBase},
     },
     subnets::types::base::{Subnet, SubnetBase, SubnetType},
 };
@@ -65,15 +65,15 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
     let interface = Interface::new(InterfaceBase::new_conceptual(remote_subnet));
 
     let dynamic_port = Port::new(PortBase::new_tcp(0)); // Ephemeral port
-    let port_bindings = vec![dynamic_port.id];
-    let interface_bindings = vec![interface.id];
+    let binding = PortInterfaceBinding::new(dynamic_port.id, interface.id);
+    let binding_id = binding.id;
 
     let base = HostBase {
         name: "Mobile Phone".to_string(), // Device type in name, not service
         hostname: None,
         description: Some("A mobile device connecting from a remote network".to_string()),
-        interfaces: vec![interface.clone()],
-        ports: vec![dynamic_port.clone()],
+        interfaces: vec![interface],
+        ports: vec![dynamic_port],
         services: Vec::new(),
         target: HostTarget::None,
         source: EntitySource::System,
@@ -85,14 +85,11 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
         host_id: host.id,
         name: "Client".to_string(),
         service_definition: Box::new(Client),
-        port_bindings,
-        interface_bindings,
-        // groups: Vec::new(),
+        bindings: vec![binding],
     });
 
     host.base.target = HostTarget::ServiceBinding(ServiceBinding {
-        port_id: dynamic_port.id,
-        interface_id: interface.id,
+        binding_id,
         service_id: client_service.id,
     });
 
@@ -104,15 +101,15 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
     let interface = Interface::new(InterfaceBase::new_conceptual(internet_subnet));
 
     let https_port = Port::new(PortBase::Https);
-    let port_bindings = vec![https_port.id];
-    let interface_bindings = vec![interface.id];
+    let binding = PortInterfaceBinding::new(https_port.id, interface.id);
+    let binding_id = binding.id;
 
     let base = HostBase {
         name: "Google".to_string(),
         hostname: Some("google.com".to_string()),
         description: Some("Google.com".to_string()),
-        interfaces: vec![interface.clone()],
-        ports: vec![https_port.clone()],
+        interfaces: vec![interface],
+        ports: vec![https_port],
         services: Vec::new(),
         target: HostTarget::Hostname,
         source: EntitySource::System,
@@ -124,14 +121,11 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
         host_id: host.id,
         name: "Google.com".to_string(),
         service_definition: Box::new(WebService),
-        port_bindings,
-        interface_bindings,
-        // groups: Vec::new(),
+        bindings: vec![binding],
     });
 
     host.base.target = HostTarget::ServiceBinding(ServiceBinding {
-        port_id: https_port.id,
-        interface_id: interface.id,
+        binding_id,
         service_id: web_service.id,
     });
 
@@ -144,16 +138,16 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
     let mut interface = Interface::new(InterfaceBase::new_conceptual(internet_subnet));
     interface.base.ip_address = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
     let dns_udp_port = Port::new(PortBase::DnsUdp);
-    let port_bindings = vec![dns_udp_port.id];
-    let interface_bindings = vec![interface.id];
+    let binding = PortInterfaceBinding::new(dns_udp_port.id, interface.id);
+    let binding_id = binding.id;
 
     let base = HostBase {
         name: "Cloudflare".to_string(),
         hostname: None,
         description: Some("Cloudflare DNS for DNS resolution testing".to_string()),
         target: HostTarget::Hostname,
-        interfaces: vec![interface.clone()],
-        ports: vec![dns_udp_port.clone()],
+        interfaces: vec![interface],
+        ports: vec![dns_udp_port],
         services: Vec::new(),
         source: EntitySource::System,
     };
@@ -164,13 +158,11 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
         host_id: host.id,
         name: "DNS".to_string(),
         service_definition: Box::new(DnsServer),
-        port_bindings,
-        interface_bindings,
+        bindings: vec![binding],
     });
 
     host.base.target = HostTarget::ServiceBinding(ServiceBinding {
-        port_id: dns_udp_port.id,
-        interface_id: interface.id,
+        binding_id,
         service_id: dns_service.id,
     });
 

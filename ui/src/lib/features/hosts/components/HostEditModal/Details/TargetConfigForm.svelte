@@ -4,12 +4,8 @@
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	import type { FormType } from '$lib/shared/components/forms/types';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
-	import { getServicesForHost } from '$lib/features/services/store';
-	import {
-		getPortFromId,
-		serviceBindingIdToObj,
-		serviceBindingToId
-	} from '$lib/features/hosts/store';
+	import { getServiceBindingsFromService, getServicesForHost } from '$lib/features/services/store';
+	import { serviceBindingIdToObj, serviceBindingToId } from '$lib/features/hosts/store';
 	import { uuidv4Sentinel } from '$lib/shared/utils/formatting';
 	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
 
@@ -23,19 +19,7 @@
 	}
 
 	$: serviceBindings = getServicesForHost(formData.id).flatMap((s) =>
-		s.interface_bindings.flatMap((interface_id) =>
-			s.port_bindings
-				.map((port_id) => getPortFromId(port_id))
-				.filter((port) => port != undefined)
-				.filter((port) => port.protocol == 'Tcp')
-				.map((port) => {
-					return {
-						service_id: s.id,
-						interface_id,
-						port_id: port.id
-					};
-				})
-		)
+		getServiceBindingsFromService(s)
 	);
 
 	$: hostnameField = form.getField('hostname');
@@ -87,8 +71,7 @@
 			};
 			selectedBinding = {
 				service_id: uuidv4Sentinel,
-				interface_id: uuidv4Sentinel,
-				port_id: uuidv4Sentinel
+				binding_id: uuidv4Sentinel
 			};
 		} else if (newType === 'Hostname') {
 			formData.target = {

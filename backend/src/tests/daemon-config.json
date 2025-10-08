@@ -1,0 +1,12 @@
+{
+  "server_target": "server",
+  "server_port": 60072,
+  "port": 60073,
+  "name": "netvisor-daemon",
+  "log_level": "info",
+  "heartbeat_interval": 30,
+  "bind_address": "0.0.0.0",
+  "id": "2340fd0b-d8dc-41e7-a391-75249ce8a068",
+  "last_heartbeat": "2025-10-07T21:16:09.545756669Z",
+  "host_id": "92a64b4d-fe36-43d2-9823-216ffbb6b652"
+}

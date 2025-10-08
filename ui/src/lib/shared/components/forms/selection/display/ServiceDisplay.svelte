@@ -5,17 +5,8 @@
 		getId: (service: Service) => service.id,
 		getLabel: (service: Service) => service.name,
 		getDescription: (service: Service) => {
-			let binding_count = service.interface_bindings.length;
-			let port_count = service.port_bindings.length;
-			return (
-				port_count +
-				' port' +
-				(port_count == 1 ? '' : 's') +
-				' · ' +
-				binding_count +
-				' interface binding' +
-				(binding_count == 1 ? '' : 's')
-			);
+			let binding_count = service.bindings.length;
+			return binding_count + ' binding' + (binding_count == 1 ? '' : 's');
 		},
 		getIcon: (service: Service) => serviceDefinitions.getIconComponent(service.service_definition),
 		getIconColor: (service: Service) =>

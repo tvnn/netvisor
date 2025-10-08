@@ -2,7 +2,7 @@
 	import { createEmptySubnetFormData } from '../../store';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-	import { entities, ports, serviceDefinitions } from '$lib/shared/stores/metadata';
+	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import {
 		getServiceBindingsFromService,
 		serviceHasInterfaceOnSubnet,
@@ -12,11 +12,7 @@
 	import SubnetDetailsForm from './SubnetDetailsForm.svelte';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import type { Subnet } from '../../types/base';
-	import {
-		getPortFromId,
-		serviceBindingIdToObj,
-		serviceBindingToId
-	} from '$lib/features/hosts/store';
+	import { serviceBindingIdToObj, serviceBindingToId } from '$lib/features/hosts/store';
 	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
 	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
 
@@ -58,17 +54,7 @@
 				!formData.dns_resolvers.some(
 					(resolver) => serviceBindingToId(resolver) == serviceBindingToId(sb)
 				)
-		)
-		.filter((sb) => {
-			let port = getPortFromId(sb.port_id);
-			console.log(port);
-			if (port) {
-				let metadata = ports.getMetadata(port.type);
-				console.log(metadata);
-				return ports.getMetadata(port.type).is_dns;
-			}
-			return false;
-		});
+		);
 
 	$: gatewayServices = $services.filter((service) => {
 		const isGateway = serviceDefinitions.getMetadata(service.service_definition)?.is_gateway;

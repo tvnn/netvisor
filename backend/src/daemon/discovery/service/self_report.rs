@@ -2,10 +2,16 @@ use crate::{
     daemon::discovery::service::base::DaemonDiscoveryService,
     server::{
         discovery::types::base::EntitySource,
-        hosts::types::ports::{Port, PortBase},
+        hosts::types::{
+            interfaces::Interface,
+            ports::{Port, PortBase},
+        },
         services::{
             definitions::netvisor_daemon::NetvisorDaemon,
-            types::{base::ServiceBase, definitions::ServiceDefinition},
+            types::{
+                base::{PortInterfaceBinding, ServiceBase},
+                definitions::ServiceDefinition,
+            },
         },
         utils::base::NetworkUtils,
     },
@@ -22,13 +28,29 @@ use crate::{
 };
 use anyhow::{Error, Result};
 use futures::future::try_join_all;
-use std::result::Result::Ok;
+use std::{
+    net::{IpAddr, Ipv4Addr},
+    result::Result::Ok,
+};
+use uuid::Uuid;
 
 impl DaemonDiscoveryService {
     pub async fn run_self_report_discovery(&self) -> Result<(), Error> {
         // Get daemon configuration
         let daemon_id = self.config_store.get_id().await?;
+        let binding_address = self.config_store.get_bind_address().await?;
+        let binding_ip = IpAddr::V4(binding_address.parse::<Ipv4Addr>()?);
         let (mut interfaces, subnets) = self.utils.scan_interfaces(daemon_id).await?;
+
+        let daemon_bound_subnet_ids: Vec<Uuid> = if binding_address == "0.0.0.0" {
+            subnets.iter().map(|s| s.id).collect()
+        } else {
+            subnets
+                .iter()
+                .filter(|s| s.base.cidr.contains(&binding_ip))
+                .map(|s| s.id)
+                .collect()
+        };
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
         let created_subnets = try_join_all(subnet_futures).await?;
@@ -42,12 +64,6 @@ impl DaemonDiscoveryService {
                 i.base.subnet_id = subnet.id
             }
         });
-
-        let interface_bindings = if !interfaces.is_empty() {
-            vec![interfaces[0].id]
-        } else {
-            vec![]
-        };
 
         let own_port = Port::new(PortBase::new_tcp(self.config_store.get_port().await?));
         let own_port_id = own_port.id;
@@ -63,7 +79,7 @@ impl DaemonDiscoveryService {
             description: Some("NetVisor daemon".to_string()),
             target: HostTarget::Hostname,
             services: Vec::new(),
-            interfaces,
+            interfaces: interfaces.clone(),
             ports: vec![own_port],
             source: EntitySource::System,
         };
@@ -72,12 +88,19 @@ impl DaemonDiscoveryService {
 
         let service_definition = NetvisorDaemon;
 
+        let daemon_service_bound_interfaces: Vec<&Interface> = interfaces
+            .iter()
+            .filter(|i| daemon_bound_subnet_ids.contains(&i.base.subnet_id))
+            .collect();
+
         let daemon_service = Service::new(ServiceBase {
             name: ServiceDefinition::name(&service_definition).to_string(),
             service_definition: Box::new(service_definition),
-            port_bindings: vec![own_port_id],
+            bindings: daemon_service_bound_interfaces
+                .iter()
+                .map(|i| PortInterfaceBinding::new(own_port_id, i.id))
+                .collect(),
             host_id: host.id,
-            interface_bindings,
         });
 
         let created_host = self.create_host(host, vec![daemon_service]).await?;

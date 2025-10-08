@@ -1,8 +1,8 @@
 import { writable, get, derived } from 'svelte/store';
 import { api } from '../../shared/utils/api';
-import type { Service } from './types/base';
-import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
-import { getPortFromId, hosts } from '../hosts/store';
+import type { PortInterfaceBinding, Service } from './types/base';
+import { formatPort, utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
+import { formatInterface, getInterfaceFromId, getPortFromId, hosts } from '../hosts/store';
 import type { Host, ServiceBinding } from '../hosts/types/base';
 
 export const services = writable<Service[]>([]);
@@ -18,8 +18,7 @@ export async function getServices() {
 export function createDefaultService(
 	serviceType: string,
 	host_id: string,
-	serviceName?: string,
-	defaultPorts?: string[]
+	serviceName?: string
 ): Service {
 	return {
 		id: uuidv4Sentinel,
@@ -28,8 +27,7 @@ export function createDefaultService(
 		host_id,
 		service_definition: serviceType,
 		name: serviceName || serviceType,
-		port_bindings: defaultPorts ? [...defaultPorts] : [],
-		interface_bindings: []
+		bindings: []
 	};
 }
 
@@ -86,8 +84,8 @@ export function serviceHasInterfaceOnSubnet(service: Service, subnetId: string):
 	const host = getServiceHost(service.id);
 	if (!host) return false;
 
-	return service.interface_bindings.some((bindingId) => {
-		const iface = host.interfaces.find((iface) => iface.id === bindingId);
+	return service.bindings.some((binding) => {
+		const iface = host.interfaces.find((iface) => iface.id === binding.interface_id);
 		return iface && iface.subnet_id === subnetId;
 	});
 }
@@ -99,28 +97,43 @@ export function getServiceName(service: Service): string {
 export function getServicesForPort(port_id: string): Service[] {
 	const host = get(hosts).find((h) => h.ports.some((p) => p.id === port_id));
 
-	console.log(host);
-
 	if (host) {
 		const services = getServicesForHost(host.id);
-		console.log(services);
-		return services.filter((s) => s.port_bindings.some((p) => p === port_id));
-	} else {
-		return [];
+		return services.filter((s) => s.bindings.some((b) => b.port_id === port_id));
 	}
+	return [];
 }
 
 export function getServiceBindingsFromService(service: Service): ServiceBinding[] {
-	return service.interface_bindings.flatMap((interface_id) =>
-		service.port_bindings
-			.map((port_id) => getPortFromId(port_id))
-			.filter((port) => port != undefined)
-			.map((port) => {
-				return {
-					service_id: service.id,
-					interface_id,
-					port_id: port.id
-				} as ServiceBinding;
-			})
+	return service.bindings.map((binding) => {
+		return {
+			service_id: service.id,
+			binding_id: binding.id
+		} as ServiceBinding;
+	});
+}
+
+export function getServiceForBinding(binding: PortInterfaceBinding): Service | null {
+	return get(services).find((s) => s.bindings.map((b) => b.id).includes(binding.id)) || null;
+}
+
+export function getBindingFromId(id: string): PortInterfaceBinding | null {
+	return (
+		get(services)
+			.flatMap((s) => s.bindings)
+			.find((b) => b.id == id) || null
 	);
+}
+
+export function getPortInterfaceBindingDisplayName(binding: PortInterfaceBinding): string {
+	const service = getServiceForBinding(binding);
+	if (service) {
+		const host = getServiceHost(service.id);
+		if (host) {
+			const port = getPortFromId(binding.port_id);
+			const iface = getInterfaceFromId(binding.interface_id);
+			if (port && iface) return formatInterface(iface) + formatPort(port);
+		}
+	}
+	return 'Unknown Binding';
 }

@@ -4,7 +4,7 @@ use sqlx::{Row, SqlitePool};
 use uuid::Uuid;
 
 use crate::server::services::types::{
-    base::{Service, ServiceBase},
+    base::{PortInterfaceBinding, Service, ServiceBase},
     definitions::ServiceDefinition,
 };
 
@@ -32,25 +32,21 @@ impl SqliteServiceStorage {
 impl ServiceStorage for SqliteServiceStorage {
     async fn create(&self, service: &Service) -> Result<()> {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
-        let port_bindings_str = serde_json::to_string(&service.base.port_bindings)?;
-        let interface_bindings_str = serde_json::to_string(&service.base.interface_bindings)?;
-        // let groups_str = serde_json::to_string(&service.base.groups)?;
+        let bindings_str = serde_json::to_string(&service.base.bindings)?;
 
         // Try to insert, ignore if constraint sviolation
         sqlx::query(
             r#"
             INSERT INTO services (
-                id, name, host_id, service_definition, port_bindings, interface_bindings, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            "#
+                id, name, host_id, service_definition, bindings, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            "#,
         )
         .bind(blob_uuid::to_blob(&service.id))
         .bind(&service.base.name)
         .bind(blob_uuid::to_blob(&service.base.host_id))
         .bind(service_def_str)
-        .bind(port_bindings_str)
-        .bind(interface_bindings_str)
-        // .bind(groups_str)
+        .bind(bindings_str)
         .bind(service.created_at.to_rfc3339())
         .bind(service.updated_at.to_rfc3339())
         .execute(&self.pool)
@@ -100,23 +96,19 @@ impl ServiceStorage for SqliteServiceStorage {
 
     async fn update(&self, service: &Service) -> Result<()> {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
-        let port_bindings_str = serde_json::to_string(&service.base.port_bindings)?;
-        let interface_bindings_str = serde_json::to_string(&service.base.interface_bindings)?;
-        // let groups_str = serde_json::to_string(&service.base.groups)?;
+        let bindings_str = serde_json::to_string(&service.base.bindings)?;
 
         sqlx::query(
             r#"
             UPDATE services SET 
-                name = ?, host_id = ?, service_definition = ?, port_bindings = ?, interface_bindings = ?, updated_at = ?
+                name = ?, host_id = ?, service_definition = ?, bindings = ?, updated_at = ?
             WHERE id = ?
-            "#
+            "#,
         )
         .bind(&service.base.name)
         .bind(blob_uuid::to_blob(&service.base.host_id))
         .bind(service_def_str)
-        .bind(port_bindings_str)
-        .bind(interface_bindings_str)
-        // .bind(groups_str)
+        .bind(bindings_str)
         .bind(service.updated_at.to_rfc3339())
         .bind(blob_uuid::to_blob(&service.id))
         .execute(&self.pool)
@@ -140,11 +132,9 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
     let service_definition: Box<dyn ServiceDefinition> =
         serde_json::from_str(&row.get::<String, _>("service_definition"))
             .or(Err(Error::msg("Failed to deserialize service_definition")))?;
-    let port_bindings: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("port_bindings"))
-        .or(Err(Error::msg("Failed to deserialize port_bindings")))?;
-    let interface_bindings: Vec<Uuid> =
-        serde_json::from_str(&row.get::<String, _>("interface_bindings"))
-            .or(Err(Error::msg("Failed to deserialize interface_bindings")))?;
+    let bindings: Vec<PortInterfaceBinding> =
+        serde_json::from_str(&row.get::<String, _>("bindings"))
+            .or(Err(Error::msg("Failed to deserialize bindings")))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -160,8 +150,7 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
             host_id: blob_uuid::to_uuid(row.get("host_id"))
                 .or(Err(Error::msg("Failed to deserialize host_id")))?,
             service_definition,
-            port_bindings,
-            interface_bindings,
+            bindings,
         },
     })
 }

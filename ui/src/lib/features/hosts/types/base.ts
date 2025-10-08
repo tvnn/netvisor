@@ -42,8 +42,7 @@ export interface HostnameTargetConfig {
 }
 export interface ServiceBinding {
 	service_id: string;
-	interface_id: string;
-	port_id: string;
+	binding_id: string;
 }
 
 export interface Port {

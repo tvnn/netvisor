@@ -60,11 +60,6 @@
 	<TargetConfigForm {form} {formData} />
 
 	{#if isEditing}
-		<EntityMetadataSection
-			entity={host}
-			id={formData.id}
-			createdAt={formData.created_at}
-			updatedAt={formData.updated_at}
-		/>
+		<EntityMetadataSection entities={[host]}/>
 	{/if}
 </div>

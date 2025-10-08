@@ -10,8 +10,47 @@ use crate::server::subnets::types::base::Subnet;
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
+use std::hash::Hash;
 use uuid::Uuid;
 use validator::Validate;
+
+#[derive(Debug, Clone, Serialize, Validate, Deserialize, Eq)]
+pub struct PortInterfaceBinding {
+    pub id: Uuid,
+    #[serde(flatten)]
+    pub base: PortInterfaceBindingBase,
+}
+
+impl PartialEq for PortInterfaceBinding {
+    fn eq(&self, other: &Self) -> bool {
+        self.base.interface_id == other.base.interface_id && self.base.port_id == other.base.port_id
+    }
+}
+
+impl Hash for PortInterfaceBinding {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.base.interface_id.hash(state);
+        self.base.port_id.hash(state);
+    }
+}
+
+impl PortInterfaceBinding {
+    pub fn new(port_id: Uuid, interface_id: Uuid) -> Self {
+        Self {
+            id: Uuid::new_v4(),
+            base: PortInterfaceBindingBase {
+                port_id,
+                interface_id,
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash)]
+pub struct PortInterfaceBindingBase {
+    pub port_id: Uuid,
+    pub interface_id: Uuid,
+}
 
 #[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash)]
 pub struct ServiceBase {
@@ -19,8 +58,7 @@ pub struct ServiceBase {
     pub service_definition: Box<dyn ServiceDefinition>,
     #[validate(length(min = 1, max = 100))]
     pub name: String,
-    pub port_bindings: Vec<Uuid>,
-    pub interface_bindings: Vec<Uuid>,
+    pub bindings: Vec<PortInterfaceBinding>,
 }
 
 impl Default for ServiceBase {
@@ -29,8 +67,7 @@ impl Default for ServiceBase {
             host_id: Uuid::nil(),
             service_definition: Box::new(DefaultServiceDefinition),
             name: String::new(),
-            port_bindings: Vec::new(),
-            interface_bindings: Vec::new(),
+            bindings: Vec::new(),
         }
     }
 }
@@ -53,7 +90,7 @@ pub struct ServiceFromDiscoveryParams<'a> {
     pub subnet: &'a Subnet,
     pub mac_address: &'a Option<MacAddress>,
     pub host_id: &'a Uuid,
-    pub interface_bindings: &'a [Uuid],
+    pub interface_id: &'a Uuid,
     pub matched_service_definitions: &'a Vec<Box<dyn ServiceDefinition>>,
 }
 
@@ -68,20 +105,17 @@ impl Service {
         }
     }
 
+    pub fn get_binding(&self, id: Uuid) -> Option<&PortInterfaceBinding> {
+        self.base.bindings.iter().find(|b| b.id == id)
+    }
+
     pub fn to_bindings(&self) -> Vec<ServiceBinding> {
         self.base
-            .interface_bindings
+            .bindings
             .iter()
-            .flat_map(|i| {
-                self.base
-                    .port_bindings
-                    .iter()
-                    .map(|p| ServiceBinding {
-                        service_id: self.id,
-                        port_id: *p,
-                        interface_id: *i,
-                    })
-                    .collect::<Vec<ServiceBinding>>()
+            .map(|b| ServiceBinding {
+                service_id: self.id,
+                binding_id: b.id,
             })
             .collect()
     }
@@ -123,7 +157,7 @@ impl Service {
             subnet,
             mac_address,
             host_id,
-            interface_bindings,
+            interface_id,
             matched_service_definitions,
         } = params;
 
@@ -144,15 +178,18 @@ impl Service {
                 matched_ports
             );
 
-            let port_bindings: Vec<Uuid> = matched_ports.iter().map(|p| p.id).collect();
+            let bindings: Vec<PortInterfaceBinding> = matched_ports
+                .iter()
+                .map(|p| PortInterfaceBinding::new(p.id, *interface_id))
+                .collect();
+
             let name = service_definition.name().to_string();
 
             let service = Service::new(ServiceBase {
                 host_id: *host_id,
                 service_definition,
                 name,
-                port_bindings,
-                interface_bindings: interface_bindings.to_owned(),
+                bindings,
             });
 
             (Some(service), matched_ports)

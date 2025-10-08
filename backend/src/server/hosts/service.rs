@@ -281,22 +281,21 @@ impl HostService {
         try_join_all(delete_service_futures).await?;
 
         let update_service_futures = update_services.into_iter().filter_map(|mut service| {
-            let initial_interface_bindings_count = service.base.interface_bindings.len();
-            let initial_port_bindings_count = service.base.port_bindings.len();
+            let initial_bindings_count = service.base.bindings.len();
 
-            service.base.interface_bindings.retain(|b| {
+            service.base.bindings.retain(|b| {
                 // Remove if current host has interface, updated host doesn't have
-                !(current_host.get_interface(b).is_some() && updates.get_interface(b).is_none())
+                !(current_host.get_interface(&b.base.interface_id).is_some()
+                    && updates.get_interface(&b.base.interface_id).is_none())
             });
 
-            service.base.port_bindings.retain(|b| {
+            service.base.bindings.retain(|b| {
                 // Remove if current host has port, updated host doesn't have
-                !(current_host.get_port(b).is_some() && updates.get_port(b).is_none())
+                !(current_host.get_port(&b.base.port_id).is_some()
+                    && updates.get_port(&b.base.port_id).is_none())
             });
 
-            if initial_interface_bindings_count != service.base.interface_bindings.len()
-                || initial_port_bindings_count != service.base.port_bindings.len()
-            {
+            if initial_bindings_count != service.base.bindings.len() {
                 return Some(self.service_service.update_service(service));
             }
             None
@@ -373,7 +372,12 @@ mod tests {
 
     use uuid::Uuid;
 
-    use crate::{server::discovery::types::base::EntitySource, tests::*};
+    use crate::{
+        server::{
+            discovery::types::base::EntitySource, services::types::base::PortInterfaceBinding,
+        },
+        tests::*,
+    };
 
     #[tokio::test]
     async fn test_host_deduplication_on_create() {
@@ -474,8 +478,10 @@ mod tests {
         host2.base.interfaces = vec![interface(&subnet_obj.id)];
 
         let mut svc = service(&host2.id);
-        svc.base.port_bindings = vec![host2.base.ports[0].id];
-        svc.base.interface_bindings = vec![host2.base.interfaces[0].id];
+        svc.base.bindings = vec![PortInterfaceBinding::new(
+            host2.base.ports[0].id,
+            host2.base.interfaces[0].id,
+        )];
 
         let (created2, created_svcs) = services
             .host_service

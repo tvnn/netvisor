@@ -19,7 +19,9 @@ export interface EntityDisplayComponent<T> {
 	supportsInlineEdit?: boolean;
 	renderInlineEdit?(
 		item: T,
-		onUpdate: (updates: Partial<T>) => void
+		onUpdate: (updates: Partial<T>) => void,
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		context: Record<string, any> | null
 	): {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		component: Component<any>;

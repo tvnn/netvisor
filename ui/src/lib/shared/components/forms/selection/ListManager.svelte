@@ -10,8 +10,10 @@
 	export let placeholder: string = 'Select an item to add';
 	export let required: boolean = false;
 	export let allowReorder: boolean = true;
+	export let allowAddFromOptions: boolean = true;
 	export let allowCreateNew: boolean = false;
-	export let createNewLabel: string = 'Add New';
+	export let disableCreateNewButton: boolean = false;
+	export let createNewLabel: string = 'Create New';
 	export let highlightedIndex: number = -1;
 	export let emptyMessage: string = '';
 	export let error: string = '';
@@ -24,6 +26,7 @@
 	// Items
 	export let items: T[] = [];
 	export let itemDisplayComponent: EntityDisplayComponent<T>;
+	export let getItemContext: ((item: T, index: number) => Record<string, unknown>) | null = null;
 
 	// Item interaction
 	export let allowDuplicates: boolean = false;
@@ -112,8 +115,9 @@
 		{#if allowCreateNew && onCreateNew}
 			<button
 				type="button"
+				disabled={disableCreateNewButton}
 				on:click={() => onCreateNew()}
-				class="flex flex-shrink-0 items-center gap-2 rounded bg-blue-600 px-3 py-2 text-sm text-white transition-colors hover:bg-blue-700"
+				class={`flex flex-shrink-0 items-center gap-2 rounded px-3 py-2 text-sm text-white transition-colors ${disableCreateNewButton ? 'bg-gray-600' : 'bg-blue-600 hover:bg-blue-700'}`}
 			>
 				<Plus size={16} />
 				{createNewLabel}
@@ -122,7 +126,7 @@
 	</div>
 
 	<!-- Add Item Section with RichSelect -->
-	{#if !allowCreateNew}
+	{#if allowAddFromOptions}
 		<div class="mb-3 mt-4">
 			<div class="flex gap-2">
 				<!-- RichSelect Component -->
@@ -161,10 +165,15 @@
 					<!-- Use slot if provided, otherwise check for inline editing -->
 					<slot name="item" {item} {index}>
 						{#if editingIndex === index && itemDisplayComponent.supportsInlineEdit && itemDisplayComponent.renderInlineEdit}
-							{@const inlineEditConfig = itemDisplayComponent.renderInlineEdit(item, (updates) => {
-								const updatedItem = { ...item, ...updates };
-								onEdit(updatedItem, index);
-							})}
+							{@const context = getItemContext ? getItemContext(item, index) : { item }}
+							{@const inlineEditConfig = itemDisplayComponent.renderInlineEdit(
+								item,
+								(updates) => {
+									const updatedItem = { ...item, ...updates };
+									onEdit(updatedItem, index);
+								},
+								context
+							)}
 							<svelte:component this={inlineEditConfig.component} {...inlineEditConfig.props} />
 						{:else}
 							<ListSelectItem {item} displayComponent={itemDisplayComponent} />

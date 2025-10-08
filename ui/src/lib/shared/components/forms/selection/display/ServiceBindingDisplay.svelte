@@ -1,7 +1,7 @@
 <script lang="ts" context="module">
 	import ServiceBindingInlineEditor from './ServiceBindingInlineEditor.svelte';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
-	import { getServiceHost, services } from '$lib/features/services/store';
+	import { getServiceById, getServiceHost, services } from '$lib/features/services/store';
 
 	export const ServiceBindingDisplay: EntityDisplayComponent<ServiceBinding> = {
 		getId: (binding: ServiceBinding) => serviceBindingToId(binding),
@@ -27,27 +27,31 @@
 			return serviceDefinitions.getColorHelper(service.service_definition).icon;
 		},
 		getTags: (binding: ServiceBinding) => {
-			const service = get(services).find((s) => s.id === binding.service_id);
+			const service = getServiceById(binding.service_id);
 			if (!service) return [];
 
 			const tags = [];
 
-			const iface = getInterfaceFromId(binding.interface_id);
+			let portInterfaceBinding = service.bindings.find((b) => b.id == binding.binding_id);
 
-			if (iface) {
-				tags.push({
-					label: formatInterface(iface),
-					color: entities.getColorHelper('Interface').string
-				});
-			}
+			if (portInterfaceBinding) {
+				const iface = getInterfaceFromId(portInterfaceBinding.interface_id);
 
-			const port = getPortFromId(binding.port_id);
+				if (iface) {
+					tags.push({
+						label: formatInterface(iface),
+						color: entities.getColorHelper('Interface').string
+					});
+				}
 
-			if (port) {
-				tags.push({
-					label: formatPort(port),
-					color: entities.getColorHelper('Port').string
-				});
+				const port = getPortFromId(portInterfaceBinding.port_id);
+
+				if (port) {
+					tags.push({
+						label: formatPort(port),
+						color: entities.getColorHelper('Port').string
+					});
+				}
 			}
 
 			return tags;

@@ -6,18 +6,33 @@
 	import { PortTypeDisplay } from '$lib/shared/components/forms/selection/display/PortTypeDisplay.svelte';
 	import { v4 as uuidv4 } from 'uuid';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-	import { PortDisplayAlternate } from '$lib/shared/components/forms/selection/display/PortDisplayAlternate.svelte';
+	import { PortDisplay } from '$lib/shared/components/forms/selection/display/PortDisplay.svelte';
 
 	export let formData: Host;
 
-	// All ports are now on host.ports
-	$: allPorts = (formData.ports || []).sort((a, b) => {
-		// Sort by port number, then by protocol
-		if (a.number !== b.number) {
-			return a.number - b.number;
+	let allPorts: Port[] = [];
+	let previousPortsLength = 0;
+
+	// Only sort when ports are added or removed, not during editing
+	$: {
+		const currentPorts = formData.ports || [];
+
+		// Re-sort only if the number of ports changed (add/remove)
+		// or if this is the initial load
+		if (currentPorts.length !== previousPortsLength) {
+			allPorts = [...currentPorts].sort((a, b) => {
+				// Sort by port number, then by protocol
+				if (a.number !== b.number) {
+					return a.number - b.number;
+				}
+				return a.protocol.localeCompare(b.protocol);
+			});
+			previousPortsLength = currentPorts.length;
+		} else {
+			// During editing, just update the reference without re-sorting
+			allPorts = [...currentPorts];
 		}
-		return a.protocol.localeCompare(b.protocol);
-	});
+	}
 
 	$: selectablePorts = ports
 		.getItems()
@@ -25,6 +40,25 @@
 			(p_type) =>
 				p_type.metadata.can_be_added && !formData.ports.some((port) => port.type == p_type.id)
 		);
+
+	function handleCreateNewPort() {
+		const newPort = {
+			id: uuidv4(),
+			protocol: 'Tcp',
+			number: Math.floor(Math.random() * 65535) + 1,
+			type: 'Custom'
+		} as Port;
+
+		let formPorts = formData.ports;
+		formPorts.push(newPort);
+		formData.ports = [...formPorts];
+	}
+
+	function handleEditPort(port: Port, index: number) {
+		const formPorts = formData.ports;
+		formPorts[index] = port;
+		formData.ports = [...formPorts];
+	}
 
 	function handleAddPort(portId: string) {
 		const formPorts = formData.ports;
@@ -52,19 +86,22 @@
 <div class="space-y-6 p-6">
 	<ListManager
 		label="Ports"
-		helpText="Select a port to add to this host. To edit ports assigned to services, use the services tab."
-		placeholder="Select an port to add..."
+		helpText="Manage ports for this host"
+		placeholder="Add standard port..."
 		emptyMessage="No ports on this host. Add one to get started."
 		allowReorder={false}
+		allowCreateNew={true}
+		createNewLabel="Custom Port"
 		allowDuplicates={false}
-		allowItemEdit={() => false}
+		allowItemEdit={(port) => port.type == 'Custom'}
 		allowItemRemove={(port: Port) => getServicesForPort(port.id).length == 0}
 		options={selectablePorts}
 		items={allPorts}
 		optionDisplayComponent={PortTypeDisplay}
-		itemDisplayComponent={PortDisplayAlternate}
+		itemDisplayComponent={PortDisplay}
+		onCreateNew={handleCreateNewPort}
 		onAdd={handleAddPort}
 		onRemove={handleRemovePort}
-		onEdit={() => {}}
+		onEdit={handleEditPort}
 	/>
 </div>

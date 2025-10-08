@@ -76,8 +76,7 @@ pub fn service(host_id: &Uuid) -> Service {
     Service::new(ServiceBase {
         name: "Test Service".to_string(),
         host_id: *host_id,
-        port_bindings: vec![],
-        interface_bindings: vec![],
+        bindings: vec![],
         service_definition: service_def,
     })
 }

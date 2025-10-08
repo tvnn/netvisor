@@ -4,6 +4,7 @@ import { api } from '../../shared/utils/api';
 import { pushSuccess } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { isContainerSubnet } from '../subnets/store';
+import { getBindingFromId } from '../services/store';
 
 export const hosts = writable<Host[]>([]);
 export const polling = writable(false);
@@ -79,9 +80,13 @@ export function createEmptyHostFormData(): Host {
 export function getHostTargetString(host: Host): string | null {
 	switch (host.target.type) {
 		case 'ServiceBinding': {
-			const iface = getInterfaceFromId(host.target.config.interface_id);
-			const port = getPortFromId(host.target.config.port_id);
-			return iface && port ? iface.ip_address + ':' + port.number : null;
+			const binding = getBindingFromId(host.target.config.binding_id);
+			if (binding) {
+				const iface = getInterfaceFromId(binding.interface_id);
+				const port = getPortFromId(binding.port_id);
+				return iface && port ? iface.ip_address + ':' + port.number : null;
+			}
+			return 'Unknown Binding';
 		}
 		case 'None': {
 			return 'None';
@@ -126,7 +131,7 @@ export function serviceBindingToId(binding: ServiceBinding): string {
 
 export function serviceBindingIdToObj(binding_string: string): ServiceBinding | null {
 	const parsed = JSON.parse(binding_string);
-	if (parsed?.interface_id && parsed?.service_id && parsed?.port_id) {
+	if (parsed?.binding_id && parsed?.service_id) {
 		return parsed as ServiceBinding;
 	} else {
 		return null;

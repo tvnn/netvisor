@@ -47,7 +47,7 @@
 				label: 'Services',
 				items: hostServices.map((sv) => {
 					return {
-						id: sv.service_definition,
+						id: sv.id,
 						label: sv.name,
 						color: entities.getColorHelper('Service').string
 					};

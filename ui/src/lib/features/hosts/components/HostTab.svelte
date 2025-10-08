@@ -13,15 +13,7 @@
 	} from '$lib/features/discovery/store';
 	import HostEditor from './HostEditModal/HostEditor.svelte';
 	import HostConsolidationModal from './HostConsolidationModal.svelte';
-	import {
-		consolidateHosts,
-		createHost,
-		deleteHost,
-		getHosts,
-		getHostTargetString,
-		hosts,
-		updateHost
-	} from '../store';
+	import { consolidateHosts, createHost, deleteHost, getHosts, hosts, updateHost } from '../store';
 	import { getGroups, groups } from '$lib/features/groups/store';
 	import { loadData } from '$lib/shared/utils/dataLoader';
 	import { getServices } from '$lib/features/services/store';
@@ -36,7 +28,6 @@
 		getActiveDiscoverySessions
 	]);
 
-	let searchTerm = '';
 	let showHostEditor = false;
 	let editingHost: Host | null = null;
 
@@ -44,17 +35,6 @@
 	let showHostConsolidationModal = false;
 
 	$: discoveryIsRunning = $sessions.size > 0;
-
-	$: filteredHosts = $hosts.filter((host: Host) => {
-		const searchLower = searchTerm.toLowerCase();
-		const targetString = getHostTargetString(host);
-
-		return (
-			host.name.toLowerCase().includes(searchLower) ||
-			(targetString && targetString.includes(searchLower)) ||
-			(host.description && host.description.toLowerCase().includes(searchLower))
-		);
-	});
 
 	$: hostGroups = new Map(
 		$hosts.map((host) => {
@@ -139,7 +119,7 @@
 	<!-- Loading state -->
 	{#if $loading}
 		<Loading />
-	{:else if filteredHosts.length === 0}
+	{:else if $hosts.length === 0}
 		<!-- Empty state -->
 		<div class="py-12 text-center">
 			{#if $hosts.length === 0}
@@ -156,7 +136,7 @@
 	{:else}
 		<!-- Hosts grid -->
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{#each filteredHosts as host (host.id)}
+			{#each $hosts as host (host.id)}
 				<HostCard
 					{host}
 					daemon={$hostDaemonMap.get(host.id) || null}

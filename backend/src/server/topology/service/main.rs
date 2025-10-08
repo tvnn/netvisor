@@ -55,7 +55,8 @@ impl TopologyService {
 
         // Collect all edges for optimization
         let interface_edge_infos = edge_planner.get_interface_edge_info(&hosts, &subnets);
-        let group_edge_infos = edge_planner.get_group_edge_info(&groups, &hosts, &subnets);
+        let group_edge_infos =
+            edge_planner.get_group_edge_info(&groups, &hosts, &subnets, &services);
 
         // Convert EdgeInfo to Edge for optimization (without needing node_indices yet)
         let all_edges: Vec<Edge> = interface_edge_infos
@@ -95,7 +96,14 @@ impl TopologyService {
             .collect();
 
         // Second pass: add edges
-        edge_planner.add_group_edges(&mut graph, &node_indices, &groups, &hosts, &subnets);
+        edge_planner.add_group_edges(
+            &mut graph,
+            &node_indices,
+            &groups,
+            &hosts,
+            &subnets,
+            &services,
+        );
         edge_planner.add_interface_edges(&mut graph, &node_indices, &hosts, &subnets);
 
         Ok(graph)

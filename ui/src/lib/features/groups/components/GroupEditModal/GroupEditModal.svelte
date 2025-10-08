@@ -5,16 +5,12 @@
 	import type { ServiceBinding } from '$lib/features/hosts/types/base';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { entities } from '$lib/shared/stores/metadata';
-	import { services } from '$lib/features/services/store';
+	import { getServiceBindingsFromService, services } from '$lib/features/services/store';
 	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import GroupDetailsForm from './GroupDetailsForm.svelte';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
-	import {
-		getPortFromId,
-		serviceBindingIdToObj,
-		serviceBindingToId
-	} from '$lib/features/hosts/store';
+	import { serviceBindingIdToObj, serviceBindingToId } from '$lib/features/hosts/store';
 
 	export let group: Group | null = null;
 	export let isOpen = false;
@@ -41,20 +37,7 @@
 	}
 
 	$: serviceBindings = $services
-		.flatMap((s) =>
-			s.interface_bindings.flatMap((interface_id) =>
-				s.port_bindings
-					.map((port_id) => getPortFromId(port_id))
-					.filter((port) => port != undefined)
-					.map((port) => {
-						return {
-							service_id: s.id,
-							interface_id,
-							port_id: port.id
-						} as ServiceBinding;
-					})
-			)
-		)
+		.flatMap((s) => getServiceBindingsFromService(s))
 		.filter(
 			(sb) =>
 				!formData.service_bindings.some(

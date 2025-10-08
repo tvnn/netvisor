@@ -10,14 +10,8 @@
 	// Import custom node components
 	import SubnetNode from './SubnetNode.svelte';
 	import HostNode from './HostNode.svelte';
-	import { EdgeHandle, type TopologyEdgeData } from '../types/base';
+	import { EdgeHandle, type TopologyEdgeData, type CustomEdgeData, type CustomNodeData } from '../types/base';
 	import { twColorToRgba } from '$lib/shared/utils/styling';
-
-	// Define custom edge data type
-	interface CustomEdgeData extends Record<string, unknown> {
-		edgeType: string;
-		label: string;
-	}
 
 	// Define node types
 	const nodeTypes = {
@@ -39,6 +33,19 @@
 		try {
 			if ($topology?.nodes && $topology?.edges) {
 				const flowNodes: Node[] = $topology.nodes.map((node): Node => {
+
+					const data: CustomNodeData = {
+						id: node.id,
+						host_id: node.host_id,
+						interface_id: node.interface_id,
+						infra_width: node.infra_width,
+						nodeType: node.node_type,
+						parentId: node.subnet_id,
+						width: node.size.x,
+						height: node.size.y,
+						subnet_type: node.subnet_type
+					}
+
 					return {
 						id: node.id,
 						type: node.node_type,
@@ -49,17 +56,7 @@
 						deletable: false,
 						parentId: node.subnet_id || undefined,
 						extent: node.subnet_id ? 'parent' : undefined,
-						data: {
-							id: node.id,
-							host_id: node.host_id,
-							interface_id: node.interface_id,
-							infra_width: node.infra_width,
-							nodeType: node.node_type,
-							parentId: node.subnet_id,
-							width: node.size.x,
-							height: node.size.y,
-							subnet_type: node.subnet_type
-						}
+						data
 					};
 				});
 
@@ -79,7 +76,7 @@
 								border: 2px solid ${twColorToRgba(hostColorHelper.border)};`
 								: 'background: #374151; color: #f3f4f6; border: 1px solid #4b5563;';
 
-						const customData: CustomEdgeData = {
+						const data: CustomEdgeData = {
 							edgeType: edgeType,
 							label: edgeLabel,
 							sourceHandle: edgeData.source_handle,
@@ -98,7 +95,7 @@
 								labelStyle +
 								'font-size: 12px; font-weight: 500; padding: 2px 6px; border-radius: 4px;',
 							style: `stroke: ${edgeColorHelper.rgb}; stroke-width: 2px; ${dashArray}`,
-							data: customData
+							data
 						};
 					}
 				);

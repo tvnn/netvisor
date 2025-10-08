@@ -4,30 +4,36 @@
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { formatId, formatTimestamp } from '$lib/shared/utils/formatting';
 	import { Calendar, Clock, Hash, ChevronDown, ChevronRight } from 'lucide-svelte';
+	import type { Service } from '$lib/features/services/types/base';
+	import { pushWarning } from '$lib/shared/stores/feedback';
 
-	export let id: string;
-	export let createdAt: string;
-	export let updatedAt: string;
-	export let entity: Group | Host | Subnet | null = null;
+	export let entities: (Group | Host | Subnet | Service | null)[] = [null];
+	export let showSummary: boolean = true;
+
+	let id = entities.length == 1 ? entities[0]?.id : null
+	let createdAt = entities.length == 1 ? entities[0]?.created_at : null
+	let updatedAt = entities.length == 1 ? entities[0]?.updated_at : null
 
 	let isJsonExpanded = false;
 
 	// Copy ID to clipboard
 	async function copyId() {
-		try {
-			await navigator.clipboard.writeText(id);
-		} catch (error) {
-			console.warn('Failed to copy ID to clipboard:', error);
+		if (id) {
+			try {
+				await navigator.clipboard.writeText(id);
+			} catch (error) {
+				pushWarning('Failed to copy ID to clipboard: ' + error);
+			}
 		}
 	}
 
 	// Copy JSON to clipboard
 	async function copyJson() {
-		if (!entity) return;
+		if (!entities) return;
 		try {
-			await navigator.clipboard.writeText(JSON.stringify(entity, null, 2));
+			await navigator.clipboard.writeText(JSON.stringify(entities, null, 2));
 		} catch (error) {
-			console.warn('Failed to copy JSON to clipboard:', error);
+			pushWarning('Failed to copy JSON to clipboard: ' + error);
 		}
 	}
 
@@ -38,55 +44,63 @@
 
 <div class="border-t border-gray-700 pt-6">
 	<div class="rounded-lg bg-gray-800/50 p-4">
-		<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-			<!-- ID -->
-			<div class="flex items-center space-x-3">
-				<div class="flex-shrink-0">
-					<Hash class="h-5 w-5 text-gray-400" />
-				</div>
-				<div class="min-w-0 flex-1">
-					<p class="text-sm font-medium text-gray-300">ID</p>
-					<button
-						type="button"
-						class="block max-w-full cursor-pointer truncate font-mono text-sm text-gray-400 transition-colors hover:text-white"
-						title={`${id} (Click to copy)`}
-						on:click={copyId}
-					>
-						{formatId(id)}
-					</button>
-				</div>
-			</div>
+		{#if showSummary && (id || createdAt || updatedAt)}
+			<div class="grid grid-cols-1 gap-4 md:grid-cols-3 border-b border-gray-700 pb-4 mb-6">
+				<!-- ID -->
+				{#if id}
+					<div class="flex items-center space-x-3">
+						<div class="flex-shrink-0">
+							<Hash class="h-5 w-5 text-gray-400" />
+						</div>
+						<div class="min-w-0 flex-1">
+							<p class="text-sm font-medium text-gray-300">ID</p>
+							<button
+								type="button"
+								class="block max-w-full cursor-pointer truncate font-mono text-sm text-gray-400 transition-colors hover:text-white"
+								title={`${id} (Click to copy)`}
+								on:click={copyId}
+							>
+								{formatId(id)}
+							</button>
+						</div>
+					</div>
+				{/if}
+				
+				{#if createdAt}
+					<!-- Created -->
+					<div class="flex items-center space-x-3">
+						<div class="flex-shrink-0">
+							<Calendar class="h-5 w-5 text-gray-400" />
+						</div>
+						<div class="min-w-0 flex-1">
+							<p class="text-sm font-medium text-gray-300">Created</p>
+							<p class="text-sm text-gray-400" title={createdAt}>
+								{formatTimestamp(createdAt)}
+							</p>
+						</div>
+					</div>
+				{/if}
 
-			<!-- Created -->
-			<div class="flex items-center space-x-3">
-				<div class="flex-shrink-0">
-					<Calendar class="h-5 w-5 text-gray-400" />
-				</div>
-				<div class="min-w-0 flex-1">
-					<p class="text-sm font-medium text-gray-300">Created</p>
-					<p class="text-sm text-gray-400" title={createdAt}>
-						{formatTimestamp(createdAt)}
-					</p>
-				</div>
+				{#if updatedAt}
+					<!-- Updated -->
+					<div class="flex items-center space-x-3">
+						<div class="flex-shrink-0">
+							<Clock class="h-5 w-5 text-gray-400" />
+						</div>
+						<div class="min-w-0 flex-1">
+							<p class="text-sm font-medium text-gray-300">Updated</p>
+							<p class="text-sm text-gray-400" title={updatedAt}>
+								{formatTimestamp(updatedAt)}
+							</p>
+						</div>
+					</div>
+				{/if}
 			</div>
-
-			<!-- Updated -->
-			<div class="flex items-center space-x-3">
-				<div class="flex-shrink-0">
-					<Clock class="h-5 w-5 text-gray-400" />
-				</div>
-				<div class="min-w-0 flex-1">
-					<p class="text-sm font-medium text-gray-300">Updated</p>
-					<p class="text-sm text-gray-400" title={updatedAt}>
-						{formatTimestamp(updatedAt)}
-					</p>
-				</div>
-			</div>
-		</div>
+		{/if}
 
 		<!-- JSON Entity Section -->
-		{#if entity}
-			<div class="mt-6 border-t border-gray-700 pt-4">
+		{#if entities.length > 0}
+			<div>
 				<button
 					type="button"
 					class="flex w-full items-center space-x-2 text-left text-sm font-medium text-gray-300 transition-colors hover:text-white"
@@ -114,7 +128,7 @@
 						</div>
 						<pre
 							class="overflow-auto rounded-md border border-gray-600 bg-gray-900 p-4 font-mono text-sm text-gray-300"><code
-								>{JSON.stringify(entity, null, 2)}</code
+								>{JSON.stringify(entities, null, 2)}</code
 							></pre>
 					</div>
 				{/if}
