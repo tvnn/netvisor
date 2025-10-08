@@ -35,14 +35,32 @@ pub enum Pattern {
 
     /// path, response - match on a string response from a path on endpoints using standard HTTP/HTTPS ports
     WebService(&'static str, &'static str),
+
+    /// Whether the subnet that the host was found on matches a subnet type
     SubnetIsType(SubnetType),
+
+    /// Whether the subnet that the host was found on does not match a subnet type
     SubnetIsNotType(SubnetType),
-    IsGatewayIp,
-    NotGatewayIp,
+
+    /// Whether the host IP is found in the daemon's routing table. WARNING: Using this will automatically classify the service as a Layer3 service, and the service will only be able to bind to interfaces (ports and port bindings will be ignored)
+    IsGateway,
+
+    /// Inverse of IsGateway
+    IsNotGateway,
+
+    /// Whether the vendor derived from the mac address (https://gist.github.com/aallan/b4bb86db86079509e6159810ae9bd3e4) matches the provided str
     MacVendor(&'static str),
+
+    /// Whether any service has been previously matched
     HasAnyMatchedService,
+
+    /// Whether any previously matched services meets a condition
     AnyMatchedService(fn(&Box<dyn ServiceDefinition>) -> bool),
+
+    /// Whether all previously matched services meet a condition
     AllMatchedService(fn(&Box<dyn ServiceDefinition>) -> bool),
+
+    /// No match pattern (only added manually or by the system)
     None,
 }
 
@@ -72,7 +90,7 @@ fn web_service_endpoint_responses(
 }
 
 // https://gist.github.com/aallan/b4bb86db86079509e6159810ae9bd3e4
-pub struct Vendor {}
+pub struct Vendor;
 impl Vendor {
     pub const PHILIPS: &'static str = "Philips Lighting BV";
     pub const HP: &'static str = "HP Inc.";
@@ -253,8 +271,36 @@ impl Pattern {
                 )
             }
 
-            Pattern::IsGatewayIp => {
-                let is_gateway = gateway_ips.contains(ip);
+            Pattern::IsGateway => {
+                let gateway_ips_in_subnet: Vec<_> = gateway_ips
+                    .iter()
+                    .filter(|g| subnet.base.cidr.contains(g))
+                    .collect();
+                
+                let count_gateways_in_subnet = gateway_ips_in_subnet.len();
+                let host_ip_in_routing_table = gateway_ips_in_subnet.contains(&ip);
+                
+                let last_octet_1_or_254 = match ip {
+                    IpAddr::V4(ipv4) => {
+                        let octets = ipv4.octets();
+                        octets[3] == 1 || octets[3] == 254
+                    }
+                    IpAddr::V6(ipv6) => {
+                        let segments = ipv6.segments();
+                        segments[7] == 1 || segments[7] == 254
+                    }
+                };
+                
+                let is_gateway = if host_ip_in_routing_table {
+                    // Definitely a gateway if in routing table
+                    true
+                } else if last_octet_1_or_254 && count_gateways_in_subnet == 0 {
+                    // Likely a gateway if common IP and no other gateways found
+                    true
+                } else {
+                    false
+                };
+                
                 if is_gateway {
                     Ok(vec![None])
                 } else {
@@ -262,12 +308,11 @@ impl Pattern {
                 }
             }
 
-            Pattern::NotGatewayIp => {
-                let is_gateway = gateway_ips.contains(ip);
-                if is_gateway {
-                    no_match
-                } else {
+            Pattern::IsNotGateway => {
+                if Pattern::IsGateway.matches(open_ports, responses, ip, subnet, mac_address, gateway_ips, matched_service_definitions).is_err() {
                     Ok(vec![None])
+                } else {
+                    no_match
                 }
             }
 
@@ -350,9 +395,9 @@ impl Pattern {
 
     pub fn contains_gateway_ip_pattern(&self) -> bool {
         match self {
-            Pattern::IsGatewayIp => true,
+            Pattern::IsGateway => true,
             Pattern::AllOf(patterns) | Pattern::AnyOf(patterns) => {
-                patterns.iter().any(|p| p.contains_web_service_pattern())
+                patterns.iter().any(|p| p.contains_gateway_ip_pattern())
             }
             _ => false,
         }

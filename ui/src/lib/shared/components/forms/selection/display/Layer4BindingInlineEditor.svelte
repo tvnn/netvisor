@@ -2,12 +2,12 @@
 	import { formatInterface, getInterfaceFromId, getPortFromId } from '$lib/features/hosts/store';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { getServicesForPort } from '$lib/features/services/store';
-	import type { PortInterfaceBinding, Service } from '$lib/features/services/types/base';
+	import type { Layer4Binding, Service } from '$lib/features/services/types/base';
 	import { formatPort } from '$lib/shared/utils/formatting';
 
-	export let binding: PortInterfaceBinding;
-	export let onUpdate: (updates: Partial<PortInterfaceBinding>) => void = () => {};
-	export let service: Service | undefined = undefined;
+	export let binding: Layer4Binding;
+	export let onUpdate: (updates: Partial<Layer4Binding>) => void = () => {};
+	export let service: Service<Layer4Binding> | undefined = undefined;
 	export let host: Host | undefined = undefined;
 
 	$: port = getPortFromId(binding.port_id);
@@ -28,7 +28,7 @@
 
 			// Check if this port is bound to the selected interface by OTHER bindings in current service
 			let currentServiceOtherBindings =
-				service?.bindings.filter((b) => b.id !== binding.id && b.port_id === p.id) || [];
+				service?.bindings.filter((b) => b.type == 'Layer4' && b.id !== binding.id && b.port_id === p.id) || [];
 			let currentServiceBoundIfaceIds = currentServiceOtherBindings.map((b) => b.interface_id);
 
 			// Combine both checks

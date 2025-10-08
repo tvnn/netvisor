@@ -18,7 +18,7 @@ impl ServiceDefinition for EeroGateway {
     }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::AllOf(vec![Pattern::MacVendor(Vendor::EERO), Pattern::IsGatewayIp])
+        Pattern::AllOf(vec![Pattern::MacVendor(Vendor::EERO), Pattern::IsGateway])
     }
 }
 

@@ -20,7 +20,7 @@ impl ServiceDefinition for VpnGateway {
 
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec![
-            Pattern::IsGatewayIp,
+            Pattern::IsGateway,
             Pattern::SubnetIsType(SubnetType::VpnTunnel),
         ])
     }

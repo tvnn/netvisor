@@ -12,15 +12,18 @@
 			let services = getServicesForPort(port.id);
 			if (services.length > 0) {
 				return services
-					.map((s) => {
-						let binding = s.bindings.find((b) => b.port_id == port.id);
-						let iface = getInterfaceFromId(binding?.interface_id || '');
-						if (iface) {
-							return s.name + ' on ' + formatInterface(iface);
-						} else {
-							return s.name + ' on ' + 'Unknown Interface';
-						}
-					})
+					.flatMap((s) => s.name + ' on ' + s.bindings
+						.filter((b) => b.type == 'Layer4' && b.port_id == port.id)
+						.map(b => {
+							let iface = getInterfaceFromId(b.interface_id || '');
+							if (iface) {
+								return formatInterface(iface);
+							} else {
+								return 'Unknown Interface';
+							}
+						})
+						.join(", ")
+					)
 					.join(' • ');
 			} else {
 				return 'Unassigned';

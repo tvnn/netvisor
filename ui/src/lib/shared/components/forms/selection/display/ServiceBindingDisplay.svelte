@@ -32,10 +32,10 @@
 
 			const tags = [];
 
-			let portInterfaceBinding = service.bindings.find((b) => b.id == binding.binding_id);
+			let layerBinding = service.bindings.find((b) => b.id == binding.binding_id);
 
-			if (portInterfaceBinding) {
-				const iface = getInterfaceFromId(portInterfaceBinding.interface_id);
+			if (layerBinding) {
+				const iface = getInterfaceFromId(layerBinding.interface_id);
 
 				if (iface) {
 					tags.push({
@@ -44,13 +44,15 @@
 					});
 				}
 
-				const port = getPortFromId(portInterfaceBinding.port_id);
+				if (layerBinding.type == 'Layer4') {
+					const port = getPortFromId(layerBinding.port_id);
 
-				if (port) {
-					tags.push({
-						label: formatPort(port),
-						color: entities.getColorHelper('Port').string
-					});
+					if (port) {
+						tags.push({
+							label: formatPort(port),
+							color: entities.getColorHelper('Port').string
+						});
+					}
 				}
 			}
 

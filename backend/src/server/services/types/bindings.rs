@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use strum_macros::{EnumDiscriminants, IntoStaticStr};
 use std::hash::Hash;
 use uuid::Uuid;
 
@@ -27,7 +28,10 @@ impl Hash for ServiceBinding {
     Serialize,
     Deserialize,
     Eq,
+    EnumDiscriminants,
 )]
+#[strum_discriminants(derive(IntoStaticStr))]
+#[serde(tag = "type")]
 pub enum Binding {
     Layer3 {
         id: Uuid,

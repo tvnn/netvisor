@@ -7,7 +7,7 @@ export interface Subnet {
 	cidr: string;
 	name: string;
 	dns_resolvers: ServiceBinding[];
-	gateways: string[];
+	gateways: ServiceBinding[];
 	reverse_proxies: ServiceBinding[];
 	hosts: string[];
 	description?: string;

@@ -49,18 +49,16 @@
 			return isDnsResolver && hasInterfaceOnSubnet;
 		})
 		.flatMap((service) => getServiceBindingsFromService(service))
-		.filter(
-			(sb) =>
-				!formData.dns_resolvers.some(
-					(resolver) => serviceBindingToId(resolver) == serviceBindingToId(sb)
-				)
-		);
 
-	$: gatewayServices = $services.filter((service) => {
-		const isGateway = serviceDefinitions.getMetadata(service.service_definition)?.is_gateway;
-		const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
-		return isGateway && hasInterfaceOnSubnet;
-	});
+	$: gatewayServiceBindings = $services
+		.filter((service) => {
+			const isGateway = serviceDefinitions.getMetadata(
+				service.service_definition
+			)?.is_gateway;
+			const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
+			return isGateway && hasInterfaceOnSubnet;
+		})
+		.flatMap((service) => getServiceBindingsFromService(service))
 
 	$: reverseProxyServiceBindings = $services
 		.filter((service) => {
@@ -79,11 +77,13 @@
 				(resolver) => serviceBindingToId(resolver) == serviceBindingToId(sb)
 			)
 	);
-	$: availableGateways = gatewayServices.filter((s) => !formData.gateways.includes(s.id));
-	$: selectedGateways = $services.filter((s) => formData.gateways.includes(s.id));
 	$: availableReverseProxies = reverseProxyServiceBindings.filter(
 		(sb) =>
 			!formData.reverse_proxies.some((proxy) => serviceBindingToId(proxy) == serviceBindingToId(sb))
+	);
+	$: availableGateways = gatewayServiceBindings.filter(
+		(sb) =>
+			!formData.gateways.some((gateway) => serviceBindingToId(gateway) == serviceBindingToId(sb))
 	);
 
 	async function handleSubmit() {
@@ -132,8 +132,12 @@
 	}
 
 	// Event handlers for gateways
-	function handleAddGateway(serviceId: string) {
-		formData.gateways = [...(formData.gateways || []), serviceId];
+	function handleAddGateway(serviceBindingId: string) {
+		let serviceBindingObj = serviceBindingIdToObj(serviceBindingId);
+
+		if (serviceBindingObj) {
+			formData.gateways = [...(formData.gateways || []), serviceBindingObj];
+		}
 	}
 
 	function handleRemoveGateway(index: number) {
@@ -221,10 +225,10 @@
 								allowReorder={false}
 								showSearch={true}
 								options={availableGateways}
-								items={selectedGateways}
+								items={formData.gateways}
 								allowItemEdit={() => false}
-								optionDisplayComponent={ServiceWithHostDisplay}
-								itemDisplayComponent={ServiceWithHostDisplay}
+								optionDisplayComponent={ServiceBindingDisplay}
+								itemDisplayComponent={ServiceBindingDisplay}
 								onAdd={handleAddGateway}
 								onRemove={handleRemoveGateway}
 								onEdit={() => {}}

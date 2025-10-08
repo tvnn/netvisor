@@ -1,14 +1,14 @@
 use crate::server::discovery::types::base::EntitySource;
 use crate::server::services::definitions::gateway::Gateway;
 use crate::server::services::types::base::ServiceFromDiscoveryParams;
-use crate::server::services::types::bindings::{Binding, ServiceBinding};
+use crate::server::services::types::bindings::{Binding, BindingDiscriminants, ServiceBinding};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::{
     daemon::discovery::service::base::DaemonDiscoveryService,
     server::{
         hosts::types::{
             interfaces::{Interface, InterfaceBase},
-            ports::{Port, PortBase, TransportProtocol},
+            ports::{Port, PortBase},
         },
         services::{
             definitions::{ServiceDefinitionRegistry},
@@ -72,7 +72,7 @@ impl DaemonDiscoveryService {
 
         let subnets = try_join_all(subnet_futures).await?;
 
-        let gateway_ips = self.utils.scan_routing_table().await?;
+        let gateway_ips = self.utils.get_routing_table_gateway_ips().await?;
 
         let total_ips_across_subnets: usize = subnets
             .iter()
@@ -406,7 +406,12 @@ impl DaemonDiscoveryService {
 
         let mut services = Vec::new();
         let mut matched_service_definitions = Vec::new();
-        let mut unclaimed_ports = open_ports.clone();
+
+        // Only one interface, so only one L3 binding possible
+        let mut l3_interface_bound = false;
+
+        // Need to track which ports are bound vs open for services to bind to
+        let mut l4_unbound_ports = open_ports.clone();
 
         let mut sorted_service_definitions: Vec<Box<dyn ServiceDefinition>> =
             ServiceDefinitionRegistry::all_service_definitions()
@@ -427,20 +432,26 @@ impl DaemonDiscoveryService {
 
         // Add services from detected ports
         for service_definition in sorted_service_definitions {
-            if let (Some(service), mut matched_ports) =
+            if let (Some(service), mut bound_ports) =
                 Service::from_discovery(ServiceFromDiscoveryParams {
                     service_definition,
                     ip: &host_ip,
-                    open_ports: &unclaimed_ports,
+                    open_ports: &open_ports,
                     endpoint_responses: &endpoint_responses,
                     subnet: &subnet,
                     mac_address: &mac,
                     host_id: &host.id,
+                    l3_interface_bound,
                     interface_id: &interface_id,
                     gateway_ips,
                     matched_service_definitions: &matched_service_definitions,
                 })
             {
+                
+                if service.base.service_definition.layer() == BindingDiscriminants::Layer3 {
+                    l3_interface_bound = true;
+                }
+                
                 if !service.base.service_definition.is_generic() {
                     host.base.name = service.base.service_definition.name().to_string();
                 }
@@ -452,7 +463,7 @@ impl DaemonDiscoveryService {
                             Binding::Layer3{..} => false,
                             Binding::Layer4{port_id, ..} => {
                                 if let Some(port) = host.get_port(&port_id) {
-                                    return port.base.protocol() == TransportProtocol::Tcp;
+                                    return [PortBase::Http, PortBase::HttpAlt, PortBase::Https, PortBase::HttpsAlt].contains(&port.base)
                                 }
                                 false
                             }
@@ -467,22 +478,23 @@ impl DaemonDiscoveryService {
                     })
                 }
 
-                // Add any matched ports to host ports array, remove from unclaimed ports
-                let matched_port_bases: Vec<PortBase> =
-                    matched_ports.iter().map(|p| p.base.clone()).collect();
-                unclaimed_ports.retain(|p| !matched_port_bases.contains(p));
-                host.base.ports.append(&mut matched_ports);
+                // Add any bound ports to host ports array, remove from open ports
+                let bound_port_bases: Vec<PortBase> =
+                    bound_ports.iter().map(|p| p.base.clone()).collect();
+                
+                host.base.ports.append(&mut bound_ports);
 
                 // Add new service
                 matched_service_definitions.push(service.base.service_definition.clone());
                 host.add_service(service.id);
+                l4_unbound_ports.retain(|p| !bound_port_bases.contains(p));
                 services.push(service);
             }
         }
 
         host.base
             .ports
-            .extend(unclaimed_ports.into_iter().map(Port::new));
+            .extend(l4_unbound_ports.into_iter().map(Port::new));
 
         tracing::info!("Processed host for host {}", host_ip);
         Ok(Some((host, services)))

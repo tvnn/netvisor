@@ -1,5 +1,6 @@
 use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
+use crate::server::services::types::bindings::BindingDiscriminants;
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::endpoints::Endpoint;
 use crate::server::services::types::patterns::Pattern;
@@ -41,6 +42,7 @@ pub trait ServiceDefinitionExt {
     fn discovery_ports(&self) -> Vec<PortBase>;
     fn discovery_endpoints(&self) -> Vec<Endpoint>;
     fn can_be_manually_added(&self) -> bool;
+    fn layer(&self) -> BindingDiscriminants;
     fn is_dns_resolver(&self) -> bool;
     fn is_reverse_proxy(&self) -> bool;
     fn is_gateway(&self) -> bool;
@@ -100,6 +102,13 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
         !matches!(ServiceDefinition::category(self), ServiceCategory::Netvisor)
     }
 
+    fn layer(&self) -> BindingDiscriminants {
+        if self.is_gateway() {
+            return BindingDiscriminants::Layer3;
+        }
+        BindingDiscriminants::Layer4
+    }
+
     fn is_dns_resolver(&self) -> bool {
         matches!(
             ServiceDefinition::category(self),
@@ -144,23 +153,21 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
         ServiceDefinition::category(self).id()
     }
     fn metadata(&self) -> serde_json::Value {
-        // let default_ports = self.discovery_ports();
-        // let default_endpoints = self.discovery_endpoints();
         let can_be_added = self.can_be_manually_added();
         let is_dns_resolver = self.is_dns_resolver();
         let is_reverse_proxy = self.is_reverse_proxy();
         let is_gateway = self.is_gateway();
         let is_generic = self.is_generic();
+        let layer: &str = self.layer().into();
         let has_homarr_icon = !ServiceDefinition::icon(self).is_empty();
         serde_json::json!({
-            // "default_ports": default_ports,
-            // "default_endpoints": default_endpoints,
             "can_be_added": can_be_added,
             "is_dns_resolver": is_dns_resolver,
             "is_gateway": is_gateway,
             "is_reverse_proxy": is_reverse_proxy,
             "is_generic": is_generic,
-            "has_homarr_icon": has_homarr_icon
+            "has_homarr_icon": has_homarr_icon,
+            "layer": layer,
         })
     }
 }
@@ -231,7 +238,7 @@ mod tests {
 
     use crate::server::services::{
         definitions::ServiceDefinitionRegistry,
-        types::{definitions::ServiceDefinition, patterns::Pattern},
+        types::{definitions::ServiceDefinition},
     };
     use std::collections::HashSet;
 
@@ -289,36 +296,6 @@ mod tests {
                 "Service '{}' description is too long; must be < 100 characters",
                 service.name()
             );
-
-            // Every service must have a category
-            let category = service.category();
-            // Just verify it doesn't panic
-            let _ = format!("{:?}", category);
-
-            // Discovery pattern must exist
-            let pattern = service.discovery_pattern();
-
-            // Verify pattern is one of the valid types
-            match pattern {
-                Pattern::Port(_)
-                | Pattern::AnyPort(_)
-                | Pattern::Endpoint(_)
-                | Pattern::AnyOf(_)
-                | Pattern::AllOf(_)
-                | Pattern::AllPort { .. }
-                | Pattern::IsGatewayIp
-                | Pattern::WebService(..)
-                | Pattern::None
-                | Pattern::MacVendor(..)
-                | Pattern::NotGatewayIp
-                | Pattern::SubnetIsType(_)
-                | Pattern::SubnetIsNotType(_)
-                | Pattern::HasAnyMatchedService
-                | Pattern::AnyMatchedService(_)
-                | Pattern::AllMatchedService(_) => {
-                    // Valid pattern
-                }
-            }
         }
     }
 

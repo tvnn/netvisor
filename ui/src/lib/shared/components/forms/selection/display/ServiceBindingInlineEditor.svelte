@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { ServiceBinding } from '$lib/features/hosts/types/base';
-	import { getPortInterfaceBindingDisplayName, services } from '$lib/features/services/store';
+	import { getLayerBindingDisplayName, services } from '$lib/features/services/store';
 
 	export let serviceBinding: ServiceBinding;
 	export let onUpdate: (updates: Partial<ServiceBinding>) => void = () => {};
@@ -31,7 +31,7 @@
 	{:else if service.bindings && service.bindings.length === 1}
 		<!-- Single interface - show as read-only -->
 		<div class="rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm text-gray-300">
-			{getPortInterfaceBindingDisplayName(service.bindings[0])}
+			{getLayerBindingDisplayName(service.bindings[0])}
 		</div>
 	{:else if service.bindings}
 		<!-- Multiple interfaces - show as dropdown -->
@@ -43,7 +43,7 @@
 			<option value="" disabled>Select interface...</option>
 			{#each service.bindings as binding (binding.id)}
 				<option value={binding.id}>
-					{getPortInterfaceBindingDisplayName(binding)}
+					{getLayerBindingDisplayName(binding)}
 				</option>
 			{/each}
 		</select>

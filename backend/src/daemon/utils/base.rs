@@ -135,8 +135,8 @@ pub trait DaemonUtils: NetworkUtils {
         let endpoints = self.scan_endpoints(ip, cancel.clone()).await?;
         endpoint_responses.extend(endpoints);
 
-        tracing::info!(
-            "📊 Scan results for {}: found {} open ports, {} endpoint responses",
+        tracing::debug!(
+            "Scan results for {}: found {} open ports, {} endpoint responses",
             ip,
             open_ports.len(),
             endpoint_responses.len()
@@ -244,11 +244,16 @@ pub trait DaemonUtils: NetworkUtils {
         Ok(responses)
     }
 
-    async fn scan_routing_table(&self) -> Result<Vec<IpAddr>, Error> {
+    async fn get_routing_table_gateway_ips(&self) -> Result<Vec<IpAddr>, Error> {
         let routing_handle = Handle::new()?;
         let routes = routing_handle.list().await?;
 
-        Ok(routes.into_iter().filter_map(|r| r.gateway).collect())
+        Ok(routes.into_iter().filter_map(|r| {
+            match r.gateway {
+                Some(gateway) if gateway != r.destination => Some(gateway),
+                _ => None
+            }
+        }).collect())
     }
 }
 

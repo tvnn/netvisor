@@ -1,6 +1,6 @@
 import { writable, get, derived } from 'svelte/store';
 import { api } from '../../shared/utils/api';
-import type { PortInterfaceBinding, Service } from './types/base';
+import type { Binding, Layer3Binding, Layer4Binding, Service } from './types/base';
 import { formatPort, utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { formatInterface, getInterfaceFromId, getPortFromId, hosts } from '../hosts/store';
 import type { Host, ServiceBinding } from '../hosts/types/base';
@@ -99,7 +99,17 @@ export function getServicesForPort(port_id: string): Service[] {
 
 	if (host) {
 		const services = getServicesForHost(host.id);
-		return services.filter((s) => s.bindings.some((b) => b.port_id === port_id));
+		return services.filter((s) => s.bindings.some((b) => b.type == 'Layer4' && b.port_id === port_id));
+	}
+	return [];
+}
+
+export function getServicesForInterface(interface_id: string): Service[] {
+	const host = get(hosts).find((h) => h.interfaces.some((i) => i.id === interface_id));
+
+	if (host) {
+		const services = getServicesForHost(host.id);
+		return services.filter((s) => s.bindings.some((b) => b.interface_id === interface_id));
 	}
 	return [];
 }
@@ -113,11 +123,11 @@ export function getServiceBindingsFromService(service: Service): ServiceBinding[
 	});
 }
 
-export function getServiceForBinding(binding: PortInterfaceBinding): Service | null {
+export function getServiceForBinding(binding: Binding): Service | null {
 	return get(services).find((s) => s.bindings.map((b) => b.id).includes(binding.id)) || null;
 }
 
-export function getBindingFromId(id: string): PortInterfaceBinding | null {
+export function getBindingFromId(id: string): Binding | null {
 	return (
 		get(services)
 			.flatMap((s) => s.bindings)
@@ -125,14 +135,24 @@ export function getBindingFromId(id: string): PortInterfaceBinding | null {
 	);
 }
 
-export function getPortInterfaceBindingDisplayName(binding: PortInterfaceBinding): string {
+export function getLayerBindingDisplayName(binding: Binding): string {
 	const service = getServiceForBinding(binding);
 	if (service) {
 		const host = getServiceHost(service.id);
 		if (host) {
-			const port = getPortFromId(binding.port_id);
+			
 			const iface = getInterfaceFromId(binding.interface_id);
-			if (port && iface) return formatInterface(iface) + formatPort(port);
+
+			switch (binding.type) {
+				case 'Layer3':
+					if (iface) return formatInterface(iface);
+					break;
+				case 'Layer4':
+					const port = getPortFromId(binding.port_id);
+					if (port && iface) return formatInterface(iface) + formatPort(port);
+					break;
+			}
+
 		}
 	}
 	return 'Unknown Binding';

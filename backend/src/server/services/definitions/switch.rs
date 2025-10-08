@@ -20,7 +20,7 @@ impl ServiceDefinition for Switch {
 
     fn discovery_pattern(&self) -> Pattern {
         Pattern::AllOf(vec![
-            Pattern::NotGatewayIp,
+            Pattern::IsNotGateway,
             Pattern::AllPort(vec![PortBase::Http, PortBase::Telnet]),
         ])
     }

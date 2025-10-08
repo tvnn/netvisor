@@ -1,16 +1,18 @@
 <script lang="ts">
 	import ListConfigEditor from '$lib/shared/components/forms/selection/ListConfigEditor.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-	import ServicesConfigPanel from './ServicesConfigPanel.svelte';
-	import type { Service } from '$lib/features/services/types/base';
+	import ServicesConfigPanel from './Layer4ServicesConfigPanel.svelte';
+	import type { Layer3Binding, Layer4Binding, Service } from '$lib/features/services/types/base';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
-	import { createDefaultService } from '$lib/features/services/store';
+	import { createDefaultService, services } from '$lib/features/services/store';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
 	import type { FormApi } from '$lib/shared/components/forms/types';
 	import { pushError } from '$lib/shared/stores/feedback';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
+	import Layer4ServicesConfigPanel from './Layer4ServicesConfigPanel.svelte';
+	import Layer3ServicesConfigPanel from './Layer3ServicesConfigPanel.svelte';
 
 	export let formApi: FormApi;
 	export let formData: Host;
@@ -101,12 +103,21 @@
 
 		<svelte:fragment slot="config" let:selectedItem let:onChange>
 			{#if selectedItem}
-				<ServicesConfigPanel
-					{formApi}
-					bind:formData
-					service={selectedItem}
-					onChange={(updatedService) => onChange(updatedService)}
-				/>
+				{#if serviceDefinitions.getMetadata(selectedItem.service_definition).layer == 'Layer4'}
+					<Layer4ServicesConfigPanel
+						{formApi}
+						bind:formData
+						service={selectedItem as Service<Layer4Binding>}
+						onChange={(updatedService) => onChange(updatedService)}
+					/>
+				{:else if serviceDefinitions.getMetadata(selectedItem.service_definition).layer == 'Layer3'}
+					<Layer3ServicesConfigPanel
+						{formApi}
+						bind:formData
+						service={selectedItem as Service<Layer3Binding>}
+						onChange={(updatedService) => onChange(updatedService)}
+					/>	
+				{/if}
 			{:else}
 				<div class="flex min-h-0 flex-1 items-center justify-center text-gray-400">
 					<div class="text-center">

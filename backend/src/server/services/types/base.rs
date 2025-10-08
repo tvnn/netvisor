@@ -6,7 +6,7 @@ use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::subnets::types::base::Subnet;
-use crate::server::services::types::bindings::{Binding, ServiceBinding};
+use crate::server::services::types::bindings::{Binding, BindingDiscriminants, ServiceBinding};
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
@@ -52,6 +52,7 @@ pub struct ServiceFromDiscoveryParams<'a> {
     pub subnet: &'a Subnet,
     pub mac_address: &'a Option<MacAddress>,
     pub host_id: &'a Uuid,
+    pub l3_interface_bound: bool,
     pub interface_id: &'a Uuid,
     pub gateway_ips: &'a [IpAddr],
     pub matched_service_definitions: &'a Vec<Box<dyn ServiceDefinition>>,
@@ -111,6 +112,7 @@ impl Service {
         endpoints
     }
 
+    /// Matches scanned data and returns service, vec of matched ports
     pub fn from_discovery(params: ServiceFromDiscoveryParams) -> (Option<Self>, Vec<Port>) {
         let ServiceFromDiscoveryParams {
             service_definition,
@@ -120,6 +122,7 @@ impl Service {
             subnet,
             mac_address,
             host_id,
+            l3_interface_bound,
             interface_id,
             gateway_ips,
             matched_service_definitions,
@@ -134,30 +137,80 @@ impl Service {
             gateway_ips,
             matched_service_definitions,
         ) {
-            let matched_ports: Vec<Port> = result.into_iter().flatten().collect();
-
-            tracing::info!(
-                "✅ Service {:?} matched for {} with ports {:?}",
-                service_definition,
-                ip,
-                matched_ports
-            );
-
-            let bindings: Vec<Binding> = matched_ports
-                .iter()
-                .map(|p| Binding::new_l4(p.id, *interface_id))
-                .collect();
 
             let name = service_definition.name().to_string();
+            let matched_ports: Vec<Port> = result.into_iter().flatten().collect();
 
-            let service = Service::new(ServiceBase {
-                host_id: *host_id,
-                service_definition,
-                name,
-                bindings,
-            });
+            return if service_definition.layer() == BindingDiscriminants::Layer3 && !l3_interface_bound {
 
-            (Some(service), matched_ports)
+                tracing::info!(
+                    "{}: L3 service {:?} matched",
+                    ip,
+                    service_definition,
+                );
+
+                (
+                    Some(
+                        Service::new(
+                            ServiceBase {
+                                host_id: *host_id,
+                                service_definition,
+                                name,
+                                bindings: vec!(Binding::new_l3(*interface_id))
+                            }
+                        )
+                    ),
+                    Vec::new()
+                )
+
+            } else if service_definition.layer() == BindingDiscriminants::Layer4 && matched_ports.len() > 0 {
+
+                tracing::info!(
+                    "{}: L4 service {:?} matched with ports {:?}",
+                    ip,
+                    service_definition,
+                    matched_ports
+                );
+
+
+                (
+                    Some(
+                        Service::new(
+                            ServiceBase {
+                                host_id: *host_id,
+                                service_definition,
+                                name,
+                                bindings: matched_ports
+                                    .iter()
+                                    .map(|p| Binding::new_l4(p.id, *interface_id))
+                                    .collect()
+                            }
+                        )
+                    ),
+                    matched_ports,
+
+                )
+            } else if !l3_interface_bound || open_ports.len() > 0 {
+
+                tracing::warn!(
+                    "{}: No services matched. L3 interface already bound: {}, open ports on host: {:?}",
+                    ip,    
+                    l3_interface_bound,        
+                    open_ports        
+                );
+
+                (None, Vec::new())
+            } else {
+
+                tracing::warn!(
+                    "{}: No services matched.",
+                    ip
+                );
+
+                (None, Vec::new())
+
+            };
+
         } else {
             (None, Vec::new())
         }

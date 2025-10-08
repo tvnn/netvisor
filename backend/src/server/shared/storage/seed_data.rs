@@ -145,7 +145,7 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
         name: "Cloudflare".to_string(),
         hostname: None,
         description: Some("Cloudflare DNS for DNS resolution testing".to_string()),
-        target: HostTarget::Hostname,
+        target: HostTarget::None,
         interfaces: vec![interface],
         ports: vec![dns_udp_port],
         services: Vec::new(),

@@ -56,8 +56,8 @@
 			{
 				label: 'Gateways',
 				items: subnet.gateways.map((s) => ({
-					id: s,
-					label: formatServiceAsHost(s),
+					id: serviceBindingToId(s),
+					label: formatServiceAsHost(s.service_id),
 					color: entities.getColorString('Gateway')
 				})),
 				emptyText: 'No gateways'

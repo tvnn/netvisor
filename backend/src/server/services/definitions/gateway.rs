@@ -18,7 +18,7 @@ impl ServiceDefinition for Gateway {
     }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::IsGatewayIp
+        Pattern::IsGateway
     }
 
     fn is_generic(&self) -> bool {
