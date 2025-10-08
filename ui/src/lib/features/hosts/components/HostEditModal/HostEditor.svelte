@@ -215,7 +215,12 @@
 			{#if activeTab === 'services'}
 				<div class="h-full">
 					<div class="relative flex-1">
-						<ServicesForm {formApi} bind:formData bind:currentServices={currentHostServices} isEditing={isEditing}/>
+						<ServicesForm
+							{formApi}
+							bind:formData
+							bind:currentServices={currentHostServices}
+							{isEditing}
+						/>
 					</div>
 				</div>
 			{/if}

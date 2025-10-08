@@ -10,9 +10,9 @@
 	export let entities: (Group | Host | Subnet | Service | null)[] = [null];
 	export let showSummary: boolean = true;
 
-	let id = entities.length == 1 ? entities[0]?.id : null
-	let createdAt = entities.length == 1 ? entities[0]?.created_at : null
-	let updatedAt = entities.length == 1 ? entities[0]?.updated_at : null
+	let id = entities.length == 1 ? entities[0]?.id : null;
+	let createdAt = entities.length == 1 ? entities[0]?.created_at : null;
+	let updatedAt = entities.length == 1 ? entities[0]?.updated_at : null;
 
 	let isJsonExpanded = false;
 
@@ -45,7 +45,7 @@
 <div class="border-t border-gray-700 pt-6">
 	<div class="rounded-lg bg-gray-800/50 p-4">
 		{#if showSummary && (id || createdAt || updatedAt)}
-			<div class="grid grid-cols-1 gap-4 md:grid-cols-3 border-b border-gray-700 pb-4 mb-6">
+			<div class="mb-6 grid grid-cols-1 gap-4 border-b border-gray-700 pb-4 md:grid-cols-3">
 				<!-- ID -->
 				{#if id}
 					<div class="flex items-center space-x-3">
@@ -65,7 +65,7 @@
 						</div>
 					</div>
 				{/if}
-				
+
 				{#if createdAt}
 					<!-- Created -->
 					<div class="flex items-center space-x-3">

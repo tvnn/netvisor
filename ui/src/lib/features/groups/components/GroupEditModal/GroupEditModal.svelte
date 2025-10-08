@@ -169,11 +169,7 @@
 				</div>
 
 				{#if isEditing}
-					<EntityMetadataSection
-						id={formData.id}
-						createdAt={formData.created_at}
-						updatedAt={formData.updated_at}
-					/>
+					<EntityMetadataSection entities={[group]} />
 				{/if}
 			</div>
 		</div>

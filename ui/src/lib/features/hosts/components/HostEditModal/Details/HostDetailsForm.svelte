@@ -60,6 +60,6 @@
 	<TargetConfigForm {form} {formData} />
 
 	{#if isEditing}
-		<EntityMetadataSection entities={[host]}/>
+		<EntityMetadataSection entities={[host]} />
 	{/if}
 </div>

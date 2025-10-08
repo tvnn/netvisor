@@ -65,11 +65,11 @@ impl ServiceService {
                     .iter()
                     .map(|b| b.base.port_id)
                     .collect();
-                
+
                 // Services match if they share any ports
                 !existing_ports.is_disjoint(&service_ports)
             };
-            
+
             host_match && definition_match && binding_match
         }) {
             Some(existing_service) => {

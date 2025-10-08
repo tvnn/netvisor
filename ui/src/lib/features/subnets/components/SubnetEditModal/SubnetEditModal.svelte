@@ -259,12 +259,7 @@
 				</div>
 
 				{#if isEditing}
-					<EntityMetadataSection
-						entity={subnet}
-						id={formData.id}
-						createdAt={formData.created_at}
-						updatedAt={formData.updated_at}
-					/>
+					<EntityMetadataSection entities={[subnet]} />
 				{/if}
 			</div>
 		</div>

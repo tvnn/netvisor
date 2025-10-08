@@ -10,7 +10,12 @@
 	// Import custom node components
 	import SubnetNode from './SubnetNode.svelte';
 	import HostNode from './HostNode.svelte';
-	import { EdgeHandle, type TopologyEdgeData, type CustomEdgeData, type CustomNodeData } from '../types/base';
+	import {
+		EdgeHandle,
+		type TopologyEdgeData,
+		type CustomEdgeData,
+		type CustomNodeData
+	} from '../types/base';
 	import { twColorToRgba } from '$lib/shared/utils/styling';
 
 	// Define node types
@@ -33,7 +38,6 @@
 		try {
 			if ($topology?.nodes && $topology?.edges) {
 				const flowNodes: Node[] = $topology.nodes.map((node): Node => {
-
 					const data: CustomNodeData = {
 						id: node.id,
 						host_id: node.host_id,
@@ -44,7 +48,7 @@
 						width: node.size.x,
 						height: node.size.y,
 						subnet_type: node.subnet_type
-					}
+					};
 
 					return {
 						id: node.id,

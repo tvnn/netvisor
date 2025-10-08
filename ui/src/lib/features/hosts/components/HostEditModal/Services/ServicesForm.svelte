@@ -119,6 +119,6 @@
 	</ListConfigEditor>
 
 	{#if isEditing}
-		<EntityMetadataSection entities={currentServices} showSummary={false}/>
+		<EntityMetadataSection entities={currentServices} showSummary={false} />
 	{/if}
 </div>
