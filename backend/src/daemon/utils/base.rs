@@ -13,6 +13,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use cidr::IpCidr;
 use mac_address::MacAddress;
+use net_route::Handle;
 use pnet::ipnetwork::IpNetwork;
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -241,6 +242,13 @@ pub trait DaemonUtils: NetworkUtils {
         }
 
         Ok(responses)
+    }
+
+    async fn scan_routing_table(&self) -> Result<Vec<IpAddr>, Error> {
+        let routing_handle = Handle::new()?;
+        let routes = routing_handle.list().await?;
+
+        Ok(routes.into_iter().filter_map(|r| r.gateway).collect())
     }
 }
 

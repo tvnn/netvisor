@@ -21,10 +21,6 @@ impl ServiceDefinition for OpnSense {
         Pattern::WebService("/", "OPNSense")
     }
 
-    fn is_gateway(&self) -> bool {
-        true
-    }
-
     fn icon(&self) -> &'static str {
         "opnsense"
     }

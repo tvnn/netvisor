@@ -21,10 +21,6 @@ impl ServiceDefinition for Fortinet {
         Pattern::WebService("/", "fortinet")
     }
 
-    fn is_gateway(&self) -> bool {
-        true
-    }
-
     fn icon(&self) -> &'static str {
         "fortinet"
     }

@@ -119,6 +119,7 @@ ipgen = "1.0.2"
 validator = { version = "0.20", features = ["derive"] }
 regex = "1.11.3"
 tempfile = "3.23.0"
+net-route = "0.4.6"
 
 # === Platform-specific Dependencies ===
 [target.'cfg(target_os = "linux")'.dependencies]

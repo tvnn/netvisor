@@ -1,6 +1,7 @@
 use crate::server::discovery::types::base::EntitySource;
+use crate::server::services::definitions::gateway::Gateway;
 use crate::server::services::types::base::ServiceFromDiscoveryParams;
-use crate::server::services::types::bindings::ServiceBinding;
+use crate::server::services::types::bindings::{Binding, ServiceBinding};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::{
     daemon::discovery::service::base::DaemonDiscoveryService,
@@ -10,7 +11,7 @@ use crate::{
             ports::{Port, PortBase, TransportProtocol},
         },
         services::{
-            definitions::{vpn_gateway::VpnGateway, ServiceDefinitionRegistry},
+            definitions::{ServiceDefinitionRegistry},
             types::definitions::ServiceDefinition,
         },
         shared::types::metadata::HasId,
@@ -44,13 +45,14 @@ const CONCURRENT_SCANS: usize = 15;
 
 pub struct HostScanParams<'a> {
     subnet: &'a Subnet,
-    session_id: Uuid,
-    daemon_id: Uuid,
-    started_at: DateTime<Utc>,
+    gateway_ips: &'a [IpAddr],
+    session_id: &'a Uuid,
+    daemon_id: &'a Uuid,
+    started_at: &'a DateTime<Utc>,
     cancel: CancellationToken,
     discovered_count: Arc<std::sync::atomic::AtomicUsize>,
     scanned_count: Arc<std::sync::atomic::AtomicUsize>,
-    total_ips_across_subnets: usize,
+    total_ips_across_subnets: &'a usize,
 }
 
 impl DaemonDiscoveryService {
@@ -69,6 +71,8 @@ impl DaemonDiscoveryService {
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
 
         let subnets = try_join_all(subnet_futures).await?;
+
+        let gateway_ips = self.utils.scan_routing_table().await?;
 
         let total_ips_across_subnets: usize = subnets
             .iter()
@@ -97,13 +101,14 @@ impl DaemonDiscoveryService {
         let discovery_futures = subnets.iter().map(|subnet| {
             let params = HostScanParams {
                 subnet,
-                session_id,
-                daemon_id,
-                started_at,
+                gateway_ips: &gateway_ips,
+                session_id: &session_id,
+                daemon_id: &daemon_id,
+                started_at: &started_at,
                 cancel: cancel.clone(),
                 discovered_count: discovered_count.clone(),
                 scanned_count: scanned_count.clone(),
-                total_ips_across_subnets,
+                total_ips_across_subnets: &total_ips_across_subnets,
             };
             self.scan_and_process_hosts(params)
         });
@@ -187,6 +192,7 @@ impl DaemonDiscoveryService {
     async fn scan_and_process_hosts(&self, scan_params: HostScanParams<'_>) -> Result<Vec<Host>> {
         let HostScanParams {
             subnet,
+            gateway_ips,
             session_id,
             daemon_id,
             started_at,
@@ -203,16 +209,16 @@ impl DaemonDiscoveryService {
 
         // Report initial progress
         self.report_discovery_update(
-            session_id,
+            *session_id,
             &DaemonDiscoveryUpdate {
-                session_id,
+                session_id: *session_id,
                 phase: DiscoveryPhase::Scanning,
                 completed: 0,
-                total: total_ips_across_subnets,
+                total: *total_ips_across_subnets,
                 error: None,
                 discovered_count: 0,
-                daemon_id,
-                started_at: Some(started_at),
+                daemon_id: *daemon_id,
+                started_at: Some(*started_at),
                 finished_at: None,
             },
         )
@@ -229,7 +235,7 @@ impl DaemonDiscoveryService {
                     self.scan_host(ip, scanned_count, cancel).await
                 {
                     if let Ok(Some((host, services))) = self
-                        .process_host(ip, subnet, open_ports, endpoint_responses)
+                        .process_host(ip, gateway_ips, subnet, open_ports, endpoint_responses)
                         .await
                     {
                         discovered_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -273,16 +279,16 @@ impl DaemonDiscoveryService {
                 || last_reported_discovery_count > current_discovered
             {
                 self.report_discovery_update(
-                    session_id,
+                    *session_id,
                     &DaemonDiscoveryUpdate {
-                        session_id,
+                        session_id: *session_id,
                         phase: DiscoveryPhase::Scanning,
                         completed: current_scanned,
-                        total: total_ips_across_subnets,
+                        total: *total_ips_across_subnets,
                         error: None,
                         discovered_count: current_discovered,
-                        daemon_id,
-                        started_at: Some(started_at),
+                        daemon_id: *daemon_id,
+                        started_at: Some(*started_at),
                         finished_at: None,
                     },
                 )
@@ -354,6 +360,7 @@ impl DaemonDiscoveryService {
     async fn process_host(
         &self,
         host_ip: IpAddr,
+        gateway_ips: &[IpAddr],
         subnet: Subnet,
         open_ports: Vec<PortBase>,
         endpoint_responses: Vec<EndpointResponse>,
@@ -409,8 +416,8 @@ impl DaemonDiscoveryService {
         sorted_service_definitions.sort_unstable_by_key(|s| {
             if !s.is_generic() {
                 0 // Highest priority - non-generic services
-            } else if s.id() == VpnGateway.id() {
-                1 // Needs to go before non-VPN gateways, otherwise will likely be classified as non-VPN gateway
+            } else if s.is_gateway() && s.id() != Gateway.id() {
+                1 // Non-generic and subnet-typed gateways need to go before generic Gateway, otherwise will likely be classified as Gateway
             } else if s.is_infra_service() {
                 2 // Infra services
             } else {
@@ -430,6 +437,7 @@ impl DaemonDiscoveryService {
                     mac_address: &mac,
                     host_id: &host.id,
                     interface_id: &interface_id,
+                    gateway_ips,
                     matched_service_definitions: &matched_service_definitions,
                 })
             {
@@ -437,11 +445,18 @@ impl DaemonDiscoveryService {
                     host.base.name = service.base.service_definition.name().to_string();
                 }
 
+                // If there's a suitable binding + host target is hostname or none, use a binding as the host target
                 if let (Some(binding), true) = (
                     service.base.bindings.iter().find(|b| {
-                        if let Some(port) = host.get_port(&b.port_id().expect("Services discovered through port scanning should always add L4 bindings")) {
-                            return port.base.protocol() == TransportProtocol::Tcp;
-                        }
+                        match b {
+                            Binding::Layer3{..} => false,
+                            Binding::Layer4{port_id, ..} => {
+                                if let Some(port) = host.get_port(&port_id) {
+                                    return port.base.protocol() == TransportProtocol::Tcp;
+                                }
+                                false
+                            }
+                        };
                         false
                     }),
                     matches!(host.base.target, HostTarget::Hostname | HostTarget::None),

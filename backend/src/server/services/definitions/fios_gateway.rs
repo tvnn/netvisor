@@ -24,10 +24,6 @@ impl ServiceDefinition for FiosGateway {
         ])
     }
 
-    fn is_gateway(&self) -> bool {
-        true
-    }
-
     fn icon(&self) -> &'static str {
         "fios"
     }

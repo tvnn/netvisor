@@ -6,11 +6,10 @@ use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::subnets::types::base::Subnet;
-use crate::server::services::types::bindings::{Binding, BindingDiscriminants, ServiceBinding};
+use crate::server::services::types::bindings::{Binding, ServiceBinding};
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
-use strum::IntoDiscriminant;
 use std::hash::Hash;
 use uuid::Uuid;
 use validator::Validate;
@@ -54,6 +53,7 @@ pub struct ServiceFromDiscoveryParams<'a> {
     pub mac_address: &'a Option<MacAddress>,
     pub host_id: &'a Uuid,
     pub interface_id: &'a Uuid,
+    pub gateway_ips: &'a [IpAddr],
     pub matched_service_definitions: &'a Vec<Box<dyn ServiceDefinition>>,
 }
 
@@ -66,14 +66,6 @@ impl Service {
             updated_at: now,
             base,
         }
-    }
-
-    pub fn get_l3_bindings(&self) -> Vec<&Binding> {
-        self.base.bindings.iter().filter(|b| b.discriminant() == BindingDiscriminants::Layer3).collect()
-    }
-
-    pub fn get_l4_bindings(&self) -> Vec<&Binding> {
-        self.base.bindings.iter().filter(|b| b.discriminant() == BindingDiscriminants::Layer4).collect()
     }
 
     pub fn get_binding(&self, id: Uuid) -> Option<&Binding> {
@@ -129,6 +121,7 @@ impl Service {
             mac_address,
             host_id,
             interface_id,
+            gateway_ips,
             matched_service_definitions,
         } = params;
 
@@ -138,6 +131,7 @@ impl Service {
             ip,
             subnet,
             mac_address,
+            gateway_ips,
             matched_service_definitions,
         ) {
             let matched_ports: Vec<Port> = result.into_iter().flatten().collect();

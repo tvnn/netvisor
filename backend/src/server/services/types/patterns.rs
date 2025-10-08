@@ -39,8 +39,6 @@ pub enum Pattern {
     SubnetIsNotType(SubnetType),
     IsGatewayIp,
     NotGatewayIp,
-    IsVpnSubnetGateway,
-    IsDockerHost,
     MacVendor(&'static str),
     HasAnyMatchedService,
     AnyMatchedService(fn(&Box<dyn ServiceDefinition>) -> bool),
@@ -91,6 +89,7 @@ impl Pattern {
         ip: &IpAddr,
         subnet: &Subnet,
         mac_address: &Option<MacAddress>,
+        gateway_ips: &[IpAddr],
         matched_service_definitions: &Vec<Box<dyn ServiceDefinition>>,
     ) -> Result<Vec<Option<Port>>, Error> {
         // Return ports that matched if any
@@ -159,6 +158,7 @@ impl Pattern {
                             ip,
                             subnet,
                             mac_address,
+                            gateway_ips,
                             matched_service_definitions,
                         ) {
                             Ok(results) => {
@@ -189,6 +189,7 @@ impl Pattern {
                             ip,
                             subnet,
                             mac_address,
+                            gateway_ips,
                             matched_service_definitions,
                         ) {
                             Ok(results) => Some(results),
@@ -247,22 +248,13 @@ impl Pattern {
                     ip,
                     subnet,
                     mac_address,
+                    gateway_ips,
                     matched_service_definitions,
                 )
             }
 
             Pattern::IsGatewayIp => {
-                let is_gateway = match ip {
-                    IpAddr::V4(ipv4) => {
-                        let octets = ipv4.octets();
-                        octets[3] == 1 || octets[3] == 254
-                    }
-                    IpAddr::V6(ipv6) => {
-                        let segments = ipv6.segments();
-                        segments[0..7].iter().all(|&s| s == 0)
-                            && (segments[7] == 1 || segments[7] == 254)
-                    }
-                };
+                let is_gateway = gateway_ips.contains(ip);
                 if is_gateway {
                     Ok(vec![None])
                 } else {
@@ -271,18 +263,11 @@ impl Pattern {
             }
 
             Pattern::NotGatewayIp => {
-                let gateway_result = Pattern::IsGatewayIp.matches(
-                    open_ports,
-                    responses,
-                    ip,
-                    subnet,
-                    mac_address,
-                    matched_service_definitions,
-                );
-                if gateway_result.is_err() {
-                    Ok(vec![None])
-                } else {
+                let is_gateway = gateway_ips.contains(ip);
+                if is_gateway {
                     no_match
+                } else {
+                    Ok(vec![None])
                 }
             }
 
@@ -296,40 +281,6 @@ impl Pattern {
 
             Pattern::SubnetIsNotType(subnet_type) => {
                 if &subnet.base.subnet_type != subnet_type {
-                    Ok(vec![None])
-                } else {
-                    no_match
-                }
-            }
-
-            Pattern::IsVpnSubnetGateway => {
-                let gateway_result = Pattern::IsGatewayIp.matches(
-                    open_ports,
-                    responses,
-                    ip,
-                    subnet,
-                    mac_address,
-                    matched_service_definitions,
-                );
-                let is_vpn_subnet = matches!(subnet.base.subnet_type, SubnetType::VpnTunnel);
-                if gateway_result.is_ok() && is_vpn_subnet {
-                    Ok(vec![None])
-                } else {
-                    no_match
-                }
-            }
-
-            Pattern::IsDockerHost => {
-                let gateway_result = Pattern::IsGatewayIp.matches(
-                    open_ports,
-                    responses,
-                    ip,
-                    subnet,
-                    mac_address,
-                    matched_service_definitions,
-                );
-                let is_docker_subnet = matches!(subnet.base.subnet_type, SubnetType::DockerBridge);
-                if gateway_result.is_ok() && is_docker_subnet {
                     Ok(vec![None])
                 } else {
                     no_match
@@ -397,6 +348,16 @@ impl Pattern {
         }
     }
 
+    pub fn contains_gateway_ip_pattern(&self) -> bool {
+        match self {
+            Pattern::IsGatewayIp => true,
+            Pattern::AllOf(patterns) | Pattern::AnyOf(patterns) => {
+                patterns.iter().any(|p| p.contains_web_service_pattern())
+            }
+            _ => false,
+        }
+    }
+
     pub fn contains_web_service_pattern(&self) -> bool {
         match self {
             Pattern::WebService(_, _) => true,
@@ -443,7 +404,7 @@ mod tests {
 
         let result =
             pi.discovery_pattern()
-                .matches(&open_ports, &responses, &ip, &subnet, &None, &vec![]);
+                .matches(&open_ports, &responses, &ip, &subnet, &None, &vec![], &vec![]);
 
         assert!(
             result.is_ok(),
@@ -459,6 +420,7 @@ mod tests {
             &IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35)),
             &subnet,
             &None,
+            &vec![],
             &vec![],
         );
 
@@ -485,6 +447,7 @@ mod tests {
             &subnet,
             &None,
             &vec![],
+            &vec![],
         );
 
         assert!(
@@ -502,6 +465,7 @@ mod tests {
             &subnet,
             &None,
             &vec![],
+            &vec![],
         );
 
         assert!(
@@ -518,6 +482,7 @@ mod tests {
             &"192.168.1.100".parse().unwrap(),
             &subnet,
             &None,
+            &vec![],
             &vec![],
         );
 
@@ -546,6 +511,7 @@ mod tests {
             &subnet,
             &None,
             &vec![],
+            &vec![],
         );
         assert!(result.is_ok(), "OR pattern should match MySQL port");
 
@@ -557,6 +523,7 @@ mod tests {
             &IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35)),
             &subnet,
             &None,
+            &vec![],
             &vec![],
         );
         assert!(result.is_ok(), "OR pattern should match PostgreSQL port");
@@ -570,6 +537,7 @@ mod tests {
             &subnet,
             &None,
             &vec![],
+            &vec![],
         );
         assert!(result.is_ok(), "OR pattern should match with both ports");
 
@@ -581,6 +549,7 @@ mod tests {
             &"192.168.1.100".parse().unwrap(),
             &subnet,
             &None,
+            &vec![],
             &vec![],
         );
         assert!(

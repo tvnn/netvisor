@@ -21,9 +21,6 @@ impl ServiceDefinition for Firewall {
         Pattern::None
     }
 
-    fn is_gateway(&self) -> bool {
-        true
-    }
     fn is_generic(&self) -> bool {
         true
     }

@@ -20,10 +20,6 @@ impl ServiceDefinition for WebService {
     fn discovery_pattern(&self) -> Pattern {
         Pattern::None
     }
-
-    fn is_gateway(&self) -> bool {
-        true
-    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(create_service::<WebService>));

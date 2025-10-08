@@ -46,46 +46,37 @@ impl ServiceService {
         let existing_services = self.get_services_for_host(&service.base.host_id).await?;
 
         let service_from_storage = match existing_services.into_iter().find(|existing: &Service| {
-            // Duplicate if being created for same host, has same definition, and same ports
+            // Must be same host and same definition
             let host_match = existing.base.host_id == service.base.host_id;
+            let definition_match = service.base.service_definition == existing.base.service_definition;
+            
+            if !host_match || !definition_match {
+                return false;
+            }
+            
+            // Check if bindings overlap
+            let bindings_match = existing.base.bindings.iter().any(|existing_binding| {
+                service.base.bindings.iter().any(|service_binding| {
+                    match (existing_binding, service_binding) {
+                        // L4 bindings match if they share the same port
+                        (Binding::Layer4 { port_id: existing_port, .. }, 
+                        Binding::Layer4 { port_id: service_port, .. }) => {
+                            existing_port == service_port
+                        }
+                        
+                        // L3 bindings match if they share the same interface
+                        (Binding::Layer3 { interface_id: existing_iface, .. },
+                        Binding::Layer3 { interface_id: service_iface, .. }) => {
+                            existing_iface == service_iface
+                        }
+                        
+                        // L3 and L4 bindings never match each other
+                        _ => false
+                    }
+                })
+            });
 
-            let definition_match =
-                service.base.service_definition == existing.base.service_definition;
-
-            let l4_bindings_match = {
-
-                let existing_ports: std::collections::HashSet<_> = existing
-                    .get_l4_bindings()
-                    .iter()
-                    .map(|b| b.port_id().unwrap())
-                    .collect();
-                let service_ports: std::collections::HashSet<_> = service
-                    .get_l4_bindings()
-                    .iter()
-                    .map(|b| b.port_id().unwrap())
-                    .collect();
-
-                // Services with L4 bindings match if they share any ports
-                !existing_ports.is_disjoint(&service_ports)
-            };
-
-            let l3_bindings_match = {
-                let existing_interfaces: std::collections::HashSet<_> = existing
-                    .get_l3_bindings()
-                    .iter()
-                    .map(|b| b.interface_id())
-                    .collect();
-                let service_interfaces: std::collections::HashSet<_> = service
-                    .get_l3_bindings()
-                    .iter()
-                    .map(|b| b.interface_id())
-                    .collect();
-
-                // Services with L3 bindings match if they share interface
-                !existing_interfaces.is_disjoint(&service_interfaces)
-            };
-
-            host_match && definition_match && l4_bindings_match && l3_bindings_match
+            bindings_match
         }) {
             Some(existing_service) => {
                 tracing::warn!(

@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use strum_macros::{EnumDiscriminants, EnumIter};
 use std::hash::Hash;
 use uuid::Uuid;
 
@@ -28,8 +27,6 @@ impl Hash for ServiceBinding {
     Serialize,
     Deserialize,
     Eq,
-    EnumDiscriminants,
-    EnumIter,
 )]
 pub enum Binding {
     Layer3 {

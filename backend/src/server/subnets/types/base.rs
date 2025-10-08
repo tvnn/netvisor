@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 
 use crate::server::discovery::types::base::EntitySource;
-use crate::server::services::types::bindings::ServiceBinding;
+use crate::server::services::types::bindings::{Binding, ServiceBinding};
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use crate::server::{
     hosts::types::{ports::PortBase},
@@ -154,13 +154,19 @@ impl Subnet {
         if has_interface_on_subnet {
             if service.base.service_definition.is_dns_resolver() {
                 let dns_port_bindings: Vec<ServiceBinding> = service
-                    .get_l4_bindings()
+                    .base
+                    .bindings
                     .iter()
                     .filter(|b| {
-                        if let Some(port) = host.get_port(&b.port_id().unwrap()) {
-                            return port.base == PortBase::DnsUdp || port.base == PortBase::DnsTcp;
+                        match b {
+                            Binding::Layer3{..} => false,
+                            Binding::Layer4{port_id, ..} => {
+                                if let Some(port) = host.get_port(&port_id) {
+                                    return port.base == PortBase::DnsUdp || port.base == PortBase::DnsTcp;
+                                }
+                                false
+                            }
                         }
-                        false
                     })
                     .map(|b| ServiceBinding {
                         binding_id: b.id(),

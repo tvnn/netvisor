@@ -1,41 +1,29 @@
-use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::patterns::Pattern;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
-pub struct Router;
+pub struct Gateway;
 
-impl ServiceDefinition for Router {
+impl ServiceDefinition for Gateway {
     fn name(&self) -> &'static str {
-        "Router"
+        "Gateway"
     }
     fn description(&self) -> &'static str {
-        "Network router providing routing and gateway services"
+        "A generic gateway"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::NetworkCore
     }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::AllOf(vec![
-            Pattern::IsGatewayIp,
-            Pattern::AnyPort(vec![
-                PortBase::Ssh,
-                PortBase::Http,
-                PortBase::Https,
-                PortBase::Dhcp,
-            ]),
-        ])
+        Pattern::IsGatewayIp
     }
 
-    fn is_gateway(&self) -> bool {
-        true
-    }
     fn is_generic(&self) -> bool {
         true
     }
 }
 
-inventory::submit!(ServiceDefinitionFactory::new(create_service::<Router>));
+inventory::submit!(ServiceDefinitionFactory::new(create_service::<Gateway>));

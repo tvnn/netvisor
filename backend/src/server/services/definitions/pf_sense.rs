@@ -21,10 +21,6 @@ impl ServiceDefinition for PfSense {
         Pattern::WebService("/", "pfSense")
     }
 
-    fn is_gateway(&self) -> bool {
-        true
-    }
-
     fn icon(&self) -> &'static str {
         "pfsense"
     }

@@ -30,11 +30,6 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
         false
     }
 
-    /// If service is capable of acting as a gateway on the network
-    fn is_gateway(&self) -> bool {
-        false
-    }
-
     /// Path of service on https://dashboardicons.com/. For example, Home Assistant -> https://dashboardicons.com/icons/home-assistant. MUST SUPPORT SVG ICON FORMAT. If SVG is not supported, a fallback icon will be used instead.
     fn icon(&self) -> &'static str {
         ""
@@ -48,6 +43,7 @@ pub trait ServiceDefinitionExt {
     fn can_be_manually_added(&self) -> bool;
     fn is_dns_resolver(&self) -> bool;
     fn is_reverse_proxy(&self) -> bool;
+    fn is_gateway(&self) -> bool;
     fn is_infra_service(&self) -> bool;
     fn contains_web_service_pattern(&self) -> bool;
 }
@@ -85,10 +81,6 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
     fn is_generic(&self) -> bool {
         ServiceDefinition::is_generic(&**self)
     }
-
-    fn is_gateway(&self) -> bool {
-        ServiceDefinition::is_gateway(&**self)
-    }
 }
 
 impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
@@ -117,6 +109,10 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
 
     fn is_reverse_proxy(&self) -> bool {
         ServiceDefinition::category(self) == ServiceCategory::ReverseProxy
+    }
+
+    fn is_gateway(&self) -> bool {
+        self.discovery_pattern().contains_gateway_ip_pattern()
     }
 
     fn contains_web_service_pattern(&self) -> bool {
@@ -317,8 +313,6 @@ mod tests {
                 | Pattern::NotGatewayIp
                 | Pattern::SubnetIsType(_)
                 | Pattern::SubnetIsNotType(_)
-                | Pattern::IsVpnSubnetGateway
-                | Pattern::IsDockerHost
                 | Pattern::HasAnyMatchedService
                 | Pattern::AnyMatchedService(_)
                 | Pattern::AllMatchedService(_) => {
