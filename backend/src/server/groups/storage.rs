@@ -1,5 +1,6 @@
 use crate::server::{
-    groups::types::{Group, GroupBase, GroupType}, services::types::bindings::ServiceBinding,
+    groups::types::{Group, GroupBase, GroupType},
+    services::types::bindings::ServiceBinding,
 };
 use anyhow::{Error, Result};
 use async_trait::async_trait;

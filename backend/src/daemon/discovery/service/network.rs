@@ -10,10 +10,7 @@ use crate::{
             interfaces::{Interface, InterfaceBase},
             ports::{Port, PortBase},
         },
-        services::{
-            definitions::{ServiceDefinitionRegistry},
-            types::definitions::ServiceDefinition,
-        },
+        services::{definitions::ServiceDefinitionRegistry, types::definitions::ServiceDefinition},
         shared::types::metadata::HasId,
     },
 };
@@ -447,11 +444,10 @@ impl DaemonDiscoveryService {
                     matched_service_definitions: &matched_service_definitions,
                 })
             {
-                
                 if service.base.service_definition.layer() == BindingDiscriminants::Layer3 {
                     l3_interface_bound = true;
                 }
-                
+
                 if !service.base.service_definition.is_generic() {
                     host.base.name = service.base.service_definition.name().to_string();
                 }
@@ -460,10 +456,16 @@ impl DaemonDiscoveryService {
                 if let (Some(binding), true) = (
                     service.base.bindings.iter().find(|b| {
                         match b {
-                            Binding::Layer3{..} => false,
-                            Binding::Layer4{port_id, ..} => {
-                                if let Some(port) = host.get_port(&port_id) {
-                                    return [PortBase::Http, PortBase::HttpAlt, PortBase::Https, PortBase::HttpsAlt].contains(&port.base)
+                            Binding::Layer3 { .. } => false,
+                            Binding::Layer4 { port_id, .. } => {
+                                if let Some(port) = host.get_port(port_id) {
+                                    return [
+                                        PortBase::Http,
+                                        PortBase::HttpAlt,
+                                        PortBase::Https,
+                                        PortBase::HttpsAlt,
+                                    ]
+                                    .contains(&port.base);
                                 }
                                 false
                             }
@@ -481,7 +483,7 @@ impl DaemonDiscoveryService {
                 // Add any bound ports to host ports array, remove from open ports
                 let bound_port_bases: Vec<PortBase> =
                     bound_ports.iter().map(|p| p.base.clone()).collect();
-                
+
                 host.base.ports.append(&mut bound_ports);
 
                 // Add new service

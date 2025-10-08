@@ -248,12 +248,13 @@ pub trait DaemonUtils: NetworkUtils {
         let routing_handle = Handle::new()?;
         let routes = routing_handle.list().await?;
 
-        Ok(routes.into_iter().filter_map(|r| {
-            match r.gateway {
+        Ok(routes
+            .into_iter()
+            .filter_map(|r| match r.gateway {
                 Some(gateway) if gateway != r.destination => Some(gateway),
-                _ => None
-            }
-        }).collect())
+                _ => None,
+            })
+            .collect())
     }
 }
 

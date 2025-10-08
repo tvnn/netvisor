@@ -14,7 +14,6 @@
 	import type { Subnet } from '../../types/base';
 	import { serviceBindingIdToObj, serviceBindingToId } from '$lib/features/hosts/store';
 	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
-	import { ServiceWithHostDisplay } from '$lib/shared/components/forms/selection/display/ServiceWithHostDisplay.svelte';
 
 	export let subnet: Subnet | null = null;
 	export let isOpen = false;
@@ -48,17 +47,15 @@
 			const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
 			return isDnsResolver && hasInterfaceOnSubnet;
 		})
-		.flatMap((service) => getServiceBindingsFromService(service))
+		.flatMap((service) => getServiceBindingsFromService(service));
 
 	$: gatewayServiceBindings = $services
 		.filter((service) => {
-			const isGateway = serviceDefinitions.getMetadata(
-				service.service_definition
-			)?.is_gateway;
+			const isGateway = serviceDefinitions.getMetadata(service.service_definition)?.is_gateway;
 			const hasInterfaceOnSubnet = serviceHasInterfaceOnSubnet(service, formData.id);
 			return isGateway && hasInterfaceOnSubnet;
 		})
-		.flatMap((service) => getServiceBindingsFromService(service))
+		.flatMap((service) => getServiceBindingsFromService(service));
 
 	$: reverseProxyServiceBindings = $services
 		.filter((service) => {

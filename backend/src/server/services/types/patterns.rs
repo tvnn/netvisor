@@ -99,18 +99,30 @@ impl Vendor {
     pub const UBIQUITI: &'static str = "Ubiquiti Networks Inc";
 }
 
+#[derive(Debug, Clone)]
+pub struct PatternParams<'a> {
+    pub open_ports: &'a [PortBase],
+    pub responses: &'a [EndpointResponse],
+    pub ip: &'a IpAddr,
+    pub subnet: &'a Subnet,
+    pub mac_address: &'a Option<MacAddress>,
+    pub gateway_ips: &'a [IpAddr],
+    pub matched_service_definitions: &'a Vec<Box<dyn ServiceDefinition>>,
+}
+
 impl Pattern {
-    pub fn matches(
-        &self,
-        open_ports: &[PortBase],
-        responses: &[EndpointResponse],
-        ip: &IpAddr,
-        subnet: &Subnet,
-        mac_address: &Option<MacAddress>,
-        gateway_ips: &[IpAddr],
-        matched_service_definitions: &Vec<Box<dyn ServiceDefinition>>,
-    ) -> Result<Vec<Option<Port>>, Error> {
+    pub fn matches(&self, params: PatternParams) -> Result<Vec<Option<Port>>, Error> {
         // Return ports that matched if any
+
+        let PatternParams {
+            open_ports,
+            responses,
+            ip,
+            subnet,
+            mac_address,
+            gateway_ips,
+            matched_service_definitions,
+        } = params;
 
         let no_match = Err(Error::msg("No match"));
 
@@ -169,22 +181,12 @@ impl Pattern {
                 let mut any_matched = false;
                 let results = patterns
                     .iter()
-                    .filter_map(|p| {
-                        match p.matches(
-                            open_ports,
-                            responses,
-                            ip,
-                            subnet,
-                            mac_address,
-                            gateway_ips,
-                            matched_service_definitions,
-                        ) {
-                            Ok(results) => {
-                                any_matched = true;
-                                Some(results)
-                            }
-                            Err(_) => None,
+                    .filter_map(|p| match p.matches(params.clone()) {
+                        Ok(results) => {
+                            any_matched = true;
+                            Some(results)
                         }
+                        Err(_) => None,
                     })
                     .flatten()
                     .collect();
@@ -200,21 +202,11 @@ impl Pattern {
                 let mut all_matched = true;
                 let results = patterns
                     .iter()
-                    .filter_map(|p| {
-                        match p.matches(
-                            open_ports,
-                            responses,
-                            ip,
-                            subnet,
-                            mac_address,
-                            gateway_ips,
-                            matched_service_definitions,
-                        ) {
-                            Ok(results) => Some(results),
-                            Err(_) => {
-                                all_matched = false;
-                                None
-                            }
+                    .filter_map(|p| match p.matches(params.clone()) {
+                        Ok(results) => Some(results),
+                        Err(_) => {
+                            all_matched = false;
+                            None
                         }
                     })
                     .flatten()
@@ -260,15 +252,7 @@ impl Pattern {
                     .into_iter()
                     .map(Pattern::Endpoint)
                     .collect();
-                Pattern::AnyOf(endpoints).matches(
-                    open_ports,
-                    responses,
-                    ip,
-                    subnet,
-                    mac_address,
-                    gateway_ips,
-                    matched_service_definitions,
-                )
+                Pattern::AnyOf(endpoints).matches(params)
             }
 
             Pattern::IsGateway => {
@@ -276,10 +260,10 @@ impl Pattern {
                     .iter()
                     .filter(|g| subnet.base.cidr.contains(g))
                     .collect();
-                
+
                 let count_gateways_in_subnet = gateway_ips_in_subnet.len();
                 let host_ip_in_routing_table = gateway_ips_in_subnet.contains(&ip);
-                
+
                 let last_octet_1_or_254 = match ip {
                     IpAddr::V4(ipv4) => {
                         let octets = ipv4.octets();
@@ -290,7 +274,7 @@ impl Pattern {
                         segments[7] == 1 || segments[7] == 254
                     }
                 };
-                
+
                 let is_gateway = if host_ip_in_routing_table {
                     // Definitely a gateway if in routing table
                     true
@@ -300,7 +284,7 @@ impl Pattern {
                 } else {
                     false
                 };
-                
+
                 if is_gateway {
                     Ok(vec![None])
                 } else {
@@ -309,7 +293,7 @@ impl Pattern {
             }
 
             Pattern::IsNotGateway => {
-                if Pattern::IsGateway.matches(open_ports, responses, ip, subnet, mac_address, gateway_ips, matched_service_definitions).is_err() {
+                if Pattern::IsGateway.matches(params).is_err() {
                     Ok(vec![None])
                 } else {
                     no_match
@@ -425,7 +409,7 @@ mod tests {
                 definitions::ServiceDefinitionRegistry,
                 types::{
                     endpoints::{Endpoint, EndpointResponse},
-                    patterns::Pattern,
+                    patterns::{Pattern, PatternParams},
                 },
             },
         },
@@ -434,22 +418,26 @@ mod tests {
 
     #[tokio::test]
     async fn test_pattern_port_matching() {
-        let subnet = subnet();
-
         // Test pi-hole service
         let pi =
             ServiceDefinitionRegistry::find_by_id("Pi-Hole").expect("Pi-hole service not found");
 
-        let open_ports = vec![PortBase::DnsUdp, PortBase::DnsTcp];
         let ip = IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35));
-        let responses = vec![EndpointResponse {
-            endpoint: Endpoint::http(Some(ip), "/admin"),
-            response: "Pi-hole".to_string(),
-        }];
 
-        let result =
-            pi.discovery_pattern()
-                .matches(&open_ports, &responses, &ip, &subnet, &None, &vec![], &vec![]);
+        let mut params = PatternParams {
+            open_ports: &vec![PortBase::DnsUdp, PortBase::DnsTcp],
+            responses: &vec![EndpointResponse {
+                endpoint: Endpoint::http(Some(ip), "/admin"),
+                response: "Pi-hole".to_string(),
+            }],
+            ip: &ip,
+            subnet: &subnet(),
+            mac_address: &None,
+            gateway_ips: &vec![],
+            matched_service_definitions: &vec![],
+        };
+
+        let result = pi.discovery_pattern().matches(params.clone());
 
         assert!(
             result.is_ok(),
@@ -458,42 +446,32 @@ mod tests {
 
         // Test with wrong port - should not match
         let open_ports = vec![PortBase::new_tcp(80)];
+        params.open_ports = &open_ports;
 
-        let result = pi.discovery_pattern().matches(
-            &open_ports,
-            &responses,
-            &IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35)),
-            &subnet,
-            &None,
-            &vec![],
-            &vec![],
-        );
+        let result = pi.discovery_pattern().matches(params);
 
         assert!(result.is_err(), "SSH pattern should not match port 80");
     }
 
     #[test]
     fn test_pattern_and_logic() {
-        let subnet = subnet();
-
         // Create AND pattern requiring both port 80 and 443
         let pattern = Pattern::AllOf(vec![
             Pattern::Port(PortBase::new_tcp(80)),
             Pattern::Port(PortBase::new_tcp(443)),
         ]);
 
-        // Test with both ports - should match
-        let open_ports = vec![PortBase::new_tcp(80), PortBase::new_tcp(443)];
+        let mut params = PatternParams {
+            open_ports: &vec![PortBase::new_tcp(80), PortBase::new_tcp(443)],
+            responses: &vec![],
+            ip: &IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35)),
+            subnet: &subnet(),
+            mac_address: &None,
+            gateway_ips: &vec![],
+            matched_service_definitions: &vec![],
+        };
 
-        let result = pattern.matches(
-            &open_ports,
-            &vec![],
-            &IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35)),
-            &subnet,
-            &None,
-            &vec![],
-            &vec![],
-        );
+        let result = pattern.matches(params.clone());
 
         assert!(
             result.is_ok(),
@@ -502,16 +480,9 @@ mod tests {
 
         // Test with only one port - should not match
         let open_ports = vec![PortBase::new_tcp(80)];
+        params.open_ports = &open_ports;
 
-        let result = pattern.matches(
-            &open_ports,
-            &vec![],
-            &"192.168.1.100".parse().unwrap(),
-            &subnet,
-            &None,
-            &vec![],
-            &vec![],
-        );
+        let result = pattern.matches(params.clone());
 
         assert!(
             result.is_err(),
@@ -520,16 +491,9 @@ mod tests {
 
         // Test with neither port - should not match
         let open_ports = vec![PortBase::new_tcp(22)];
+        params.open_ports = &open_ports;
 
-        let result = pattern.matches(
-            &open_ports,
-            &vec![],
-            &"192.168.1.100".parse().unwrap(),
-            &subnet,
-            &None,
-            &vec![],
-            &vec![],
-        );
+        let result = pattern.matches(params.clone());
 
         assert!(
             result.is_err(),
@@ -539,64 +503,41 @@ mod tests {
 
     #[test]
     fn test_pattern_or_logic() {
-        let subnet = subnet();
-
         // Create OR pattern for database ports (MySQL or PostgreSQL)
         let pattern = Pattern::AnyOf(vec![
             Pattern::Port(PortBase::new_tcp(3306)), // MySQL
             Pattern::Port(PortBase::new_tcp(5432)), // PostgreSQL
         ]);
 
-        // Test with MySQL port - should match
-        let open_ports = vec![PortBase::new_tcp(3306)];
-        let result = pattern.matches(
-            &open_ports,
-            &vec![],
-            &IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35)),
-            &subnet,
-            &None,
-            &vec![],
-            &vec![],
-        );
+        let mut params = PatternParams {
+            open_ports: &vec![PortBase::new_tcp(3306)],
+            responses: &vec![],
+            ip: &IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35)),
+            subnet: &subnet(),
+            mac_address: &None,
+            gateway_ips: &vec![],
+            matched_service_definitions: &vec![],
+        };
+
+        let result = pattern.matches(params.clone());
         assert!(result.is_ok(), "OR pattern should match MySQL port");
 
         // Test with PostgreSQL port - should match
         let open_ports = vec![PortBase::new_tcp(5432)];
-        let result = pattern.matches(
-            &open_ports,
-            &vec![],
-            &IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35)),
-            &subnet,
-            &None,
-            &vec![],
-            &vec![],
-        );
+        params.open_ports = &open_ports;
+        let result = pattern.matches(params.clone());
         assert!(result.is_ok(), "OR pattern should match PostgreSQL port");
 
         // Test with both ports - should match
         let open_ports = vec![PortBase::new_tcp(3306), PortBase::new_tcp(5432)];
-        let result = pattern.matches(
-            &open_ports,
-            &vec![],
-            &"192.168.1.100".parse().unwrap(),
-            &subnet,
-            &None,
-            &vec![],
-            &vec![],
-        );
+        params.open_ports = &open_ports;
+        let result = pattern.matches(params.clone());
         assert!(result.is_ok(), "OR pattern should match with both ports");
 
         // Test with neither port - should not match
         let open_ports = vec![PortBase::new_tcp(22)];
-        let result = pattern.matches(
-            &open_ports,
-            &vec![],
-            &"192.168.1.100".parse().unwrap(),
-            &subnet,
-            &None,
-            &vec![],
-            &vec![],
-        );
+        params.open_ports = &open_ports;
+        let result = pattern.matches(params.clone());
         assert!(
             result.is_err(),
             "OR pattern should not match when no conditions met"

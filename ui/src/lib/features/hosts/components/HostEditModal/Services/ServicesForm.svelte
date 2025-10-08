@@ -1,11 +1,10 @@
 <script lang="ts">
 	import ListConfigEditor from '$lib/shared/components/forms/selection/ListConfigEditor.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-	import ServicesConfigPanel from './Layer4ServicesConfigPanel.svelte';
 	import type { Layer3Binding, Layer4Binding, Service } from '$lib/features/services/types/base';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
-	import { createDefaultService, services } from '$lib/features/services/store';
+	import { createDefaultService } from '$lib/features/services/store';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import { ServiceTypeDisplay } from '$lib/shared/components/forms/selection/display/ServiceTypeDisplay.svelte';
 	import type { FormApi } from '$lib/shared/components/forms/types';
@@ -116,7 +115,7 @@
 						bind:formData
 						service={selectedItem as Service<Layer3Binding>}
 						onChange={(updatedService) => onChange(updatedService)}
-					/>	
+					/>
 				{/if}
 			{:else}
 				<div class="flex min-h-0 flex-1 items-center justify-center text-gray-400">

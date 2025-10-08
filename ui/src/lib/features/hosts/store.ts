@@ -4,7 +4,7 @@ import { api } from '../../shared/utils/api';
 import { pushSuccess } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { isContainerSubnet } from '../subnets/store';
-import { getBindingFromId } from '../services/store';
+import { getBindingFromId, getLayerBindingDisplayName } from '../services/store';
 
 export const hosts = writable<Host[]>([]);
 export const polling = writable(false);
@@ -82,9 +82,7 @@ export function getHostTargetString(host: Host): string | null {
 		case 'ServiceBinding': {
 			const binding = getBindingFromId(host.target.config.binding_id);
 			if (binding) {
-				const iface = getInterfaceFromId(binding.interface_id);
-				const port = getPortFromId(binding.port_id);
-				return iface && port ? iface.ip_address + ':' + port.number : null;
+				return getLayerBindingDisplayName(binding);
 			}
 			return 'Unknown Binding';
 		}

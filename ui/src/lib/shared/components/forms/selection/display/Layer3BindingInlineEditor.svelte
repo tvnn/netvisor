@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { formatInterface, getInterfaceFromId, getPortFromId } from '$lib/features/hosts/store';
+	import { formatInterface, getInterfaceFromId } from '$lib/features/hosts/store';
 	import type { Host } from '$lib/features/hosts/types/base';
-	import { getServicesForPort } from '$lib/features/services/store';
 	import type { Layer3Binding, Service } from '$lib/features/services/types/base';
-	import { formatPort } from '$lib/shared/utils/formatting';
 
 	export let binding: Layer3Binding;
 	export let onUpdate: (updates: Partial<Layer3Binding>) => void = () => {};

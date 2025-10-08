@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { field } from 'svelte-forms';
-	import type { Layer3Binding, Layer4Binding, Service } from '$lib/features/services/types/base';
+	import type { Layer3Binding, Service } from '$lib/features/services/types/base';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
@@ -36,13 +36,13 @@
 
 	// Calculate available interfaces
 	$: availableBindings = formData.interfaces.filter((iface) => {
-        // Check if this interface is already bound by ANY service
-        // First check services from the store (other services)
-        let otherServices = getServicesForInterface(iface.id).filter((s) => s.id !== service.id);
-        let bound_iface_ids = otherServices.flatMap((s) => s.bindings).map((b) => b.interface_id);
+		// Check if this interface is already bound by ANY service
+		// First check services from the store (other services)
+		let otherServices = getServicesForInterface(iface.id).filter((s) => s.id !== service.id);
+		let bound_iface_ids = otherServices.flatMap((s) => s.bindings).map((b) => b.interface_id);
 
-        !bound_iface_ids.includes(iface.id)
-    })
+		return !bound_iface_ids.includes(iface.id);
+	});
 
 	$: canCreateNewBinding = availableBindings.length > 0;
 
@@ -84,7 +84,7 @@
 		const firstAvailable = availableBindings[0];
 
 		const binding = {
-			type: "Layer3",
+			type: 'Layer3',
 			id: uuidv4(),
 			interface_id: firstAvailable.id
 		} as Layer3Binding;

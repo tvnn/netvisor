@@ -5,7 +5,10 @@ use crate::server::{
         storage::HostStorage,
         types::base::{Host, HostBase},
     },
-    services::{service::ServiceService, types::{base::Service, bindings::Binding}},
+    services::{
+        service::ServiceService,
+        types::{base::Service, bindings::Binding},
+    },
     subnets::service::SubnetService,
 };
 use anyhow::{anyhow, Error, Result};
@@ -292,13 +295,12 @@ impl HostService {
             service.base.bindings.retain(|b| {
                 // Remove L4 bindings if current host has port, updated host doesn't have
                 match b {
-                    Binding::Layer3{..} => true,
-                    Binding::Layer4{port_id, ..} => {
-                        !(current_host.get_port(&port_id).is_some()
-                            && updates.get_port(&port_id).is_none())
+                    Binding::Layer3 { .. } => true,
+                    Binding::Layer4 { port_id, .. } => {
+                        !(current_host.get_port(port_id).is_some()
+                            && updates.get_port(port_id).is_none())
                     }
                 }
-                
             });
 
             if initial_bindings_count != service.base.bindings.len() {
@@ -379,9 +381,7 @@ mod tests {
     use uuid::Uuid;
 
     use crate::{
-        server::{
-            discovery::types::base::EntitySource, services::types::bindings::Binding,
-        },
+        server::{discovery::types::base::EntitySource, services::types::bindings::Binding},
         tests::*,
     };
 

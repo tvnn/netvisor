@@ -237,8 +237,7 @@ impl ServiceDefinition for DefaultServiceDefinition {
 mod tests {
 
     use crate::server::services::{
-        definitions::ServiceDefinitionRegistry,
-        types::{definitions::ServiceDefinition},
+        definitions::ServiceDefinitionRegistry, types::definitions::ServiceDefinition,
     };
     use std::collections::HashSet;
 

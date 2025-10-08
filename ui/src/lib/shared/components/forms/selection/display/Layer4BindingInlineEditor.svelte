@@ -28,7 +28,9 @@
 
 			// Check if this port is bound to the selected interface by OTHER bindings in current service
 			let currentServiceOtherBindings =
-				service?.bindings.filter((b) => b.type == 'Layer4' && b.id !== binding.id && b.port_id === p.id) || [];
+				service?.bindings.filter(
+					(b) => b.type == 'Layer4' && b.id !== binding.id && b.port_id === p.id
+				) || [];
 			let currentServiceBoundIfaceIds = currentServiceOtherBindings.map((b) => b.interface_id);
 
 			// Combine both checks

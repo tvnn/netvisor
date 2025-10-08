@@ -1,9 +1,7 @@
-use crate::server::{
-    shared::types::api::deserialize_empty_string_as_none,
-};
+use crate::server::services::types::bindings::ServiceBinding;
+use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use crate::server::services::types::bindings::ServiceBinding;
 use uuid::Uuid;
 use validator::Validate;
 

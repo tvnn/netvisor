@@ -82,13 +82,11 @@
 {#if subnet}
 	<div class="space-y-6">
 		<ConfigHeader
-			title={'Subnet ' + (subnet?.name ? subnet.name : subnet.cidr)}
+			title={'Interface with subnet ' + (subnet?.name ? subnet.name : subnet.cidr)}
 			subtitle={subnet?.description}
 		/>
 
 		<div class="space-y-4">
-			<h4 class="text-sm font-medium text-gray-300">Interface Configuration</h4>
-
 			{#if $nameField}
 				<TextInput
 					label="Name"

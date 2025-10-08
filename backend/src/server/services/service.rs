@@ -13,7 +13,7 @@ use crate::server::{
 };
 use anyhow::anyhow;
 use anyhow::{Error, Result};
-use futures::future::try_join_all;
+use futures::{future::try_join_all, lock::Mutex};
 use std::sync::{Arc, OnceLock};
 use uuid::Uuid;
 
@@ -22,6 +22,8 @@ pub struct ServiceService {
     subnet_service: Arc<SubnetService>,
     host_service: OnceLock<Arc<HostService>>,
     group_service: Arc<GroupService>,
+    subnet_update_lock: Arc<Mutex<()>>,
+    group_update_lock: Arc<Mutex<()>>,
 }
 
 impl ServiceService {
@@ -35,6 +37,8 @@ impl ServiceService {
             subnet_service,
             group_service,
             host_service: OnceLock::new(),
+            subnet_update_lock: Arc::new(Mutex::new(())),
+            group_update_lock: Arc::new(Mutex::new(())),
         }
     }
 
@@ -48,30 +52,43 @@ impl ServiceService {
         let service_from_storage = match existing_services.into_iter().find(|existing: &Service| {
             // Must be same host and same definition
             let host_match = existing.base.host_id == service.base.host_id;
-            let definition_match = service.base.service_definition == existing.base.service_definition;
-            
+            let definition_match =
+                service.base.service_definition == existing.base.service_definition;
+
             if !host_match || !definition_match {
                 return false;
             }
-            
+
             // Check if bindings overlap
             let bindings_match = existing.base.bindings.iter().any(|existing_binding| {
                 service.base.bindings.iter().any(|service_binding| {
                     match (existing_binding, service_binding) {
                         // L4 bindings match if they share the same port
-                        (Binding::Layer4 { port_id: existing_port, .. }, 
-                        Binding::Layer4 { port_id: service_port, .. }) => {
-                            existing_port == service_port
-                        }
-                        
+                        (
+                            Binding::Layer4 {
+                                port_id: existing_port,
+                                ..
+                            },
+                            Binding::Layer4 {
+                                port_id: service_port,
+                                ..
+                            },
+                        ) => existing_port == service_port,
+
                         // L3 bindings match if they share the same interface
-                        (Binding::Layer3 { interface_id: existing_iface, .. },
-                        Binding::Layer3 { interface_id: service_iface, .. }) => {
-                            existing_iface == service_iface
-                        }
-                        
+                        (
+                            Binding::Layer3 {
+                                interface_id: existing_iface,
+                                ..
+                            },
+                            Binding::Layer3 {
+                                interface_id: service_iface,
+                                ..
+                            },
+                        ) => existing_iface == service_iface,
+
                         // L3 and L4 bindings never match each other
-                        _ => false
+                        _ => false,
                     }
                 })
             });
@@ -139,7 +156,7 @@ impl ServiceService {
             );
         }
         tracing::info!(
-            "No new informationt to upsert from service {} to service {}: {}",
+            "No new information to upsert from service {} to service {}: {}",
             new_service.base.name,
             existing_service.base.name,
             existing_service.id
@@ -188,6 +205,9 @@ impl ServiceService {
         current_service: &Service,
         updates: Option<&Service>,
     ) -> Result<(), Error> {
+
+        let _guard = self.group_update_lock.lock().await;
+
         let groups = self.group_service.get_all_groups().await?;
 
         let group_futures = groups.into_iter().filter_map(|mut group| {
@@ -245,6 +265,8 @@ impl ServiceService {
             None => None,
         };
 
+        let _guard = self.subnet_update_lock.lock().await;
+
         let subnets = self.subnet_service.get_all_subnets().await?;
 
         let subnet_futures = subnets.into_iter().filter_map(|mut subnet| {
@@ -284,13 +306,11 @@ impl ServiceService {
         original_host: &Host,
         new_host: &Host,
     ) -> Service {
-        
         service.base.bindings = service
             .base
             .bindings
             .iter()
             .filter_map(|b| {
-
                 let original_interface = original_host.get_interface(&b.interface_id());
 
                 match b {
@@ -306,12 +326,13 @@ impl ServiceService {
                                 return Some(Binding::new_l3(new_interface.id));
                             }
                         }
-                    },
+                    }
                     Binding::Layer4 { port_id, .. } => {
+                        let original_port = original_host.get_port(port_id);
 
-                        let original_port = original_host.get_port(&port_id);
-
-                        if let (Some(original_interface), Some(original_port)) = (original_interface, original_port) {
+                        if let (Some(original_interface), Some(original_port)) =
+                            (original_interface, original_port)
+                        {
                             let new_interface: Option<&Interface> = new_host
                                 .base
                                 .interfaces
@@ -320,11 +341,11 @@ impl ServiceService {
                             let new_port: Option<&Port> =
                                 new_host.base.ports.iter().find(|p| *p == original_port);
 
-                            if let (Some(new_interface), Some(new_port)) = (new_interface, new_port) {
+                            if let (Some(new_interface), Some(new_port)) = (new_interface, new_port)
+                            {
                                 return Some(Binding::new_l4(new_port.id, new_interface.id));
                             }
                         }
-
                     }
                 };
 
@@ -360,7 +381,13 @@ impl ServiceService {
 
 #[cfg(test)]
 mod tests {
-    use crate::{server::services::types::bindings::{Binding, ServiceBinding}, tests::*};
+    use crate::{
+        server::services::types::{
+            bindings::{Binding, ServiceBinding},
+            definitions::ServiceDefinitionExt,
+        },
+        tests::*,
+    };
 
     #[tokio::test]
     async fn test_service_deduplication_on_create() {
@@ -376,15 +403,29 @@ mod tests {
         // Create first service + host
         let mut host_obj = host();
         host_obj.base.interfaces = vec![interface(&subnet_obj.id)];
-        let svc1 = service(&host_obj.id);
+
+        let mut svc1 = service(&host_obj.id);
+        // Add bindings so the deduplication logic can match them
+        svc1.base.bindings = vec![Binding::new_l4(
+            host_obj.base.ports[0].id,
+            host_obj.base.interfaces[0].id,
+        )];
+
         let (created_host, created1) = services
             .host_service
-            .create_host_with_services(host_obj.clone(), vec![svc1])
+            .create_host_with_services(host_obj.clone(), vec![svc1.clone()])
             .await
             .unwrap();
 
-        // Try to create duplicate (same definition + matching ports)
-        let svc2 = service(&created_host.id);
+        // Try to create duplicate (same definition + matching bindings)
+        // Must use created_host's IDs since host deduplication may have changed them
+        let mut svc2 = service(&created_host.id);
+        svc2.base.service_definition = svc1.base.service_definition.clone();
+        svc2.base.bindings = vec![Binding::new_l4(
+            created_host.base.ports[0].id,
+            created_host.base.interfaces[0].id,
+        )];
+
         let created2 = services
             .service_service
             .create_service(svc2.clone())
@@ -419,11 +460,13 @@ mod tests {
 
         // Create reverse proxy service (will add to subnet reverse proxies)
         let reverse_proxy_def =
-            crate::server::services::definitions::ServiceDefinitionRegistry::find_by_id("Nginx Proxy Manager")
-                .unwrap();
-        let mut svc = service(&host_obj.id);
-        svc.base.service_definition = reverse_proxy_def;
-        svc.base.bindings = vec![Binding::new_l4(
+            crate::server::services::definitions::ServiceDefinitionRegistry::find_by_id(
+                "Nginx Proxy Manager",
+            )
+            .unwrap();
+        let mut reverse_proxy_svc = service(&host_obj.id);
+        reverse_proxy_svc.base.service_definition = reverse_proxy_def;
+        reverse_proxy_svc.base.bindings = vec![Binding::new_l4(
             host_obj.base.ports[0].id,
             host_obj.base.interfaces[0].id,
         )];
@@ -432,20 +475,17 @@ mod tests {
         let gateway_def =
             crate::server::services::definitions::ServiceDefinitionRegistry::find_by_id("Gateway")
                 .unwrap();
-        let mut svc = service(&host_obj.id);
-        svc.base.service_definition = gateway_def;
-        svc.base.bindings = vec![Binding::new_l3(
-            host_obj.base.interfaces[0].id,
-        )];
-
+        let mut gateway_svc = service(&host_obj.id);
+        gateway_svc.base.service_definition = gateway_def;
+        gateway_svc.base.bindings = vec![Binding::new_l3(host_obj.base.interfaces[0].id)];
 
         let (_, created_svcs) = services
             .host_service
-            .create_host_with_services(host_obj.clone(), vec![svc])
+            .create_host_with_services(host_obj.clone(), vec![reverse_proxy_svc, gateway_svc])
             .await
             .unwrap();
 
-        // Subnet should have gateway & reverse proxy relationship
+        // Subnet should have both gateway & reverse proxy relationships
         let subnet_after = services
             .subnet_service
             .get_subnet(&created_subnet.id)
@@ -453,11 +493,26 @@ mod tests {
             .unwrap()
             .unwrap();
 
+        println!("{:?}", subnet_after);
+
+        // Find which service is which by their definition
+        let reverse_proxy_svc = created_svcs
+            .iter()
+            .find(|s| s.base.service_definition.is_reverse_proxy())
+            .expect("Reverse proxy service not found");
+        let gateway_svc = created_svcs
+            .iter()
+            .find(|s| s.base.service_definition.is_gateway())
+            .expect("Gateway service not found");
+
         assert!(!subnet_after.base.reverse_proxies.is_empty());
-        assert_eq!(subnet_after.base.reverse_proxies[0].service_id, created_svcs[0].id);
+        assert_eq!(
+            subnet_after.base.reverse_proxies[0].service_id,
+            reverse_proxy_svc.id
+        );
 
         assert!(!subnet_after.base.gateways.is_empty());
-        assert_eq!(subnet_after.base.gateways[0].service_id, created_svcs[0].id);
+        assert_eq!(subnet_after.base.gateways[0].service_id, gateway_svc.id);
     }
 
     #[tokio::test]
@@ -476,8 +531,7 @@ mod tests {
 
         // Create service in a group
         let mut svc = service(&host_obj.id);
-        let binding =
-            Binding::new_l4(host_obj.base.ports[0].id, host_obj.base.interfaces[0].id);
+        let binding = Binding::new_l4(host_obj.base.ports[0].id, host_obj.base.interfaces[0].id);
         svc.base.bindings = vec![binding];
 
         let (_, created_svcs) = services
@@ -488,11 +542,10 @@ mod tests {
         let created_svc = &created_svcs[0];
 
         let mut group_obj = group();
-        group_obj.base.service_bindings =
-            vec![ServiceBinding {
-                service_id: created_svc.id,
-                binding_id: created_svc.base.bindings[0].id(),
-            }];
+        group_obj.base.service_bindings = vec![ServiceBinding {
+            service_id: created_svc.id,
+            binding_id: created_svc.base.bindings[0].id(),
+        }];
         let created_group = services
             .group_service
             .create_group(group_obj)

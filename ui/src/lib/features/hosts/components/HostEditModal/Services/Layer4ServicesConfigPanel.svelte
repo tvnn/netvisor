@@ -96,7 +96,7 @@
 		const firstAvailable = availableCombinations[0];
 
 		const binding = {
-			type: "Layer4",
+			type: 'Layer4',
 			id: uuidv4(),
 			port_id: firstAvailable.port.id,
 			interface_id: firstAvailable.iface.id

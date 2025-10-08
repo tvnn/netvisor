@@ -18,10 +18,7 @@ impl ServiceDefinition for EeroRepeater {
     }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::AllOf(vec![
-            Pattern::MacVendor(Vendor::EERO),
-            Pattern::IsGateway,
-        ])
+        Pattern::AllOf(vec![Pattern::MacVendor(Vendor::EERO), Pattern::IsGateway])
     }
 }
 

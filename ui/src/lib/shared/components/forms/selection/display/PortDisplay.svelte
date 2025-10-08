@@ -12,17 +12,21 @@
 			let services = getServicesForPort(port.id);
 			if (services.length > 0) {
 				return services
-					.flatMap((s) => s.name + ' on ' + s.bindings
-						.filter((b) => b.type == 'Layer4' && b.port_id == port.id)
-						.map(b => {
-							let iface = getInterfaceFromId(b.interface_id || '');
-							if (iface) {
-								return formatInterface(iface);
-							} else {
-								return 'Unknown Interface';
-							}
-						})
-						.join(", ")
+					.flatMap(
+						(s) =>
+							s.name +
+							' on ' +
+							s.bindings
+								.filter((b) => b.type == 'Layer4' && b.port_id == port.id)
+								.map((b) => {
+									let iface = getInterfaceFromId(b.interface_id || '');
+									if (iface) {
+										return formatInterface(iface);
+									} else {
+										return 'Unknown Interface';
+									}
+								})
+								.join(', ')
 					)
 					.join(' • ');
 			} else {

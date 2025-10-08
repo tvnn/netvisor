@@ -47,7 +47,7 @@
 	import ListSelectItem from '../ListSelectItem.svelte';
 	import { formatInterface, getInterfaceFromId, getPortFromId } from '$lib/features/hosts/store';
 	import { formatPort } from '$lib/shared/utils/formatting';
-	import type { Binding, Layer4Binding, Service } from '$lib/features/services/types/base';
+	import type { Layer4Binding, Service } from '$lib/features/services/types/base';
 	import { Link2 } from 'lucide-svelte';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import Layer4BindingInlineEditor from './Layer4BindingInlineEditor.svelte';

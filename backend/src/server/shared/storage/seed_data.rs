@@ -11,7 +11,10 @@ use crate::server::{
     },
     services::{
         definitions::{client::Client, dns_server::DnsServer, web_service::WebService},
-        types::{base::{Service, ServiceBase}, bindings::{Binding, ServiceBinding}},
+        types::{
+            base::{Service, ServiceBase},
+            bindings::{Binding, ServiceBinding},
+        },
     },
     subnets::types::base::{Subnet, SubnetBase, SubnetType},
 };

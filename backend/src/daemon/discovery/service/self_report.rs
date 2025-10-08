@@ -8,9 +8,7 @@ use crate::{
         },
         services::{
             definitions::netvisor_daemon::NetvisorDaemon,
-            types::{
-                base::ServiceBase, bindings::Binding, definitions::ServiceDefinition
-            },
+            types::{base::ServiceBase, bindings::Binding, definitions::ServiceDefinition},
         },
         utils::base::NetworkUtils,
     },

@@ -4,8 +4,7 @@ use crate::server::discovery::types::base::EntitySource;
 use crate::server::services::types::bindings::{Binding, ServiceBinding};
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use crate::server::{
-    hosts::types::{ports::PortBase},
-    services::types::definitions::ServiceDefinitionExt,
+    hosts::types::ports::PortBase, services::types::definitions::ServiceDefinitionExt,
 };
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
@@ -157,15 +156,14 @@ impl Subnet {
                     .base
                     .bindings
                     .iter()
-                    .filter(|b| {
-                        match b {
-                            Binding::Layer3{..} => false,
-                            Binding::Layer4{port_id, ..} => {
-                                if let Some(port) = host.get_port(&port_id) {
-                                    return port.base == PortBase::DnsUdp || port.base == PortBase::DnsTcp;
-                                }
-                                false
+                    .filter(|b| match b {
+                        Binding::Layer3 { .. } => false,
+                        Binding::Layer4 { port_id, .. } => {
+                            if let Some(port) = host.get_port(port_id) {
+                                return port.base == PortBase::DnsUdp
+                                    || port.base == PortBase::DnsTcp;
                             }
+                            false
                         }
                     })
                     .map(|b| ServiceBinding {
