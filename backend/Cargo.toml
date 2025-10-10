@@ -120,6 +120,7 @@ validator = { version = "0.20", features = ["derive"] }
 regex = "1.11.3"
 tempfile = "3.23.0"
 net-route = "0.4.6"
+bollard = "0.19.3"
 
 # === Platform-specific Dependencies ===
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -134,6 +135,5 @@ windows = { version = "0.52", features = [
 openssl = { version = "0.10.73", features = ["vendored"] }
 
 [dev-dependencies]
-bollard = "0.17"  # Docker API client
 walkdir = "2.5"   # For directory traversal
 tar = "0.4"       # For creating build context

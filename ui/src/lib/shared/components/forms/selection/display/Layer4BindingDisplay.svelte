@@ -6,7 +6,7 @@
 		getId: (binding: Layer4Binding) => binding.id,
 		getLabel: (binding: Layer4Binding) => {
 			const port = getPortFromId(binding.port_id);
-			const iface = getInterfaceFromId(binding.interface_id);
+			const iface = binding.interface_id ? getInterfaceFromId(binding.interface_id) : ALL_INTERFACES;
 			const portFormatted = port ? formatPort(port) : 'Unknown Port';
 			const interfaceFormatted = iface ? formatInterface(iface) : 'Unknown Interface';
 			return interfaceFormatted + ' · ' + portFormatted;
@@ -49,7 +49,7 @@
 	import { formatPort } from '$lib/shared/utils/formatting';
 	import type { Layer4Binding, Service } from '$lib/features/services/types/base';
 	import { Link2 } from 'lucide-svelte';
-	import type { Host } from '$lib/features/hosts/types/base';
+	import { ALL_INTERFACES, type Host } from '$lib/features/hosts/types/base';
 	import Layer4BindingInlineEditor from './Layer4BindingInlineEditor.svelte';
 
 	export let item: Layer4Binding;

@@ -104,7 +104,7 @@ impl PartialEq for Host {
             })
         });
 
-        mac_match || subnet_ip_match
+        self.id == other.id || mac_match || subnet_ip_match
     }
 }
 
@@ -119,8 +119,11 @@ impl Host {
         }
     }
 
-    pub fn get_interface(&self, interface_id: &Uuid) -> Option<&Interface> {
-        self.base.interfaces.iter().find(|i| &i.id == interface_id)
+    pub fn get_interface(&self, interface_id: &Option<Uuid>) -> Option<&Interface> {
+        match interface_id {
+            Some(id) => self.base.interfaces.iter().find(|i| &i.id == id),
+            None => None
+        }
     }
 
     pub fn get_port(&self, port_id: &Uuid) -> Option<&Port> {

@@ -1,10 +1,11 @@
-.PHONY: help build test clean install-dev dev-server dev-daemon dev-container dev-container-rebuild dev-container-rebuild-clean format
+.PHONY: help build test clean install-dev dev-server dev-ui dev-daemon dev-container dev-container-rebuild dev-container-rebuild-clean format
 
 help:
 	@echo "NetVisor Development Commands"
 	@echo ""
-	@echo "  make dev-server     - Start development environment (server + ui)"
-	@echo "  make dev-daemon     - Start daemon"
+	@echo "  make dev-server     - Start server dev environment"
+	@echo "  make dev-ui         - Start ui"
+	@echo "  make dev-daemon     - Start daemon dev environment"
 	@echo "  make dev-container  - Start containerized development environment using docker-compose.dev.yml (server + ui + daemon)"
 	@echo "  make dev-container-rebuild  - Rebuild and start containerized dev environment"
 	@echo "  make dev-container-rebuild-clean  - Rebuild, clean, and start containerized dev environment"
@@ -16,11 +17,13 @@ help:
 	@echo "  make install-dev    - Install local development dependencies"
 
 dev-server:
-	cd backend && cargo run --bin server
-	cd ui && npm run dev
+	cd backend && cargo run --bin server -- --log-level debug
 
 dev-daemon:
-	cd backend && cargo run --bin daemon -- --server-target 127.0.0.1 --server-port 60072
+	cd backend && cargo run --bin daemon -- --server-target 127.0.0.1 --server-port 60072 --log-level debug
+
+dev-ui:
+	cd ui && npm run dev --log-level debug
 
 dev-container:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up

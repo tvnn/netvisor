@@ -6,13 +6,13 @@ use uuid::Uuid;
 
 use crate::{
     daemon::discovery::types::base::DiscoveryPhase,
-    server::daemons::types::api::DaemonDiscoveryUpdate,
+    server::daemons::types::api::DiscoveryUpdatePayload,
 };
 
 /// Server-side session management for discovery
 pub struct DiscoverySessionManager {
-    sessions: RwLock<HashMap<Uuid, DaemonDiscoveryUpdate>>, // session_id -> session state mapping
-    daemon_sessions: RwLock<HashMap<Uuid, Uuid>>,           // daemon_id -> session_id mapping
+    sessions: RwLock<HashMap<Uuid, DiscoveryUpdatePayload>>, // session_id -> session state mapping
+    daemon_sessions: RwLock<HashMap<Uuid, Uuid>>,            // daemon_id -> session_id mapping
 }
 
 impl DiscoverySessionManager {
@@ -28,13 +28,13 @@ impl DiscoverySessionManager {
         &self,
         session_id: Uuid,
         daemon_id: Uuid,
-    ) -> Result<DaemonDiscoveryUpdate, anyhow::Error> {
+    ) -> Result<DiscoveryUpdatePayload, anyhow::Error> {
         // Check if daemon is already running discovery
         if self.daemon_sessions.read().await.contains_key(&daemon_id) {
             return Err(anyhow::anyhow!("Daemon is already running discovery"));
         }
 
-        let session_state = DaemonDiscoveryUpdate::new(session_id, daemon_id);
+        let session_state = DiscoveryUpdatePayload::new(session_id, daemon_id);
 
         self.sessions
             .write()
@@ -54,12 +54,12 @@ impl DiscoverySessionManager {
     }
 
     /// Get session state
-    pub async fn get_session(&self, session_id: &Uuid) -> Option<DaemonDiscoveryUpdate> {
+    pub async fn get_session(&self, session_id: &Uuid) -> Option<DiscoveryUpdatePayload> {
         self.sessions.read().await.get(session_id).cloned()
     }
 
     /// Update progress for a session
-    pub async fn update_session(&self, update: DaemonDiscoveryUpdate) -> Result<Uuid, Error> {
+    pub async fn update_session(&self, update: DiscoveryUpdatePayload) -> Result<Uuid, Error> {
         if let Some(session) = self.sessions.write().await.get_mut(&update.session_id) {
             let daemon_id = session.daemon_id;
             tracing::debug!(
@@ -131,7 +131,7 @@ impl DiscoverySessionManager {
     }
 
     /// Get active session count for monitoring
-    pub async fn get_active_sessions(&self) -> Vec<DaemonDiscoveryUpdate> {
+    pub async fn get_active_sessions(&self) -> Vec<DiscoveryUpdatePayload> {
         self.sessions
             .read()
             .await

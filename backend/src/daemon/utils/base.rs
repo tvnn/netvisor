@@ -11,6 +11,7 @@ use anyhow::anyhow;
 use anyhow::Error;
 use anyhow::Result;
 use async_trait::async_trait;
+use bollard::Docker;
 use cidr::IpCidr;
 use mac_address::MacAddress;
 use net_route::Handle;
@@ -107,7 +108,7 @@ pub trait DaemonUtils: NetworkUtils {
         &self,
         ip: IpAddr,
         cancel: CancellationToken,
-    ) -> Result<(Vec<PortBase>, Vec<EndpointResponse>), Error> {
+    ) -> Result<(Vec<PortBase>, Vec<EndpointResponse>, bool), Error> {
         if cancel.is_cancelled() {
             return Err(anyhow!("Operation cancelled"));
         }
@@ -141,7 +142,12 @@ pub trait DaemonUtils: NetworkUtils {
             open_ports.len(),
             endpoint_responses.len()
         );
-        Ok((open_ports, endpoint_responses))
+
+        // Check for docker connection
+        // Only local docker detection using sockets is supported at the moment
+        let docker_ok = false;  //self.scan_docker_socket(cancel).await?;
+
+        Ok((open_ports, endpoint_responses, docker_ok))
     }
 
     async fn scan_tcp_ports(
@@ -242,6 +248,21 @@ pub trait DaemonUtils: NetworkUtils {
         }
 
         Ok(responses)
+    }
+
+    async fn scan_docker_socket(&self) -> Result<bool, Error> {
+
+        match Docker::connect_with_local_defaults() {
+            Ok(docker) => {
+                // Actually verify it's a Docker daemon by pinging it
+                if docker.ping().await.is_ok() {
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+            Err(_) => Ok(false),
+        }
     }
 
     async fn get_routing_table_gateway_ips(&self) -> Result<Vec<IpAddr>, Error> {

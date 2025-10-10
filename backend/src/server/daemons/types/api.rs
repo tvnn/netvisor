@@ -1,8 +1,14 @@
 use std::net::IpAddr;
 
-use crate::{daemon::discovery::types::base::DiscoveryPhase, server::daemons::types::base::Daemon};
+use crate::{
+    daemon::discovery::types::base::{
+        DiscoveryPhase, DiscoverySessionInfo, DiscoverySessionUpdate,
+    },
+    server::daemons::types::base::Daemon,
+};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use strum_macros::Display;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,6 +35,13 @@ pub struct DaemonRegistrationResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonDiscoveryRequest {
     pub session_id: Uuid,
+    pub discovery_type: DiscoveryType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Display)]
+pub enum DiscoveryType {
+    Network,
+    Docker { host_id: Uuid },
 }
 
 /// Daemon discovery response (for immediate acknowledgment)
@@ -51,7 +64,7 @@ pub struct DaemonDiscoveryCancellationResponse {
 
 /// Progress update from daemon to server during discovery
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DaemonDiscoveryUpdate {
+pub struct DiscoveryUpdatePayload {
     pub session_id: Uuid,
     pub daemon_id: Uuid,
     pub phase: DiscoveryPhase,
@@ -63,7 +76,7 @@ pub struct DaemonDiscoveryUpdate {
     pub finished_at: Option<DateTime<Utc>>,
 }
 
-impl DaemonDiscoveryUpdate {
+impl DiscoveryUpdatePayload {
     pub fn new(session_id: Uuid, daemon_id: Uuid) -> Self {
         Self {
             session_id,
@@ -75,6 +88,23 @@ impl DaemonDiscoveryUpdate {
             error: None,
             started_at: None,
             finished_at: None,
+        }
+    }
+
+    pub fn from_state_and_update(
+        info: DiscoverySessionInfo,
+        update: DiscoverySessionUpdate,
+    ) -> Self {
+        Self {
+            session_id: info.session_id,
+            daemon_id: info.daemon_id,
+            phase: update.phase,
+            completed: update.completed,
+            total: info.total_to_scan,
+            discovered_count: update.discovered_count,
+            error: update.error,
+            started_at: info.started_at,
+            finished_at: update.finished_at,
         }
     }
 }

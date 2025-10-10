@@ -1,5 +1,5 @@
 import { get, writable } from 'svelte/store';
-import type { Host, HostWithServicesRequest, Interface, Port, ServiceBinding } from './types/base';
+import type { AllInterfaces, Host, HostWithServicesRequest, Interface, Port, ServiceBinding } from './types/base';
 import { api } from '../../shared/utils/api';
 import { pushSuccess } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
@@ -95,7 +95,8 @@ export function getHostTargetString(host: Host): string | null {
 	}
 }
 
-export function formatInterface(i: Interface): string {
+export function formatInterface(i: Interface | AllInterfaces): string {
+	if (i.id == null) return i.name
 	return isContainerSubnet(i.subnet_id) ? i.name : (i.name ? i.name + ': ' : '') + i.ip_address;
 }
 

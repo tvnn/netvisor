@@ -35,7 +35,7 @@
 			let layerBinding = service.bindings.find((b) => b.id == binding.binding_id);
 
 			if (layerBinding) {
-				const iface = getInterfaceFromId(layerBinding.interface_id);
+				const iface = layerBinding.interface_id ? getInterfaceFromId(layerBinding.interface_id) : ALL_INTERFACES;
 
 				if (iface) {
 					tags.push({
@@ -83,7 +83,7 @@
 </script>
 
 <script lang="ts">
-	import type { ServiceBinding } from '$lib/features/hosts/types/base';
+	import { ALL_INTERFACES, type ServiceBinding } from '$lib/features/hosts/types/base';
 	import type { EntityDisplayComponent } from '../types';
 	import ListSelectItem from '../ListSelectItem.svelte';
 	import { get } from 'svelte/store';

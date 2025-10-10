@@ -33,7 +33,7 @@ pub enum Binding {
     Layer4 {
         id: Uuid,
         port_id: Uuid,
-        interface_id: Uuid,
+        interface_id: Option<Uuid>, // None = all interfaces
     },
 }
 
@@ -45,9 +45,9 @@ impl Binding {
         }
     }
 
-    pub fn interface_id(&self) -> Uuid {
+    pub fn interface_id(&self) -> Option<Uuid> {
         match self {
-            Binding::Layer3 { interface_id, .. } => *interface_id,
+            Binding::Layer3 { interface_id, .. } => Some(*interface_id),
             Binding::Layer4 { interface_id, .. } => *interface_id,
         }
     }
@@ -116,7 +116,7 @@ impl Binding {
         }
     }
 
-    pub fn new_l4(port_id: Uuid, interface_id: Uuid) -> Self {
+    pub fn new_l4(port_id: Uuid, interface_id: Option<Uuid>) -> Self {
         Binding::Layer4 {
             id: Uuid::new_v4(),
             port_id,

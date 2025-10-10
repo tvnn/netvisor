@@ -19,6 +19,16 @@ export interface Host {
 	source: string;
 }
 
+export interface AllInterfaces {
+	id: null,
+	name: string
+}
+
+export const ALL_INTERFACES: AllInterfaces = {
+	id: null,
+	name: "All Interfaces"
+}
+
 export interface Interface {
 	id: string;
 	subnet_id: string;

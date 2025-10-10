@@ -1,16 +1,13 @@
 use crate::{
-    daemon::discovery::service::base::DaemonDiscoveryService,
+    daemon::discovery::service::{base::{CreatesDiscoveredEntities, DiscoveryHandler, InitiatesOwnDiscovery}, docker::DockerScanDiscovery},
     server::{
-        discovery::types::base::EntitySource,
-        hosts::types::{
+        daemons::types::api::{DaemonDiscoveryRequest, DiscoveryType}, discovery::types::base::EntitySource, hosts::types::{
             interfaces::Interface,
             ports::{Port, PortBase},
-        },
-        services::{
+        }, services::{
             definitions::netvisor_daemon::NetvisorDaemon,
             types::{base::ServiceBase, bindings::Binding, definitions::ServiceDefinition},
-        },
-        utils::base::NetworkUtils,
+        }, utils::base::NetworkUtils
     },
 };
 use crate::{
@@ -27,17 +24,59 @@ use anyhow::{Error, Result};
 use futures::future::try_join_all;
 use std::{
     net::{IpAddr, Ipv4Addr},
-    result::Result::Ok,
+    result::Result::Ok, sync::Arc,
 };
 use uuid::Uuid;
 
-impl DaemonDiscoveryService {
+pub struct SelfReportDiscovery {}
+
+impl SelfReportDiscovery {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl CreatesDiscoveredEntities for DiscoveryHandler<SelfReportDiscovery> {}
+
+impl DiscoveryHandler<SelfReportDiscovery> {
+
+    pub async fn run_self_report_docker_discovery(&self) -> Result<(), Error> {
+        
+        let config_store = &self.as_ref().config_store;
+        let utils = &self.as_ref().utils;
+
+        let host_id = config_store.get_host_id().await?;
+        let docker_ok = utils.scan_docker_socket().await?;
+
+        if let (Some(host_id), true) = (host_id, docker_ok) {
+            let docker_discovery = Arc::new(DiscoveryHandler::new(
+                self.service.clone(),
+                self.manager.clone(),
+            DockerScanDiscovery::new(host_id),
+            ));
+            
+            let session_id = docker_discovery.initiate_own_discovery().await?;
+
+            let request = DaemonDiscoveryRequest {
+                session_id,
+                discovery_type: DiscoveryType::Docker{host_id: host_id}
+            };
+
+            docker_discovery.discover_on_network(request).await?;
+        }
+
+        Ok(())
+    }
+
     pub async fn run_self_report_discovery(&self) -> Result<(), Error> {
-        // Get daemon configuration
-        let daemon_id = self.config_store.get_id().await?;
-        let binding_address = self.config_store.get_bind_address().await?;
+        let config_store = &self.as_ref().config_store;
+        let utils = &self.as_ref().utils;
+
+        let daemon_id = config_store.get_id().await?;
+        let binding_address = config_store.get_bind_address().await?;
         let binding_ip = IpAddr::V4(binding_address.parse::<Ipv4Addr>()?);
-        let (mut interfaces, subnets) = self.utils.scan_interfaces(daemon_id).await?;
+
+        let (mut interfaces, subnets) = utils.scan_interfaces(daemon_id).await?;
 
         let daemon_bound_subnet_ids: Vec<Uuid> = if binding_address == "0.0.0.0" {
             subnets.iter().map(|s| s.id).collect()
@@ -51,6 +90,7 @@ impl DaemonDiscoveryService {
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
         let created_subnets = try_join_all(subnet_futures).await?;
+        
 
         // Created subnets may differ from discovered if there are existing subnets with the same CIDR, so we need to update interface subnet_id references
         interfaces.iter_mut().for_each(|i| {
@@ -62,10 +102,10 @@ impl DaemonDiscoveryService {
             }
         });
 
-        let own_port = Port::new(PortBase::new_tcp(self.config_store.get_port().await?));
+        let own_port = Port::new(PortBase::new_tcp(config_store.get_port().await?));
         let own_port_id = own_port.id;
-        let local_ip = self.utils.get_own_ip_address()?;
-        let hostname = self.utils.get_own_hostname();
+        let local_ip = utils.get_own_ip_address()?;
+        let hostname = utils.get_own_hostname();
 
         // Create host base
         let host_base = HostBase {
@@ -95,7 +135,7 @@ impl DaemonDiscoveryService {
             service_definition: Box::new(service_definition),
             bindings: daemon_service_bound_interfaces
                 .iter()
-                .map(|i| Binding::new_l4(own_port_id, i.id))
+                .map(|i| Binding::new_l4(own_port_id, Some(i.id)))
                 .collect(),
             host_id: host.id,
         });
@@ -108,7 +148,7 @@ impl DaemonDiscoveryService {
             created_host.base.hostname
         );
 
-        self.config_store.set_host_id(created_host.id).await?;
+        config_store.set_host_id(created_host.id).await?;
         Ok(())
     }
 }

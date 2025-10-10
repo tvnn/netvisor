@@ -146,7 +146,13 @@ impl Subnet {
         // Only add service relationships if the service has an interface binding on this subnet
         let has_interface_on_subnet = service.base.bindings.iter().any(|binding| {
             host.base.interfaces.iter().any(|interface| {
-                interface.id == binding.interface_id() && interface.base.subnet_id == self.id
+
+                let interface_match = match binding.interface_id() {
+                    Some(id) => interface.id == id,
+                    None => true // Listens on all interfaces
+                };
+
+                interface_match && interface.base.subnet_id == self.id
             })
         });
 
@@ -208,7 +214,7 @@ impl Subnet {
 
 impl PartialEq for Subnet {
     fn eq(&self, other: &Self) -> bool {
-        self.base.cidr == other.base.cidr
+        self.base.cidr == other.base.cidr || self.id == other.id
         // let sources_match = match (&self.base.source, &other.base.source) {
         //     (SubnetSource::Discovery(daemon_id), SubnetSource::Discovery(other_daemon_id))  => {
         //         daemon_id == other_daemon_id

@@ -1,33 +1,23 @@
-use crate::server::discovery::types::base::EntitySource;
-use crate::server::services::definitions::gateway::Gateway;
-use crate::server::services::types::base::ServiceFromDiscoveryParams;
-use crate::server::services::types::bindings::{Binding, BindingDiscriminants, ServiceBinding};
-use crate::server::services::types::definitions::ServiceDefinitionExt;
-use crate::{
-    daemon::discovery::service::base::DaemonDiscoveryService,
-    server::{
-        hosts::types::{
-            interfaces::{Interface, InterfaceBase},
-            ports::{Port, PortBase},
-        },
-        services::{definitions::ServiceDefinitionRegistry, types::definitions::ServiceDefinition},
-        shared::types::metadata::HasId,
-    },
+use crate::daemon::discovery::service::base::{
+    CreatesDiscoveredEntities, DiscoversNetworkedEntities, DiscoveryHandler,
 };
+use crate::daemon::discovery::types::base::{DiscoverySessionUpdate, ProcessHostParams};
+use crate::server::hosts::types::{
+    interfaces::{Interface, InterfaceBase},
+    ports::PortBase,
+};
+use anyhow::anyhow;
 use crate::{
-    daemon::{discovery::types::base::DiscoveryPhase, utils::base::DaemonUtils},
+    daemon::utils::base::DaemonUtils,
     server::{
-        daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryUpdate},
-        hosts::types::{
-            base::{Host, HostBase},
-            targets::HostTarget,
-        },
-        services::types::{base::Service, endpoints::EndpointResponse},
+        daemons::types::api::DaemonDiscoveryRequest,
+        hosts::types::base::Host,
+        services::types::endpoints::EndpointResponse,
         subnets::types::base::{Subnet, SubnetType},
     },
 };
 use anyhow::{Error, Result};
-use chrono::{DateTime, Utc};
+use axum::async_trait;
 use cidr::IpCidr;
 use futures::{
     future::try_join_all,
@@ -36,190 +26,85 @@ use futures::{
 use std::result::Result::Ok;
 use std::{net::IpAddr, sync::Arc};
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
 
 const CONCURRENT_SCANS: usize = 15;
 
-pub struct HostScanParams<'a> {
-    subnet: &'a Subnet,
-    gateway_ips: &'a [IpAddr],
-    session_id: &'a Uuid,
-    daemon_id: &'a Uuid,
-    started_at: &'a DateTime<Utc>,
-    cancel: CancellationToken,
-    discovered_count: Arc<std::sync::atomic::AtomicUsize>,
-    scanned_count: Arc<std::sync::atomic::AtomicUsize>,
-    total_ips_across_subnets: &'a usize,
+pub struct NetworkScanDiscovery {}
+
+impl NetworkScanDiscovery {
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 
-impl DaemonDiscoveryService {
-    pub async fn run_network_discovery(
+impl CreatesDiscoveredEntities for DiscoveryHandler<NetworkScanDiscovery> {}
+
+#[async_trait]
+impl DiscoversNetworkedEntities for DiscoveryHandler<NetworkScanDiscovery> {
+    async fn start_discovery_session(
         &self,
         request: DaemonDiscoveryRequest,
         cancel: CancellationToken,
     ) -> Result<(), Error> {
-        let daemon_id = self.config_store.get_id().await?;
-        let session_id = request.session_id;
-        let started_at = Utc::now();
-        tracing::info!("Starting discovery session {}", session_id);
-
-        let (_, subnets) = self.utils.scan_interfaces(daemon_id).await?;
-
-        let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
-
-        let subnets = try_join_all(subnet_futures).await?;
-
-        let gateway_ips = self.utils.get_routing_table_gateway_ips().await?;
+        let subnets = self.discover_create_subnets().await?;
 
         let total_ips_across_subnets: usize = subnets
             .iter()
             .map(|subnet| subnet.base.cidr.iter().count())
             .sum();
 
-        let scanned_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        let discovered_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-
-        self.report_discovery_update(
-            session_id,
-            &DaemonDiscoveryUpdate {
-                session_id,
-                phase: DiscoveryPhase::Started,
-                completed: 0,
-                total: 0,
-                error: None,
-                discovered_count: 0,
-                daemon_id,
-                started_at: Some(started_at),
-                finished_at: None,
-            },
-        )
-        .await?;
+        self.start_host_discovery(total_ips_across_subnets, request)
+            .await?;
 
         let discovery_futures = subnets.iter().map(|subnet| {
-            let params = HostScanParams {
+            self.scan_and_process_hosts(
                 subnet,
-                gateway_ips: &gateway_ips,
-                session_id: &session_id,
-                daemon_id: &daemon_id,
-                started_at: &started_at,
-                cancel: cancel.clone(),
-                discovered_count: discovered_count.clone(),
-                scanned_count: scanned_count.clone(),
-                total_ips_across_subnets: &total_ips_across_subnets,
-            };
-            self.scan_and_process_hosts(params)
+                cancel.clone()
+            )
         });
 
-        let discovery_result = try_join_all(discovery_futures).await;
+        let discovery_result = try_join_all(discovery_futures).await.map(|_| ());
 
-        let final_scanned_count = scanned_count.load(std::sync::atomic::Ordering::Relaxed);
-        let final_discovered_count = discovered_count.load(std::sync::atomic::Ordering::Relaxed);
+        self.finish_host_discovery(discovery_result, cancel.clone())
+            .await?;
 
-        match &discovery_result {
-            Ok(_) => {
-                tracing::info!("Discovery session {} completed successfully", session_id);
-                self.report_discovery_update(
-                    session_id,
-                    &DaemonDiscoveryUpdate {
-                        session_id,
-                        phase: DiscoveryPhase::Complete,
-                        completed: final_scanned_count,
-                        total: total_ips_across_subnets,
-                        error: None,
-                        discovered_count: final_discovered_count,
-                        daemon_id,
-                        started_at: Some(started_at),
-                        finished_at: Some(Utc::now()),
-                    },
-                )
-                .await?;
-            }
-            Err(_) if cancel.is_cancelled() => {
-                tracing::warn!("Discovery session {} was cancelled", session_id);
-                self.report_discovery_update(
-                    session_id,
-                    &DaemonDiscoveryUpdate {
-                        session_id,
-                        phase: DiscoveryPhase::Cancelled,
-                        completed: final_scanned_count,
-                        total: total_ips_across_subnets,
-                        error: None,
-                        discovered_count: final_discovered_count,
-                        daemon_id,
-                        started_at: Some(started_at),
-                        finished_at: Some(Utc::now()),
-                    },
-                )
-                .await?;
-            }
-            Err(e) => {
-                tracing::error!("Discovery session {} failed: {}", session_id, e);
-                self.report_discovery_update(
-                    session_id,
-                    &DaemonDiscoveryUpdate {
-                        session_id,
-                        phase: DiscoveryPhase::Failed,
-                        completed: final_scanned_count,
-                        total: total_ips_across_subnets,
-                        error: Some(e.to_string()),
-                        discovered_count: final_discovered_count,
-                        daemon_id,
-                        started_at: Some(started_at),
-                        finished_at: Some(Utc::now()),
-                    },
-                )
-                .await?;
-            }
-        }
-
-        if cancel.is_cancelled() {
-            tracing::info!("Discovery session {} was cancelled", session_id);
-            return Ok(());
-        }
-
-        tracing::info!(
-            "Discovery session {} finished with {} hosts discovered",
-            session_id,
-            final_discovered_count
-        );
         Ok(())
     }
 
-    /// Scan subnet concurrently and process hosts immediately as they're discovered
-    async fn scan_and_process_hosts(&self, scan_params: HostScanParams<'_>) -> Result<Vec<Host>> {
-        let HostScanParams {
-            subnet,
-            gateway_ips,
-            session_id,
-            daemon_id,
-            started_at,
-            cancel,
-            discovered_count,
-            scanned_count,
-            total_ips_across_subnets,
-        } = scan_params;
+    async fn set_gateway_ips(&self) -> Result<(), Error> {
+        let gateway_ips = self.as_ref().utils.get_routing_table_gateway_ips().await?;
+        self.as_ref().gateway_ips.set(gateway_ips).map_err(|_| anyhow!("Failed to set gateway_ips"))?;
+        Ok(())
+    }
 
+    async fn discover_create_subnets(&self) -> Result<Vec<Subnet>, Error> {
+        let daemon_id = self.as_ref().config_store.get_id().await?;
+        let (_, subnets) = self.as_ref().utils.scan_interfaces(daemon_id).await?;
+        let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
+        let subnets = try_join_all(subnet_futures).await?;
+
+        Ok(subnets)
+    }
+}
+
+impl DiscoveryHandler<NetworkScanDiscovery> {
+    /// Scan subnet concurrently and process hosts immediately as they're discovered
+    async fn scan_and_process_hosts(
+        &self,
+        subnet: &Subnet,
+        cancel: CancellationToken,
+    ) -> Result<Vec<Host>> {
         tracing::info!(
             "Scanning subnet {} concurrently for hosts with open ports",
             subnet.base.cidr
         );
 
+        let scanned_count = self.as_ref().scanned_count.clone();
+        let discovered_count = self.as_ref().discovered_count.clone();
+
         // Report initial progress
-        self.report_discovery_update(
-            *session_id,
-            &DaemonDiscoveryUpdate {
-                session_id: *session_id,
-                phase: DiscoveryPhase::Scanning,
-                completed: 0,
-                total: *total_ips_across_subnets,
-                error: None,
-                discovered_count: 0,
-                daemon_id: *daemon_id,
-                started_at: Some(*started_at),
-                finished_at: None,
-            },
-        )
-        .await?;
+        self.report_discovery_update(DiscoverySessionUpdate::scanning(0, 0))
+            .await?;
 
         // Process all IPs concurrently, combining discovery and processing
         let results = stream::iter(self.determine_scan_order(&subnet.base.cidr))
@@ -228,11 +113,33 @@ impl DaemonDiscoveryService {
                 let subnet = subnet.clone();
                 let scanned_count = scanned_count.clone();
 
-                if let Ok(Some((open_ports, endpoint_responses))) =
+                if let Ok(Some((open_ports, endpoint_responses, host_has_docker_client))) =
                     self.scan_host(ip, scanned_count, cancel).await
                 {
+                    let hostname = self.as_ref().utils.get_hostname_for_ip(ip).await?;
+
+                    let mac = match subnet.base.subnet_type {
+                        SubnetType::VpnTunnel => None, // ARP doesn't work through VPN tunnels
+                        _ => self.as_ref().utils.get_mac_address_for_ip(ip).await?,
+                    };
+
+                    let interface = Interface::new(InterfaceBase {
+                        name: None,
+                        subnet_id: subnet.id,
+                        ip_address: ip,
+                        mac_address: mac,
+                    });
+
                     if let Ok(Some((host, services))) = self
-                        .process_host(ip, gateway_ips, subnet, open_ports, endpoint_responses)
+                        .process_host(ProcessHostParams {
+                            host_ip: ip,
+                            hostname,
+                            subnet,
+                            interface,
+                            open_ports,
+                            endpoint_responses,
+                            host_has_docker_client
+                        })
                         .await
                     {
                         discovered_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -248,7 +155,7 @@ impl DaemonDiscoveryService {
 
         // Consume the stream and report progress periodically
         tracing::info!(
-            "🌊 Stream created for subnet {}, starting consumption",
+            "Stream created for subnet {}, starting consumption",
             subnet.base.cidr
         );
         let mut stream_pin = Box::pin(results);
@@ -258,8 +165,8 @@ impl DaemonDiscoveryService {
 
         while let Some(result) = stream_pin.next().await {
             if cancel.is_cancelled() {
-                tracing::warn!("Discovery session was {} cancelled", session_id);
-                return Err(Error::msg("Discovery was cancelled"));
+                tracing::warn!("Discovery session was cancelled");
+                return Err(Error::msg("Discovery session was cancelled"));
             }
 
             match result {
@@ -268,50 +175,27 @@ impl DaemonDiscoveryService {
                 Err(e) => tracing::warn!("Stream: error during scanning/processing: {}", e),
             }
 
-            let current_scanned = scanned_count.load(std::sync::atomic::Ordering::Relaxed);
-            let current_discovered = discovered_count.load(std::sync::atomic::Ordering::Relaxed);
-
-            // Report progress every 20 scans or when done
-            if current_scanned >= last_reported_scan_count + 20
-                || last_reported_discovery_count > current_discovered
-            {
-                self.report_discovery_update(
-                    *session_id,
-                    &DaemonDiscoveryUpdate {
-                        session_id: *session_id,
-                        phase: DiscoveryPhase::Scanning,
-                        completed: current_scanned,
-                        total: *total_ips_across_subnets,
-                        error: None,
-                        discovered_count: current_discovered,
-                        daemon_id: *daemon_id,
-                        started_at: Some(*started_at),
-                        finished_at: None,
-                    },
-                )
-                .await?;
-                last_reported_scan_count = current_scanned;
-                last_reported_discovery_count = current_discovered
-            }
+            (last_reported_scan_count, last_reported_discovery_count) = self.periodic_scan_update(20, last_reported_scan_count, last_reported_discovery_count).await?;
         }
 
         tracing::info!("Completed scanning subnet {}", subnet.base.cidr);
         Ok(successful_discoveries)
     }
 
-    async fn scan_host(
+    pub async fn scan_host(
         &self,
         ip: IpAddr,
         scanned_count: Arc<std::sync::atomic::AtomicUsize>,
         cancel: CancellationToken,
-    ) -> Result<Option<(Vec<PortBase>, Vec<EndpointResponse>)>> {
+    ) -> Result<Option<(Vec<PortBase>, Vec<EndpointResponse>, bool)>> {
         // Check cancellation at the start
         if cancel.is_cancelled() {
             return Err(Error::msg("Discovery was cancelled"));
         }
 
-        // Scan ports and endpoints with cancellation support
+        // Scan ports and endpoints
         let scan_result = self
+            .as_ref()
             .utils
             .scan_ports_and_endpoints(ip, cancel.clone())
             .await;
@@ -323,8 +207,8 @@ impl DaemonDiscoveryService {
         }
 
         match scan_result {
-            Ok((open_ports, endpoint_responses)) => {
-                if !open_ports.is_empty() || !endpoint_responses.is_empty() {
+            Ok((open_ports, endpoint_responses, host_has_docker_client)) => {
+                if !open_ports.is_empty() || !endpoint_responses.is_empty() || host_has_docker_client {
                     tracing::info!(
                         "Processing host {} with {} open ports and {} endpoint responses",
                         ip,
@@ -338,7 +222,7 @@ impl DaemonDiscoveryService {
                         return Err(Error::msg("Discovery was cancelled"));
                     }
 
-                    Ok(Some((open_ports, endpoint_responses)))
+                    Ok(Some((open_ports, endpoint_responses, host_has_docker_client)))
                 } else {
                     tracing::debug!("No open ports found on {}", ip);
                     scanned_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -351,155 +235,6 @@ impl DaemonDiscoveryService {
                 Ok(None)
             }
         }
-    }
-
-    /// Process a discovered host
-    async fn process_host(
-        &self,
-        host_ip: IpAddr,
-        gateway_ips: &[IpAddr],
-        subnet: Subnet,
-        open_ports: Vec<PortBase>,
-        endpoint_responses: Vec<EndpointResponse>,
-    ) -> Result<Option<(Host, Vec<Service>)>, Error> {
-        if open_ports.is_empty() && endpoint_responses.is_empty() {
-            return Ok(None); // Skip hosts with no interesting services
-        }
-
-        let daemon_id = self.config_store.get_id().await?;
-        let hostname = self.utils.get_hostname_for_ip(host_ip).await?;
-
-        let mac = match subnet.base.subnet_type {
-            SubnetType::VpnTunnel => None, // ARP doesn't work through VPN tunnels
-            _ => self.utils.get_mac_address_for_ip(host_ip).await?,
-        };
-
-        let interface = Interface::new(InterfaceBase {
-            name: None,
-            subnet_id: subnet.id,
-            ip_address: host_ip,
-            mac_address: mac,
-        });
-
-        let interface_id = interface.id;
-        let interfaces = vec![interface];
-
-        let (name, target) = match hostname.clone() {
-            Some(hostname) => (hostname, HostTarget::Hostname),
-            None => ("Unknown Device".to_owned(), HostTarget::None),
-        };
-
-        // Create host
-        let mut host = Host::new(HostBase {
-            name,
-            hostname,
-            target,
-            description: Some("Discovered device".to_owned()),
-            interfaces,
-            services: Vec::new(),
-            ports: Vec::new(),
-            source: EntitySource::Discovery(daemon_id),
-        });
-
-        let mut services = Vec::new();
-        let mut matched_service_definitions = Vec::new();
-
-        // Only one interface, so only one L3 binding possible
-        let mut l3_interface_bound = false;
-
-        // Need to track which ports are bound vs open for services to bind to
-        let mut l4_unbound_ports = open_ports.clone();
-
-        let mut sorted_service_definitions: Vec<Box<dyn ServiceDefinition>> =
-            ServiceDefinitionRegistry::all_service_definitions()
-                .into_iter()
-                .collect();
-
-        sorted_service_definitions.sort_unstable_by_key(|s| {
-            if !s.is_generic() {
-                0 // Highest priority - non-generic services
-            } else if s.is_gateway() && s.id() != Gateway.id() {
-                1 // Non-generic and subnet-typed gateways need to go before generic Gateway, otherwise will likely be classified as Gateway
-            } else if s.is_infra_service() {
-                2 // Infra services
-            } else {
-                3 // Lowest priority - non-infra generic services last
-            }
-        });
-
-        // Add services from detected ports
-        for service_definition in sorted_service_definitions {
-            if let (Some(service), mut bound_ports) =
-                Service::from_discovery(ServiceFromDiscoveryParams {
-                    service_definition,
-                    ip: &host_ip,
-                    open_ports: &open_ports,
-                    endpoint_responses: &endpoint_responses,
-                    subnet: &subnet,
-                    mac_address: &mac,
-                    host_id: &host.id,
-                    l3_interface_bound,
-                    interface_id: &interface_id,
-                    gateway_ips,
-                    matched_service_definitions: &matched_service_definitions,
-                })
-            {
-                if service.base.service_definition.layer() == BindingDiscriminants::Layer3 {
-                    l3_interface_bound = true;
-                }
-
-                if !service.base.service_definition.is_generic() {
-                    host.base.name = service.base.service_definition.name().to_string();
-                }
-
-                // If there's a suitable binding + host target is hostname or none, use a binding as the host target
-                if let (Some(binding), true) = (
-                    service.base.bindings.iter().find(|b| {
-                        match b {
-                            Binding::Layer3 { .. } => false,
-                            Binding::Layer4 { port_id, .. } => {
-                                if let Some(port) = host.get_port(port_id) {
-                                    return [
-                                        PortBase::Http,
-                                        PortBase::HttpAlt,
-                                        PortBase::Https,
-                                        PortBase::HttpsAlt,
-                                    ]
-                                    .contains(&port.base);
-                                }
-                                false
-                            }
-                        };
-                        false
-                    }),
-                    matches!(host.base.target, HostTarget::Hostname | HostTarget::None),
-                ) {
-                    host.base.target = HostTarget::ServiceBinding(ServiceBinding {
-                        binding_id: binding.id(),
-                        service_id: service.id,
-                    })
-                }
-
-                // Add any bound ports to host ports array, remove from open ports
-                let bound_port_bases: Vec<PortBase> =
-                    bound_ports.iter().map(|p| p.base.clone()).collect();
-
-                host.base.ports.append(&mut bound_ports);
-
-                // Add new service
-                matched_service_definitions.push(service.base.service_definition.clone());
-                host.add_service(service.id);
-                l4_unbound_ports.retain(|p| !bound_port_bases.contains(p));
-                services.push(service);
-            }
-        }
-
-        host.base
-            .ports
-            .extend(l4_unbound_ports.into_iter().map(Port::new));
-
-        tracing::info!("Processed host for host {}", host_ip);
-        Ok(Some((host, services)))
     }
 
     /// Figure out what order to scan IPs in given allocation patterns

@@ -1,6 +1,7 @@
 use axum::{http::Method, Router};
 use clap::Parser;
 use netvisor::daemon::{
+    discovery::service::{base::DiscoveryHandler, self_report::SelfReportDiscovery},
     runtime::types::DaemonAppState,
     shared::{
         handlers::create_router,
@@ -97,7 +98,6 @@ async fn main() -> anyhow::Result<()> {
 
     let state = DaemonAppState::new(config_store, utils).await?;
     let runtime_service = state.services.runtime_service.clone();
-    let discovery_service = state.services.discovery_service.clone();
 
     // Initialize tracing
     tracing_subscriber::registry()
@@ -113,7 +113,12 @@ async fn main() -> anyhow::Result<()> {
     } else {
         tracing::info!("📝 Registering with server...");
         // Create self as host, register with server, and save daemon ID
-        discovery_service.run_self_report_discovery().await?;
+        let discovery = DiscoveryHandler::new(
+            state.services.discovery_service.clone(),
+            state.services.discovery_manager.clone(),
+            SelfReportDiscovery::new(),
+        );
+        discovery.run_self_report_discovery().await?;
 
         let host_id = runtime_service
             .config_store
@@ -124,6 +129,8 @@ async fn main() -> anyhow::Result<()> {
         runtime_service
             .register_with_server(host_id, daemon_id)
             .await?;
+
+        discovery.run_self_report_docker_discovery().await?;
     };
 
     tracing::info!("✅ Daemon ID: {}", daemon_id);

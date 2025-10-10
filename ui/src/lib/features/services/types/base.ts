@@ -10,7 +10,7 @@ export interface Service<T extends Binding = Binding> {
 
 export type Binding =
 	| { type: 'Layer3'; id: string; interface_id: string }
-	| { type: 'Layer4'; id: string; interface_id: string; port_id: string };
+	| { type: 'Layer4'; id: string; interface_id: string | null; port_id: string };
 
 export type Layer4Binding = Extract<Binding, { type: 'Layer4' }>;
 export type Layer3Binding = Extract<Binding, { type: 'Layer3' }>;

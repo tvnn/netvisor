@@ -3,7 +3,7 @@ import { api } from '../../shared/utils/api';
 import type { Binding, Service } from './types/base';
 import { formatPort, utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { formatInterface, getInterfaceFromId, getPortFromId, hosts } from '../hosts/store';
-import type { Host, ServiceBinding } from '../hosts/types/base';
+import { ALL_INTERFACES, type Host, type ServiceBinding } from '../hosts/types/base';
 
 export const services = writable<Service[]>([]);
 
@@ -140,7 +140,7 @@ export function getBindingFromId(id: string): Binding | null {
 export function getLayerBindingDisplayName(binding: Binding): string {
 	const service = getServiceForBinding(binding);
 	if (service) {
-		const iface = getInterfaceFromId(binding.interface_id);
+		const iface = binding.interface_id ? getInterfaceFromId(binding.interface_id) : ALL_INTERFACES;
 		const host = getServiceHost(service.id);
 		if (host) {
 			switch (binding.type) {
@@ -149,7 +149,7 @@ export function getLayerBindingDisplayName(binding: Binding): string {
 					break;
 				case 'Layer4': {
 					const port = getPortFromId(binding.port_id);
-					if (port && iface) return formatInterface(iface) + formatPort(port);
+					if (port && iface) return formatInterface(iface) + ' · ' + formatPort(port);
 					break;
 				}
 			}

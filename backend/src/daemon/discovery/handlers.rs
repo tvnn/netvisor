@@ -1,3 +1,5 @@
+use crate::daemon::discovery::service::base::{DiscoveryHandler};
+use crate::daemon::discovery::service::network::NetworkScanDiscovery;
 use crate::daemon::runtime::types::DaemonAppState;
 use crate::server::daemons::types::api::{
     DaemonDiscoveryCancellationRequest, DaemonDiscoveryCancellationResponse,
@@ -19,39 +21,22 @@ async fn handle_discovery_request(
     State(state): State<Arc<DaemonAppState>>,
     Json(request): Json<DaemonDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonDiscoveryResponse>>> {
+    
     let session_id = request.session_id;
     tracing::info!("Received discovery request for session {}", session_id);
 
-    let discovery_service = state.services.discovery_service.clone();
-    let manager = discovery_service.discovery_manager.clone();
+    let discovery = Arc::new(DiscoveryHandler::new(
+        state.services.discovery_service.clone(),
+        state.services.discovery_manager.clone(),
+        NetworkScanDiscovery::new(),
+    ));
 
-    if manager.is_discovery_running().await {
-        Err(ApiError::conflict("Discovery session already running"))
-    } else {
-        let cancel_token = manager.start_new_session().await;
+    discovery.discover_on_network(request).await?;
 
-        let inner_manager = manager.clone();
-        let handle = tokio::spawn(async move {
-            match discovery_service
-                .run_network_discovery(request, cancel_token)
-                .await
-            {
-                Ok(()) => {
-                    tracing::info!("Discovery completed successfully");
-                }
-                Err(e) => {
-                    tracing::error!("Discovery failed: {}", e);
-                }
-            }
-            inner_manager.clear_completed_task().await;
-        });
-        manager.set_current_task(handle).await;
-
-        // Return immediate acknowledgment
-        Ok(Json(ApiResponse::success(DaemonDiscoveryResponse {
-            session_id,
-        })))
-    }
+    Ok(Json(ApiResponse::success(DaemonDiscoveryResponse {
+        session_id,
+    })))
+    
 }
 
 async fn handle_cancel_request(
@@ -64,8 +49,7 @@ async fn handle_cancel_request(
         session_id
     );
 
-    let discovery_service = state.services.discovery_service.clone();
-    let manager = discovery_service.discovery_manager.clone();
+    let manager = state.services.discovery_manager.clone();
 
     if manager.is_discovery_running().await {
         if manager.cancel_current_session().await {

@@ -47,6 +47,7 @@ impl ServiceService {
     }
 
     pub async fn create_service(&self, service: Service) -> Result<Service> {
+
         let existing_services = self.get_services_for_host(&service.base.host_id).await?;
 
         let service_from_storage = match existing_services.into_iter().find(|existing: &Service| {
@@ -124,11 +125,11 @@ impl ServiceService {
     pub async fn upsert_service(
         &self,
         mut existing_service: Service,
-        new_service: Service,
+        new_service_data: Service,
     ) -> Result<Service> {
         let mut binding_updates = 0;
 
-        for new_service_binding in new_service.base.bindings {
+        for new_service_binding in new_service_data.base.bindings {
             if !existing_service
                 .base
                 .bindings
@@ -157,7 +158,7 @@ impl ServiceService {
         }
         tracing::info!(
             "No new information to upsert from service {} to service {}: {}",
-            new_service.base.name,
+            new_service_data.base.name,
             existing_service.base.name,
             existing_service.id
         );
@@ -205,7 +206,6 @@ impl ServiceService {
         current_service: &Service,
         updates: Option<&Service>,
     ) -> Result<(), Error> {
-
         let _guard = self.group_update_lock.lock().await;
 
         let groups = self.group_service.get_all_groups().await?;
@@ -330,21 +330,30 @@ impl ServiceService {
                     Binding::Layer4 { port_id, .. } => {
                         let original_port = original_host.get_port(port_id);
 
-                        if let (Some(original_interface), Some(original_port)) =
-                            (original_interface, original_port)
-                        {
-                            let new_interface: Option<&Interface> = new_host
+                        let new_port: Option<&Port> = if let Some(port) = original_port {
+                            new_host.base.ports.iter().find(|p| *p == port)
+                        } else {
+                            None
+                        };
+
+                        let new_interface: Option<&Interface> = if let Some(interface) = original_interface {
+                            new_host
                                 .base
                                 .interfaces
                                 .iter()
-                                .find(|i| *i == original_interface);
-                            let new_port: Option<&Port> =
-                                new_host.base.ports.iter().find(|p| *p == original_port);
+                                .find(|i| *i == interface)
+                        } else {
+                            None
+                        };
 
-                            if let (Some(new_interface), Some(new_port)) = (new_interface, new_port)
-                            {
-                                return Some(Binding::new_l4(new_port.id, new_interface.id));
-                            }
+                        match (new_port, new_interface) {
+                            (Some(new_port), Some(new_interface)) => {
+                                return Some(Binding::new_l4(new_port.id, Some(new_interface.id)));
+                            },
+                            (Some(new_port), None) if b.interface_id() == None => {
+                                return Some(Binding::new_l4(new_port.id, None));
+                            },
+                            _ => return None
                         }
                     }
                 };
@@ -408,7 +417,7 @@ mod tests {
         // Add bindings so the deduplication logic can match them
         svc1.base.bindings = vec![Binding::new_l4(
             host_obj.base.ports[0].id,
-            host_obj.base.interfaces[0].id,
+            Some(host_obj.base.interfaces[0].id),
         )];
 
         let (created_host, created1) = services
@@ -423,7 +432,7 @@ mod tests {
         svc2.base.service_definition = svc1.base.service_definition.clone();
         svc2.base.bindings = vec![Binding::new_l4(
             created_host.base.ports[0].id,
-            created_host.base.interfaces[0].id,
+            Some(created_host.base.interfaces[0].id),
         )];
 
         let created2 = services
@@ -468,7 +477,7 @@ mod tests {
         reverse_proxy_svc.base.service_definition = reverse_proxy_def;
         reverse_proxy_svc.base.bindings = vec![Binding::new_l4(
             host_obj.base.ports[0].id,
-            host_obj.base.interfaces[0].id,
+            Some(host_obj.base.interfaces[0].id),
         )];
 
         // Create gateway service (will add to subnet gateways)
@@ -531,7 +540,7 @@ mod tests {
 
         // Create service in a group
         let mut svc = service(&host_obj.id);
-        let binding = Binding::new_l4(host_obj.base.ports[0].id, host_obj.base.interfaces[0].id);
+        let binding = Binding::new_l4(host_obj.base.ports[0].id, Some(host_obj.base.interfaces[0].id));
         svc.base.bindings = vec![binding];
 
         let (_, created_svcs) = services

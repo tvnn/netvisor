@@ -119,7 +119,7 @@
 	{loading}
 	{deleting}
 	{saveLabel}
-	cancelLabel="Cance"
+	cancelLabel="Cancel"
 	onSave={handleSubmit}
 	onCancel={onClose}
 	onDelete={isEditing ? handleDelete : null}

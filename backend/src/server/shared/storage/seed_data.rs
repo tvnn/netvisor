@@ -68,7 +68,7 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
     let interface = Interface::new(InterfaceBase::new_conceptual(remote_subnet));
 
     let dynamic_port = Port::new(PortBase::new_tcp(0)); // Ephemeral port
-    let binding = Binding::new_l4(dynamic_port.id, interface.id);
+    let binding = Binding::new_l4(dynamic_port.id, Some(interface.id));
     let binding_id = binding.id();
 
     let base = HostBase {
@@ -104,7 +104,7 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
     let interface = Interface::new(InterfaceBase::new_conceptual(internet_subnet));
 
     let https_port = Port::new(PortBase::Https);
-    let binding = Binding::new_l4(https_port.id, interface.id);
+    let binding = Binding::new_l4(https_port.id, Some(interface.id));
     let binding_id = binding.id();
 
     let base = HostBase {
@@ -141,7 +141,7 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
     let mut interface = Interface::new(InterfaceBase::new_conceptual(internet_subnet));
     interface.base.ip_address = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
     let dns_udp_port = Port::new(PortBase::DnsUdp);
-    let binding = Binding::new_l4(dns_udp_port.id, interface.id);
+    let binding = Binding::new_l4(dns_udp_port.id, Some(interface.id));
     let binding_id = binding.id();
 
     let base = HostBase {

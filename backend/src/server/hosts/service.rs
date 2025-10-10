@@ -3,7 +3,7 @@ use crate::server::{
     discovery::types::base::EntitySourceDiscriminants,
     hosts::{
         storage::HostStorage,
-        types::base::{Host, HostBase},
+        types::base::{Host},
     },
     services::{
         service::ServiceService,
@@ -54,7 +54,12 @@ impl HostService {
         services: Vec<Service>,
     ) -> Result<(Host, Vec<Service>)> {
         // Create host first (handles duplicates via upsert_host)
-        let mut created_host = self.create_host(&host.base).await?;
+
+        let mut created_host = if host.id == Uuid::nil() {
+            self.create_host(Host::new(host.base.clone())).await?
+        } else {
+            self.create_host(host.clone()).await?
+        };
 
         // Create services, handling case where created_host was upserted instead of created anew, which means that host ID + interfaces/port IDs
         // are different from what's mapped to the service and they need to be updated
@@ -82,8 +87,7 @@ impl HostService {
     }
 
     /// Create a new host
-    async fn create_host(&self, host_base: &HostBase) -> Result<Host> {
-        let host = Host::new(host_base.clone());
+    async fn create_host(&self, host: Host) -> Result<Host> {
 
         let all_hosts = self.storage.get_all().await?;
 
@@ -134,10 +138,7 @@ impl HostService {
     }
 
     /// Merge new discovery data with existing host
-    async fn upsert_host(&self, mut existing_host: Host, new_host: Host) -> Result<Host> {
-        if existing_host.id == new_host.id {
-            return Err(anyhow!("Can't upsert a host with itself"));
-        }
+    async fn upsert_host(&self, mut existing_host: Host, new_host_data: Host) -> Result<Host> {
 
         let mut interface_updates = 0;
         let mut port_updates = 0;
@@ -145,15 +146,15 @@ impl HostService {
         let mut description_update = false;
 
         // Merge interfaces - add any new interfaces not already present
-        for new_host_interface in new_host.base.interfaces {
-            if !existing_host.base.interfaces.contains(&new_host_interface) {
+        for new_host_data_interface in new_host_data.base.interfaces {
+            if !existing_host.base.interfaces.contains(&new_host_data_interface) {
                 interface_updates += 1;
-                existing_host.base.interfaces.push(new_host_interface);
+                existing_host.base.interfaces.push(new_host_data_interface);
             }
         }
 
         // Merge open ports - add any new ports not already present
-        for new_port in new_host.base.ports {
+        for new_port in new_host_data.base.ports {
             if !existing_host.base.ports.contains(&new_port) {
                 port_updates += 1;
                 existing_host.base.ports.push(new_port);
@@ -161,17 +162,17 @@ impl HostService {
         }
 
         existing_host.base.services =
-            [new_host.base.services, existing_host.base.services].concat();
+            [new_host_data.base.services, existing_host.base.services].concat();
 
         // Update other fields if they have more information
-        if existing_host.base.hostname.is_none() && new_host.base.hostname.is_some() {
+        if existing_host.base.hostname.is_none() && new_host_data.base.hostname.is_some() {
             hostname_update = true;
-            existing_host.base.hostname = new_host.base.hostname;
+            existing_host.base.hostname = new_host_data.base.hostname;
         }
 
-        if existing_host.base.description.is_none() && new_host.base.description.is_some() {
+        if existing_host.base.description.is_none() && new_host_data.base.description.is_some() {
             description_update = true;
-            existing_host.base.description = new_host.base.description;
+            existing_host.base.description = new_host_data.base.description;
         }
 
         existing_host.updated_at = chrono::Utc::now();
@@ -203,7 +204,7 @@ impl HostService {
         }
         tracing::info!(
             "No new informationt to upsert from host {} to host {}: {}",
-            new_host.base.name,
+            new_host_data.base.name,
             existing_host.base.name,
             existing_host.id
         );
@@ -352,10 +353,6 @@ impl HostService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Host {} not found", id))?;
 
-        if self.daemon_service.get_host_daemon(id).await?.is_some() {
-            return Err(anyhow!("Can't delete a host that has a daemon."));
-        }
-
         if delete_services {
             for service_id in &host.base.services {
                 self.service_service.delete_service(service_id).await?;
@@ -486,7 +483,7 @@ mod tests {
         let mut svc = service(&host2.id);
         svc.base.bindings = vec![Binding::new_l4(
             host2.base.ports[0].id,
-            host2.base.interfaces[0].id,
+            Some(host2.base.interfaces[0].id),
         )];
 
         let (created2, created_svcs) = services

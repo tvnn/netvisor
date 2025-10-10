@@ -2,8 +2,7 @@ use crate::server::{
     config::AppState,
     daemons::types::{
         api::{
-            DaemonDiscoveryUpdate, DaemonRegistrationRequest, DaemonRegistrationResponse,
-            DaemonResponse,
+            DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse,
         },
         base::{Daemon, DaemonBase},
     },
@@ -25,8 +24,6 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .route("/:id/heartbeat", put(receive_heartbeat))
         .route("/", get(get_all_daemons))
         .route("/:id", get(get_daemon))
-        // Routes for receiving reports from daemons
-        .route("/discovery_update", post(receive_discovery_update))
 }
 
 /// Register a new daemon
@@ -104,14 +101,4 @@ async fn get_daemon(
         .ok_or_else(|| ApiError::not_found(&format!("Daemon '{}' not found", &id)))?;
 
     Ok(Json(ApiResponse::success(DaemonResponse { daemon })))
-}
-
-/// Receive discovery progress update from daemon
-async fn receive_discovery_update(
-    State(state): State<Arc<AppState>>,
-    Json(update): Json<DaemonDiscoveryUpdate>,
-) -> ApiResult<Json<ApiResponse<()>>> {
-    state.discovery_manager.update_session(update).await?;
-
-    Ok(Json(ApiResponse::success(())))
 }

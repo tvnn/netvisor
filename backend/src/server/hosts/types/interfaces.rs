@@ -7,6 +7,8 @@ use uuid::Uuid;
 
 use crate::server::subnets::types::base::Subnet;
 
+pub const ALL_INTERFACES_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct InterfaceBase {
     pub subnet_id: Uuid,

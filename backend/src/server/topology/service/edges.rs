@@ -93,7 +93,7 @@ impl TopologyEdgePlanner {
                         None
                     });
 
-                    if let (Some(interface_0), Some(interface_1)) = (interface_0, interface_1) {
+                    if let (Some(Some(interface_0)), Some(Some(interface_1))) = (interface_0, interface_1) {
                         let source_subnet =
                             self.get_subnet_from_interface_id(&interface_0, hosts, subnets)?;
                         let target_subnet =
@@ -160,6 +160,7 @@ impl TopologyEdgePlanner {
         hosts: &[Host],
         subnets: &'a [Subnet],
     ) -> Option<&'a Subnet> {
+
         if let Some(interface) = hosts
             .iter()
             .find_map(|h| h.base.interfaces.iter().find(|i| i.id == *interface_id))

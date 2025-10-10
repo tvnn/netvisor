@@ -1,7 +1,6 @@
-use crate::server::daemons::types::api::DaemonDiscoveryUpdate;
 use crate::server::{
     config::AppState,
-    daemons::types::api::DaemonDiscoveryRequest,
+    daemons::types::api::{DaemonDiscoveryRequest, DiscoveryType, DiscoveryUpdatePayload},
     discovery::types::api::InitiateDiscoveryRequest,
     shared::types::api::{ApiError, ApiResponse, ApiResult},
 };
@@ -17,16 +16,76 @@ use uuid::Uuid;
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/initiate", post(initiate_discovery))
+        .route("/daemon-initiate", post(daemon_initiate_discovery))
         .route("/:session_id/status", get(get_discovery_status))
         .route("/:session_id/cancel", post(cancel_discovery))
         .route("/active", get(get_active_sessions))
+        .route("/update", post(receive_discovery_update))
 }
 
-/// Initiate discovery on a specific daemon
+/// Receive discovery progress update from daemon
+async fn receive_discovery_update(
+    State(state): State<Arc<AppState>>,
+    Json(update): Json<DiscoveryUpdatePayload>,
+) -> ApiResult<Json<ApiResponse<()>>> {
+    state.discovery_manager.update_session(update).await?;
+
+    Ok(Json(ApiResponse::success(())))
+}
+
+
+/// Endpoint for daemon to initiate discovery
+async fn daemon_initiate_discovery(
+    State(state): State<Arc<AppState>>,
+    Json(request): Json<InitiateDiscoveryRequest>,
+) -> ApiResult<Json<ApiResponse<Uuid>>> {
+    tracing::info!("daemon_initiate_discovery handler called");
+    
+    let daemon_service = &state.services.daemon_service;
+
+    // Get the specified daemon
+    let daemon = match daemon_service.get_daemon(&request.daemon_id).await? {
+        Some(daemon) => daemon,
+        None => {
+            return Err(ApiError::not_found(&format!(
+                "Daemon '{}' not found",
+                &request.daemon_id
+            )))
+        }
+    };
+
+    // Check if daemon is already running discovery
+    if let Some(existing_session_id) = state
+        .discovery_manager
+        .is_daemon_discovering(&daemon.id)
+        .await
+    {
+        return Err(ApiError::conflict(&format!(
+            "Daemon '{}' is already running discovery session '{}'",
+            daemon.id, existing_session_id
+        )));
+    }
+
+    let session_id = Uuid::new_v4();
+
+    // Create discovery session
+    state
+        .discovery_manager
+        .create_session(session_id, daemon.id)
+        .await
+        .map_err(|e| {
+            ApiError::internal_error(&format!("Failed to create discovery session: {}", e))
+        })?;
+
+    Ok(Json(ApiResponse::success(session_id)))
+
+}
+
+/// Endpoint for users to initiate discovery on a specific daemon
 async fn initiate_discovery(
     State(state): State<Arc<AppState>>,
     Json(request): Json<InitiateDiscoveryRequest>,
-) -> ApiResult<Json<ApiResponse<DaemonDiscoveryUpdate>>> {
+) -> ApiResult<Json<ApiResponse<DiscoveryUpdatePayload>>> {
     let daemon_service = &state.services.daemon_service;
 
     // Get the specified daemon
@@ -56,7 +115,13 @@ async fn initiate_discovery(
 
     // Send discovery request to daemon
     daemon_service
-        .send_discovery_request(&daemon, DaemonDiscoveryRequest { session_id })
+        .send_discovery_request(
+            &daemon,
+            DaemonDiscoveryRequest {
+                discovery_type: DiscoveryType::Network,
+                session_id,
+            },
+        )
         .await?;
 
     // Create discovery session
@@ -74,7 +139,7 @@ async fn initiate_discovery(
 // Get all active discovery sessions
 async fn get_active_sessions(
     State(state): State<Arc<AppState>>,
-) -> ApiResult<Json<ApiResponse<Vec<DaemonDiscoveryUpdate>>>> {
+) -> ApiResult<Json<ApiResponse<Vec<DiscoveryUpdatePayload>>>> {
     let sessions = state.discovery_manager.get_active_sessions().await;
     Ok(Json(ApiResponse::success(sessions)))
 }
@@ -83,7 +148,7 @@ async fn get_active_sessions(
 async fn get_discovery_status(
     State(state): State<Arc<AppState>>,
     Path(session_id): Path<Uuid>,
-) -> ApiResult<Json<ApiResponse<DaemonDiscoveryUpdate>>> {
+) -> ApiResult<Json<ApiResponse<DiscoveryUpdatePayload>>> {
     let status = state
         .discovery_manager
         .get_session(&session_id)

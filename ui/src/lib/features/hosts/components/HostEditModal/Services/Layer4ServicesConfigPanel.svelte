@@ -99,7 +99,7 @@
 			type: 'Layer4',
 			id: uuidv4(),
 			port_id: firstAvailable.port.id,
-			interface_id: firstAvailable.iface.id
+			interface_id: null
 		} as Layer4Binding;
 
 		const updatedService = {
