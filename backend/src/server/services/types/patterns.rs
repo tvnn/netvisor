@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use crate::{daemon::discovery::service::docker::DOCKER_PORT};
+use crate::daemon::discovery::service::docker::DOCKER_PORT;
 use anyhow::Error;
 use mac_address::MacAddress;
 use mac_oui::Oui;
@@ -112,7 +112,7 @@ pub struct PatternParams<'a> {
     pub mac_address: &'a Option<MacAddress>,
     pub gateway_ips: &'a [IpAddr],
     pub matched_service_definitions: &'a Vec<Box<dyn ServiceDefinition>>,
-    pub host_has_docker_client: &'a bool
+    pub host_has_docker_client: &'a bool,
 }
 
 impl Pattern {
@@ -127,7 +127,7 @@ impl Pattern {
             mac_address,
             gateway_ips,
             matched_service_definitions,
-            host_has_docker_client
+            host_has_docker_client,
         } = params;
 
         let no_match = Err(Error::msg("No match"));
@@ -357,9 +357,8 @@ impl Pattern {
                 } else {
                     no_match
                 }
-                   
             }
-            
+
             Pattern::None => no_match,
         }
     }
@@ -453,7 +452,7 @@ mod tests {
             mac_address: &None,
             gateway_ips: &vec![],
             matched_service_definitions: &vec![],
-            host_has_docker_client: &false
+            host_has_docker_client: &false,
         };
 
         let result = pi.discovery_pattern().matches(params.clone());
@@ -488,7 +487,7 @@ mod tests {
             mac_address: &None,
             gateway_ips: &vec![],
             matched_service_definitions: &vec![],
-            host_has_docker_client: &false
+            host_has_docker_client: &false,
         };
 
         let result = pattern.matches(params.clone());
@@ -537,7 +536,7 @@ mod tests {
             mac_address: &None,
             gateway_ips: &vec![],
             matched_service_definitions: &vec![],
-            host_has_docker_client: &false
+            host_has_docker_client: &false,
         };
 
         let result = pattern.matches(params.clone());

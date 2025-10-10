@@ -1,4 +1,4 @@
-use crate::daemon::discovery::service::base::{DiscoveryHandler};
+use crate::daemon::discovery::service::base::DiscoveryHandler;
 use crate::daemon::discovery::service::network::NetworkScanDiscovery;
 use crate::daemon::runtime::types::DaemonAppState;
 use crate::server::daemons::types::api::{
@@ -21,14 +21,13 @@ async fn handle_discovery_request(
     State(state): State<Arc<DaemonAppState>>,
     Json(request): Json<DaemonDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<DaemonDiscoveryResponse>>> {
-    
     let session_id = request.session_id;
     tracing::info!("Received discovery request for session {}", session_id);
 
     let discovery = Arc::new(DiscoveryHandler::new(
         state.services.discovery_service.clone(),
         state.services.discovery_manager.clone(),
-        NetworkScanDiscovery::new(),
+        NetworkScanDiscovery::default(),
     ));
 
     discovery.discover_on_network(request).await?;
@@ -36,7 +35,6 @@ async fn handle_discovery_request(
     Ok(Json(ApiResponse::success(DaemonDiscoveryResponse {
         session_id,
     })))
-    
 }
 
 async fn handle_cancel_request(

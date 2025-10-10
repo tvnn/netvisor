@@ -35,7 +35,9 @@
 			let layerBinding = service.bindings.find((b) => b.id == binding.binding_id);
 
 			if (layerBinding) {
-				const iface = layerBinding.interface_id ? getInterfaceFromId(layerBinding.interface_id) : ALL_INTERFACES;
+				const iface = layerBinding.interface_id
+					? getInterfaceFromId(layerBinding.interface_id)
+					: ALL_INTERFACES;
 
 				if (iface) {
 					tags.push({

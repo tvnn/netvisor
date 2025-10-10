@@ -1,10 +1,7 @@
 use crate::server::{
     daemons::service::DaemonService,
     discovery::types::base::EntitySourceDiscriminants,
-    hosts::{
-        storage::HostStorage,
-        types::base::{Host},
-    },
+    hosts::{storage::HostStorage, types::base::Host},
     services::{
         service::ServiceService,
         types::{base::Service, bindings::Binding},
@@ -88,7 +85,6 @@ impl HostService {
 
     /// Create a new host
     async fn create_host(&self, host: Host) -> Result<Host> {
-
         let all_hosts = self.storage.get_all().await?;
 
         let host_from_storage = match all_hosts.into_iter().find(|h| host.eq(h)) {
@@ -139,7 +135,6 @@ impl HostService {
 
     /// Merge new discovery data with existing host
     async fn upsert_host(&self, mut existing_host: Host, new_host_data: Host) -> Result<Host> {
-
         let mut interface_updates = 0;
         let mut port_updates = 0;
         let mut hostname_update = false;
@@ -147,7 +142,11 @@ impl HostService {
 
         // Merge interfaces - add any new interfaces not already present
         for new_host_data_interface in new_host_data.base.interfaces {
-            if !existing_host.base.interfaces.contains(&new_host_data_interface) {
+            if !existing_host
+                .base
+                .interfaces
+                .contains(&new_host_data_interface)
+            {
                 interface_updates += 1;
                 existing_host.base.interfaces.push(new_host_data_interface);
             }

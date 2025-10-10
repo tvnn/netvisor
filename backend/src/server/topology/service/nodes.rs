@@ -133,11 +133,16 @@ impl TopologyNodePlanner {
                             let services: Vec<Uuid> = services
                                 .iter()
                                 .filter_map(|s| {
-
-                                    let interface_ids: Vec<Uuid> = s.base.bindings.iter().filter_map(|b| b.interface_id()).collect();
+                                    let interface_ids: Vec<Uuid> = s
+                                        .base
+                                        .bindings
+                                        .iter()
+                                        .filter_map(|b| b.interface_id())
+                                        .collect();
 
                                     // Length comparison - if there is an binding with None as interface ID, meaning it listens on all interfaces for that port
-                                    if interface_ids.contains(&interface.id) || interface_ids.len() < s.base.bindings.len()
+                                    if interface_ids.contains(&interface.id)
+                                        || interface_ids.len() < s.base.bindings.len()
                                     {
                                         Some(s.id)
                                     } else {

@@ -20,14 +20,14 @@ export interface Host {
 }
 
 export interface AllInterfaces {
-	id: null,
-	name: string
+	id: null;
+	name: string;
 }
 
 export const ALL_INTERFACES: AllInterfaces = {
 	id: null,
-	name: "All Interfaces"
-}
+	name: 'All Interfaces'
+};
 
 export interface Interface {
 	id: string;

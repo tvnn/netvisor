@@ -57,7 +57,7 @@ pub struct ServiceFromDiscoveryParams<'a> {
     pub interface_id: &'a Uuid,
     pub gateway_ips: &'a [IpAddr],
     pub matched_service_definitions: &'a Vec<Box<dyn ServiceDefinition>>,
-    pub host_has_docker_client: &'a bool
+    pub host_has_docker_client: &'a bool,
 }
 
 impl Service {
@@ -128,7 +128,7 @@ impl Service {
             interface_id,
             gateway_ips,
             matched_service_definitions,
-            host_has_docker_client
+            host_has_docker_client,
         } = params;
 
         if let Ok(result) = service_definition
@@ -141,7 +141,7 @@ impl Service {
                 mac_address,
                 gateway_ips,
                 matched_service_definitions,
-                host_has_docker_client
+                host_has_docker_client,
             })
         {
             let name = service_definition.name().to_string();

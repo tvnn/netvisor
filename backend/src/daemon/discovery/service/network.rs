@@ -6,7 +6,6 @@ use crate::server::hosts::types::{
     interfaces::{Interface, InterfaceBase},
     ports::PortBase,
 };
-use anyhow::anyhow;
 use crate::{
     daemon::utils::base::DaemonUtils,
     server::{
@@ -16,6 +15,7 @@ use crate::{
         subnets::types::base::{Subnet, SubnetType},
     },
 };
+use anyhow::anyhow;
 use anyhow::{Error, Result};
 use axum::async_trait;
 use cidr::IpCidr;
@@ -29,13 +29,8 @@ use tokio_util::sync::CancellationToken;
 
 const CONCURRENT_SCANS: usize = 15;
 
+#[derive(Default)]
 pub struct NetworkScanDiscovery {}
-
-impl NetworkScanDiscovery {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
 
 impl CreatesDiscoveredEntities for DiscoveryHandler<NetworkScanDiscovery> {}
 
@@ -56,12 +51,9 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<NetworkScanDiscovery> {
         self.start_host_discovery(total_ips_across_subnets, request)
             .await?;
 
-        let discovery_futures = subnets.iter().map(|subnet| {
-            self.scan_and_process_hosts(
-                subnet,
-                cancel.clone()
-            )
-        });
+        let discovery_futures = subnets
+            .iter()
+            .map(|subnet| self.scan_and_process_hosts(subnet, cancel.clone()));
 
         let discovery_result = try_join_all(discovery_futures).await.map(|_| ());
 
@@ -73,7 +65,10 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<NetworkScanDiscovery> {
 
     async fn set_gateway_ips(&self) -> Result<(), Error> {
         let gateway_ips = self.as_ref().utils.get_routing_table_gateway_ips().await?;
-        self.as_ref().gateway_ips.set(gateway_ips).map_err(|_| anyhow!("Failed to set gateway_ips"))?;
+        self.as_ref()
+            .gateway_ips
+            .set(gateway_ips)
+            .map_err(|_| anyhow!("Failed to set gateway_ips"))?;
         Ok(())
     }
 
@@ -138,7 +133,7 @@ impl DiscoveryHandler<NetworkScanDiscovery> {
                             interface,
                             open_ports,
                             endpoint_responses,
-                            host_has_docker_client
+                            host_has_docker_client,
                         })
                         .await
                     {
@@ -175,7 +170,9 @@ impl DiscoveryHandler<NetworkScanDiscovery> {
                 Err(e) => tracing::warn!("Stream: error during scanning/processing: {}", e),
             }
 
-            (last_reported_scan_count, last_reported_discovery_count) = self.periodic_scan_update(20, last_reported_scan_count, last_reported_discovery_count).await?;
+            (last_reported_scan_count, last_reported_discovery_count) = self
+                .periodic_scan_update(20, last_reported_scan_count, last_reported_discovery_count)
+                .await?;
         }
 
         tracing::info!("Completed scanning subnet {}", subnet.base.cidr);
@@ -208,7 +205,10 @@ impl DiscoveryHandler<NetworkScanDiscovery> {
 
         match scan_result {
             Ok((open_ports, endpoint_responses, host_has_docker_client)) => {
-                if !open_ports.is_empty() || !endpoint_responses.is_empty() || host_has_docker_client {
+                if !open_ports.is_empty()
+                    || !endpoint_responses.is_empty()
+                    || host_has_docker_client
+                {
                     tracing::info!(
                         "Processing host {} with {} open ports and {} endpoint responses",
                         ip,
@@ -222,7 +222,11 @@ impl DiscoveryHandler<NetworkScanDiscovery> {
                         return Err(Error::msg("Discovery was cancelled"));
                     }
 
-                    Ok(Some((open_ports, endpoint_responses, host_has_docker_client)))
+                    Ok(Some((
+                        open_ports,
+                        endpoint_responses,
+                        host_has_docker_client,
+                    )))
                 } else {
                     tracing::debug!("No open ports found on {}", ip);
                     scanned_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);

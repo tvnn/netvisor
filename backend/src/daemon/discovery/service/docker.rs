@@ -9,11 +9,7 @@ use bollard::{
 use futures::future::try_join_all;
 use itertools::Itertools;
 use std::str::FromStr;
-use std::{
-    collections::HashMap,
-    net::IpAddr,
-    sync::{OnceLock},
-};
+use std::{collections::HashMap, net::IpAddr, sync::OnceLock};
 use tokio_util::sync::CancellationToken;
 
 use crate::daemon::discovery::service::base::InitiatesOwnDiscovery;
@@ -43,9 +39,22 @@ use uuid::Uuid;
 
 pub const DOCKER_PORT: u16 = 2375;
 
+type IpPortHashMap = HashMap<IpAddr, Vec<PortBase>>;
+type ContainerPortToHostPortMap = HashMap<PortBase, Vec<(PortBase, IpAddr)>>;
+type ContainerDiscoveryInformation = (Vec<PortBase>, Vec<PortBase>, Interface, Subnet);
+
 pub struct DockerScanDiscovery {
     docker_client: OnceLock<Docker>,
     host_id: Uuid,
+}
+
+impl Default for DockerScanDiscovery {
+    fn default() -> Self {
+        Self {
+            docker_client: OnceLock::new(),
+            host_id: Uuid::nil(),
+        }
+    }
 }
 
 impl DockerScanDiscovery {
@@ -68,9 +77,11 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<DockerScanDiscovery> {
         request: DaemonDiscoveryRequest,
         cancel: CancellationToken,
     ) -> Result<(), Error> {
-
         let docker = self.new_local_docker_client().await?;
-        self.discovery_type.docker_client.set(docker.clone()).map_err(|_| anyhow!("Failed to set docker client"))?;
+        self.discovery_type
+            .docker_client
+            .set(docker.clone())
+            .map_err(|_| anyhow!("Failed to set docker client"))?;
 
         let container_list = self.get_containers_to_scan().await?;
 
@@ -78,7 +89,7 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<DockerScanDiscovery> {
             .await?;
 
         let subnets = self.discover_create_subnets().await?;
-        let containers= self.get_containers_and_summaries().await?;
+        let containers = self.get_containers_and_summaries().await?;
 
         let session_info = self
             .as_ref()
@@ -106,7 +117,8 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<DockerScanDiscovery> {
         // let mut last_reported_scan_count: usize = 0;
         // let mut last_reported_discovery_count: usize = 0;
 
-        let services = self.get_services_from_container(&mut host, &subnets, containers, cancel.clone());
+        let services =
+            self.get_services_from_container(&mut host, &subnets, containers, cancel.clone());
         let discovery_result = self.create_host(host, services).await.map(|_| ());
 
         self.finish_host_discovery(discovery_result, cancel.clone())
@@ -116,14 +128,26 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<DockerScanDiscovery> {
     }
 
     async fn set_gateway_ips(&self) -> Result<(), Error> {
-        let docker = self.discovery_type.docker_client.get().ok_or_else(|| anyhow!("Docker client unavailable"))?;
+        let docker = self
+            .discovery_type
+            .docker_client
+            .get()
+            .ok_or_else(|| anyhow!("Docker client unavailable"))?;
 
-        let gateway_ips: Vec<IpAddr> = docker.list_networks(None::<ListNetworksOptions>).await?
+        let gateway_ips: Vec<IpAddr> = docker
+            .list_networks(None::<ListNetworksOptions>)
+            .await?
             .iter()
             .filter_map(|n| {
                 if let Some(ipam) = &n.ipam {
                     if let Some(config) = &ipam.config {
-                        return Some(config.iter().filter_map(|c| c.gateway.as_ref()).filter_map(|g| g.parse::<IpAddr>().ok()).collect::<Vec<IpAddr>>());
+                        return Some(
+                            config
+                                .iter()
+                                .filter_map(|c| c.gateway.as_ref())
+                                .filter_map(|g| g.parse::<IpAddr>().ok())
+                                .collect::<Vec<IpAddr>>(),
+                        );
                     }
                 }
                 None
@@ -131,13 +155,14 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<DockerScanDiscovery> {
             .flatten()
             .collect();
 
-        self.as_ref().gateway_ips.set(gateway_ips)
+        self.as_ref()
+            .gateway_ips
+            .set(gateway_ips)
             .map_err(|_| anyhow!("Failed to set gateway_ips"))?;
         Ok(())
     }
 
     async fn discover_create_subnets(&self) -> Result<Vec<Subnet>, Error> {
-
         let session_info = self
             .service
             .session_info
@@ -157,22 +182,23 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<DockerScanDiscovery> {
 impl DiscoveryHandler<DockerScanDiscovery> {
     /// Create a new Docker discovery instance connecting to a remote Docker daemon
     pub async fn new_local_docker_client(&self) -> Result<Docker, Error> {
-        
         tracing::debug!("Connecting to Docker daemon");
 
-        let client = Docker::connect_with_local_defaults().map_err(|e| anyhow::anyhow!("Failed to connect to Docker: {}", e))?;
+        let client = Docker::connect_with_local_defaults()
+            .map_err(|e| anyhow::anyhow!("Failed to connect to Docker: {}", e))?;
 
         client.ping().await?;
 
         Ok(client)
     }
 
-    pub async fn get_containers_to_scan(
-        &self,
-    ) -> Result<Vec<ContainerSummary>, Error> {
-        
-        let docker = self.discovery_type.docker_client.get().ok_or_else(|| anyhow!("Docker client unavailable"))?;
-        
+    pub async fn get_containers_to_scan(&self) -> Result<Vec<ContainerSummary>, Error> {
+        let docker = self
+            .discovery_type
+            .docker_client
+            .get()
+            .ok_or_else(|| anyhow!("Docker client unavailable"))?;
+
         docker
             .list_containers(None::<ListContainersOptions>)
             .await
@@ -180,8 +206,11 @@ impl DiscoveryHandler<DockerScanDiscovery> {
     }
 
     pub async fn get_subnets_from_docker_networks(&self, daemon_id: Uuid) -> Result<Vec<Subnet>> {
-
-        let docker = self.discovery_type.docker_client.get().ok_or_else(|| anyhow!("Docker client unavailable"))?;
+        let docker = self
+            .discovery_type
+            .docker_client
+            .get()
+            .ok_or_else(|| anyhow!("Docker client unavailable"))?;
 
         let subnets: Vec<Subnet> = docker
             .list_networks(None::<ListNetworksOptions>)
@@ -198,7 +227,7 @@ impl DiscoveryHandler<DockerScanDiscovery> {
                     .filter_map(|c| {
                         if let Some(cidr) = &c.subnet {
                             return Some(Subnet::new(SubnetBase {
-                                cidr: IpCidr::from_str(&cidr).ok()?,
+                                cidr: IpCidr::from_str(cidr).ok()?,
                                 description: None,
                                 name: network_name.clone(),
                                 subnet_type: SubnetType::DockerBridge,
@@ -207,7 +236,7 @@ impl DiscoveryHandler<DockerScanDiscovery> {
                                 dns_resolvers: Vec::new(),
                                 gateways: Vec::new(),
                                 reverse_proxies: Vec::new(),
-                            }))
+                            }));
                         }
                         None
                     })
@@ -217,9 +246,15 @@ impl DiscoveryHandler<DockerScanDiscovery> {
 
         Ok(subnets)
     }
-    
-    pub async fn get_containers_and_summaries(&self) -> Result<Vec<(ContainerInspectResponse, ContainerSummary)>, Error> {
-        let docker = self.discovery_type.docker_client.get().ok_or_else(|| anyhow!("Docker client unavailable"))?;
+
+    pub async fn get_containers_and_summaries(
+        &self,
+    ) -> Result<Vec<(ContainerInspectResponse, ContainerSummary)>, Error> {
+        let docker = self
+            .discovery_type
+            .docker_client
+            .get()
+            .ok_or_else(|| anyhow!("Docker client unavailable"))?;
 
         let container_summaries = self.get_containers_to_scan().await?;
 
@@ -227,10 +262,7 @@ impl DiscoveryHandler<DockerScanDiscovery> {
             .iter()
             .filter_map(|c| {
                 if let Some(id) = &c.id {
-                    return Some(
-                        docker
-                            .inspect_container(id, None::<InspectContainerOptions>),
-                    );
+                    return Some(docker.inspect_container(id, None::<InspectContainerOptions>));
                 }
                 None
             })
@@ -239,10 +271,12 @@ impl DiscoveryHandler<DockerScanDiscovery> {
         let inspected_containers: Vec<ContainerInspectResponse> =
             try_join_all(containers_to_inspect).await?;
 
-        Ok(inspected_containers.into_iter().zip(container_summaries).collect())
-
+        Ok(inspected_containers
+            .into_iter()
+            .zip(container_summaries)
+            .collect())
     }
-    
+
     pub fn get_services_from_container(
         &self,
         host: &mut Host,
@@ -250,11 +284,10 @@ impl DiscoveryHandler<DockerScanDiscovery> {
         containers: Vec<(ContainerInspectResponse, ContainerSummary)>,
         _cancel: CancellationToken,
     ) -> Vec<Service> {
-
         containers
             .into_iter()
             .flat_map(|(container, container_summary)| {
-                
+
                 if container.id != container_summary.id {
                     tracing::warn!("Container inspection failure; inspected container does not match container summary");
                     return vec!()
@@ -264,8 +297,7 @@ impl DiscoveryHandler<DockerScanDiscovery> {
 
                 let host_ports: Vec<Port> = host_ip_to_own_ports
                     .values()
-                    .into_iter()
-                    .flat_map(|p| p.into_iter().map(|pb| Port::new(pb.clone())))
+                    .flat_map(|p| p.iter().map(|pb| Port::new(pb.clone())))
                     .dedup_by(|x,y| x.base == y.base)
                     .collect();
 
@@ -276,10 +308,10 @@ impl DiscoveryHandler<DockerScanDiscovery> {
                     let services: Vec<Service> = interfaces_and_ports
                         .iter()
                         .flat_map(|(_host_ports, container_ports, interface, subnet)| {
-                                                    
+
                             host.base.interfaces.push(interface.clone());
-    
-                            let mut services = self.discover_host_services(host, interface, &container_ports, &vec!(), subnet, &false).unwrap_or(vec!());
+
+                            let mut services = self.discover_host_services(host, interface, container_ports, &[], subnet, &false).unwrap_or(vec!());
 
                             // Add bindings for host ports
                             services.iter_mut().for_each(|s| {
@@ -317,111 +349,133 @@ impl DiscoveryHandler<DockerScanDiscovery> {
 
                     return services
                 }
-                      
-                vec!()    
+
+                vec!()
             })
             .collect()
-
     }
 
     fn get_ports_from_container_summary(
-        &self, 
-        container_summary: ContainerSummary
-    ) -> (HashMap<IpAddr, Vec<PortBase>>, HashMap<IpAddr, Vec<PortBase>>, HashMap<PortBase, Vec<(PortBase, IpAddr)>>) {
-
-        let mut host_ip_to_own_ports: HashMap<IpAddr, Vec<PortBase>> = HashMap::new();
-        let mut host_ip_to_container_ports: HashMap<IpAddr, Vec<PortBase>> = HashMap::new();
-        let mut container_port_to_host_port_and_ip: HashMap<PortBase, Vec<(PortBase, IpAddr)>> = HashMap::new();
+        &self,
+        container_summary: ContainerSummary,
+    ) -> (IpPortHashMap, IpPortHashMap, ContainerPortToHostPortMap) {
+        let mut host_ip_to_own_ports: IpPortHashMap = HashMap::new();
+        let mut host_ip_to_container_ports: IpPortHashMap = HashMap::new();
+        let mut container_port_to_host_port_and_ip: ContainerPortToHostPortMap = HashMap::new();
 
         if let Some(ports) = &container_summary.ports {
-            ports
-                .iter()
-                .for_each(|p| {
-                    let ip = p.ip.clone().unwrap_or_default().parse::<IpAddr>().ok();
+            ports.iter().for_each(|p| {
+                let ip = p.ip.clone().unwrap_or_default().parse::<IpAddr>().ok();
 
-                    match (p.typ, ip) {
-                        (Some(port_type @ (PortTypeEnum::TCP | PortTypeEnum::UDP)), Some(ip)) => {
-                            let private_port = match port_type {
-                                PortTypeEnum::TCP => PortBase::new_tcp(p.private_port),
-                                PortTypeEnum::UDP => PortBase::new_udp(p.private_port),
-                                _ => unreachable!("Already matched TCP/UDP in outer pattern"),
-                            };
+                if let (Some(port_type @ (PortTypeEnum::TCP | PortTypeEnum::UDP)), Some(ip)) =
+                    (p.typ, ip)
+                {
+                    let private_port = match port_type {
+                        PortTypeEnum::TCP => PortBase::new_tcp(p.private_port),
+                        PortTypeEnum::UDP => PortBase::new_udp(p.private_port),
+                        _ => unreachable!("Already matched TCP/UDP in outer pattern"),
+                    };
 
-                            host_ip_to_container_ports
-                                .entry(ip)
-                                .or_insert_with(Vec::new)
-                                .push(private_port.clone());
+                    host_ip_to_container_ports
+                        .entry(ip)
+                        .or_default()
+                        .push(private_port.clone());
 
-                            if let Some(public) = p.public_port {
-                                let public_port = match port_type {
-                                    PortTypeEnum::TCP => PortBase::new_tcp(public),
-                                    PortTypeEnum::UDP => PortBase::new_udp(public),
-                                    _ => unreachable!("Already matched TCP/UDP in outer pattern"),
-                                };
-                                
-                                host_ip_to_own_ports
-                                    .entry(ip)
-                                    .or_insert_with(Vec::new)
-                                    .push(public_port.clone());
-                                
-                                container_port_to_host_port_and_ip
-                                    .entry(private_port)
-                                    .or_insert_with(Vec::new)
-                                    .push((public_port, ip));
-                            }
-                        }
-                        _ => ()
+                    if let Some(public) = p.public_port {
+                        let public_port = match port_type {
+                            PortTypeEnum::TCP => PortBase::new_tcp(public),
+                            PortTypeEnum::UDP => PortBase::new_udp(public),
+                            _ => unreachable!("Already matched TCP/UDP in outer pattern"),
+                        };
+
+                        host_ip_to_own_ports
+                            .entry(ip)
+                            .or_default()
+                            .push(public_port.clone());
+
+                        container_port_to_host_port_and_ip
+                            .entry(private_port)
+                            .or_default()
+                            .push((public_port, ip));
                     }
-                });
-            
-            return (host_ip_to_own_ports, host_ip_to_container_ports, container_port_to_host_port_and_ip)
+                }
+            });
+
+            return (
+                host_ip_to_own_ports,
+                host_ip_to_container_ports,
+                container_port_to_host_port_and_ip,
+            );
         };
 
-        (host_ip_to_own_ports, host_ip_to_container_ports, container_port_to_host_port_and_ip)
+        (
+            host_ip_to_own_ports,
+            host_ip_to_container_ports,
+            container_port_to_host_port_and_ip,
+        )
     }
 
     fn get_interfaces_from_container(
-        &self, 
-        container: &ContainerInspectResponse, 
-        subnets: &[Subnet], 
-        host_ip_to_own_ports: &HashMap<IpAddr, Vec<PortBase>>, 
-        host_ip_to_container_ports: &HashMap<IpAddr, Vec<PortBase>>
-    ) -> Option<Vec<(Vec<PortBase>, Vec<PortBase>, Interface, Subnet)>> {
+        &self,
+        container: &ContainerInspectResponse,
+        subnets: &[Subnet],
+        host_ip_to_own_ports: &IpPortHashMap,
+        host_ip_to_container_ports: &IpPortHashMap,
+    ) -> Option<Vec<ContainerDiscoveryInformation>> {
         if let Some(network_settings) = &container.network_settings {
             if let Some(networks) = &network_settings.networks {
-                
-                let ports_and_interfaces: Vec<(Vec<PortBase>, Vec<PortBase>, Interface, Subnet)> = networks
+                let ports_and_interfaces: Vec<ContainerDiscoveryInformation> = networks
                     .iter()
                     .filter_map(|(network_name, endpoint)| {
-
                         // Parse interface if IP
                         if let Some(ip_string) = &endpoint.ip_address {
                             let ip_address = ip_string.parse::<IpAddr>().ok();
                             if let Some(ip_address) = ip_address {
-                                if let Some(subnet) = subnets.iter().find(|s| s.base.cidr.contains(&ip_address)) {
+                                if let Some(subnet) =
+                                    subnets.iter().find(|s| s.base.cidr.contains(&ip_address))
+                                {
                                     // Parse MAC address
-                                    let mac_address = if let Some(mac_string) = &endpoint.mac_address {
-                                        mac_string.parse::<MacAddress>().ok()
-                                    } else {
-                                        None
-                                    };
+                                    let mac_address =
+                                        if let Some(mac_string) = &endpoint.mac_address {
+                                            mac_string.parse::<MacAddress>().ok()
+                                        } else {
+                                            None
+                                        };
 
-                                    let host_ports_on_interface = host_ip_to_own_ports.get(&ip_address).cloned().unwrap_or(Vec::new());
-                                    let container_ports_on_interface = host_ip_to_container_ports.get(&ip_address).cloned().unwrap_or(Vec::new());
+                                    let host_ports_on_interface = host_ip_to_own_ports
+                                        .get(&ip_address)
+                                        .cloned()
+                                        .unwrap_or(Vec::new());
+                                    let container_ports_on_interface = host_ip_to_container_ports
+                                        .get(&ip_address)
+                                        .cloned()
+                                        .unwrap_or(Vec::new());
 
-                                    let host_ports_on_all_interfaces = host_ip_to_own_ports.get(&ALL_INTERFACES_IP).cloned().unwrap_or(Vec::new());
-                                    let container_ports_on_all_interfaces = host_ip_to_container_ports.get(&ALL_INTERFACES_IP).cloned().unwrap_or(Vec::new());
+                                    let host_ports_on_all_interfaces = host_ip_to_own_ports
+                                        .get(&ALL_INTERFACES_IP)
+                                        .cloned()
+                                        .unwrap_or(Vec::new());
+                                    let container_ports_on_all_interfaces =
+                                        host_ip_to_container_ports
+                                            .get(&ALL_INTERFACES_IP)
+                                            .cloned()
+                                            .unwrap_or(Vec::new());
 
                                     return Some((
-                                        [host_ports_on_interface, host_ports_on_all_interfaces].concat(),
-                                        [container_ports_on_interface, container_ports_on_all_interfaces].concat(),
-                                        Interface::new(InterfaceBase { 
-                                            subnet_id: subnet.id, 
-                                            ip_address, 
-                                            mac_address, 
-                                            name: Some(network_name.to_owned())
+                                        [host_ports_on_interface, host_ports_on_all_interfaces]
+                                            .concat(),
+                                        [
+                                            container_ports_on_interface,
+                                            container_ports_on_all_interfaces,
+                                        ]
+                                        .concat(),
+                                        Interface::new(InterfaceBase {
+                                            subnet_id: subnet.id,
+                                            ip_address,
+                                            mac_address,
+                                            name: Some(network_name.to_owned()),
                                         }),
-                                        subnet.clone()
+                                        subnet.clone(),
                                     ));
                                 }
                             }

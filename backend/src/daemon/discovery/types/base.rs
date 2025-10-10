@@ -80,5 +80,5 @@ pub struct ProcessHostParams {
     pub interface: Interface,
     pub open_ports: Vec<PortBase>,
     pub endpoint_responses: Vec<EndpointResponse>,
-    pub host_has_docker_client: bool
+    pub host_has_docker_client: bool,
 }

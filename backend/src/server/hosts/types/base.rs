@@ -122,7 +122,7 @@ impl Host {
     pub fn get_interface(&self, interface_id: &Option<Uuid>) -> Option<&Interface> {
         match interface_id {
             Some(id) => self.base.interfaces.iter().find(|i| &i.id == id),
-            None => None
+            None => None,
         }
     }
 

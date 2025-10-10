@@ -3,11 +3,14 @@ use std::{
     sync::{atomic::AtomicUsize, Arc, OnceLock},
 };
 
+use crate::{
+    daemon::discovery::manager::DaemonDiscoverySessionManager,
+    server::discovery::types::api::InitiateDiscoveryRequest,
+};
 use anyhow::{anyhow, Error};
-use axum::{async_trait};
+use axum::async_trait;
 use chrono::{DateTime, Utc};
 use tokio_util::sync::CancellationToken;
-use crate::{daemon::discovery::manager::DaemonDiscoverySessionManager, server::discovery::types::api::InitiateDiscoveryRequest};
 use uuid::Uuid;
 
 use crate::{
@@ -37,7 +40,7 @@ use crate::{
                 endpoints::EndpointResponse,
             },
         },
-        shared::types::{api::{ApiResponse}, metadata::HasId},
+        shared::types::{api::ApiResponse, metadata::HasId},
         subnets::types::base::Subnet,
     },
 };
@@ -49,21 +52,28 @@ pub struct DiscoveryHandler<T> {
 }
 
 impl<T> DiscoveryHandler<T> {
-    pub fn new(service: Arc<DaemonDiscoveryService>, manager: Arc<DaemonDiscoverySessionManager>, discovery_type: T) -> Self {
+    pub fn new(
+        service: Arc<DaemonDiscoveryService>,
+        manager: Arc<DaemonDiscoverySessionManager>,
+        discovery_type: T,
+    ) -> Self {
         Self {
             service,
             discovery_type,
-            manager
+            manager,
         }
     }
 }
 
-impl<T> DiscoveryHandler<T> 
-where 
+impl<T> DiscoveryHandler<T>
+where
     T: 'static,
-    Self: DiscoversNetworkedEntities
+    Self: DiscoversNetworkedEntities,
 {
-    pub async fn discover_on_network(self: Arc<Self>, request: DaemonDiscoveryRequest) -> Result<(), Error> {
+    pub async fn discover_on_network(
+        self: Arc<Self>,
+        request: DaemonDiscoveryRequest,
+    ) -> Result<(), Error> {
         if self.manager.is_discovery_running().await {
             Err(anyhow!("Discovery session already running"))
         } else {
@@ -74,7 +84,9 @@ where
 
             let inner_manager = self.manager.clone();
             let handle = tokio::spawn(async move {
-                match handler.start_discovery_session(request_clone, cancel_token).await
+                match handler
+                    .start_discovery_session(request_clone, cancel_token)
+                    .await
                 {
                     Ok(()) => {
                         tracing::info!("Discovery completed successfully");
@@ -153,13 +165,16 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
             request.discovery_type,
             request.session_id
         );
-        self.as_ref().session_info.set(DiscoverySessionInfo {
-            total_to_scan,
-            discovery_type: request.discovery_type,
-            session_id: request.session_id,
-            daemon_id,
-            started_at: Some(started_at),
-        }).map_err(|_| anyhow!("Failed to set session info"))?;
+        self.as_ref()
+            .session_info
+            .set(DiscoverySessionInfo {
+                total_to_scan,
+                discovery_type: request.discovery_type,
+                session_id: request.session_id,
+                daemon_id,
+                started_at: Some(started_at),
+            })
+            .map_err(|_| anyhow!("Failed to set session info"))?;
 
         Ok(())
     }
@@ -171,7 +186,11 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
     ) -> Result<(), Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
 
-        tracing::info!("Starting {} discovery session {}", request.discovery_type, request.session_id);
+        tracing::info!(
+            "Starting {} discovery session {}",
+            request.discovery_type,
+            request.session_id
+        );
 
         self.set_gateway_ips().await?;
         self.set_discovery_state(total_to_scan, request, daemon_id, Utc::now())?;
@@ -269,7 +288,7 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
             interface,
             open_ports,
             endpoint_responses,
-            host_has_docker_client
+            host_has_docker_client,
         } = params;
 
         if open_ports.is_empty() && endpoint_responses.is_empty() {
@@ -295,15 +314,14 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
             source: EntitySource::Discovery(daemon_id),
         });
 
-        let services = self
-            .discover_host_services(
-                &mut host,
-                &interface,
-                &open_ports,
-                &endpoint_responses,
-                &subnet,
-                &host_has_docker_client
-            )?;
+        let services = self.discover_host_services(
+            &mut host,
+            &interface,
+            &open_ports,
+            &endpoint_responses,
+            &subnet,
+            &host_has_docker_client,
+        )?;
 
         tracing::info!("Processed host for host {}", host_ip);
         Ok(Some((host, services)))
@@ -316,7 +334,7 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
         open_ports: &[PortBase],
         endpoint_responses: &[EndpointResponse],
         subnet: &Subnet,
-        host_has_docker_client: &bool
+        host_has_docker_client: &bool,
     ) -> Result<Vec<Service>, Error> {
         let gateway_ips = self
             .as_ref()
@@ -356,16 +374,16 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
                 Service::from_discovery(ServiceFromDiscoveryParams {
                     service_definition,
                     ip: &interface.base.ip_address,
-                    open_ports: &open_ports,
-                    endpoint_responses: &endpoint_responses,
-                    subnet: &subnet,
+                    open_ports,
+                    endpoint_responses,
+                    subnet,
                     mac_address: &interface.base.mac_address,
                     host_id: &host.id,
                     l3_interface_bound,
                     interface_id: &interface.id,
                     gateway_ips,
                     matched_service_definitions: &matched_service_definitions,
-                    host_has_docker_client: &host_has_docker_client
+                    host_has_docker_client,
                 })
             {
                 if service.base.service_definition.layer() == BindingDiscriminants::Layer3 {
@@ -425,8 +443,12 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
         Ok(services)
     }
 
-    async fn periodic_scan_update(&self, frequency: usize, last_reported_scanned: usize, last_reported_discovered: usize) -> Result<(usize, usize), Error> {
-
+    async fn periodic_scan_update(
+        &self,
+        frequency: usize,
+        last_reported_scanned: usize,
+        last_reported_discovered: usize,
+    ) -> Result<(usize, usize), Error> {
         let scanned_count = self.as_ref().scanned_count.clone();
         let discovered_count = self.as_ref().discovered_count.clone();
 
@@ -443,7 +465,6 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
             .await?;
 
             return Ok((current_scanned, current_discovered));
-            
         }
 
         Ok((last_reported_scanned, last_reported_discovered))
@@ -488,8 +509,7 @@ pub trait InitiatesOwnDiscovery: AsRef<DaemonDiscoveryService> + Send + Sync {
         tracing::info!("Initiating discovery");
 
         let url = format!("{}/api/discovery/daemon-initiate", server_target);
-        tracing::info!("Initiating discovery at URL: {}", url);  // Add this line
-
+        tracing::info!("Initiating discovery at URL: {}", url); // Add this line
 
         let response = self
             .as_ref()

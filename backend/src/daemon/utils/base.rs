@@ -145,7 +145,7 @@ pub trait DaemonUtils: NetworkUtils {
 
         // Check for docker connection
         // Only local docker detection using sockets is supported at the moment
-        let docker_ok = false;  //self.scan_docker_socket(cancel).await?;
+        let docker_ok = false; //self.scan_docker_socket(cancel).await?;
 
         Ok((open_ports, endpoint_responses, docker_ok))
     }
@@ -251,7 +251,6 @@ pub trait DaemonUtils: NetworkUtils {
     }
 
     async fn scan_docker_socket(&self) -> Result<bool, Error> {
-
         match Docker::connect_with_local_defaults() {
             Ok(docker) => {
                 // Actually verify it's a Docker daemon by pinging it

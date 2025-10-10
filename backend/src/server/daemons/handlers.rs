@@ -1,9 +1,7 @@
 use crate::server::{
     config::AppState,
     daemons::types::{
-        api::{
-            DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse,
-        },
+        api::{DaemonRegistrationRequest, DaemonRegistrationResponse, DaemonResponse},
         base::{Daemon, DaemonBase},
     },
     shared::types::api::{ApiError, ApiResponse, ApiResult},

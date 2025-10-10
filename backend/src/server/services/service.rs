@@ -47,7 +47,6 @@ impl ServiceService {
     }
 
     pub async fn create_service(&self, service: Service) -> Result<Service> {
-
         let existing_services = self.get_services_for_host(&service.base.host_id).await?;
 
         let service_from_storage = match existing_services.into_iter().find(|existing: &Service| {
@@ -336,24 +335,21 @@ impl ServiceService {
                             None
                         };
 
-                        let new_interface: Option<&Interface> = if let Some(interface) = original_interface {
-                            new_host
-                                .base
-                                .interfaces
-                                .iter()
-                                .find(|i| *i == interface)
-                        } else {
-                            None
-                        };
+                        let new_interface: Option<&Interface> =
+                            if let Some(interface) = original_interface {
+                                new_host.base.interfaces.iter().find(|i| *i == interface)
+                            } else {
+                                None
+                            };
 
                         match (new_port, new_interface) {
                             (Some(new_port), Some(new_interface)) => {
                                 return Some(Binding::new_l4(new_port.id, Some(new_interface.id)));
-                            },
-                            (Some(new_port), None) if b.interface_id() == None => {
+                            }
+                            (Some(new_port), None) if b.interface_id().is_none() => {
                                 return Some(Binding::new_l4(new_port.id, None));
-                            },
-                            _ => return None
+                            }
+                            _ => return None,
                         }
                     }
                 };
@@ -540,7 +536,10 @@ mod tests {
 
         // Create service in a group
         let mut svc = service(&host_obj.id);
-        let binding = Binding::new_l4(host_obj.base.ports[0].id, Some(host_obj.base.interfaces[0].id));
+        let binding = Binding::new_l4(
+            host_obj.base.ports[0].id,
+            Some(host_obj.base.interfaces[0].id),
+        );
         svc.base.bindings = vec![binding];
 
         let (_, created_svcs) = services

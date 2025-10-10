@@ -6,7 +6,9 @@
 		getId: (binding: Layer4Binding) => binding.id,
 		getLabel: (binding: Layer4Binding) => {
 			const port = getPortFromId(binding.port_id);
-			const iface = binding.interface_id ? getInterfaceFromId(binding.interface_id) : ALL_INTERFACES;
+			const iface = binding.interface_id
+				? getInterfaceFromId(binding.interface_id)
+				: ALL_INTERFACES;
 			const portFormatted = port ? formatPort(port) : 'Unknown Port';
 			const interfaceFormatted = iface ? formatInterface(iface) : 'Unknown Interface';
 			return interfaceFormatted + ' · ' + portFormatted;

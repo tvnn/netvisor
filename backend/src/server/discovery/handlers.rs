@@ -33,14 +33,13 @@ async fn receive_discovery_update(
     Ok(Json(ApiResponse::success(())))
 }
 
-
 /// Endpoint for daemon to initiate discovery
 async fn daemon_initiate_discovery(
     State(state): State<Arc<AppState>>,
     Json(request): Json<InitiateDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<Uuid>>> {
     tracing::info!("daemon_initiate_discovery handler called");
-    
+
     let daemon_service = &state.services.daemon_service;
 
     // Get the specified daemon
@@ -78,7 +77,6 @@ async fn daemon_initiate_discovery(
         })?;
 
     Ok(Json(ApiResponse::success(session_id)))
-
 }
 
 /// Endpoint for users to initiate discovery on a specific daemon

@@ -116,7 +116,7 @@ async fn main() -> anyhow::Result<()> {
         let discovery = DiscoveryHandler::new(
             state.services.discovery_service.clone(),
             state.services.discovery_manager.clone(),
-            SelfReportDiscovery::new(),
+            SelfReportDiscovery::default(),
         );
         discovery.run_self_report_discovery().await?;
 

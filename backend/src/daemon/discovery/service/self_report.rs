@@ -1,13 +1,20 @@
 use crate::{
-    daemon::discovery::service::{base::{CreatesDiscoveredEntities, DiscoveryHandler, InitiatesOwnDiscovery}, docker::DockerScanDiscovery},
+    daemon::discovery::service::{
+        base::{CreatesDiscoveredEntities, DiscoveryHandler, InitiatesOwnDiscovery},
+        docker::DockerScanDiscovery,
+    },
     server::{
-        daemons::types::api::{DaemonDiscoveryRequest, DiscoveryType}, discovery::types::base::EntitySource, hosts::types::{
+        daemons::types::api::{DaemonDiscoveryRequest, DiscoveryType},
+        discovery::types::base::EntitySource,
+        hosts::types::{
             interfaces::Interface,
             ports::{Port, PortBase},
-        }, services::{
+        },
+        services::{
             definitions::netvisor_daemon::NetvisorDaemon,
             types::{base::ServiceBase, bindings::Binding, definitions::ServiceDefinition},
-        }, utils::base::NetworkUtils
+        },
+        utils::base::NetworkUtils,
     },
 };
 use crate::{
@@ -24,24 +31,18 @@ use anyhow::{Error, Result};
 use futures::future::try_join_all;
 use std::{
     net::{IpAddr, Ipv4Addr},
-    result::Result::Ok, sync::Arc,
+    result::Result::Ok,
+    sync::Arc,
 };
 use uuid::Uuid;
 
+#[derive(Default)]
 pub struct SelfReportDiscovery {}
-
-impl SelfReportDiscovery {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
 
 impl CreatesDiscoveredEntities for DiscoveryHandler<SelfReportDiscovery> {}
 
 impl DiscoveryHandler<SelfReportDiscovery> {
-
     pub async fn run_self_report_docker_discovery(&self) -> Result<(), Error> {
-        
         let config_store = &self.as_ref().config_store;
         let utils = &self.as_ref().utils;
 
@@ -52,14 +53,14 @@ impl DiscoveryHandler<SelfReportDiscovery> {
             let docker_discovery = Arc::new(DiscoveryHandler::new(
                 self.service.clone(),
                 self.manager.clone(),
-            DockerScanDiscovery::new(host_id),
+                DockerScanDiscovery::new(host_id),
             ));
-            
+
             let session_id = docker_discovery.initiate_own_discovery().await?;
 
             let request = DaemonDiscoveryRequest {
                 session_id,
-                discovery_type: DiscoveryType::Docker{host_id: host_id}
+                discovery_type: DiscoveryType::Docker { host_id },
             };
 
             docker_discovery.discover_on_network(request).await?;
@@ -90,7 +91,6 @@ impl DiscoveryHandler<SelfReportDiscovery> {
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
         let created_subnets = try_join_all(subnet_futures).await?;
-        
 
         // Created subnets may differ from discovered if there are existing subnets with the same CIDR, so we need to update interface subnet_id references
         interfaces.iter_mut().for_each(|i| {

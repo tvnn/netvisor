@@ -146,10 +146,9 @@ impl Subnet {
         // Only add service relationships if the service has an interface binding on this subnet
         let has_interface_on_subnet = service.base.bindings.iter().any(|binding| {
             host.base.interfaces.iter().any(|interface| {
-
                 let interface_match = match binding.interface_id() {
                     Some(id) => interface.id == id,
-                    None => true // Listens on all interfaces
+                    None => true, // Listens on all interfaces
                 };
 
                 interface_match && interface.base.subnet_id == self.id
