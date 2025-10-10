@@ -207,7 +207,7 @@ jobs:
           echo "Waiting for daemon to create config file..."
           max_attempts=30
           attempt=0
-          until [ -f "./data/daemon-config/config.json" ] || [ $attempt -eq $max_attempts ]; do
+          until [ -f "./data/daemon_config/config.json" ] || [ $attempt -eq $max_attempts ]; do
             sleep 5
             attempt=$((attempt+1))
           done
@@ -233,11 +233,11 @@ jobs:
           fi
           
           # Copy daemon config
-          if [ -f "./data/daemon-config/config.json" ]; then
-            cp ./data/daemon-config/config.json ./backend/src/tests/daemon_config.json
+          if [ -f "./data/daemon_config/config.json" ]; then
+            cp ./data/daemon_config/config.json ./backend/src/tests/daemon_config.json
             echo "✓ Copied config.json to backend/src/tests/daemon_config.json"
           else
-            echo "⚠ config.json not found at ./data/daemon-config/config.json"
+            echo "⚠ config.json not found at ./data/daemon_config/config.json"
             exit 1
           fi
       
