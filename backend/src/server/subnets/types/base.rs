@@ -1,11 +1,8 @@
 use std::net::Ipv4Addr;
 
 use crate::server::discovery::types::base::EntitySource;
-use crate::server::services::types::bindings::{Binding, ServiceBinding};
+use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
-use crate::server::{
-    hosts::types::ports::PortBase, services::types::definitions::ServiceDefinitionExt,
-};
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
 use itertools::Itertools;
@@ -33,9 +30,6 @@ pub struct SubnetBase {
     #[validate(length(min = 1, max = 500))]
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
-    pub dns_resolvers: Vec<ServiceBinding>,
-    pub gateways: Vec<ServiceBinding>,
-    pub reverse_proxies: Vec<ServiceBinding>,
     pub hosts: Vec<Uuid>,
     pub subnet_type: SubnetType,
     pub source: EntitySource,
@@ -47,9 +41,6 @@ impl Default for SubnetBase {
             cidr: IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(127, 0, 0, 1), 24).unwrap()),
             name: "New Subnet".to_string(),
             description: None,
-            dns_resolvers: Vec::new(),
-            gateways: Vec::new(),
-            reverse_proxies: Vec::new(),
             hosts: Vec::new(),
             subnet_type: SubnetType::Unknown,
             source: EntitySource::Manual,
@@ -108,9 +99,6 @@ impl Subnet {
                     description: None,
                     name: cidr.to_string(),
                     subnet_type,
-                    dns_resolvers: Vec::new(),
-                    gateways: Vec::new(),
-                    reverse_proxies: Vec::new(),
                     hosts: Vec::new(),
                     source: EntitySource::Discovery(daemon_id),
                 }))
@@ -118,33 +106,8 @@ impl Subnet {
         }
     }
 
-    pub fn remove_service_relationships(&mut self, service: &Service) {
-        self.base.dns_resolvers = self
-            .base
-            .dns_resolvers
-            .iter()
-            .filter(|binding| binding.service_id != service.id)
-            .cloned()
-            .collect();
-        self.base.gateways = self
-            .base
-            .gateways
-            .iter()
-            .filter(|binding| binding.service_id != service.id)
-            .cloned()
-            .collect();
-        self.base.reverse_proxies = self
-            .base
-            .reverse_proxies
-            .iter()
-            .filter(|binding| binding.service_id != service.id)
-            .cloned()
-            .collect();
-    }
-
-    pub fn create_service_relationships(&mut self, service: &Service, host: &Host) {
-        // Only add service relationships if the service has an interface binding on this subnet
-        let has_interface_on_subnet = service.base.bindings.iter().any(|binding| {
+    pub fn interface_with_service(&self, host: &Host, service: &Service) -> bool {
+        service.base.bindings.iter().any(|binding| {
             host.base.interfaces.iter().any(|interface| {
                 let interface_match = match binding.interface_id() {
                     Some(id) => interface.id == id,
@@ -153,39 +116,64 @@ impl Subnet {
 
                 interface_match && interface.base.subnet_id == self.id
             })
-        });
+        })
+    }
 
-        if has_interface_on_subnet {
-            if service.base.service_definition.is_dns_resolver() {
-                let dns_port_bindings: Vec<ServiceBinding> = service
-                    .base
-                    .bindings
-                    .iter()
-                    .filter(|b| match b {
-                        Binding::Layer3 { .. } => false,
-                        Binding::Layer4 { port_id, .. } => {
-                            if let Some(port) = host.get_port(port_id) {
-                                return port.base == PortBase::DnsUdp
-                                    || port.base == PortBase::DnsTcp;
-                            }
-                            false
-                        }
-                    })
-                    .map(|b| ServiceBinding {
-                        binding_id: b.id(),
-                        service_id: service.id,
-                    })
-                    .collect();
+    pub fn get_dns_resolvers<'a>(
+        &'a self,
+        hosts: &'a [Host],
+        services: &'a [Service],
+    ) -> Vec<&'a Service> {
+        services
+            .iter()
+            .filter(|s| {
+                if let Some(host) = hosts.iter().find(|h| h.id == s.base.host_id) {
+                    return s.base.service_definition.is_dns_resolver()
+                        && self.interface_with_service(host, s)
+                        && self.base.hosts.contains(&s.base.host_id);
+                }
 
-                self.base.dns_resolvers.extend(dns_port_bindings);
-            }
-            if service.base.service_definition.is_gateway() {
-                self.base.gateways.extend(service.to_bindings())
-            }
-            if service.base.service_definition.is_reverse_proxy() {
-                self.base.reverse_proxies.extend(service.to_bindings())
-            }
-        }
+                false
+            })
+            .collect()
+    }
+
+    pub fn get_gateways<'a>(
+        &'a self,
+        hosts: &'a [Host],
+        services: &'a [Service],
+    ) -> Vec<&'a Service> {
+        services
+            .iter()
+            .filter(|s| {
+                if let Some(host) = hosts.iter().find(|h| h.id == s.base.host_id) {
+                    return s.base.service_definition.is_gateway()
+                        && self.interface_with_service(host, s)
+                        && self.base.hosts.contains(&s.base.host_id);
+                }
+
+                false
+            })
+            .collect()
+    }
+
+    pub fn get_reverse_proxies<'a>(
+        &'a self,
+        hosts: &'a [Host],
+        services: &'a [Service],
+    ) -> Vec<&'a Service> {
+        services
+            .iter()
+            .filter(|s| {
+                if let Some(host) = hosts.iter().find(|h| h.id == s.base.host_id) {
+                    return s.base.service_definition.is_reverse_proxy()
+                        && self.interface_with_service(host, s)
+                        && self.base.hosts.contains(&s.base.host_id);
+                }
+
+                false
+            })
+            .collect()
     }
 
     pub fn remove_host_relationship(&mut self, host: &Host) {

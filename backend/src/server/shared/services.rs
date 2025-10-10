@@ -25,7 +25,6 @@ impl ServiceFactory {
 
         let service_service = Arc::new(ServiceService::new(
             storage.services.clone(),
-            subnet_service.clone(),
             group_service.clone(),
         ));
 

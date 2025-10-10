@@ -2,6 +2,10 @@ import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import type { Subnet } from './types/base';
+import { getServicesForHost } from '../services/store';
+import { getInterfaceFromId } from '../hosts/store';
+import { serviceDefinitions } from '$lib/shared/stores/metadata';
+import type { Service } from '../services/types/base';
 
 export const subnets = writable<Subnet[]>([]);
 
@@ -57,10 +61,7 @@ export function createEmptySubnetFormData(): Subnet {
 		cidr: '',
 		description: '',
 		subnet_type: 'Unknown',
-		dns_resolvers: [],
-		gateways: [],
 		hosts: [],
-		reverse_proxies: [],
 		source: 'Manual'
 	};
 }
@@ -75,4 +76,22 @@ export function isContainerSubnet(id: string): Subnet | boolean {
 		return subnet.cidr == '0.0.0.0/0' && subnet.source == 'System';
 	}
 	return false;
+}
+
+export function getSubnetInfraServices(
+	subnet: Subnet,
+	infra_type_flag: 'is_dns_resolver' | 'is_gateway' | 'is_reverse_proxy'
+): Service[] {
+	return subnet.hosts.flatMap((h) => {
+		const services = getServicesForHost(h);
+
+		return services.filter((s) => {
+			return (
+				serviceDefinitions.getMetadata(s.service_definition)[infra_type_flag] &&
+				s.bindings.some(
+					(b) => b.interface_id && getInterfaceFromId(b.interface_id)?.subnet_id == subnet.id
+				)
+			);
+		});
+	});
 }

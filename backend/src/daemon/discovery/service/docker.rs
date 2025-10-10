@@ -233,9 +233,6 @@ impl DiscoveryHandler<DockerScanDiscovery> {
                                 subnet_type: SubnetType::DockerBridge,
                                 source: EntitySource::Discovery(daemon_id),
                                 hosts: Vec::new(),
-                                dns_resolvers: Vec::new(),
-                                gateways: Vec::new(),
-                                reverse_proxies: Vec::new(),
                             }));
                         }
                         None

@@ -63,9 +63,6 @@ pub fn subnet() -> Subnet {
         subnet_type: SubnetType::Lan,
         source: EntitySource::System,
         hosts: vec![],
-        dns_resolvers: vec![],
-        gateways: vec![],
-        reverse_proxies: vec![],
     })
 }
 

@@ -56,6 +56,7 @@ impl TopologyNodePlanner {
                 let (size, infra_width) = self.calculate_subnet_size(
                     *subnet_id,
                     children,
+                    hosts,
                     subnets,
                     services,
                     &mut child_nodes,
@@ -191,6 +192,7 @@ impl TopologyNodePlanner {
         &self,
         subnet_id: Uuid,
         children: &[SubnetChild],
+        hosts: &[Host],
         subnets: &[Subnet],
         services: &[Service],
         child_nodes: &mut Vec<Node>,
@@ -199,14 +201,11 @@ impl TopologyNodePlanner {
         let (infrastructure_children, regular_children) =
             if let Some(subnet) = subnets.iter().find(|s| s.id == subnet_id) {
                 let infrastructure_host_ids: Vec<Uuid> = subnet
-                    .base
-                    .dns_resolvers
+                    .get_dns_resolvers(hosts, services)
                     .iter()
-                    .chain(&subnet.base.reverse_proxies)
-                    .chain(&subnet.base.gateways)
-                    .map(|binding| binding.service_id)
-                    .filter_map(|service_id| services.iter().find(|s| s.id == service_id))
-                    .map(|s| s.base.host_id)
+                    .chain(&subnet.get_reverse_proxies(hosts, services))
+                    .chain(&subnet.get_gateways(hosts, services))
+                    .map(|service| service.base.host_id)
                     .collect();
 
                 let (infrastructure, regular): (Vec<SubnetChild>, Vec<SubnetChild>) = children

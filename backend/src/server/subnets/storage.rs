@@ -1,6 +1,5 @@
 use crate::server::{
     discovery::types::base::EntitySource,
-    services::types::bindings::ServiceBinding,
     subnets::types::base::{Subnet, SubnetBase, SubnetType},
 };
 use anyhow::{Error, Result};
@@ -33,9 +32,6 @@ impl SqliteSubnetStorage {
 impl SubnetStorage for SqliteSubnetStorage {
     async fn create(&self, subnet: &Subnet) -> Result<()> {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
-        let gateways_str = serde_json::to_string(&subnet.base.gateways)?;
-        let dns_resolvers_str = serde_json::to_string(&subnet.base.dns_resolvers)?;
-        let reverse_proxies_str = serde_json::to_string(&subnet.base.reverse_proxies)?;
         let hosts_str = serde_json::to_string(&subnet.base.hosts)?;
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
         let subnet_source_str = serde_json::to_string(&subnet.base.source)?;
@@ -43,9 +39,9 @@ impl SubnetStorage for SqliteSubnetStorage {
         sqlx::query(
             r#"
             INSERT INTO subnets (
-                id, name, description, cidr, hosts, dns_resolvers, gateways, 
-                reverse_proxies, subnet_type, source, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, name, description, cidr, hosts, 
+                subnet_type, source, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(blob_uuid::to_blob(&subnet.id))
@@ -53,9 +49,6 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(&subnet.base.description)
         .bind(&cidr_str)
         .bind(hosts_str)
-        .bind(dns_resolvers_str)
-        .bind(gateways_str)
-        .bind(reverse_proxies_str)
         .bind(subnet_type_str)
         .bind(subnet_source_str)
         .bind(subnet.created_at.to_rfc3339())
@@ -114,17 +107,14 @@ impl SubnetStorage for SqliteSubnetStorage {
     async fn update(&self, subnet: &Subnet) -> Result<()> {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
         let hosts_str = serde_json::to_string(&subnet.base.hosts)?;
-        let dns_resolvers_str = serde_json::to_string(&subnet.base.dns_resolvers)?;
-        let gateways_str = serde_json::to_string(&subnet.base.gateways)?;
-        let reverse_proxies_str = serde_json::to_string(&subnet.base.reverse_proxies)?;
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
         let subnet_source_str = serde_json::to_string(&subnet.base.source)?;
 
         sqlx::query(
             r#"
             UPDATE subnets SET 
-                name = ?, description = ?, cidr = ?, hosts = ?, dns_resolvers = ?, gateways = ?,
-                reverse_proxies = ?, subnet_type = ?, source = ?, updated_at = ?
+                name = ?, description = ?, cidr = ?, hosts = ?,
+                subnet_type = ?, source = ?, updated_at = ?
             WHERE id = ?
             "#,
         )
@@ -132,9 +122,6 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(&subnet.base.description)
         .bind(cidr_str)
         .bind(hosts_str)
-        .bind(dns_resolvers_str)
-        .bind(gateways_str)
-        .bind(reverse_proxies_str)
         .bind(subnet_type_str)
         .bind(subnet_source_str)
         .bind(subnet.updated_at.to_rfc3339())
@@ -161,14 +148,6 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet, Error> {
         .or(Err(Error::msg("Failed to deserialize cidr")))?;
     let hosts: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("hosts"))
         .or(Err(Error::msg("Failed to deserialize hosts")))?;
-    let dns_resolvers: Vec<ServiceBinding> =
-        serde_json::from_str(&row.get::<String, _>("dns_resolvers"))
-            .or(Err(Error::msg("Failed to deserialize dns_resolvers")))?;
-    let gateways: Vec<ServiceBinding> = serde_json::from_str(&row.get::<String, _>("gateways"))
-        .or(Err(Error::msg("Failed to deserialize gateways")))?;
-    let reverse_proxies: Vec<ServiceBinding> =
-        serde_json::from_str(&row.get::<String, _>("reverse_proxies"))
-            .or(Err(Error::msg("Failed to deserialize reverse_proxies")))?;
     let subnet_type: SubnetType = serde_json::from_str(&row.get::<String, _>("subnet_type"))
         .or(Err(Error::msg("Failed to deserialize subnet_type")))?;
     let source: EntitySource = serde_json::from_str(&row.get::<String, _>("source"))
@@ -188,10 +167,7 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet, Error> {
             description: row.get("description"),
             source,
             cidr,
-            dns_resolvers,
-            reverse_proxies,
             hosts,
-            gateways,
             subnet_type,
         },
     })

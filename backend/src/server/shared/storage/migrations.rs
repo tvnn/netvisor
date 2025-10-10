@@ -48,7 +48,6 @@ impl DatabaseMigrations {
 
         wan_subnet.create_host_relationship(&dns_host);
         wan_subnet.create_host_relationship(&web_host);
-        wan_subnet.create_service_relationships(&dns_service, &dns_host);
         remote_subnet.create_host_relationship(&remote_host);
 
         let host_storage = SqliteHostStorage::new(pool.clone());

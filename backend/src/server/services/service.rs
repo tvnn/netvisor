@@ -9,7 +9,6 @@ use crate::server::{
         types::{base::Service, bindings::Binding},
     },
     shared::types::metadata::TypeMetadataProvider,
-    subnets::service::SubnetService,
 };
 use anyhow::anyhow;
 use anyhow::{Error, Result};
@@ -19,25 +18,17 @@ use uuid::Uuid;
 
 pub struct ServiceService {
     storage: Arc<dyn ServiceStorage>,
-    subnet_service: Arc<SubnetService>,
     host_service: OnceLock<Arc<HostService>>,
     group_service: Arc<GroupService>,
-    subnet_update_lock: Arc<Mutex<()>>,
     group_update_lock: Arc<Mutex<()>>,
 }
 
 impl ServiceService {
-    pub fn new(
-        storage: Arc<dyn ServiceStorage>,
-        subnet_service: Arc<SubnetService>,
-        group_service: Arc<GroupService>,
-    ) -> Self {
+    pub fn new(storage: Arc<dyn ServiceStorage>, group_service: Arc<GroupService>) -> Self {
         Self {
             storage,
-            subnet_service,
             group_service,
             host_service: OnceLock::new(),
-            subnet_update_lock: Arc::new(Mutex::new(())),
             group_update_lock: Arc::new(Mutex::new(())),
         }
     }
@@ -107,8 +98,6 @@ impl ServiceService {
             }
             None => {
                 self.storage.create(&service).await?;
-                self.update_subnet_service_bindings(None, Some(&service))
-                    .await?;
                 tracing::info!(
                     "Created service {} for host {}",
                     service.base.service_definition.name(),
@@ -185,8 +174,6 @@ impl ServiceService {
 
         self.update_group_service_bindings(&current_service, Some(&service))
             .await?;
-        self.update_subnet_service_bindings(Some(&current_service), Some(&service))
-            .await?;
 
         service.updated_at = chrono::Utc::now();
 
@@ -234,67 +221,6 @@ impl ServiceService {
         });
 
         try_join_all(group_futures).await?;
-
-        Ok(())
-    }
-
-    pub async fn update_subnet_service_bindings(
-        &self,
-        current_service: Option<&Service>,
-        updates: Option<&Service>,
-    ) -> Result<(), Error> {
-        let host_service = self
-            .host_service
-            .get()
-            .ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
-
-        let host = match updates {
-            Some(updated_service) => Some(
-                host_service
-                    .get_host(&updated_service.base.host_id)
-                    .await?
-                    .ok_or_else(|| {
-                        anyhow::anyhow!(
-                            "Could not find host for service {}: {}",
-                            updated_service.base.name,
-                            updated_service.id
-                        )
-                    })?,
-            ),
-            None => None,
-        };
-
-        let _guard = self.subnet_update_lock.lock().await;
-
-        let subnets = self.subnet_service.get_all_subnets().await?;
-
-        let subnet_futures = subnets.into_iter().filter_map(|mut subnet| {
-            let initial_dns = subnet.base.dns_resolvers.clone();
-            let initial_gateways = subnet.base.gateways.clone();
-            let initial_reverse_proxies = subnet.base.reverse_proxies.clone();
-
-            if let Some(current) = current_service {
-                subnet.remove_service_relationships(current);
-            }
-
-            if let (Some(updated_service), Some(h)) = (updates, &host) {
-                subnet.create_service_relationships(updated_service, h);
-            }
-
-            let new_dns = subnet.base.dns_resolvers.clone();
-            let new_gateways = subnet.base.gateways.clone();
-            let new_reverse_proxies = subnet.base.reverse_proxies.clone();
-
-            if initial_dns != new_dns
-                || initial_gateways != new_gateways
-                || initial_reverse_proxies != new_reverse_proxies
-            {
-                return Some(self.subnet_service.update_subnet(subnet));
-            }
-            None
-        });
-
-        try_join_all(subnet_futures).await?;
 
         Ok(())
     }
@@ -370,8 +296,6 @@ impl ServiceService {
             .ok_or_else(|| anyhow::anyhow!("Service {} not found", id))?;
 
         self.update_group_service_bindings(&service, None).await?;
-        self.update_subnet_service_bindings(Some(&service), None)
-            .await?;
 
         self.storage.delete(id).await?;
         tracing::info!(
@@ -387,10 +311,7 @@ impl ServiceService {
 #[cfg(test)]
 mod tests {
     use crate::{
-        server::services::types::{
-            bindings::{Binding, ServiceBinding},
-            definitions::ServiceDefinitionExt,
-        },
+        server::services::types::bindings::{Binding, ServiceBinding},
         tests::*,
     };
 
@@ -447,77 +368,6 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(all_services.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_service_update_maintains_subnet_relationships() {
-        let (_, services) = test_services().await;
-
-        let subnet_obj = subnet();
-        let created_subnet = services
-            .subnet_service
-            .create_subnet(subnet_obj.clone())
-            .await
-            .unwrap();
-
-        let mut host_obj = host();
-        host_obj.base.interfaces = vec![interface(&created_subnet.id)];
-
-        // Create reverse proxy service (will add to subnet reverse proxies)
-        let reverse_proxy_def =
-            crate::server::services::definitions::ServiceDefinitionRegistry::find_by_id(
-                "Nginx Proxy Manager",
-            )
-            .unwrap();
-        let mut reverse_proxy_svc = service(&host_obj.id);
-        reverse_proxy_svc.base.service_definition = reverse_proxy_def;
-        reverse_proxy_svc.base.bindings = vec![Binding::new_l4(
-            host_obj.base.ports[0].id,
-            Some(host_obj.base.interfaces[0].id),
-        )];
-
-        // Create gateway service (will add to subnet gateways)
-        let gateway_def =
-            crate::server::services::definitions::ServiceDefinitionRegistry::find_by_id("Gateway")
-                .unwrap();
-        let mut gateway_svc = service(&host_obj.id);
-        gateway_svc.base.service_definition = gateway_def;
-        gateway_svc.base.bindings = vec![Binding::new_l3(host_obj.base.interfaces[0].id)];
-
-        let (_, created_svcs) = services
-            .host_service
-            .create_host_with_services(host_obj.clone(), vec![reverse_proxy_svc, gateway_svc])
-            .await
-            .unwrap();
-
-        // Subnet should have both gateway & reverse proxy relationships
-        let subnet_after = services
-            .subnet_service
-            .get_subnet(&created_subnet.id)
-            .await
-            .unwrap()
-            .unwrap();
-
-        println!("{:?}", subnet_after);
-
-        // Find which service is which by their definition
-        let reverse_proxy_svc = created_svcs
-            .iter()
-            .find(|s| s.base.service_definition.is_reverse_proxy())
-            .expect("Reverse proxy service not found");
-        let gateway_svc = created_svcs
-            .iter()
-            .find(|s| s.base.service_definition.is_gateway())
-            .expect("Gateway service not found");
-
-        assert!(!subnet_after.base.reverse_proxies.is_empty());
-        assert_eq!(
-            subnet_after.base.reverse_proxies[0].service_id,
-            reverse_proxy_svc.id
-        );
-
-        assert!(!subnet_after.base.gateways.is_empty());
-        assert_eq!(subnet_after.base.gateways[0].service_id, gateway_svc.id);
     }
 
     #[tokio::test]

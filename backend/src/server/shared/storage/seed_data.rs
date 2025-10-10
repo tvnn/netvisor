@@ -30,9 +30,6 @@ pub fn create_wan_subnet() -> Subnet {
        services running on the internet (e.g., public DNS servers, cloud services, etc.)."
                 .to_string(),
         ),
-        dns_resolvers: vec![],
-        gateways: vec![],
-        reverse_proxies: vec![],
         hosts: vec![],
         subnet_type: SubnetType::Internet,
         source: EntitySource::System,
@@ -53,9 +50,6 @@ pub fn create_remote_subnet() -> Subnet {
         friend's networks, public WiFi, etc.)."
                 .to_string(),
         ),
-        dns_resolvers: vec![],
-        gateways: vec![],
-        reverse_proxies: vec![],
         hosts: vec![],
         subnet_type: SubnetType::Remote,
         source: EntitySource::System,

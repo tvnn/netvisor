@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
-	import { hosts, serviceBindingToId } from '$lib/features/hosts/store';
+	import { hosts } from '$lib/features/hosts/store';
 	import { get } from 'svelte/store';
 	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
 	import { formatServiceAsHost } from '$lib/features/services/store';
-	import { isContainerSubnet } from '../store';
+	import { getSubnetInfraServices, isContainerSubnet } from '../store';
 	import type { Subnet } from '../types/base';
 
 	export let subnet: Subnet;
@@ -46,27 +46,27 @@
 			},
 			{
 				label: 'DNS Resolvers',
-				items: subnet.dns_resolvers.map((s) => ({
-					id: serviceBindingToId(s),
-					label: formatServiceAsHost(s.service_id),
+				items: getSubnetInfraServices(subnet, 'is_dns_resolver').map((s) => ({
+					id: s.id,
+					label: formatServiceAsHost(s.id),
 					color: entities.getColorString('Dns')
 				})),
 				emptyText: 'No DNS resolvers'
 			},
 			{
 				label: 'Gateways',
-				items: subnet.gateways.map((s) => ({
-					id: serviceBindingToId(s),
-					label: formatServiceAsHost(s.service_id),
+				items: getSubnetInfraServices(subnet, 'is_gateway').map((s) => ({
+					id: s.id,
+					label: formatServiceAsHost(s.id),
 					color: entities.getColorString('Gateway')
 				})),
 				emptyText: 'No gateways'
 			},
 			{
 				label: 'Reverse Proxies',
-				items: subnet.reverse_proxies.map((s) => ({
-					id: serviceBindingToId(s),
-					label: formatServiceAsHost(s.service_id),
+				items: getSubnetInfraServices(subnet, 'is_reverse_proxy').map((s) => ({
+					id: s.id,
+					label: formatServiceAsHost(s.id),
 					color: entities.getColorString('ReverseProxy')
 				})),
 				emptyText: 'No reverse proxies'
