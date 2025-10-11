@@ -1,11 +1,12 @@
 use crate::daemon::discovery::service::base::{
-    CreatesDiscoveredEntities, DiscoversNetworkedEntities, DiscoveryHandler,
+    CreatesDiscoveredEntities, DiscoversNetworkedEntities, DiscoveryHandler, CONCURRENT_SCANS,
 };
-use crate::daemon::discovery::types::base::{DiscoverySessionUpdate, ProcessHostParams};
+use crate::daemon::discovery::types::base::DiscoverySessionUpdate;
 use crate::server::hosts::types::{
     interfaces::{Interface, InterfaceBase},
     ports::PortBase,
 };
+use crate::server::services::types::base::ServiceDiscoveryBaselineParams;
 use crate::{
     daemon::utils::base::DaemonUtils,
     server::{
@@ -15,7 +16,6 @@ use crate::{
         subnets::types::base::{Subnet, SubnetType},
     },
 };
-use anyhow::anyhow;
 use anyhow::{Error, Result};
 use axum::async_trait;
 use cidr::IpCidr;
@@ -26,8 +26,6 @@ use futures::{
 use std::result::Result::Ok;
 use std::{net::IpAddr, sync::Arc};
 use tokio_util::sync::CancellationToken;
-
-const CONCURRENT_SCANS: usize = 15;
 
 #[derive(Default)]
 pub struct NetworkScanDiscovery {}
@@ -48,7 +46,7 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<NetworkScanDiscovery> {
             .map(|subnet| subnet.base.cidr.iter().count())
             .sum();
 
-        self.start_host_discovery(total_ips_across_subnets, request)
+        self.start_discovery(total_ips_across_subnets, request)
             .await?;
 
         let discovery_futures = subnets
@@ -57,19 +55,14 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<NetworkScanDiscovery> {
 
         let discovery_result = try_join_all(discovery_futures).await.map(|_| ());
 
-        self.finish_host_discovery(discovery_result, cancel.clone())
+        self.finish_discovery(discovery_result, cancel.clone())
             .await?;
 
         Ok(())
     }
 
-    async fn set_gateway_ips(&self) -> Result<(), Error> {
-        let gateway_ips = self.as_ref().utils.get_routing_table_gateway_ips().await?;
-        self.as_ref()
-            .gateway_ips
-            .set(gateway_ips)
-            .map_err(|_| anyhow!("Failed to set gateway_ips"))?;
-        Ok(())
+    async fn get_gateway_ips(&self) -> Result<Vec<IpAddr>, Error> {
+        self.as_ref().utils.get_routing_table_gateway_ips().await
     }
 
     async fn discover_create_subnets(&self) -> Result<Vec<Subnet>, Error> {
@@ -94,8 +87,11 @@ impl DiscoveryHandler<NetworkScanDiscovery> {
             subnet.base.cidr
         );
 
-        let scanned_count = self.as_ref().scanned_count.clone();
-        let discovered_count = self.as_ref().discovered_count.clone();
+        let session = self.as_ref().get_session().await?;
+
+        let scanned_count = session.scanned_count.clone();
+        let discovered_count: Arc<std::sync::atomic::AtomicUsize> =
+            session.discovered_count.clone();
 
         // Report initial progress
         self.report_discovery_update(DiscoverySessionUpdate::scanning(0, 0))
@@ -126,15 +122,17 @@ impl DiscoveryHandler<NetworkScanDiscovery> {
                     });
 
                     if let Ok(Some((host, services))) = self
-                        .process_host(ProcessHostParams {
-                            host_ip: ip,
+                        .process_host(
+                            ServiceDiscoveryBaselineParams {
+                                subnet: &subnet,
+                                interface: &interface,
+                                open_ports: &open_ports,
+                                endpoint_responses: &endpoint_responses,
+                                host_has_docker_client: &host_has_docker_client,
+                                docker_container_name: &None,
+                            },
                             hostname,
-                            subnet,
-                            interface,
-                            open_ports,
-                            endpoint_responses,
-                            host_has_docker_client,
-                        })
+                        )
                         .await
                     {
                         discovered_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);

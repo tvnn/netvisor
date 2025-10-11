@@ -1,14 +1,8 @@
-use std::net::IpAddr;
-
-use crate::server::hosts::types::interfaces::Interface;
-use crate::server::hosts::types::ports::PortBase;
-use crate::server::services::types::endpoints::EndpointResponse;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
-use crate::server::{daemons::types::api::DiscoveryType, subnets::types::base::Subnet};
+use crate::server::daemons::types::api::DiscoveryType;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum DiscoveryPhase {
@@ -63,22 +57,4 @@ impl std::fmt::Display for DiscoveryPhase {
             DiscoveryPhase::Finished => write!(f, "Session finished in server"),
         }
     }
-}
-
-pub struct HostScanParams<'a> {
-    pub subnet: &'a Subnet,
-    pub session_id: &'a Uuid,
-    pub daemon_id: &'a Uuid,
-    pub started_at: &'a DateTime<Utc>,
-    pub cancel: CancellationToken,
-}
-
-pub struct ProcessHostParams {
-    pub host_ip: IpAddr,
-    pub hostname: Option<String>,
-    pub subnet: Subnet,
-    pub interface: Interface,
-    pub open_ports: Vec<PortBase>,
-    pub endpoint_responses: Vec<EndpointResponse>,
-    pub host_has_docker_client: bool,
 }

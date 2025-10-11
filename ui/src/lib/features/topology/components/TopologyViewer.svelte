@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { writable } from 'svelte/store';
-	import { SvelteFlow, Controls, Background, BackgroundVariant } from '@xyflow/svelte';
+	import {
+		SvelteFlow,
+		Controls,
+		Background,
+		BackgroundVariant,
+		type EdgeMarkerType
+	} from '@xyflow/svelte';
 	import { type Node, type Edge } from '@xyflow/svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import { getDistanceToNode, getNextHandle, topology } from '../store';
@@ -73,6 +79,19 @@
 						let hostColorHelper = entities.getColorHelper('Host');
 
 						const dashArray = edgeMetadata.is_dashed ? 'stroke-dasharray: 5,5;' : '';
+						const markerStart = !edgeMetadata.has_start_marker
+							? undefined
+							: ({
+									type: 'arrow',
+									color: edgeColorHelper.rgb
+								} as EdgeMarkerType);
+						const markerEnd = !edgeMetadata.has_end_marker
+							? undefined
+							: ({
+									type: 'arrow',
+									color: edgeColorHelper.rgb
+								} as EdgeMarkerType);
+
 						const labelStyle =
 							edgeType === 'Interface'
 								? `background: ${twColorToRgba(hostColorHelper.bg)};
@@ -91,6 +110,8 @@
 							id: `edge-${index}`,
 							source: edgeData.source,
 							target: edgeData.target,
+							markerEnd,
+							markerStart,
 							sourceHandle: edgeData.source_handle.toString(),
 							targetHandle: edgeData.target_handle.toString(),
 							type: 'smoothstep',

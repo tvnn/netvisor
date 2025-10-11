@@ -26,6 +26,10 @@ struct Cli {
     #[arg(long)]
     log_level: Option<String>,
 
+    /// Override rust system log level
+    #[arg(long)]
+    rust_log: Option<String>,
+
     /// Override database path
     #[arg(long)]
     database_path: Option<String>,
@@ -40,6 +44,7 @@ impl From<Cli> for CliArgs {
         Self {
             port: cli.port,
             log_level: cli.log_level,
+            rust_log: cli.rust_log,
             database_path: cli.database_path,
             web_external_path: cli.web_external_path,
         }
@@ -59,7 +64,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize tracing
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(&config.log_level))
+        .with(tracing_subscriber::EnvFilter::new(format!(
+            "RUST_LOG=none,netvisor={}",
+            config.log_level
+        )))
         .with(tracing_subscriber::fmt::layer())
         .init();
 

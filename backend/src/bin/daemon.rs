@@ -101,7 +101,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize tracing
     tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(config.log_level))
+        .with(tracing_subscriber::EnvFilter::new(format!(
+            "RUST_LOG=none,netvisor={}",
+            config.log_level
+        )))
         .with(tracing_subscriber::fmt::layer())
         .init();
 

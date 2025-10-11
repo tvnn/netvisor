@@ -4,10 +4,12 @@
 
 	export let item: T;
 	export let displayComponent: EntityDisplayComponent<T>;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	export let context: Record<string, any> | undefined = undefined;
 
-	$: icon = displayComponent.getIcon?.(item);
-	$: tags = displayComponent.getTags?.(item) || [];
-	$: description = displayComponent.getDescription?.(item) || '';
+	$: icon = displayComponent.getIcon?.(item, context);
+	$: tags = displayComponent.getTags?.(item, context) || [];
+	$: description = displayComponent.getDescription?.(item, context) || '';
 </script>
 
 <div class="flex min-w-0 flex-1 items-center gap-3">
@@ -16,7 +18,7 @@
 		<div class="flex h-7 w-7 flex-shrink-0 items-center justify-center">
 			<svelte:component
 				this={icon}
-				class="h-5 w-5 {displayComponent.getIconColor?.(item) || 'text-gray-300'}"
+				class="h-5 w-5 {displayComponent.getIconColor?.(item, context) || 'text-gray-300'}"
 			/>
 		</div>
 	{/if}
@@ -24,7 +26,7 @@
 	<!-- Label and description -->
 	<div class="min-w-0 flex-1 text-left">
 		<div class="flex items-center gap-3">
-			<span class="block truncate">{displayComponent.getLabel(item)}</span>
+			<span class="block truncate">{displayComponent.getLabel(item, context)}</span>
 			<!-- Tags -->
 			{#if tags.length > 0}
 				<div class="flex gap-1">

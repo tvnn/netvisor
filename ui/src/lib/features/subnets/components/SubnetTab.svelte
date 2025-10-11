@@ -10,21 +10,14 @@
 	import { getServices } from '$lib/features/services/store';
 	import type { Subnet } from '../types/base';
 
-	let searchTerm = '';
 	let showSubnetEditor = false;
 	let editingSubnet: Subnet | null = null;
 
 	const loading = loadData([getSubnets, getHosts, getServices]);
 
-	$: filteredSubnets = $subnets.filter((subnet: Subnet) => {
-		const searchLower = searchTerm.toLowerCase();
-
-		return (
-			subnet.name.toLowerCase().includes(searchLower) ||
-			subnet.cidr.toLowerCase().includes(searchLower) ||
-			(subnet.description && subnet.description.toLowerCase().includes(searchLower))
-		);
-	});
+	$: sortedSubnets = [...$subnets].sort((a, b) =>
+		a.created_at.localeCompare(b.created_at, undefined, { sensitivity: 'base' })
+	);
 
 	function handleCreateSubnet() {
 		editingSubnet = null;
@@ -97,7 +90,7 @@
 	{:else}
 		<!-- Subnets grid -->
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{#each filteredSubnets as subnet (subnet.id)}
+			{#each sortedSubnets as subnet (subnet.id)}
 				<SubnetCard {subnet} onEdit={handleEditSubnet} onDelete={handleDeleteSubnet} />
 			{/each}
 		</div>

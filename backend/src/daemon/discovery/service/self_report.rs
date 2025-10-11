@@ -7,7 +7,7 @@ use crate::{
         daemons::types::api::{DaemonDiscoveryRequest, DiscoveryType},
         discovery::types::base::EntitySource,
         hosts::types::{
-            interfaces::Interface,
+            interfaces::{Interface, ALL_INTERFACES_IP},
             ports::{Port, PortBase},
         },
         services::{
@@ -79,16 +79,6 @@ impl DiscoveryHandler<SelfReportDiscovery> {
 
         let (mut interfaces, subnets) = utils.scan_interfaces(daemon_id).await?;
 
-        let daemon_bound_subnet_ids: Vec<Uuid> = if binding_address == "0.0.0.0" {
-            subnets.iter().map(|s| s.id).collect()
-        } else {
-            subnets
-                .iter()
-                .filter(|s| s.base.cidr.contains(&binding_ip))
-                .map(|s| s.id)
-                .collect()
-        };
-
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
         let created_subnets = try_join_all(subnet_futures).await?;
 
@@ -101,6 +91,16 @@ impl DiscoveryHandler<SelfReportDiscovery> {
                 i.base.subnet_id = subnet.id
             }
         });
+
+        let daemon_bound_subnet_ids: Vec<Uuid> = if binding_address == ALL_INTERFACES_IP.to_string() {
+            created_subnets.iter().map(|s| s.id).collect()
+        } else {
+            created_subnets
+                .iter()
+                .filter(|s| s.base.cidr.contains(&binding_ip))
+                .map(|s| s.id)
+                .collect()
+        };
 
         let own_port = Port::new(PortBase::new_tcp(config_store.get_port().await?));
         let own_port_id = own_port.id;

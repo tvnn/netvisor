@@ -56,14 +56,7 @@
 		formData.service_bindings = formData.service_bindings.filter((_, i) => i !== index);
 	}
 
-	function handleMoveUp(fromIndex: number, toIndex: number) {
-		const newBindings = [...formData.service_bindings];
-		const [movedBinding] = newBindings.splice(fromIndex, 1);
-		newBindings.splice(toIndex, 0, movedBinding);
-		formData.service_bindings = newBindings;
-	}
-
-	function handleMoveDown(fromIndex: number, toIndex: number) {
+	function handleReorder(fromIndex: number, toIndex: number) {
 		const newBindings = [...formData.service_bindings];
 		const [movedBinding] = newBindings.splice(fromIndex, 1);
 		newBindings.splice(toIndex, 0, movedBinding);
@@ -160,8 +153,8 @@
 								itemDisplayComponent={ServiceBindingDisplay}
 								onAdd={handleAdd}
 								onRemove={handleRemove}
-								onMoveUp={handleMoveUp}
-								onMoveDown={handleMoveDown}
+								onMoveUp={handleReorder}
+								onMoveDown={handleReorder}
 								onEdit={handleEdit}
 							/>
 						</div>

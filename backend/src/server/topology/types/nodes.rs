@@ -44,6 +44,7 @@ pub struct SubnetChild {
     pub size: SubnetChildNodeSize,
     pub primary_handle: Option<EdgeHandle>,
     pub anchor_count: usize,
+    pub should_relocate_handles: bool,
 }
 
 #[derive(Debug, Clone)]

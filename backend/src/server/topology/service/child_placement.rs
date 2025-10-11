@@ -1,52 +1,19 @@
 use itertools::Itertools;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::server::{
-    subnets::types::base::Subnet,
-    topology::types::{
-        base::{Ixy, NodeLayout, SubnetLayout, Uxy},
-        edges::EdgeHandle,
-        nodes::SubnetChild,
-    },
+use crate::server::topology::types::{
+    base::{NodeLayout, Uxy},
+    edges::EdgeHandle,
+    nodes::SubnetChild,
 };
 
-pub struct TopologyUtils {}
+pub struct ChildNodePlacement;
 
-impl Default for TopologyUtils {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl TopologyUtils {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    /// Figure out closest shape to square that can contain children
-    pub fn calculate_container_grid_dimensions(&self, children: usize) -> Uxy {
-        if children == 0 {
-            return Uxy { x: 1, y: 1 };
-        }
-
-        let x = (children as f64).sqrt().ceil() as usize;
-        let y = ((children as f64) / x as f64).ceil() as usize;
-        Uxy { x, y }
-    }
-
-    /// Calculate the coordinates of a child in a grid given its index
-    pub fn calculate_child_coordinates_in_grid(&self, grid: &Uxy, child_idx: usize) -> Uxy {
-        Uxy {
-            x: child_idx % grid.x,
-            y: ((child_idx / grid.x) as f64).floor() as usize,
-        }
-    }
-
-    // Calculate child positions using anchor-based layout within a subnet
+impl ChildNodePlacement {
+    /// Calculate child positions using anchor-based layout within a subnet
     /// Layout uses Top/Bottom/Left/Right sections with center for no-handle nodes
-    pub fn calculate_anchor_based_child_positions(
-        &self,
+    pub fn calculate_anchor_based_positions(
         children: &[SubnetChild],
         container_grid: &Uxy,
     ) -> Vec<Vec<(Uuid, NodeLayout)>> {
@@ -174,100 +141,5 @@ impl TopologyUtils {
         }
 
         rows
-    }
-
-    /// Calculate positions of subnets given layer values
-    pub fn calculate_subnet_grid_positions_by_layer(
-        &self,
-        subnets: &[Subnet],
-        layouts: &HashMap<Uuid, SubnetLayout>,
-    ) -> Vec<Vec<(Uuid, NodeLayout)>> {
-        // Group subnets by layer
-        let sorted: Vec<(&Subnet, &SubnetLayout)> = subnets
-            .iter()
-            .sorted_by_key(|s| {
-                (
-                    s.base.subnet_type.default_layer(),
-                    s.base.subnet_type.layer_priority(),
-                    s.base.name.clone(),
-                )
-            })
-            .filter_map(|s| {
-                if let Some(layout) = layouts.get(&s.id) {
-                    return Some((s, layout));
-                }
-                None
-            })
-            .collect();
-
-        let mut subnets_by_layer: BTreeMap<usize, Vec<(&Uuid, &SubnetLayout)>> = BTreeMap::new();
-        for (subnet, layout) in sorted {
-            subnets_by_layer
-                .entry(subnet.base.subnet_type.default_layer())
-                .or_default()
-                .push((&subnet.id, layout));
-        }
-
-        // Use enumerate to get sequential row numbers (collapsed, no gaps)
-        subnets_by_layer
-            .into_iter()
-            .enumerate() // This gives us 0, 1, 2... for actual rows
-            .map(|(row_index, (_layer, row))| {
-                row.into_iter()
-                    .enumerate()
-                    .map(|(y, (id, layout))| {
-                        (
-                            *id,
-                            NodeLayout {
-                                size: layout.size.clone(),
-                                grid_position: Uxy { x: row_index, y }, // Use sequential row index
-                            },
-                        )
-                    })
-                    .collect()
-            })
-            .collect()
-    }
-
-    /// Calculate the size of a container and positions of arbitrarily-sized children in that container
-    pub fn calculate_container_size(
-        &self,
-        rows: Vec<Vec<(Uuid, NodeLayout)>>,
-        padding: &Uxy,
-    ) -> (HashMap<Uuid, Ixy>, Uxy) {
-        let mut child_positions = HashMap::new();
-
-        let mut current_y = padding.y;
-        let mut max_x = 0;
-        let mut max_y = 0;
-
-        for row in rows {
-            if row.is_empty() {
-                continue;
-            }
-
-            let mut current_x = padding.x;
-            let mut max_height_in_row = 0;
-
-            for (id, layout) in row {
-                child_positions.insert(
-                    id,
-                    Ixy {
-                        x: current_x as isize,
-                        y: current_y as isize,
-                    },
-                );
-                current_x += layout.size.x + padding.x;
-                max_height_in_row = max_height_in_row.max(layout.size.y);
-            }
-
-            current_y += max_height_in_row + padding.y;
-            max_x = max_x.max(current_x);
-            max_y = max_y.max(current_y);
-        }
-
-        let container_size = Uxy { x: max_x, y: max_y };
-
-        (child_positions, container_size)
     }
 }

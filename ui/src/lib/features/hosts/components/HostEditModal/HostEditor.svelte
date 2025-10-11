@@ -206,7 +206,7 @@
 			{#if activeTab === 'ports'}
 				<div class="h-full">
 					<div class="relative flex-1">
-						<PortsDisplay bind:formData />
+						<PortsDisplay bind:formData currentServices={currentHostServices} />
 					</div>
 				</div>
 			{/if}

@@ -1,21 +1,23 @@
 use std::net::IpAddr;
 
-use crate::daemon::discovery::service::docker::DOCKER_PORT;
+use crate::{
+    daemon::discovery::service::docker::DOCKER_PORT,
+    server::services::types::base::{
+        Service, ServiceDiscoveryBaselineParams, ServiceDiscoveryParams,
+        ServiceDiscoveryStateParams,
+    },
+};
 use anyhow::Error;
-use mac_address::MacAddress;
 use mac_oui::Oui;
 
 use crate::server::{
     hosts::types::ports::{Port, PortBase},
-    services::types::{
-        definitions::ServiceDefinition,
-        endpoints::{Endpoint, EndpointResponse},
-    },
-    subnets::types::base::{Subnet, SubnetType},
+    services::types::endpoints::{Endpoint, EndpointResponse},
+    subnets::types::base::SubnetType,
 };
 
 #[derive(Debug, Clone)]
-pub enum Pattern {
+pub enum Pattern<'a> {
     /// Whether or not a specific port is open on the host
     Port(PortBase),
 
@@ -23,10 +25,13 @@ pub enum Pattern {
     Endpoint(EndpointResponse),
 
     /// Match any of the listed patterns
-    AnyOf(Vec<Pattern>),
+    AnyOf(Vec<Pattern<'a>>),
 
     /// Must match all of the listed patterns
-    AllOf(Vec<Pattern>),
+    AllOf(Vec<Pattern<'a>>),
+
+    /// Inverse of pattern
+    Not(&'a Pattern<'a>),
 
     /// Match if at least one port is open
     AnyPort(Vec<PortBase>),
@@ -40,14 +45,8 @@ pub enum Pattern {
     /// Whether the subnet that the host was found on matches a subnet type
     SubnetIsType(SubnetType),
 
-    /// Whether the subnet that the host was found on does not match a subnet type
-    SubnetIsNotType(SubnetType),
-
     /// Whether the host IP is found in the daemon's routing table. WARNING: Using this will automatically classify the service as a Layer3 service, and the service will only be able to bind to interfaces (ports and port bindings will be ignored)
     IsGateway,
-
-    /// Inverse of IsGateway
-    IsNotGateway,
 
     /// Whether the vendor derived from the mac address (https://gist.github.com/aallan/b4bb86db86079509e6159810ae9bd3e4) matches the provided str
     MacVendor(&'static str),
@@ -56,13 +55,19 @@ pub enum Pattern {
     HasAnyMatchedService,
 
     /// Whether any previously matched services meets a condition
-    AnyMatchedService(fn(&Box<dyn ServiceDefinition>) -> bool),
+    AnyMatchedService(fn(&Service) -> bool),
 
     /// Whether all previously matched services meet a condition
-    AllMatchedService(fn(&Box<dyn ServiceDefinition>) -> bool),
+    AllMatchedService(fn(&Service) -> bool),
+
+    /// Custom evaluation of discovery match params
+    Custom(fn(&ServiceDiscoveryParams) -> bool),
 
     /// Whether the host is running Docker and a Docker client connection can be established
-    Docker,
+    DockerClient,
+
+    /// Whether the host is a docker container
+    DockerContainer,
 
     /// No match pattern (only added manually or by the system)
     None,
@@ -103,32 +108,29 @@ impl Vendor {
     pub const UBIQUITI: &'static str = "Ubiquiti Networks Inc";
 }
 
-#[derive(Debug, Clone)]
-pub struct PatternParams<'a> {
-    pub open_ports: &'a [PortBase],
-    pub responses: &'a [EndpointResponse],
-    pub ip: &'a IpAddr,
-    pub subnet: &'a Subnet,
-    pub mac_address: &'a Option<MacAddress>,
-    pub gateway_ips: &'a [IpAddr],
-    pub matched_service_definitions: &'a Vec<Box<dyn ServiceDefinition>>,
-    pub host_has_docker_client: &'a bool,
-}
-
-impl Pattern {
-    pub fn matches(&self, params: PatternParams) -> Result<Vec<Option<Port>>, Error> {
+impl<'a> Pattern<'a> {
+    pub fn matches(&self, params: &ServiceDiscoveryParams) -> Result<Vec<Option<Port>>, Error> {
         // Return ports that matched if any
 
-        let PatternParams {
-            open_ports,
-            responses,
-            ip,
-            subnet,
-            mac_address,
+        let ServiceDiscoveryParams {
             gateway_ips,
-            matched_service_definitions,
-            host_has_docker_client,
+            baseline_params,
+            discovery_state_params,
+            ..
         } = params;
+
+        let ServiceDiscoveryBaselineParams {
+            subnet,
+            interface,
+            open_ports,
+            endpoint_responses,
+            host_has_docker_client,
+            docker_container_name,
+        } = baseline_params;
+
+        let ServiceDiscoveryStateParams {
+            matched_services, ..
+        } = discovery_state_params;
 
         let no_match = Err(Error::msg("No match"));
 
@@ -143,7 +145,7 @@ impl Pattern {
 
             Pattern::Endpoint(expected) => {
                 // At matching time, both endpoints are resolved
-                if let Some(actual) = responses.iter().find(|actual| {
+                if let Some(actual) = endpoint_responses.iter().find(|actual| {
                     actual.endpoint == expected.endpoint
                         && actual.response.contains(&expected.response)
                 }) {
@@ -154,7 +156,7 @@ impl Pattern {
             }
 
             Pattern::MacVendor(vendor_string) => {
-                if let Some(mac) = mac_address {
+                if let Some(mac) = interface.base.mac_address {
                     let Ok(oui_db) = Oui::default() else {
                         return no_match;
                     };
@@ -187,7 +189,7 @@ impl Pattern {
                 let mut any_matched = false;
                 let results = patterns
                     .iter()
-                    .filter_map(|p| match p.matches(params.clone()) {
+                    .filter_map(|p| match p.matches(params) {
                         Ok(results) => {
                             any_matched = true;
                             Some(results)
@@ -204,11 +206,21 @@ impl Pattern {
                 }
             }
 
+            Pattern::Not(pattern) => {
+                let result = pattern.matches(params);
+
+                if result.is_ok() {
+                    no_match
+                } else {
+                    Ok(vec![None]) // ✓ Should return success when inner pattern fails
+                }
+            }
+
             Pattern::AllOf(patterns) => {
                 let mut all_matched = true;
                 let results = patterns
                     .iter()
-                    .filter_map(|p| match p.matches(params.clone()) {
+                    .filter_map(|p| match p.matches(params) {
                         Ok(results) => Some(results),
                         Err(_) => {
                             all_matched = false;
@@ -254,10 +266,11 @@ impl Pattern {
             }
 
             Pattern::WebService(path, resp) => {
-                let endpoints = web_service_endpoint_responses(Some(*ip), path, resp)
-                    .into_iter()
-                    .map(Pattern::Endpoint)
-                    .collect();
+                let endpoints =
+                    web_service_endpoint_responses(Some(interface.base.ip_address), path, resp)
+                        .into_iter()
+                        .map(Pattern::Endpoint)
+                        .collect();
                 Pattern::AnyOf(endpoints).matches(params)
             }
 
@@ -268,9 +281,10 @@ impl Pattern {
                     .collect();
 
                 let count_gateways_in_subnet = gateway_ips_in_subnet.len();
-                let host_ip_in_routing_table = gateway_ips_in_subnet.contains(&ip);
+                let host_ip_in_routing_table =
+                    gateway_ips_in_subnet.contains(&&interface.base.ip_address);
 
-                let last_octet_1_or_254 = match ip {
+                let last_octet_1_or_254 = match interface.base.ip_address {
                     IpAddr::V4(ipv4) => {
                         let octets = ipv4.octets();
                         octets[3] == 1 || octets[3] == 254
@@ -298,14 +312,6 @@ impl Pattern {
                 }
             }
 
-            Pattern::IsNotGateway => {
-                if Pattern::IsGateway.matches(params).is_err() {
-                    Ok(vec![None])
-                } else {
-                    no_match
-                }
-            }
-
             Pattern::SubnetIsType(subnet_type) => {
                 if &subnet.base.subnet_type == subnet_type {
                     Ok(vec![None])
@@ -314,16 +320,8 @@ impl Pattern {
                 }
             }
 
-            Pattern::SubnetIsNotType(subnet_type) => {
-                if &subnet.base.subnet_type != subnet_type {
-                    Ok(vec![None])
-                } else {
-                    no_match
-                }
-            }
-
             Pattern::HasAnyMatchedService => {
-                if matched_service_definitions.is_empty() {
+                if matched_services.is_empty() {
                     Ok(vec![None])
                 } else {
                     no_match
@@ -331,7 +329,7 @@ impl Pattern {
             }
 
             Pattern::AnyMatchedService(constraint_function) => {
-                let any = matched_service_definitions.iter().any(constraint_function);
+                let any = matched_services.iter().any(constraint_function);
                 if any {
                     Ok(vec![None])
                 } else {
@@ -340,7 +338,7 @@ impl Pattern {
             }
 
             Pattern::AllMatchedService(constraint_function) => {
-                let any = matched_service_definitions.iter().all(constraint_function);
+                let any = matched_services.iter().all(constraint_function);
                 if any {
                     Ok(vec![None])
                 } else {
@@ -348,12 +346,28 @@ impl Pattern {
                 }
             }
 
-            Pattern::Docker => {
+            Pattern::Custom(constraint_function) => {
+                if constraint_function(params) {
+                    Ok(vec![None])
+                } else {
+                    no_match
+                }
+            }
+
+            Pattern::DockerClient => {
                 let http_port_base = PortBase::new_tcp(DOCKER_PORT);
                 // let https_port_base = PortBase::new_tcp(2376);
 
-                if *host_has_docker_client {
+                if **host_has_docker_client {
                     Ok(vec![Some(Port::new(http_port_base))])
+                } else {
+                    no_match
+                }
+            }
+
+            Pattern::DockerContainer => {
+                if docker_container_name.is_some() {
+                    Ok(vec![None])
                 } else {
                     no_match
                 }
@@ -417,45 +431,109 @@ impl Pattern {
 
 #[cfg(test)]
 mod tests {
-    use std::net::{IpAddr, Ipv4Addr};
+    use std::net::IpAddr;
+
+    use crate::server::services::types::patterns::Service;
+    use uuid::Uuid;
 
     use crate::{
         server::{
-            hosts::types::ports::PortBase,
+            hosts::types::{interfaces::Interface, ports::PortBase},
             services::{
                 definitions::ServiceDefinitionRegistry,
                 types::{
+                    base::{
+                        ServiceDiscoveryBaselineParams, ServiceDiscoveryParams,
+                        ServiceDiscoveryStateParams,
+                    },
+                    definitions::ServiceDefinition,
                     endpoints::{Endpoint, EndpointResponse},
-                    patterns::{Pattern, PatternParams},
+                    patterns::Pattern,
                 },
             },
+            subnets::types::base::Subnet,
         },
-        tests::subnet,
+        tests::{interface, subnet},
     };
+
+    struct TestContext {
+        subnet: Subnet,
+        interface: Interface,
+        pi: Box<dyn ServiceDefinition>,
+        host_id: Uuid,
+        gateway_ips: Vec<IpAddr>,
+        endpoint_responses: Vec<EndpointResponse>,
+        host_has_docker_client: bool,
+        docker_container_name: Option<String>,
+        l3_interface_bound: bool,
+        matched_services: Vec<Service>,
+    }
+
+    impl TestContext {
+        fn new() -> Self {
+            let subnet = subnet();
+            let interface = interface(&subnet.id);
+            let pi = ServiceDefinitionRegistry::find_by_id("Pi-Hole")
+                .expect("Pi-hole service not found");
+
+            let endpoint_responses = vec![EndpointResponse {
+                endpoint: Endpoint::http(Some(interface.base.ip_address), "/admin"),
+                response: "Pi-hole".to_string(),
+            }];
+
+            Self {
+                subnet,
+                interface,
+                pi,
+                host_id: Uuid::new_v4(),
+                gateway_ips: vec![],
+                endpoint_responses,
+                host_has_docker_client: false,
+                docker_container_name: None,
+                l3_interface_bound: false,
+                matched_services: vec![],
+            }
+        }
+
+        fn create_params_with_ports<'a>(
+            &'a self,
+            baseline_params: &'a ServiceDiscoveryBaselineParams<'a>,
+        ) -> ServiceDiscoveryParams<'a> {
+            ServiceDiscoveryParams {
+                host_id: &self.host_id,
+                gateway_ips: &self.gateway_ips,
+                baseline_params,
+                discovery_state_params: ServiceDiscoveryStateParams {
+                    service_definition: self.pi.clone(),
+                    l3_interface_bound: &self.l3_interface_bound,
+                    matched_services: &self.matched_services,
+                },
+            }
+        }
+
+        fn create_baseline_params<'a>(
+            &'a self,
+            open_ports: &'a Vec<PortBase>,
+        ) -> ServiceDiscoveryBaselineParams<'a> {
+            ServiceDiscoveryBaselineParams {
+                subnet: &self.subnet,
+                interface: &self.interface,
+                open_ports,
+                endpoint_responses: &self.endpoint_responses,
+                host_has_docker_client: &self.host_has_docker_client,
+                docker_container_name: &self.docker_container_name,
+            }
+        }
+    }
 
     #[tokio::test]
     async fn test_pattern_port_matching() {
-        // Test pi-hole service
-        let pi =
-            ServiceDefinitionRegistry::find_by_id("Pi-Hole").expect("Pi-hole service not found");
+        let ctx = TestContext::new();
 
-        let ip = IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35));
-
-        let mut params = PatternParams {
-            open_ports: &vec![PortBase::DnsUdp, PortBase::DnsTcp],
-            responses: &vec![EndpointResponse {
-                endpoint: Endpoint::http(Some(ip), "/admin"),
-                response: "Pi-hole".to_string(),
-            }],
-            ip: &ip,
-            subnet: &subnet(),
-            mac_address: &None,
-            gateway_ips: &vec![],
-            matched_service_definitions: &vec![],
-            host_has_docker_client: &false,
-        };
-
-        let result = pi.discovery_pattern().matches(params.clone());
+        let ports = vec![PortBase::DnsUdp, PortBase::DnsTcp];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline);
+        let result = ctx.pi.discovery_pattern().matches(&params);
 
         assert!(
             result.is_ok(),
@@ -463,34 +541,27 @@ mod tests {
         );
 
         // Test with wrong port - should not match
-        let open_ports = vec![PortBase::new_tcp(80)];
-        params.open_ports = &open_ports;
-
-        let result = pi.discovery_pattern().matches(params);
+        let ports = vec![PortBase::new_tcp(80)];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline);
+        let result = ctx.pi.discovery_pattern().matches(&params);
 
         assert!(result.is_err(), "SSH pattern should not match port 80");
     }
 
     #[test]
     fn test_pattern_and_logic() {
-        // Create AND pattern requiring both port 80 and 443
+        let ctx = TestContext::new();
+
         let pattern = Pattern::AllOf(vec![
             Pattern::Port(PortBase::new_tcp(80)),
             Pattern::Port(PortBase::new_tcp(443)),
         ]);
 
-        let mut params = PatternParams {
-            open_ports: &vec![PortBase::new_tcp(80), PortBase::new_tcp(443)],
-            responses: &vec![],
-            ip: &IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35)),
-            subnet: &subnet(),
-            mac_address: &None,
-            gateway_ips: &vec![],
-            matched_service_definitions: &vec![],
-            host_has_docker_client: &false,
-        };
-
-        let result = pattern.matches(params.clone());
+        let ports = vec![PortBase::new_tcp(80), PortBase::new_tcp(443)];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline);
+        let result = pattern.matches(&params);
 
         assert!(
             result.is_ok(),
@@ -498,10 +569,10 @@ mod tests {
         );
 
         // Test with only one port - should not match
-        let open_ports = vec![PortBase::new_tcp(80)];
-        params.open_ports = &open_ports;
-
-        let result = pattern.matches(params.clone());
+        let ports = vec![PortBase::new_tcp(80)];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline);
+        let result = pattern.matches(&params);
 
         assert!(
             result.is_err(),
@@ -509,10 +580,10 @@ mod tests {
         );
 
         // Test with neither port - should not match
-        let open_ports = vec![PortBase::new_tcp(22)];
-        params.open_ports = &open_ports;
-
-        let result = pattern.matches(params.clone());
+        let ports = vec![PortBase::new_tcp(22)];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline);
+        let result = pattern.matches(&params);
 
         assert!(
             result.is_err(),
@@ -522,42 +593,39 @@ mod tests {
 
     #[test]
     fn test_pattern_or_logic() {
+        let ctx = TestContext::new();
+
         // Create OR pattern for database ports (MySQL or PostgreSQL)
         let pattern = Pattern::AnyOf(vec![
             Pattern::Port(PortBase::new_tcp(3306)), // MySQL
             Pattern::Port(PortBase::new_tcp(5432)), // PostgreSQL
         ]);
 
-        let mut params = PatternParams {
-            open_ports: &vec![PortBase::new_tcp(3306)],
-            responses: &vec![],
-            ip: &IpAddr::V4(Ipv4Addr::new(192, 168, 4, 35)),
-            subnet: &subnet(),
-            mac_address: &None,
-            gateway_ips: &vec![],
-            matched_service_definitions: &vec![],
-            host_has_docker_client: &false,
-        };
-
-        let result = pattern.matches(params.clone());
+        let ports = vec![PortBase::new_tcp(3306)];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline);
+        let result = pattern.matches(&params);
         assert!(result.is_ok(), "OR pattern should match MySQL port");
 
         // Test with PostgreSQL port - should match
-        let open_ports = vec![PortBase::new_tcp(5432)];
-        params.open_ports = &open_ports;
-        let result = pattern.matches(params.clone());
+        let ports = vec![PortBase::new_tcp(5432)];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline);
+        let result = pattern.matches(&params);
         assert!(result.is_ok(), "OR pattern should match PostgreSQL port");
 
         // Test with both ports - should match
-        let open_ports = vec![PortBase::new_tcp(3306), PortBase::new_tcp(5432)];
-        params.open_ports = &open_ports;
-        let result = pattern.matches(params.clone());
+        let ports = vec![PortBase::new_tcp(3306), PortBase::new_tcp(5432)];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline);
+        let result = pattern.matches(&params);
         assert!(result.is_ok(), "OR pattern should match with both ports");
 
         // Test with neither port - should not match
-        let open_ports = vec![PortBase::new_tcp(22)];
-        params.open_ports = &open_ports;
-        let result = pattern.matches(params.clone());
+        let ports = vec![PortBase::new_tcp(22)];
+        let baseline = ctx.create_baseline_params(&ports);
+        let params = ctx.create_params_with_ports(&baseline);
+        let result = pattern.matches(&params);
         assert!(
             result.is_err(),
             "OR pattern should not match when no conditions met"

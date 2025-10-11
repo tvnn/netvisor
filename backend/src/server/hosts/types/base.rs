@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use std::{hash::Hash, net::IpAddr, sync::LazyLock};
 use uuid::Uuid;
 use validator::Validate;
@@ -105,6 +106,12 @@ impl PartialEq for Host {
         });
 
         self.id == other.id || mac_match || subnet_ip_match
+    }
+}
+
+impl Display for Host {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}: {:?}", self.base.name, self.id)
     }
 }
 

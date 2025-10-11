@@ -229,6 +229,7 @@ impl Hash for Subnet {
     EnumDiscriminants,
     EnumIter,
     IntoStaticStr,
+    Default,
 )]
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum SubnetType {
@@ -249,10 +250,15 @@ pub enum SubnetType {
     Storage,
 
     Unknown,
+    #[default]
     None,
 }
 
 impl SubnetType {
+    pub fn is_internal(&self) -> bool {
+        matches!(self, SubnetType::DockerBridge | SubnetType::VpnTunnel)
+    }
+
     pub fn from_interface_name(interface_name: &str) -> Self {
         // Docker containers
         if Self::match_interface_names(&["docker", "br-"], interface_name) {

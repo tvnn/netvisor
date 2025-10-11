@@ -36,6 +36,10 @@
 
 	$: discoveryIsRunning = $sessions.size > 0;
 
+	$: sortedHosts = [...$hosts].sort((a, b) =>
+		a.created_at.localeCompare(b.created_at, undefined, { sensitivity: 'base' })
+	);
+
 	$: hostGroups = new Map(
 		$hosts.map((host) => {
 			const foundGroups = $groups.filter((g) => {
@@ -136,7 +140,7 @@
 	{:else}
 		<!-- Hosts grid -->
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{#each $hosts as host (host.id)}
+			{#each sortedHosts as host (host.id)}
 				<HostCard
 					{host}
 					daemon={$hostDaemonMap.get(host.id) || null}

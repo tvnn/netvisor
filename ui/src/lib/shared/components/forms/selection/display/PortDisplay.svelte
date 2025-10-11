@@ -1,15 +1,19 @@
 <script lang="ts" context="module">
-	import type { Port } from '$lib/features/hosts/types/base';
+	import { ALL_INTERFACES, type Port } from '$lib/features/hosts/types/base';
 	import type { EntityDisplayComponent } from '../types';
 	import { entities } from '$lib/shared/stores/metadata';
-	import { getServicesForPort } from '$lib/features/services/store';
 	import PortInlineEditor from './PortInlineEditor.svelte';
+	import type { Service } from '$lib/features/services/types/base';
 
 	export const PortDisplay: EntityDisplayComponent<Port> = {
 		getId: (port: Port) => `${port.number}-${port.protocol}`,
 		getLabel: (port: Port) => `Port ${port.number}`,
-		getDescription: (port: Port) => {
-			let services = getServicesForPort(port.id);
+		getDescription: (port: Port, context: { currentServices: Service[] }) => {
+			// Use context services if available, otherwise fall back to store
+			let services: Service[] = context.currentServices.filter((s) =>
+				s.bindings.some((b) => b.type === 'Layer4' && b.port_id === port.id)
+			);
+
 			if (services.length > 0) {
 				return services
 					.flatMap(
@@ -19,7 +23,7 @@
 							s.bindings
 								.filter((b) => b.type == 'Layer4' && b.port_id == port.id)
 								.map((b) => {
-									let iface = getInterfaceFromId(b.interface_id || '');
+									let iface = b.interface_id ? getInterfaceFromId(b.interface_id) : ALL_INTERFACES;
 									if (iface) {
 										return formatInterface(iface);
 									} else {

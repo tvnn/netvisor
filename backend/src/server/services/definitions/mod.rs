@@ -60,6 +60,7 @@ pub mod custom;
 pub mod dhcp_server;
 pub mod dns_server;
 pub mod docker;
+pub mod docker_container;
 pub mod docker_swarm;
 pub mod duplicati;
 pub mod eero_gateway;

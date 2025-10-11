@@ -16,7 +16,7 @@ services:
     ports:
       - "60072:60072"
     environment:
-      - RUST_LOG=debug
+      - RUST_LOG=debug,sqlx=off,tower_http=off
       - NETVISOR_DATABASE_PATH=/data/netvisor.db
       - NETVISOR_WEB_EXTERNAL_PATH=/app/static
     volumes:

@@ -5,15 +5,22 @@ import type { IconComponent } from '$lib/shared/utils/types';
 export interface EntityDisplayComponent<T> {
 	// Required methods
 	getId(item: T): string;
-	getLabel(item: T): string;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	getLabel(item: T, context?: Record<string, any>): string;
 
 	// Optional methods with defaults
-	getDescription?(item: T): string;
-	getIcon?(item: T): IconComponent | null;
-	getIconColor?(item: T): string | null;
-	getTags?(item: T): TagProps[];
-	getIsDisabled?(item: T): boolean;
-	getCategory?(item: T): string | null;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	getDescription?(item: T, context?: Record<string, any>): string;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	getIcon?(item: T, context?: Record<string, any>): IconComponent | null;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	getIconColor?(item: T, context?: Record<string, any>): string | null;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	getTags?(item: T, context?: Record<string, any>): TagProps[];
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	getIsDisabled?(item: T, context?: Record<string, any>): boolean;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	getCategory?(item: T, context?: Record<string, any>): string | null;
 
 	// Optional inline editing support
 	supportsInlineEdit?: boolean;
@@ -21,7 +28,7 @@ export interface EntityDisplayComponent<T> {
 		item: T,
 		onUpdate: (updates: Partial<T>) => void,
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		context: Record<string, any> | null
+		context?: Record<string, any>
 	): {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		component: Component<any>;

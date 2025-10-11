@@ -1,23 +1,27 @@
 use std::{
     net::IpAddr,
-    sync::{atomic::AtomicUsize, Arc, OnceLock},
+    sync::{atomic::AtomicUsize, Arc},
 };
 
 use crate::{
     daemon::discovery::manager::DaemonDiscoverySessionManager,
-    server::discovery::types::api::InitiateDiscoveryRequest,
+    server::{
+        discovery::types::api::InitiateDiscoveryRequest,
+        services::types::base::{
+            ServiceDiscoveryBaselineParams, ServiceDiscoveryParams, ServiceDiscoveryStateParams,
+        },
+    },
 };
 use anyhow::{anyhow, Error};
 use axum::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
+use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::{
     daemon::{
-        discovery::types::base::{
-            DiscoveryPhase, DiscoverySessionInfo, DiscoverySessionUpdate, ProcessHostParams,
-        },
+        discovery::types::base::{DiscoveryPhase, DiscoverySessionInfo, DiscoverySessionUpdate},
         shared::storage::ConfigStore,
         utils::base::{create_system_utils, PlatformDaemonUtils},
     },
@@ -27,23 +31,23 @@ use crate::{
         hosts::types::{
             api::HostWithServicesRequest,
             base::{Host, HostBase},
-            interfaces::Interface,
             ports::{Port, PortBase},
             targets::HostTarget,
         },
         services::{
             definitions::{gateway::Gateway, ServiceDefinitionRegistry},
             types::{
-                base::{Service, ServiceFromDiscoveryParams},
+                base::Service,
                 bindings::{Binding, BindingDiscriminants, ServiceBinding},
                 definitions::{ServiceDefinition, ServiceDefinitionExt},
-                endpoints::EndpointResponse,
             },
         },
         shared::types::{api::ApiResponse, metadata::HasId},
         subnets::types::base::Subnet,
     },
 };
+
+pub const CONCURRENT_SCANS: usize = 15;
 
 pub struct DiscoveryHandler<T> {
     pub service: Arc<DaemonDiscoveryService>,
@@ -111,14 +115,30 @@ impl<T> AsRef<DaemonDiscoveryService> for DiscoveryHandler<T> {
     }
 }
 
+#[derive(Clone)]
+pub struct DiscoverySession {
+    pub info: DiscoverySessionInfo,
+    pub gateway_ips: Vec<IpAddr>,
+    pub scanned_count: Arc<AtomicUsize>,
+    pub discovered_count: Arc<AtomicUsize>,
+}
+
+impl DiscoverySession {
+    pub fn new(info: DiscoverySessionInfo, gateway_ips: Vec<IpAddr>) -> Self {
+        Self {
+            info,
+            gateway_ips,
+            scanned_count: Arc::new(AtomicUsize::new(0)),
+            discovered_count: Arc::new(AtomicUsize::new(0)),
+        }
+    }
+}
+
 pub struct DaemonDiscoveryService {
     pub config_store: Arc<ConfigStore>,
     pub client: reqwest::Client,
     pub utils: PlatformDaemonUtils,
-    pub gateway_ips: OnceLock<Vec<IpAddr>>,
-    pub scanned_count: Arc<AtomicUsize>,
-    pub discovered_count: Arc<AtomicUsize>,
-    pub session_info: OnceLock<DiscoverySessionInfo>,
+    pub current_session: Arc<RwLock<Option<DiscoverySession>>>,
 }
 
 impl DaemonDiscoveryService {
@@ -127,11 +147,17 @@ impl DaemonDiscoveryService {
             config_store,
             client: reqwest::Client::new(),
             utils: create_system_utils(),
-            scanned_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-            discovered_count: Arc::new(std::sync::atomic::AtomicUsize::new(0)),
-            gateway_ips: OnceLock::new(),
-            session_info: OnceLock::new(),
+            current_session: Arc::new(RwLock::new(None)),
         }
+    }
+
+    pub async fn get_session(&self) -> Result<DiscoverySession, Error> {
+        self.current_session
+            .read()
+            .await
+            .as_ref()
+            .cloned()
+            .ok_or_else(|| anyhow!("No active discovery session"))
     }
 }
 
@@ -143,43 +169,46 @@ impl AsRef<DaemonDiscoveryService> for DaemonDiscoveryService {
 
 #[async_trait]
 pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Sync {
-    async fn start_discovery_session(
-        &self,
-        request: DaemonDiscoveryRequest,
-        cancel: CancellationToken,
-    ) -> Result<(), Error>;
+    async fn get_gateway_ips(&self) -> Result<Vec<IpAddr>, Error>;
 
-    async fn set_gateway_ips(&self) -> Result<(), Error>;
-
-    async fn discover_create_subnets(&self) -> Result<Vec<Subnet>, Error>;
-
-    fn set_discovery_state(
+    async fn initialize_discovery_session(
         &self,
         total_to_scan: usize,
         request: DaemonDiscoveryRequest,
         daemon_id: Uuid,
-        started_at: DateTime<Utc>,
     ) -> Result<(), Error> {
         tracing::debug!(
             "Setting session info for {} discovery session {}",
             request.discovery_type,
             request.session_id
         );
-        self.as_ref()
-            .session_info
-            .set(DiscoverySessionInfo {
-                total_to_scan,
-                discovery_type: request.discovery_type,
-                session_id: request.session_id,
-                daemon_id,
-                started_at: Some(started_at),
-            })
-            .map_err(|_| anyhow!("Failed to set session info"))?;
+        let gateway_ips = self.get_gateway_ips().await?;
+
+        let session_info = DiscoverySessionInfo {
+            total_to_scan,
+            discovery_type: request.discovery_type,
+            session_id: request.session_id,
+            daemon_id,
+            started_at: Some(Utc::now()),
+        };
+
+        let session = DiscoverySession::new(session_info, gateway_ips);
+
+        let mut current_session = self.as_ref().current_session.write().await;
+        *current_session = Some(session);
 
         Ok(())
     }
 
-    async fn start_host_discovery(
+    async fn discover_create_subnets(&self) -> Result<Vec<Subnet>, Error>;
+
+    async fn start_discovery_session(
+        &self,
+        request: DaemonDiscoveryRequest,
+        cancel: CancellationToken,
+    ) -> Result<(), Error>;
+
+    async fn start_discovery(
         &self,
         total_to_scan: usize,
         request: DaemonDiscoveryRequest,
@@ -192,8 +221,8 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
             request.session_id
         );
 
-        self.set_gateway_ips().await?;
-        self.set_discovery_state(total_to_scan, request, daemon_id, Utc::now())?;
+        self.initialize_discovery_session(total_to_scan, request, daemon_id)
+            .await?;
 
         self.report_discovery_update(DiscoverySessionUpdate {
             phase: DiscoveryPhase::Started,
@@ -207,24 +236,18 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
         Ok(())
     }
 
-    async fn finish_host_discovery(
+    async fn finish_discovery(
         &self,
         discovery_result: Result<(), Error>,
         cancel: CancellationToken,
     ) -> Result<(), Error> {
-        let session_info = self
-            .as_ref()
-            .session_info
-            .get()
-            .ok_or_else(|| anyhow!("Session info not set"))?;
-        let session_id = session_info.session_id;
+        let session = self.as_ref().get_session().await?;
+        let session_id = session.info.session_id;
 
-        let final_scanned_count = self
-            .as_ref()
+        let final_scanned_count = session
             .scanned_count
             .load(std::sync::atomic::Ordering::Relaxed);
-        let final_discovered_count = self
-            .as_ref()
+        let final_discovered_count = session
             .discovered_count
             .load(std::sync::atomic::Ordering::Relaxed);
 
@@ -264,31 +287,32 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
             }
         }
 
+        let mut current_session = self.as_ref().current_session.write().await;
+        *current_session = None;
+
         if cancel.is_cancelled() {
             tracing::info!("Discovery session {} was cancelled", session_id);
             return Ok(());
         }
 
         tracing::info!(
-            "Discovery session {} finished with {} hosts discovered",
+            "Discovery session {} finished with {} discovered",
             session_id,
             final_discovered_count
         );
         Ok(())
     }
 
-    async fn process_host(
+    async fn process_host<'a>(
         &self,
-        params: ProcessHostParams,
+        params: ServiceDiscoveryBaselineParams<'a>,
+        hostname: Option<String>,
     ) -> Result<Option<(Host, Vec<Service>)>, Error> {
-        let ProcessHostParams {
-            host_ip,
-            hostname,
-            subnet,
+        let ServiceDiscoveryBaselineParams::<'a> {
             interface,
             open_ports,
             endpoint_responses,
-            host_has_docker_client,
+            ..
         } = params;
 
         if open_ports.is_empty() && endpoint_responses.is_empty() {
@@ -296,6 +320,9 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
         }
 
         let daemon_id = self.as_ref().config_store.get_id().await?;
+
+        let session = self.as_ref().get_session().await?;
+        let gateway_ips = session.gateway_ips.clone();
 
         let (name, target) = match hostname.clone() {
             Some(hostname) => (hostname, HostTarget::Hostname),
@@ -314,36 +341,22 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
             source: EntitySource::Discovery(daemon_id),
         });
 
-        let services = self.discover_host_services(
-            &mut host,
-            &interface,
-            &open_ports,
-            &endpoint_responses,
-            &subnet,
-            &host_has_docker_client,
-        )?;
+        let services = self.discover_services(&mut host, &params, &gateway_ips)?;
 
-        tracing::info!("Processed host for host {}", host_ip);
+        tracing::info!("Processed host for ip {}", interface.base.ip_address);
         Ok(Some((host, services)))
     }
 
-    fn discover_host_services(
+    fn discover_services(
         &self,
         host: &mut Host,
-        interface: &Interface,
-        open_ports: &[PortBase],
-        endpoint_responses: &[EndpointResponse],
-        subnet: &Subnet,
-        host_has_docker_client: &bool,
+        baseline_params: &ServiceDiscoveryBaselineParams,
+        gateway_ips: &[IpAddr],
     ) -> Result<Vec<Service>, Error> {
-        let gateway_ips = self
-            .as_ref()
-            .gateway_ips
-            .get()
-            .ok_or_else(|| anyhow!("Gateway IPs not set, aborting"))?;
+        let ServiceDiscoveryBaselineParams { open_ports, .. } = baseline_params;
 
         let mut services = Vec::new();
-        let mut matched_service_definitions = Vec::new();
+        let mut matched_services = Vec::new();
 
         // Only one interface, so only one L3 binding possible
         let mut l3_interface_bound = false;
@@ -370,22 +383,20 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
 
         // Add services from detected ports
         for service_definition in sorted_service_definitions {
-            if let (Some(service), mut bound_ports) =
-                Service::from_discovery(ServiceFromDiscoveryParams {
-                    service_definition,
-                    ip: &interface.base.ip_address,
-                    open_ports,
-                    endpoint_responses,
-                    subnet,
-                    mac_address: &interface.base.mac_address,
-                    host_id: &host.id,
-                    l3_interface_bound,
-                    interface_id: &interface.id,
-                    gateway_ips,
-                    matched_service_definitions: &matched_service_definitions,
-                    host_has_docker_client,
-                })
-            {
+            let discovery_state_params = ServiceDiscoveryStateParams {
+                l3_interface_bound: &l3_interface_bound,
+                service_definition,
+                matched_services: &matched_services,
+            };
+
+            let params = ServiceDiscoveryParams {
+                discovery_state_params,
+                baseline_params,
+                gateway_ips,
+                host_id: &host.id,
+            };
+
+            if let (Some(service), mut bound_ports) = Service::from_discovery(params) {
                 if service.base.service_definition.layer() == BindingDiscriminants::Layer3 {
                     l3_interface_bound = true;
                 }
@@ -429,7 +440,7 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
                 host.base.ports.append(&mut bound_ports);
 
                 // Add new service
-                matched_service_definitions.push(service.base.service_definition.clone());
+                matched_services.push(service.clone());
                 host.add_service(service.id);
                 l4_unbound_ports.retain(|p| !bound_port_bases.contains(p));
                 services.push(service);
@@ -449,11 +460,14 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
         last_reported_scanned: usize,
         last_reported_discovered: usize,
     ) -> Result<(usize, usize), Error> {
-        let scanned_count = self.as_ref().scanned_count.clone();
-        let discovered_count = self.as_ref().discovered_count.clone();
+        let session = self.as_ref().get_session().await?;
 
-        let current_scanned = scanned_count.load(std::sync::atomic::Ordering::Relaxed);
-        let current_discovered = discovered_count.load(std::sync::atomic::Ordering::Relaxed);
+        let current_scanned = session
+            .scanned_count
+            .load(std::sync::atomic::Ordering::Relaxed);
+        let current_discovered = session
+            .discovered_count
+            .load(std::sync::atomic::Ordering::Relaxed);
 
         if current_scanned >= last_reported_scanned + frequency
             || last_reported_discovered > current_discovered
@@ -473,12 +487,9 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
     /// Report discovery progress to server
     async fn report_discovery_update(&self, update: DiscoverySessionUpdate) -> Result<(), Error> {
         let server_target = self.as_ref().config_store.get_server_endpoint().await?;
-        let state = self
-            .as_ref()
-            .session_info
-            .get()
-            .ok_or_else(|| anyhow!("Session state unavailable"))?;
-        let payload = DiscoveryUpdatePayload::from_state_and_update(state.clone(), update);
+        let session = self.as_ref().get_session().await?;
+
+        let payload = DiscoveryUpdatePayload::from_state_and_update(session.info.clone(), update);
 
         let response = self
             .as_ref()
@@ -495,7 +506,10 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
             );
         }
 
-        tracing::debug!("Discovery update reported for session {}", state.session_id);
+        tracing::debug!(
+            "Discovery update reported for session {}",
+            session.info.session_id
+        );
         Ok(())
     }
 }

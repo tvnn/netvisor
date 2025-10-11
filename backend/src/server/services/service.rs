@@ -8,7 +8,6 @@ use crate::server::{
         storage::ServiceStorage,
         types::{base::Service, bindings::Binding},
     },
-    shared::types::metadata::TypeMetadataProvider,
 };
 use anyhow::anyhow;
 use anyhow::{Error, Result};
@@ -40,59 +39,15 @@ impl ServiceService {
     pub async fn create_service(&self, service: Service) -> Result<Service> {
         let existing_services = self.get_services_for_host(&service.base.host_id).await?;
 
-        let service_from_storage = match existing_services.into_iter().find(|existing: &Service| {
-            // Must be same host and same definition
-            let host_match = existing.base.host_id == service.base.host_id;
-            let definition_match =
-                service.base.service_definition == existing.base.service_definition;
-
-            if !host_match || !definition_match {
-                return false;
-            }
-
-            // Check if bindings overlap
-            let bindings_match = existing.base.bindings.iter().any(|existing_binding| {
-                service.base.bindings.iter().any(|service_binding| {
-                    match (existing_binding, service_binding) {
-                        // L4 bindings match if they share the same port
-                        (
-                            Binding::Layer4 {
-                                port_id: existing_port,
-                                ..
-                            },
-                            Binding::Layer4 {
-                                port_id: service_port,
-                                ..
-                            },
-                        ) => existing_port == service_port,
-
-                        // L3 bindings match if they share the same interface
-                        (
-                            Binding::Layer3 {
-                                interface_id: existing_iface,
-                                ..
-                            },
-                            Binding::Layer3 {
-                                interface_id: service_iface,
-                                ..
-                            },
-                        ) => existing_iface == service_iface,
-
-                        // L3 and L4 bindings never match each other
-                        _ => false,
-                    }
-                })
-            });
-
-            bindings_match
-        }) {
+        let service_from_storage = match existing_services
+            .into_iter()
+            .find(|existing: &Service| *existing == service)
+        {
             Some(existing_service) => {
                 tracing::warn!(
-                    "Duplicate service for {}: {} found, {}: {} - upserting discovery data...",
-                    service.base.name,
-                    service.id,
-                    existing_service.base.name,
-                    existing_service.id
+                    "Duplicate service for {} found, {} - upserting discovery data...",
+                    service,
+                    existing_service,
                 );
                 self.upsert_service(existing_service, service).await?
             }
@@ -100,9 +55,10 @@ impl ServiceService {
                 self.storage.create(&service).await?;
                 tracing::info!(
                     "Created service {} for host {}",
-                    service.base.service_definition.name(),
+                    service,
                     service.base.host_id
                 );
+                tracing::debug!("Result: {:?}", service);
                 service
             }
         };
@@ -117,14 +73,23 @@ impl ServiceService {
     ) -> Result<Service> {
         let mut binding_updates = 0;
 
-        for new_service_binding in new_service_data.base.bindings {
+        tracing::debug!(
+            "Upserting new service data {:?} into {:?}",
+            new_service_data,
+            existing_service
+        );
+
+        for new_service_binding in &new_service_data.base.bindings {
             if !existing_service
                 .base
                 .bindings
                 .contains(&new_service_binding)
             {
                 binding_updates += 1;
-                existing_service.base.bindings.push(new_service_binding);
+                existing_service
+                    .base
+                    .bindings
+                    .push(new_service_binding.clone());
             }
         }
 
@@ -138,17 +103,16 @@ impl ServiceService {
 
         if !data.is_empty() {
             tracing::info!(
-                "Upserted service {}: {} with new data: {}",
-                existing_service.base.name,
-                existing_service.id,
+                "Upserted service {} with new data: {}",
+                existing_service,
                 data.join(", ")
             );
+            tracing::debug!("Result {:?}", existing_service);
         }
         tracing::info!(
-            "No new information to upsert from service {} to service {}: {}",
-            new_service_data.base.name,
-            existing_service.base.name,
-            existing_service.id
+            "No new information to upsert from service {} to service {}",
+            new_service_data,
+            existing_service,
         );
 
         Ok(existing_service)
@@ -167,6 +131,8 @@ impl ServiceService {
     }
 
     pub async fn update_service(&self, mut service: Service) -> Result<Service> {
+        tracing::debug!("Updating service: {:?}", service);
+
         let current_service = self
             .get_service(&service.id)
             .await?
@@ -179,11 +145,11 @@ impl ServiceService {
 
         self.storage.update(&service).await?;
         tracing::info!(
-            "Updated service {}: {} for host {}",
-            service.base.name,
-            service.id,
+            "Updated service {} for host {}",
+            service,
             service.base.host_id
         );
+        tracing::debug!("Result: {:?}", service);
         Ok(service)
     }
 
@@ -192,6 +158,12 @@ impl ServiceService {
         current_service: &Service,
         updates: Option<&Service>,
     ) -> Result<(), Error> {
+        tracing::debug!(
+            "Updating group bindings referencing {:?}, with changes {:?}",
+            current_service,
+            updates
+        );
+
         let _guard = self.group_update_lock.lock().await;
 
         let groups = self.group_service.get_all_groups().await?;
@@ -220,6 +192,8 @@ impl ServiceService {
             None
         });
 
+        tracing::info!("Updated group bindings referencing {}", current_service);
+
         try_join_all(group_futures).await?;
 
         Ok(())
@@ -231,6 +205,13 @@ impl ServiceService {
         original_host: &Host,
         new_host: &Host,
     ) -> Service {
+        tracing::debug!(
+            "Transferring service {:?} from host {:?} to host {:?}",
+            service,
+            original_host,
+            new_host
+        );
+
         service.base.bindings = service
             .base
             .bindings
@@ -285,6 +266,19 @@ impl ServiceService {
             .collect();
 
         service.base.host_id = new_host.id;
+
+        tracing::info!(
+            "Transferred service {} from host {} to host {}",
+            service,
+            original_host,
+            new_host
+        );
+        tracing::debug!(
+            "Transferred service {:?} from host {:?} to host {:?}",
+            service,
+            original_host,
+            new_host
+        );
 
         service.clone()
     }

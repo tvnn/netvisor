@@ -18,7 +18,7 @@ impl ServiceDefinition for Docker {
     }
 
     fn discovery_pattern(&self) -> Pattern {
-        Pattern::Docker
+        Pattern::DockerClient
     }
 
     fn icon(&self) -> &'static str {

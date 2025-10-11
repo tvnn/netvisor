@@ -15,6 +15,7 @@ use crate::server::{discovery::manager::DiscoverySessionManager, utils::base::Se
 pub struct CliArgs {
     pub port: Option<u16>,
     pub log_level: Option<String>,
+    pub rust_log: Option<String>,
     pub database_path: Option<String>,
     pub web_external_path: Option<String>,
 }
@@ -29,6 +30,9 @@ pub struct ServerConfig {
     /// Level of logs to show
     pub log_level: String,
 
+    /// Rust log level
+    pub rust_log: String,
+
     /// Where database should be located
     pub database_path: PathBuf,
 
@@ -41,6 +45,7 @@ impl Default for ServerConfig {
         Self {
             port: 60072,
             log_level: "info".to_string(),
+            rust_log: "".to_string(),
             database_path: PathBuf::from("./netvisor.db"),
             web_external_path: None,
         }
@@ -61,6 +66,9 @@ impl ServerConfig {
         }
         if let Some(log_level) = cli_args.log_level {
             figment = figment.merge(("log_level", log_level));
+        }
+        if let Some(rust_log) = cli_args.rust_log {
+            figment = figment.merge(("rust_log", rust_log));
         }
         if let Some(database_path) = cli_args.database_path {
             figment = figment.merge(("database_path", database_path));

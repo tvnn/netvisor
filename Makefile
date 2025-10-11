@@ -23,7 +23,7 @@ dev-daemon:
 	cd backend && cargo run --bin daemon -- --server-target 127.0.0.1 --server-port 60072 --log-level debug
 
 dev-ui:
-	cd ui && npm run dev --log-level debug
+	cd ui && npm run dev
 
 dev-container:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up

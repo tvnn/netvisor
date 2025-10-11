@@ -11,7 +11,8 @@ use crate::server::{
     subnets::service::SubnetService,
     topology::{
         service::{
-            edges::TopologyEdgePlanner, nodes::TopologyNodePlanner, optimizer::TopologyOptimizer,
+            context::TopologyContext, edge_builder::EdgeBuilder, optimizer::TopologyOptimizer,
+            subnet_layout_planner::SubnetLayoutPlanner,
         },
         types::{edges::Edge, nodes::Node},
     },
@@ -40,51 +41,36 @@ impl TopologyService {
     }
 
     pub async fn build_graph(&self) -> Result<Graph<Node, Edge>, Error> {
+        // Fetch all data
         let hosts = self.host_service.get_all_hosts().await?;
         let subnets = self.subnet_service.get_all_subnets().await?;
         let groups = self.group_service.get_all_groups().await?;
         let services = self.service_service.get_all_services().await?;
 
-        let node_planner = TopologyNodePlanner::new();
-        let edge_planner = TopologyEdgePlanner::new();
+        // Create context to avoid parameter passing
+        let ctx = TopologyContext::new(&hosts, &subnets, &services, &groups);
 
-        // First pass: create nodes with positions, determining layout from bottom up
-        let (subnet_sizes, child_nodes) =
-            node_planner.create_subnet_child_nodes(&hosts, &subnets, &services, &groups);
-        let subnet_nodes = node_planner.create_subnet_nodes(&subnets, &subnet_sizes);
+        // Create all edges (needed for anchor analysis)
+        let interface_edges = EdgeBuilder::create_interface_edges(&ctx);
+        let group_edges = EdgeBuilder::create_group_edges(&ctx);
+        let all_edges: Vec<Edge> = interface_edges.into_iter().chain(group_edges).collect();
 
-        // Collect all edges for optimization
-        let interface_edge_infos = edge_planner.get_interface_edge_info(&hosts, &subnets);
-        let group_edge_infos =
-            edge_planner.get_group_edge_info(&groups, &hosts, &subnets, &services);
+        // Create nodes with layout
+        let mut layout_planner = SubnetLayoutPlanner::new();
+        let (subnet_layouts, child_nodes) =
+            layout_planner.create_subnet_child_nodes(&ctx, &all_edges);
 
-        // Convert EdgeInfo to Edge for optimization (without needing node_indices yet)
-        let all_edges: Vec<Edge> = interface_edge_infos
-            .iter()
-            .chain(group_edge_infos.iter())
-            .map(|info| {
-                let (source_handle, target_handle) =
-                    crate::server::topology::types::edges::EdgeHandle::from_subnet_layers(
-                        info.source_subnet,
-                        info.target_subnet,
-                    );
-                Edge {
-                    source: info.source_id,
-                    target: info.target_id,
-                    edge_type: info.edge_type.clone(),
-                    label: info.label.clone(),
-                    source_handle,
-                    target_handle,
-                }
-            })
-            .collect();
+        // Get relocation info from layout planner
+        let relocation_map = layout_planner.get_handle_relocation_map();
 
-        // Optimize node positions to reduce edge crossings
+        let subnet_nodes = layout_planner.create_subnet_nodes(&ctx, &subnet_layouts);
+
+        // Optimize node positions and handle edge adjustments
         let optimizer = TopologyOptimizer::new();
         let mut all_nodes: Vec<Node> = subnet_nodes.into_iter().chain(child_nodes).collect();
-        optimizer.reduce_edge_crossings(&mut all_nodes, &all_edges);
+        let all_edges = optimizer.optimize_graph(&mut all_nodes, all_edges, relocation_map);
 
-        // Add nodes to graph
+        // Build graph
         let mut graph: Graph<Node, Edge> = Graph::new();
         let node_indices: HashMap<Uuid, NodeIndex> = all_nodes
             .into_iter()
@@ -95,16 +81,8 @@ impl TopologyService {
             })
             .collect();
 
-        // Second pass: add edges
-        edge_planner.add_group_edges(
-            &mut graph,
-            &node_indices,
-            &groups,
-            &hosts,
-            &subnets,
-            &services,
-        );
-        edge_planner.add_interface_edges(&mut graph, &node_indices, &hosts, &subnets);
+        // Add edges to graph
+        EdgeBuilder::add_edges_to_graph(&mut graph, &node_indices, all_edges);
 
         Ok(graph)
     }

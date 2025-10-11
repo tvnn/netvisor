@@ -11,8 +11,9 @@ use crate::server::{
 use anyhow::{anyhow, Error, Result};
 use futures::future::try_join_all;
 use itertools::Itertools;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use strum::IntoDiscriminant;
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 pub struct HostService {
@@ -20,6 +21,7 @@ pub struct HostService {
     subnet_service: Arc<SubnetService>,
     service_service: Arc<ServiceService>,
     daemon_service: Arc<DaemonService>,
+    host_locks: Arc<Mutex<HashMap<Uuid, Arc<Mutex<()>>>>>,
 }
 
 impl HostService {
@@ -34,7 +36,16 @@ impl HostService {
             subnet_service,
             service_service,
             daemon_service,
+            host_locks: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    async fn get_host_lock(&self, host_id: &Uuid) -> Arc<Mutex<()>> {
+        let mut locks = self.host_locks.lock().await;
+        locks
+            .entry(*host_id)
+            .or_insert_with(|| Arc::new(Mutex::new(())))
+            .clone()
     }
 
     pub async fn get_host(&self, id: &Uuid) -> Result<Option<Host>> {
@@ -58,14 +69,16 @@ impl HostService {
             self.create_host(host.clone()).await?
         };
 
-        // Create services, handling case where created_host was upserted instead of created anew, which means that host ID + interfaces/port IDs
+        // Create services, handling case where created_host was upserted instead of created anew (ie during discovery), which means that host ID + interfaces/port IDs
         // are different from what's mapped to the service and they need to be updated
         let service_futures = services.into_iter().map(|mut service| {
+
             service = self.service_service.transfer_service_to_new_host(
                 &mut service,
                 &host,
                 &created_host,
             );
+
             self.service_service.create_service(service)
         });
 
@@ -85,6 +98,11 @@ impl HostService {
 
     /// Create a new host
     async fn create_host(&self, host: Host) -> Result<Host> {
+        let lock = self.get_host_lock(&host.id).await;
+        let _guard = lock.lock().await;
+
+        tracing::debug!("Creating host {:?}", host);
+
         let all_hosts = self.storage.get_all().await?;
 
         let host_from_storage = match all_hosts.into_iter().find(|h| host.eq(h)) {
@@ -105,6 +123,7 @@ impl HostService {
             _ => {
                 self.storage.create(&host).await?;
                 tracing::info!("Created host {}: {}", host.base.name, host.id);
+                tracing::debug!("Result: {:?}", host);
                 host
             }
         };
@@ -116,6 +135,11 @@ impl HostService {
     }
 
     pub async fn update_host(&self, mut host: Host) -> Result<Host, Error> {
+        let lock = self.get_host_lock(&host.id).await;
+        let _guard = lock.lock().await;
+
+        tracing::debug!("Updating host {:?}", host);
+
         let current_host = self
             .get_host(&host.id)
             .await?
@@ -130,6 +154,10 @@ impl HostService {
         host.updated_at = chrono::Utc::now();
 
         self.storage.update(&host).await?;
+
+        tracing::info!("Updated host {:?}: {:?}", host.base.name, host.id);
+        tracing::debug!("Result: {:?}", host);
+
         Ok(host)
     }
 
@@ -139,6 +167,12 @@ impl HostService {
         let mut port_updates = 0;
         let mut hostname_update = false;
         let mut description_update = false;
+
+        tracing::debug!(
+            "Upserting new host data {:?} to host {:?}",
+            new_host_data,
+            existing_host
+        );
 
         // Merge interfaces - add any new interfaces not already present
         for new_host_data_interface in new_host_data.base.interfaces {
@@ -195,14 +229,15 @@ impl HostService {
 
         if !data.is_empty() {
             tracing::info!(
-                "Upserted host {}: {} with new discovery data: {}",
+                "Upserted new discovery data: {} to host {}: {}",
                 existing_host.base.name,
                 existing_host.id,
                 data.join(", ")
             );
+            tracing::debug!("Result: {:?}", existing_host);
         }
         tracing::info!(
-            "No new informationt to upsert from host {} to host {}: {}",
+            "No new information to upsert from host {} to host {}: {}",
             new_host_data.base.name,
             existing_host.base.name,
             existing_host.id
@@ -229,11 +264,16 @@ impl HostService {
             return Err(anyhow!("Can't consolidate a host that has a daemon. Consolidate the other host into the daemon host."));
         }
 
+        tracing::debug!(
+            "Consolidating host {:?} into host {:?}",
+            other_host,
+            destination_host
+        );
+
         let other_host_services = self
             .service_service
             .get_services_for_host(&other_host.id)
             .await?;
-        let (other_host_name, other_host_id) = (&other_host.base.name, &other_host.id);
 
         let updated_host = self
             .upsert_host(destination_host.clone(), other_host.clone())
@@ -252,26 +292,24 @@ impl HostService {
         try_join_all(service_update_futures).await?;
 
         // Ignore services because they are just being moved to other host
-        self.delete_host(other_host_id, false).await?;
-        tracing::info!(
-            "Consolidated host {}: {} into {}: {}",
-            other_host_name,
-            other_host_id,
-            updated_host.base.name,
-            updated_host.id
-        );
+        self.delete_host(&other_host.id, false).await?;
+        tracing::info!("Consolidated host {} into {}", other_host, updated_host);
+        tracing::debug!("Result: {:?}", updated_host);
         Ok(updated_host)
     }
 
-    pub async fn update_host_services(
-        &self,
-        current_host: &Host,
-        updates: &Host,
-    ) -> Result<(), Error> {
+    async fn update_host_services(&self, current_host: &Host, updates: &Host) -> Result<(), Error> {
         let services = self
             .service_service
             .get_services_for_host(&current_host.id)
             .await?;
+
+        tracing::debug!(
+            "Updating host {:?} services {:?} due to host updates: {:?}",
+            current_host,
+            services,
+            updates
+        );
 
         let (update_services, delete_services): (Vec<Service>, Vec<Service>) = services
             .into_iter()
@@ -309,12 +347,20 @@ impl HostService {
             None
         });
 
-        try_join_all(update_service_futures).await?;
+        let updated_services = try_join_all(update_service_futures).await?;
+
+        tracing::info!("Updated host {} services", updates);
+        tracing::debug!(
+            "Result - host: {:?}, updated services: {:?}, deleted services: {:?}",
+            updates,
+            updated_services,
+            delete_services
+        );
 
         Ok(())
     }
 
-    pub async fn update_subnet_host_relationships(
+    async fn update_subnet_host_relationships(
         &self,
         host: &Host,
         remove: bool,
@@ -351,6 +397,9 @@ impl HostService {
             .get_host(id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Host {} not found", id))?;
+
+        let lock = self.get_host_lock(&id).await;
+        let _guard = lock.lock().await;
 
         if delete_services {
             for service_id in &host.base.services {

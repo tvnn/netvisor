@@ -1,17 +1,16 @@
-use std::net::IpAddr;
-
+use crate::server::hosts::types::interfaces::Interface;
 use crate::server::hosts::types::ports::{Port, PortBase};
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::types::bindings::{Binding, BindingDiscriminants, ServiceBinding};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::patterns::PatternParams;
 use crate::server::subnets::types::base::Subnet;
 use chrono::{DateTime, Utc};
-use mac_address::MacAddress;
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use std::hash::Hash;
+use std::net::IpAddr;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -45,19 +44,47 @@ pub struct Service {
     pub base: ServiceBase,
 }
 
-pub struct ServiceFromDiscoveryParams<'a> {
-    pub service_definition: Box<dyn ServiceDefinition>,
-    pub ip: &'a IpAddr,
-    pub open_ports: &'a [PortBase],
-    pub endpoint_responses: &'a [EndpointResponse],
-    pub subnet: &'a Subnet,
-    pub mac_address: &'a Option<MacAddress>,
+#[derive(Debug, Clone)]
+pub struct ServiceDiscoveryParams<'a> {
     pub host_id: &'a Uuid,
-    pub l3_interface_bound: bool,
-    pub interface_id: &'a Uuid,
     pub gateway_ips: &'a [IpAddr],
-    pub matched_service_definitions: &'a Vec<Box<dyn ServiceDefinition>>,
+    pub baseline_params: &'a ServiceDiscoveryBaselineParams<'a>,
+    pub discovery_state_params: ServiceDiscoveryStateParams<'a>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ServiceDiscoveryBaselineParams<'a> {
+    pub subnet: &'a Subnet,
+    pub interface: &'a Interface,
+    pub open_ports: &'a Vec<PortBase>,
+    pub endpoint_responses: &'a Vec<EndpointResponse>,
     pub host_has_docker_client: &'a bool,
+    pub docker_container_name: &'a Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ServiceDiscoveryStateParams<'a> {
+    pub service_definition: Box<dyn ServiceDefinition>,
+    pub l3_interface_bound: &'a bool,
+    pub matched_services: &'a Vec<Service>,
+}
+
+impl PartialEq for Service {
+    fn eq(&self, other: &Self) -> bool {
+        let host_match = self.base.host_id == other.base.host_id;
+        let definition_match =
+            self.base.service_definition.id() == other.base.service_definition.id();
+        let name_match = self.base.name == other.base.name;
+        let id_match = self.id == other.id;
+
+        (host_match && definition_match && name_match) || id_match
+    }
+}
+
+impl Display for Service {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}: {:?}", self.base.name, self.id)
+    }
 }
 
 impl Service {
@@ -115,56 +142,57 @@ impl Service {
     }
 
     /// Matches scanned data and returns service, vec of matched ports
-    pub fn from_discovery(params: ServiceFromDiscoveryParams) -> (Option<Self>, Vec<Port>) {
-        let ServiceFromDiscoveryParams {
-            service_definition,
-            ip,
-            open_ports,
-            endpoint_responses,
-            subnet,
-            mac_address,
+    pub fn from_discovery(params: ServiceDiscoveryParams) -> (Option<Self>, Vec<Port>) {
+        let ServiceDiscoveryParams {
             host_id,
-            l3_interface_bound,
-            interface_id,
-            gateway_ips,
-            matched_service_definitions,
-            host_has_docker_client,
-        } = params;
+            baseline_params,
+            discovery_state_params,
+            ..
+        } = params.clone();
 
-        if let Ok(result) = service_definition
-            .discovery_pattern()
-            .matches(PatternParams {
-                open_ports,
-                responses: endpoint_responses,
-                ip,
-                subnet,
-                mac_address,
-                gateway_ips,
-                matched_service_definitions,
-                host_has_docker_client,
-            })
-        {
-            let name = service_definition.name().to_string();
+        let ServiceDiscoveryBaselineParams {
+            interface,
+            open_ports,
+            docker_container_name,
+            ..
+        } = baseline_params;
+
+        let ServiceDiscoveryStateParams {
+            service_definition,
+            l3_interface_bound,
+            ..
+        } = discovery_state_params;
+
+        if let Ok(result) = service_definition.discovery_pattern().matches(&params) {
+            let name = if let Some(container_name) = docker_container_name {
+                container_name.clone()
+            } else {
+                service_definition.name().to_string()
+            };
             let matched_ports: Vec<Port> = result.into_iter().flatten().collect();
 
             if service_definition.layer() == BindingDiscriminants::Layer3 && !l3_interface_bound {
-                tracing::info!("{}: L3 service {:?} matched", ip, service_definition,);
+                tracing::debug!("Matched service with params {:?}", params);
+                tracing::info!(
+                    "{}: L3 service {:?} matched",
+                    interface.base.ip_address,
+                    service_definition.name(),
+                );
 
                 (
                     Some(Service::new(ServiceBase {
                         host_id: *host_id,
                         service_definition,
                         name,
-                        bindings: vec![Binding::new_l3(*interface_id)],
+                        bindings: vec![Binding::new_l3(interface.id)],
                     })),
                     Vec::new(),
                 )
-            } else if service_definition.layer() == BindingDiscriminants::Layer4
-                && !matched_ports.is_empty()
-            {
+            } else if service_definition.layer() == BindingDiscriminants::Layer4 {
+                tracing::debug!("Matched service with params {:?}", params);
                 tracing::info!(
                     "{}: L4 service {:?} matched with ports {:?}",
-                    ip,
+                    interface.base.ip_address,
                     service_definition,
                     matched_ports
                 );
@@ -176,22 +204,18 @@ impl Service {
                         name,
                         bindings: matched_ports
                             .iter()
-                            .map(|p| Binding::new_l4(p.id, Some(*interface_id)))
+                            .map(|p| Binding::new_l4(p.id, Some(interface.id)))
                             .collect(),
                     })),
                     matched_ports,
                 )
-            } else if !l3_interface_bound || !open_ports.is_empty() {
+            } else {
                 tracing::warn!(
                     "{}: No services matched. L3 interface already bound: {}, open ports on host: {:?}",
-                    ip,
+                    interface.base.ip_address,
                     l3_interface_bound,
                     open_ports
                 );
-
-                (None, Vec::new())
-            } else {
-                tracing::warn!("{}: No services matched.", ip);
 
                 (None, Vec::new())
             }

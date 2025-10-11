@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::server::{
     shared::{
         constants::Entity,
@@ -7,7 +5,6 @@ use crate::server::{
     },
     subnets::types::base::Subnet,
 };
-use petgraph::graph::NodeIndex;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
@@ -22,45 +19,9 @@ pub struct Edge {
     pub target_handle: EdgeHandle,
 }
 
-// Intermediate representation of edge information
-pub struct EdgeInfo<'a> {
-    pub source_id: Uuid,
-    pub target_id: Uuid,
-    pub source_subnet: &'a Subnet,
-    pub target_subnet: &'a Subnet,
-    pub edge_type: EdgeType,
-    pub label: String,
-}
-
-impl EdgeInfo<'_> {
-    // Convert to actual Edge when node_indices are available
-    pub fn to_edge(
-        &self,
-        node_indices: &HashMap<Uuid, NodeIndex>,
-    ) -> Option<(NodeIndex, NodeIndex, Edge)> {
-        let source_idx = node_indices.get(&self.source_id)?;
-        let target_idx = node_indices.get(&self.target_id)?;
-
-        let (source_handle, target_handle) =
-            EdgeHandle::from_subnet_layers(self.source_subnet, self.target_subnet);
-
-        Some((
-            *source_idx,
-            *target_idx,
-            Edge {
-                edge_type: self.edge_type.clone(),
-                label: self.label.clone(),
-                source: self.source_id,
-                target: self.target_id,
-                source_handle,
-                target_handle,
-            },
-        ))
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Default)]
 pub enum EdgeHandle {
+    #[default]
     Top,
     Bottom,
     Left,
@@ -76,11 +37,19 @@ impl EdgeHandle {
             EdgeHandle::Right => 3,
         }
     }
+
     /// Determine edge handle orientations based on subnet layer and priority
     pub fn from_subnet_layers(
         source_subnet: &Subnet,
         target_subnet: &Subnet,
+        source_is_infra: bool,
+        target_is_infra: bool,
     ) -> (EdgeHandle, EdgeHandle) {
+        // Special case: edges within the same subnet
+        if source_subnet.id == target_subnet.id {
+            return Self::from_same_subnet(source_is_infra, target_is_infra);
+        }
+
         let source_layer = source_subnet.base.subnet_type.default_layer();
         let source_priority = source_subnet.base.subnet_type.layer_priority();
         let target_layer = target_subnet.base.subnet_type.default_layer();
@@ -96,18 +65,67 @@ impl EdgeHandle {
                 // Edge flows upward: source Top -> target Bottom
                 (EdgeHandle::Top, EdgeHandle::Bottom)
             }
-            // Same layer - horizontal flow based on priority
+            // Same layer - horizontal flow based on priority and infra status
             std::cmp::Ordering::Equal => {
                 match source_priority.cmp(&target_priority) {
                     // Source has lower priority (leftmost) -> flows right
-                    std::cmp::Ordering::Less => (EdgeHandle::Right, EdgeHandle::Left),
+                    std::cmp::Ordering::Less => {
+                        let source_handle = if source_is_infra {
+                            EdgeHandle::Bottom
+                        } else {
+                            EdgeHandle::Right
+                        };
+                        let target_handle = if target_is_infra {
+                            EdgeHandle::Bottom
+                        } else {
+                            EdgeHandle::Left
+                        };
+                        (source_handle, target_handle)
+                    }
                     // Source has higher priority (rightmost) -> flows left
-                    std::cmp::Ordering::Greater => (EdgeHandle::Left, EdgeHandle::Right),
-                    // Same priority (shouldn't happen, but handle it)
-                    std::cmp::Ordering::Equal => (EdgeHandle::Right, EdgeHandle::Left),
+                    std::cmp::Ordering::Greater => {
+                        let source_handle = if source_is_infra {
+                            EdgeHandle::Bottom
+                        } else {
+                            EdgeHandle::Left
+                        };
+                        let target_handle = if target_is_infra {
+                            EdgeHandle::Bottom
+                        } else {
+                            EdgeHandle::Right
+                        };
+                        (source_handle, target_handle)
+                    }
+                    // Same priority
+                    std::cmp::Ordering::Equal => {
+                        let source_handle = if source_is_infra {
+                            EdgeHandle::Bottom
+                        } else {
+                            EdgeHandle::Right
+                        };
+                        let target_handle = if target_is_infra {
+                            EdgeHandle::Bottom
+                        } else {
+                            EdgeHandle::Left
+                        };
+                        (source_handle, target_handle)
+                    }
                 }
             }
         }
+    }
+
+    /// Handle edges within the same subnet - defer to anchor analysis
+    /// For intra-subnet edges, we can't know the optimal handles until nodes are positioned
+    /// So we return neutral defaults that will be overridden by anchor analysis
+    fn from_same_subnet(
+        _source_is_infra: bool,
+        _target_is_infra: bool,
+    ) -> (EdgeHandle, EdgeHandle) {
+        // For intra-subnet edges, use Top as a neutral default
+        // The anchor analyzer will determine the actual optimal placement
+        // based on the node's actual position and all its edges
+        (EdgeHandle::Top, EdgeHandle::Top)
     }
 }
 
@@ -165,8 +183,17 @@ impl TypeMetadataProvider for EdgeType {
             EdgeType::Interface => true,
         };
 
+        let has_start_marker = false;
+
+        let has_end_marker = match &self {
+            EdgeType::Group => true,
+            EdgeType::Interface => false,
+        };
+
         serde_json::json!({
             "is_dashed": is_dashed,
+            "has_start_marker": has_start_marker,
+            "has_end_marker": has_end_marker
         })
     }
 }

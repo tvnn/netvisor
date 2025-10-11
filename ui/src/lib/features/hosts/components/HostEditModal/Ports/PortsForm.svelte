@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { type Host } from '$lib/features/hosts/types/base';
-	import { getServicesForPort } from '$lib/features/services/store';
 	import { ports } from '$lib/shared/stores/metadata';
 	import type { Port } from '$lib/features/hosts/types/base';
 	import { PortTypeDisplay } from '$lib/shared/components/forms/selection/display/PortTypeDisplay.svelte';
 	import { v4 as uuidv4 } from 'uuid';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { PortDisplay } from '$lib/shared/components/forms/selection/display/PortDisplay.svelte';
+	import type { Service } from '$lib/features/services/types/base';
 
 	export let formData: Host;
+	export let currentServices: Service[];
 
 	let allPorts: Port[] = [];
 	let previousPortsLength = 0;
@@ -17,11 +18,8 @@
 	$: {
 		const currentPorts = formData.ports || [];
 
-		// Re-sort only if the number of ports changed (add/remove)
-		// or if this is the initial load
 		if (currentPorts.length !== previousPortsLength) {
 			allPorts = [...currentPorts].sort((a, b) => {
-				// Sort by port number, then by protocol
 				if (a.number !== b.number) {
 					return a.number - b.number;
 				}
@@ -29,7 +27,6 @@
 			});
 			previousPortsLength = currentPorts.length;
 		} else {
-			// During editing, just update the reference without re-sorting
 			allPorts = [...currentPorts];
 		}
 	}
@@ -40,6 +37,13 @@
 			(p_type) =>
 				p_type.metadata.can_be_added && !formData.ports.some((port) => port.type == p_type.id)
 		);
+
+	// Check against currentServices instead of the global store
+	function isPortUsed(port: Port): boolean {
+		return currentServices.some((service) =>
+			service.bindings.some((b) => b.type === 'Layer4' && b.port_id === port.id)
+		);
+	}
 
 	function handleCreateNewPort() {
 		const newPort = {
@@ -78,8 +82,7 @@
 	}
 
 	function handleRemovePort(index: number) {
-		const formPorts = formData.ports.filter((_, i) => i != index);
-		formData.ports = [...formPorts];
+		formData.ports = formData.ports.filter((_, i) => i != index);
 	}
 </script>
 
@@ -94,11 +97,12 @@
 		createNewLabel="Custom Port"
 		allowDuplicates={false}
 		allowItemEdit={(port) => port.type == 'Custom'}
-		allowItemRemove={(port: Port) => getServicesForPort(port.id).length == 0}
+		allowItemRemove={(port: Port) => !isPortUsed(port)}
 		options={selectablePorts}
 		items={allPorts}
 		optionDisplayComponent={PortTypeDisplay}
 		itemDisplayComponent={PortDisplay}
+		getItemContext={() => ({ currentServices })}
 		onCreateNew={handleCreateNewPort}
 		onAdd={handleAddPort}
 		onRemove={handleRemovePort}

@@ -68,7 +68,6 @@
 	}
 
 	function removeItem(index: number) {
-		items = items.filter((_, i) => i !== index);
 		onRemove(index);
 	}
 
@@ -165,7 +164,7 @@
 					<!-- Use slot if provided, otherwise check for inline editing -->
 					<slot name="item" {item} {index}>
 						{#if editingIndex === index && itemDisplayComponent.supportsInlineEdit && itemDisplayComponent.renderInlineEdit}
-							{@const context = getItemContext ? getItemContext(item, index) : { item }}
+							{@const context = getItemContext ? getItemContext(item, index) : undefined}
 							{@const inlineEditConfig = itemDisplayComponent.renderInlineEdit(
 								item,
 								(updates) => {
@@ -176,7 +175,8 @@
 							)}
 							<svelte:component this={inlineEditConfig.component} {...inlineEditConfig.props} />
 						{:else}
-							<ListSelectItem {item} displayComponent={itemDisplayComponent} />
+							{@const context = getItemContext ? getItemContext(item, index) : undefined}
+							<ListSelectItem {item} {context} displayComponent={itemDisplayComponent} />
 						{/if}
 					</slot>
 
