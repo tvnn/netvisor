@@ -145,8 +145,6 @@ function getAbsoluteNodePosition(nodeId: string): { x: number; y: number } | nul
 export function getDistanceToNode(clickX: number, clickY: number, node: Node): number {
 	const nodePosition = getAbsoluteNodePosition(node.id);
 
-	console.log(nodePosition);
-
 	if (nodePosition) {
 		const nodeCenterX = nodePosition.x + (node.width || 0) / 2;
 		const nodeCenterY = nodePosition.y + (node.height || 0) / 2;

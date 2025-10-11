@@ -108,7 +108,7 @@ impl Vendor {
     pub const UBIQUITI: &'static str = "Ubiquiti Networks Inc";
 }
 
-impl<'a> Pattern<'a> {
+impl Pattern<'_> {
     pub fn matches(&self, params: &ServiceDiscoveryParams) -> Result<Vec<Option<Port>>, Error> {
         // Return ports that matched if any
 

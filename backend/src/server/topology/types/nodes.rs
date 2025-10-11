@@ -27,6 +27,7 @@ pub enum NodeType {
     SubnetNode {
         infra_width: usize,
         subnet_type: SubnetType,
+        label_override: Option<String>,
     },
     HostNode {
         subnet_id: Uuid,

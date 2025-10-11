@@ -53,7 +53,8 @@
 						parentId: node.subnet_id,
 						width: node.size.x,
 						height: node.size.y,
-						subnet_type: node.subnet_type
+						subnet_type: node.subnet_type,
+						label_override: node.label_override
 					};
 
 					return {

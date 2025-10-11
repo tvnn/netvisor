@@ -72,7 +72,6 @@ impl HostService {
         // Create services, handling case where created_host was upserted instead of created anew (ie during discovery), which means that host ID + interfaces/port IDs
         // are different from what's mapped to the service and they need to be updated
         let service_futures = services.into_iter().map(|mut service| {
-
             service = self.service_service.transfer_service_to_new_host(
                 &mut service,
                 &host,
@@ -398,7 +397,7 @@ impl HostService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Host {} not found", id))?;
 
-        let lock = self.get_host_lock(&id).await;
+        let lock = self.get_host_lock(id).await;
         let _guard = lock.lock().await;
 
         if delete_services {

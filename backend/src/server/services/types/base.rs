@@ -34,7 +34,7 @@ impl Default for ServiceBase {
     }
 }
 
-#[derive(Debug, Clone, Validate, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Validate, Serialize, Deserialize)]
 pub struct Service {
     pub id: Uuid,
     pub created_at: DateTime<Utc>,
@@ -78,6 +78,15 @@ impl PartialEq for Service {
         let id_match = self.id == other.id;
 
         (host_match && definition_match && name_match) || id_match
+    }
+}
+
+impl Hash for Service {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+        self.base.service_definition.hash(state);
+        self.base.name.hash(state);
+        self.base.host_id.hash(state);
     }
 }
 

@@ -8,6 +8,7 @@ export interface TopologyNodeData {
 	position: { x: number; y: number };
 	size: { x: number; y: number };
 	subnet_type: string | null;
+	label_override: string | null;
 }
 
 export interface TopologyEdgeData {
@@ -50,4 +51,5 @@ export interface CustomNodeData extends Record<string, unknown> {
 	width: number;
 	height: number;
 	subnet_type: string | null;
+	label_override: string | null;
 }

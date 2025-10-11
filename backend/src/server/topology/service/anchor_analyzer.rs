@@ -46,7 +46,7 @@ impl AnchorAnalyzer {
         }
 
         let (primary_handle, should_relocate) =
-            Self::calculate_optimal_handle(&handle_counts, is_infra);
+            Self::calculate_optimal_handle(&handle_counts, is_infra, interface_id, edges, ctx);
 
         (primary_handle, total_edges, should_relocate)
     }
@@ -61,10 +61,13 @@ impl AnchorAnalyzer {
 
     /// Calculate the optimal handle placement based on edge distribution
     /// Returns (handle, should_relocate_handles)
-    /// should_relocate_handles is true when vertical edges should move to the side
+    /// should_relocate_handles is true when edges should be relocated to avoid crossing nodes
     fn calculate_optimal_handle(
         handle_counts: &HashMap<EdgeHandle, usize>,
         is_infra: bool,
+        interface_id: Uuid,
+        edges: &[Edge],
+        ctx: &TopologyContext,
     ) -> (Option<EdgeHandle>, bool) {
         if handle_counts.is_empty() {
             return (None, false);
@@ -77,17 +80,6 @@ impl AnchorAnalyzer {
             EdgeHandle::Right
         };
 
-        // Convert the handle counts directly to a placement decision
-        Self::handle_counts_to_placement(handle_counts, &forbidden_handle)
-    }
-
-    /// Determine placement based on handle counts
-    /// If node has Top handle, place it at Top so edge is short
-    /// Returns (handle, should_relocate_handles)
-    fn handle_counts_to_placement(
-        handle_counts: &HashMap<EdgeHandle, usize>,
-        forbidden: &EdgeHandle,
-    ) -> (Option<EdgeHandle>, bool) {
         // Check for opposing vertical edges (Top + Bottom)
         let has_top = handle_counts.get(&EdgeHandle::Top).unwrap_or(&0) > &0;
         let has_bottom = handle_counts.get(&EdgeHandle::Bottom).unwrap_or(&0) > &0;
@@ -98,20 +90,29 @@ impl AnchorAnalyzer {
         let has_right = handle_counts.get(&EdgeHandle::Right).unwrap_or(&0) > &0;
         let has_opposing_horizontal = has_left && has_right;
 
-        // Special case: If node has edges on both top and bottom,
+        // Check if edges would actually cross nodes before relocating
+        let would_cross = Self::would_edges_cross_nodes(
+            interface_id,
+            edges,
+            ctx,
+            has_opposing_vertical,
+            has_opposing_horizontal,
+        );
+
+        // Special case: If node has edges on both top and bottom AND they would cross nodes,
         // place it on the side to avoid vertical edges traversing the subnet
-        if has_opposing_vertical {
-            let preferred_side = if *forbidden == EdgeHandle::Left {
-                EdgeHandle::Left
-            } else {
+        if has_opposing_vertical && would_cross {
+            let preferred_side = if forbidden_handle == EdgeHandle::Left {
                 EdgeHandle::Right
+            } else {
+                EdgeHandle::Left
             };
             return (Some(preferred_side), true); // true = relocate handles
         }
 
-        // Special case: If node has edges on both left and right,
+        // Special case: If node has edges on both left and right AND they would cross nodes,
         // place it on top or bottom based on which has more edges
-        if has_opposing_horizontal {
+        if has_opposing_horizontal && would_cross {
             let top_count = handle_counts.get(&EdgeHandle::Top).unwrap_or(&0);
             let bottom_count = handle_counts.get(&EdgeHandle::Bottom).unwrap_or(&0);
 
@@ -147,10 +148,10 @@ impl AnchorAnalyzer {
         if bottom_count == max_count {
             return (Some(EdgeHandle::Bottom), false);
         }
-        if right_count == max_count && *forbidden != EdgeHandle::Right {
+        if right_count == max_count && forbidden_handle != EdgeHandle::Right {
             return (Some(EdgeHandle::Right), false);
         }
-        if left_count == max_count && *forbidden != EdgeHandle::Left {
+        if left_count == max_count && forbidden_handle != EdgeHandle::Left {
             return (Some(EdgeHandle::Left), false);
         }
 
@@ -173,5 +174,88 @@ impl AnchorAnalyzer {
             // No vertical edges, default to Top
             Some(EdgeHandle::Top)
         }
+    }
+
+    /// Check if edges would cross over any nodes in the subnet
+    /// Returns true if relocation would help avoid crossings
+    fn would_edges_cross_nodes(
+        interface_id: Uuid,
+        edges: &[Edge],
+        ctx: &TopologyContext,
+        has_opposing_vertical: bool,
+        has_opposing_horizontal: bool,
+    ) -> bool {
+        // Get the subnet this interface belongs to
+        let subnet = match ctx.get_subnet_from_interface_id(interface_id) {
+            Some(s) => s,
+            None => return false,
+        };
+
+        // Find all interfaces in the same subnet
+        let subnet_interfaces: Vec<Uuid> = ctx
+            .hosts
+            .iter()
+            .flat_map(|h| &h.base.interfaces)
+            .filter(|i| i.base.subnet_id == subnet.id)
+            .map(|i| i.id)
+            .collect();
+
+        // If there are fewer than 3 nodes in the subnet, edges likely won't cross nodes
+        if subnet_interfaces.len() < 3 {
+            return false;
+        }
+
+        // Count inter-subnet edges that would traverse the subnet
+        let mut vertical_edge_count = 0;
+        let mut horizontal_edge_count = 0;
+
+        for edge in edges {
+            if edge.source != interface_id && edge.target != interface_id {
+                continue;
+            }
+
+            // Get the other end of the edge
+            let other_interface = if edge.source == interface_id {
+                edge.target
+            } else {
+                edge.source
+            };
+
+            // Check if the other interface is in a different subnet
+            let other_subnet = ctx.get_subnet_from_interface_id(other_interface);
+            if other_subnet.map(|s| s.id) == Some(subnet.id) {
+                continue; // Intra-subnet edge, skip
+            }
+
+            // Determine if this is a vertical or horizontal edge based on handle
+            let relevant_handle = if edge.source == interface_id {
+                &edge.source_handle
+            } else {
+                &edge.target_handle
+            };
+
+            match relevant_handle {
+                EdgeHandle::Top | EdgeHandle::Bottom => vertical_edge_count += 1,
+                EdgeHandle::Left | EdgeHandle::Right => horizontal_edge_count += 1,
+            }
+        }
+
+        // If we have opposing vertical edges and multiple vertical edges exist, likely to cross
+        if has_opposing_vertical && vertical_edge_count >= 2 {
+            return true;
+        }
+
+        // If we have opposing horizontal edges and multiple horizontal edges exist, likely to cross
+        if has_opposing_horizontal && horizontal_edge_count >= 2 {
+            return true;
+        }
+
+        // Additional heuristic: if subnet has many nodes (5+) and opposing edges exist,
+        // it's very likely edges will cross nodes
+        if subnet_interfaces.len() >= 5 && (has_opposing_vertical || has_opposing_horizontal) {
+            return true;
+        }
+
+        false
     }
 }

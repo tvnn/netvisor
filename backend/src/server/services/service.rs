@@ -80,11 +80,7 @@ impl ServiceService {
         );
 
         for new_service_binding in &new_service_data.base.bindings {
-            if !existing_service
-                .base
-                .bindings
-                .contains(&new_service_binding)
-            {
+            if !existing_service.base.bindings.contains(new_service_binding) {
                 binding_updates += 1;
                 existing_service
                     .base

@@ -97,7 +97,7 @@ pub trait DaemonUtils: NetworkUtils {
                     mac_address,
                 }));
             }
-        }        
+        }
 
         let subnets: Vec<Subnet> = subnet_map.into_values().collect();
 

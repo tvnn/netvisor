@@ -18,9 +18,12 @@
 	let IconComponent = subnetTypes.getIconComponent(subnet.subnet_type) as any;
 	let cidr = subnet.cidr;
 
-	let label =
-		(subnet.name != subnet.cidr ? subnet.name : subnetTypes.getName(subnet.subnet_type)) +
-		(isContainerSubnet(subnet.id) ? '' : ': ' + subnet.cidr);
+	let label_override = data.label_override as string | null;
+
+	let label = label_override
+		? label_override
+		: (subnet.name != subnet.cidr ? subnet.name : subnetTypes.getName(subnet.subnet_type)) +
+			(isContainerSubnet(subnet.id) ? '' : ': ' + subnet.cidr);
 	let infra_width = (data.infra_width as number) || 0;
 
 	let nodeClasses = $derived(

@@ -46,8 +46,9 @@ impl Hash for Interface {
 
 impl PartialEq for Interface {
     fn eq(&self, other: &Self) -> bool {
-        (self.base.ip_address == other.base.ip_address && self.base.subnet_id == other.base.subnet_id) || 
-        (self.id == other.id)
+        (self.base.ip_address == other.base.ip_address
+            && self.base.subnet_id == other.base.subnet_id)
+            || (self.id == other.id)
     }
 }
 

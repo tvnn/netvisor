@@ -92,7 +92,8 @@ impl DiscoveryHandler<SelfReportDiscovery> {
             }
         });
 
-        let daemon_bound_subnet_ids: Vec<Uuid> = if binding_address == ALL_INTERFACES_IP.to_string() {
+        let daemon_bound_subnet_ids: Vec<Uuid> = if binding_address == ALL_INTERFACES_IP.to_string()
+        {
             created_subnets.iter().map(|s| s.id).collect()
         } else {
             created_subnets
