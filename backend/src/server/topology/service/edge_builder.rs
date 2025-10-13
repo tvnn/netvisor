@@ -66,7 +66,7 @@ impl EdgeBuilder {
                             source_is_infra && source_needs_infra_constraint,
                             target_is_infra && target_needs_infra_constraint,
                         );
-                        
+
                         // Don't label edges if they are within a subnet (avoid clutter) or between subnets that have been
                         // consolidated (ie docker bridge subnets)
                         let label = if source_subnet == target_subnet

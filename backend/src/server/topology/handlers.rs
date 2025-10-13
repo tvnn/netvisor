@@ -1,6 +1,7 @@
 use crate::server::{
     config::AppState,
-    shared::types::api::{ApiResponse, ApiResult}, topology::types::api::TopologyRequestOptions,
+    shared::types::api::{ApiResponse, ApiResult},
+    topology::types::api::TopologyRequestOptions,
 };
 use axum::{extract::State, response::Json, routing::post, Router};
 use std::sync::Arc;

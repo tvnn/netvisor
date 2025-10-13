@@ -90,10 +90,8 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
 
 impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
     fn is_infra_service(&self) -> bool {
-        self.is_dns_resolver()
-            || self.is_gateway()
-            || self.is_reverse_proxy()
-            // || self.is_docker_daemon()
+        self.is_dns_resolver() || self.is_gateway() || self.is_reverse_proxy()
+        // || self.is_docker_daemon()
     }
 
     fn discovery_ports(&self) -> Vec<PortBase> {

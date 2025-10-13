@@ -59,9 +59,10 @@ impl SubnetLayoutPlanner {
         &mut self,
         ctx: &TopologyContext,
         all_edges: &[Edge],
-        group_docker_bridges_by_host: bool
+        group_docker_bridges_by_host: bool,
     ) -> (HashMap<Uuid, SubnetLayout>, Vec<Node>) {
-        let children_by_subnet = self.group_children_by_subnet(ctx, all_edges, group_docker_bridges_by_host);
+        let children_by_subnet =
+            self.group_children_by_subnet(ctx, all_edges, group_docker_bridges_by_host);
         let mut child_nodes = Vec::new();
 
         let subnet_sizes: HashMap<Uuid, SubnetLayout> = children_by_subnet
@@ -83,7 +84,7 @@ impl SubnetLayoutPlanner {
         &mut self,
         ctx: &TopologyContext,
         all_edges: &[Edge],
-        group_docker_bridges_by_host: bool
+        group_docker_bridges_by_host: bool,
     ) -> HashMap<Uuid, Vec<SubnetChild>> {
         let mut children_by_subnet: HashMap<Uuid, Vec<SubnetChild>> = HashMap::new();
 

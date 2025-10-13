@@ -9,9 +9,9 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
-use validator::Validate;
 use std::sync::Arc;
 use uuid::Uuid;
+use validator::Validate;
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
@@ -25,7 +25,6 @@ async fn create_subnet(
     State(state): State<Arc<AppState>>,
     Json(request): Json<Subnet>,
 ) -> ApiResult<Json<ApiResponse<Subnet>>> {
-    
     tracing::info!("Received subnet creation request: {:?}", request);
 
     if let Err(validation_errors) = request.base.validate() {

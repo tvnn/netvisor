@@ -1,4 +1,7 @@
-use crate::{daemon::{discovery::handlers as discovery_handlers, runtime::{types::DaemonAppState}}, server::shared::types::api::{ApiResponse, ApiResult}};
+use crate::{
+    daemon::{discovery::handlers as discovery_handlers, runtime::types::DaemonAppState},
+    server::shared::types::api::{ApiResponse, ApiResult},
+};
 use axum::{routing::get, Json, Router};
 use std::sync::Arc;
 

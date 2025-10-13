@@ -55,5 +55,5 @@ export interface CustomNodeData extends Record<string, unknown> {
 }
 
 export interface TopologyRequestOptions {
-    group_docker_bridges_by_host: boolean
+	group_docker_bridges_by_host: boolean;
 }

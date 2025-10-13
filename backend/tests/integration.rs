@@ -10,7 +10,7 @@ use netvisor::server::shared::types::metadata::HasId;
 use uuid::Uuid;
 
 struct ContainerManager {
-    container_process: Option<Child>
+    container_process: Option<Child>,
 }
 
 /// Container lifecycle management
@@ -23,16 +23,18 @@ impl ContainerManager {
 
     fn start(&mut self) -> Result<(), String> {
         println!("Starting containers with docker compose...");
-        
+
         // Start containers and wait for them to be healthy
         // Don't use -d, let docker compose wait for health before returning
         let status = Command::new("docker")
             .args([
                 "compose",
-                "-f", "docker-compose.yml",
-                "-f", "docker-compose.dev.yml",
+                "-f",
+                "docker-compose.yml",
+                "-f",
+                "docker-compose.dev.yml",
                 "up",
-                "--wait",  // Wait for services to be healthy before returning
+                "--wait", // Wait for services to be healthy before returning
             ])
             .current_dir("..")
             .status()
@@ -45,7 +47,7 @@ impl ContainerManager {
         println!("✅ Server and daemon are healthy!");
         Ok(())
     }
-    
+
     fn cleanup(&mut self) {
         println!("\nCleaning up containers...");
 
@@ -190,10 +192,7 @@ async fn check_daemon_registered(client: &reqwest::Client) -> Result<Daemon, Str
 }
 
 /// Start discovery and wait for it to complete
-async fn run_discovery_and_wait(
-    client: &reqwest::Client,
-    daemon_id: Uuid,
-) -> Result<(), String> {
+async fn run_discovery_and_wait(client: &reqwest::Client, daemon_id: Uuid) -> Result<(), String> {
     // Initiate discovery
     println!("\n=== Starting Discovery ===");
     let response = client
@@ -212,8 +211,7 @@ async fn run_discovery_and_wait(
             .unwrap_or_else(|_| "Could not read body".to_string());
         return Err(format!(
             "Discovery initiation failed with status {}: {}",
-            status,
-            body
+            status, body
         ));
     }
 
@@ -293,7 +291,7 @@ async fn run_discovery_and_wait(
 /// Check for Home Assistant service
 async fn check_for_home_assistant_service(client: &reqwest::Client) -> Result<Service, String> {
     println!("\n=== Checking for Home Assistant Service ===");
-    
+
     let services = retry_api_request("fetch services", 10, 2, || {
         let client = client.clone();
         async move {
@@ -339,7 +337,8 @@ async fn check_for_home_assistant_service(client: &reqwest::Client) -> Result<Se
     .await?;
 
     // Find Home Assistant service
-    let home_assistant_service = services.clone()
+    let home_assistant_service = services
+        .clone()
         .into_iter()
         .find(|s| s.base.service_definition.id() == HomeAssistant.id())
         .ok_or_else(|| {

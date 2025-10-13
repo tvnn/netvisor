@@ -10,7 +10,7 @@
 	import { type Node, type Edge } from '@xyflow/svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import { getDistanceToNode, getNextHandle, topology } from '../store';
-	import { edgeTypes, entities } from '$lib/shared/stores/metadata';
+	import { edgeTypes } from '$lib/shared/stores/metadata';
 	import { pushError } from '$lib/shared/stores/feedback';
 
 	// Import custom node components
@@ -77,7 +77,6 @@
 						const edgeLabel = edgeTypes.getName(edgeType);
 						let edgeMetadata = edgeTypes.getMetadata(edgeType);
 						let edgeColorHelper = edgeTypes.getColorHelper(edgeType);
-						let hostColorHelper = entities.getColorHelper('Host');
 
 						const dashArray = edgeMetadata.is_dashed ? 'stroke-dasharray: 5,5;' : '';
 						const markerStart = !edgeMetadata.has_start_marker
@@ -93,12 +92,11 @@
 									color: edgeColorHelper.rgb
 								} as EdgeMarkerType);
 
-						const labelStyle =
-							edgeMetadata.style_label_like_nodes
-								? `background: ${twColorToRgba(edgeColorHelper.bg)};
+						const labelStyle = edgeMetadata.style_label_like_nodes
+							? `background: ${twColorToRgba(edgeColorHelper.bg)};
 								color: ${edgeColorHelper.rgb};
 								border: 2px solid ${twColorToRgba(edgeColorHelper.border)};`
-								: 'background: #374151; color: #f3f4f6; border: 1px solid #4b5563;';
+							: 'background: #374151; color: #f3f4f6; border: 1px solid #4b5563;';
 
 						const data: CustomEdgeData = {
 							edgeType: edgeType,
