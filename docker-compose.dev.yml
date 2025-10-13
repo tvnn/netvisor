@@ -67,12 +67,13 @@ services:
       - cargo-cache:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
       - target-cache:/app/target
+    command: sh -c "cargo run --bin daemon"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:60073/api/health"]
-      interval: 10s
+      test: ["CMD-SHELL", "curl -f http://localhost:60073/api/health || exit 1"]
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 10s
+      retries: 15
+      start_period: 30s
     networks:
       netvisor-dev:
         ipv4_address: 172.25.0.4

@@ -24,14 +24,15 @@ impl ContainerManager {
     fn start(&mut self) -> Result<(), String> {
         println!("Starting containers with docker compose...");
         
-        // Start containers in detached mode
+        // Start containers and wait for them to be healthy
+        // Don't use -d, let docker compose wait for health before returning
         let status = Command::new("docker")
             .args([
                 "compose",
                 "-f", "docker-compose.yml",
                 "-f", "docker-compose.dev.yml",
                 "up",
-                "-d"
+                "--wait",  // Wait for services to be healthy before returning
             ])
             .current_dir("..")
             .status()
@@ -39,25 +40,6 @@ impl ContainerManager {
 
         if !status.success() {
             return Err("Failed to start containers".to_string());
-        }
-
-        // Wait for services with healthchecks to be healthy
-        println!("Waiting for server and daemon to be healthy...");
-        let wait_status = Command::new("docker")
-            .args([
-                "compose",
-                "-f", "docker-compose.yml",
-                "-f", "docker-compose.dev.yml",
-                "wait",
-                "server",
-                "daemon"
-            ])
-            .current_dir("..")
-            .status()
-            .map_err(|e| format!("Failed to wait for containers: {}", e))?;
-
-        if !wait_status.success() {
-            return Err("Containers failed to become healthy".to_string());
         }
 
         println!("✅ Server and daemon are healthy!");
@@ -290,11 +272,6 @@ async fn run_discovery_and_wait(
             let update = api_response
                 .data
                 .ok_or_else(|| "No data in response".to_string())?;
-
-            println!(
-                "Discovery progress: phase={:?}, {}/{} scanned, {} discovered",
-                update.phase, update.completed, update.total, update.discovered_count
-            );
 
             // Check if discovery is complete
             if update.finished_at.is_some() {
