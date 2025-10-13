@@ -4,10 +4,11 @@ CREATE TABLE IF NOT EXISTS services (
     updated_at TEXT NOT NULL,
     name TEXT NOT NULL,
     host_id BLOB NOT NULL,
-    groups TEXT,
     bindings TEXT,
     service_definition TEXT NOT NULL,
-    virtualization TEXT NOT NULL,
+    virtualization TEXT,
+    vms TEXT,
+    containers TEXT,
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
 );
 

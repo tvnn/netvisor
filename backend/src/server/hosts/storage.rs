@@ -5,6 +5,7 @@ use crate::server::{
         interfaces::Interface,
         ports::Port,
         targets::HostTarget,
+        virtualization::HostVirtualization,
     },
 };
 use anyhow::{Error, Result};
@@ -39,14 +40,15 @@ impl HostStorage for SqliteHostStorage {
         let target_str = serde_json::to_string(&host.base.target)?;
         let ports_str = serde_json::to_string(&host.base.ports)?;
         let source_str = serde_json::to_string(&host.base.source)?;
+        let virtualization_str = serde_json::to_string(&host.base.virtualization)?;
 
         sqlx::query(
             r#"
             INSERT INTO hosts (
                 id, name, hostname, target, description,
-                services, interfaces, ports, source,
+                services, interfaces, ports, source, virtualization,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(blob_uuid::to_blob(&host.id))
@@ -58,6 +60,7 @@ impl HostStorage for SqliteHostStorage {
         .bind(interfaces_str)
         .bind(ports_str)
         .bind(source_str)
+        .bind(virtualization_str)
         .bind(host.created_at.to_rfc3339())
         .bind(host.updated_at.to_rfc3339())
         .execute(&self.pool)
@@ -97,12 +100,13 @@ impl HostStorage for SqliteHostStorage {
         let target_str = serde_json::to_string(&host.base.target)?;
         let ports_str = serde_json::to_string(&host.base.ports)?;
         let source_str = serde_json::to_string(&host.base.source)?;
+        let virtualization_str = serde_json::to_string(&host.base.virtualization)?;
 
         sqlx::query(
             r#"
             UPDATE hosts SET 
                 name = ?, hostname = ?, description = ?,
-                target = ?, interfaces = ?, ports = ?, source = ?, services = ?,
+                target = ?, interfaces = ?, ports = ?, source = ?, services = ?, virtualization = ?,
                 updated_at = ?
             WHERE id = ?
             "#,
@@ -115,6 +119,7 @@ impl HostStorage for SqliteHostStorage {
         .bind(ports_str)
         .bind(source_str)
         .bind(services_str)
+        .bind(virtualization_str)
         .bind(host.updated_at)
         .bind(blob_uuid::to_blob(&host.id))
         .execute(&self.pool)
@@ -145,6 +150,9 @@ fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host, Error> {
         .or(Err(Error::msg("Failed to deserialize ports")))?;
     let source: EntitySource = serde_json::from_str(&row.get::<String, _>("source"))
         .or(Err(Error::msg("Failed to deserialize source")))?;
+    let virtualization: Option<HostVirtualization> =
+        serde_json::from_str(&row.get::<String, _>("virtualization"))
+            .or(Err(Error::msg("Failed to deserialize virtualization")))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -162,6 +170,7 @@ fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host, Error> {
             description: row.get("description"),
             services,
             ports,
+            virtualization,
             interfaces,
             source,
         },

@@ -1,4 +1,5 @@
 use crate::server::discovery::types::base::EntitySource;
+use crate::server::hosts::types::virtualization::HostVirtualization;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use crate::server::{
     hosts::types::ports::Port,
@@ -36,6 +37,7 @@ pub struct HostBase {
     pub services: Vec<Uuid>,
     pub ports: Vec<Port>,
     pub source: EntitySource,
+    pub virtualization: Option<HostVirtualization>,
 }
 
 impl Default for HostBase {
@@ -49,6 +51,7 @@ impl Default for HostBase {
             services: Vec::new(),
             ports: Vec::new(),
             source: EntitySource::Unknown,
+            virtualization: None,
         }
     }
 }

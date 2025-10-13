@@ -5,7 +5,7 @@ use crate::server::services::types::{
         Service, ServiceDiscoveryBaselineParams, ServiceDiscoveryParams,
         ServiceDiscoveryStateParams,
     },
-    virtualization::Virtualization,
+    virtualization::ServiceVirtualization,
 };
 use anyhow::Error;
 use mac_oui::Oui;
@@ -365,7 +365,7 @@ impl Pattern<'_> {
             }
 
             Pattern::DockerContainer => match virtualization {
-                Some(Virtualization::Docker(..)) => Ok(vec![None]),
+                Some(ServiceVirtualization::Docker(..)) => Ok(vec![None]),
                 _ => no_match,
             },
 
@@ -429,7 +429,9 @@ impl Pattern<'_> {
 mod tests {
     use std::net::IpAddr;
 
-    use crate::server::services::types::{patterns::Service, virtualization::Virtualization};
+    use crate::server::services::types::{
+        patterns::Service, virtualization::ServiceVirtualization,
+    };
     use uuid::Uuid;
 
     use crate::{
@@ -460,7 +462,7 @@ mod tests {
         gateway_ips: Vec<IpAddr>,
         endpoint_responses: Vec<EndpointResponse>,
         host_has_docker_client: bool,
-        virtualization: Option<Virtualization>,
+        virtualization: Option<ServiceVirtualization>,
         l3_interface_bound: bool,
         matched_services: Vec<Service>,
     }

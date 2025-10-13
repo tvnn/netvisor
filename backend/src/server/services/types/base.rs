@@ -5,7 +5,7 @@ use crate::server::services::types::bindings::{Binding, BindingDiscriminants};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::virtualization::{DockerVirtualization, Virtualization};
+use crate::server::services::types::virtualization::{DockerVirtualization, ServiceVirtualization};
 use crate::server::subnets::types::base::Subnet;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -22,7 +22,11 @@ pub struct ServiceBase {
     #[validate(length(min = 0, max = 100))]
     pub name: String,
     pub bindings: Vec<Binding>,
-    pub virtualization: Option<Virtualization>,
+    pub virtualization: Option<ServiceVirtualization>,
+    /// Host IDs that are VMs managed by service
+    pub vms: Vec<Uuid>,
+    /// Service IDs that are VMs managed by service
+    pub containers: Vec<Uuid>,
 }
 
 impl Default for ServiceBase {
@@ -33,6 +37,8 @@ impl Default for ServiceBase {
             name: String::new(),
             bindings: Vec::new(),
             virtualization: None,
+            vms: vec![],
+            containers: vec![],
         }
     }
 }
@@ -62,7 +68,7 @@ pub struct ServiceDiscoveryBaselineParams<'a> {
     pub all_ports: &'a Vec<PortBase>,
     pub endpoint_responses: &'a Vec<EndpointResponse>,
     pub host_has_docker_client: &'a bool,
-    pub virtualization: &'a Option<Virtualization>,
+    pub virtualization: &'a Option<ServiceVirtualization>,
 }
 
 #[derive(Debug, Clone)]
@@ -199,7 +205,7 @@ impl Service {
             let matched_ports: Vec<Port> = result.into_iter().flatten().collect();
 
             if service_definition.is_generic() {
-                if let Some(Virtualization::Docker(DockerVirtualization {
+                if let Some(ServiceVirtualization::Docker(DockerVirtualization {
                     container_name: Some(c_name),
                     ..
                 })) = virtualization
@@ -223,6 +229,8 @@ impl Service {
                         name,
                         bindings: vec![Binding::new_l3(interface.id)],
                         virtualization: virtualization.clone(),
+                        vms: vec![],
+                        containers: vec![],
                     })),
                     Vec::new(),
                 )
@@ -245,6 +253,8 @@ impl Service {
                             .iter()
                             .map(|p| Binding::new_l4(p.id, Some(interface.id)))
                             .collect(),
+                        vms: vec![],
+                        containers: vec![],
                     })),
                     matched_ports,
                 )

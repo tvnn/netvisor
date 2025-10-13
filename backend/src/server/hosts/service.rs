@@ -384,6 +384,8 @@ impl HostService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Host {} not found", id))?;
 
+        let mut all_services = self.service_service.get_all_services().await?;
+
         let lock = self.get_host_lock(id).await;
         let _guard = lock.lock().await;
 
@@ -392,6 +394,22 @@ impl HostService {
                 self.service_service.delete_service(service_id).await?;
             }
         }
+
+        let vm_update_futures = all_services.iter_mut().filter_map(|s| {
+            if s.base.vms.contains(id) {
+                s.base.vms = s
+                    .base
+                    .vms
+                    .clone()
+                    .into_iter()
+                    .filter(|h_id| h_id != id)
+                    .collect();
+                return Some(self.service_service.update_service(s.clone()));
+            }
+            None
+        });
+
+        try_join_all(vm_update_futures).await?;
 
         self.storage.delete(id).await?;
         tracing::info!(

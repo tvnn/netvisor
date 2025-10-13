@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS hosts (
     services TEXT,
     ports TEXT,
     source TEXT NOT NULL,
+    virtualization TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );

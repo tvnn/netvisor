@@ -26,8 +26,6 @@ use validator::Validate;
 pub enum GroupType {
     #[default]
     NetworkPath,
-    // ID of binding for service providing virtualization (ie Docker Daemon, Proxmox, etc)
-    VirtualizationHost(Uuid),
 }
 
 #[derive(Debug, Clone, Serialize, Validate, Deserialize)]
@@ -73,14 +71,12 @@ impl EntityMetadataProvider for GroupType {
     fn color(&self) -> &'static str {
         match self {
             GroupType::NetworkPath => Entity::Group.color(),
-            GroupType::VirtualizationHost(_) => Entity::Virtualization.color(),
         }
     }
 
     fn icon(&self) -> &'static str {
         match self {
             GroupType::NetworkPath => "Route",
-            GroupType::VirtualizationHost(_) => Entity::Virtualization.icon(),
         }
     }
 }
@@ -89,14 +85,12 @@ impl TypeMetadataProvider for GroupType {
     fn name(&self) -> &'static str {
         match self {
             GroupType::NetworkPath => "Network Path",
-            GroupType::VirtualizationHost(_) => "Virtualization Host",
         }
     }
 
     fn description(&self) -> &'static str {
         match self {
             GroupType::NetworkPath => "Path of network traffic between sources. Edge will be directed based on service order.",
-            GroupType::VirtualizationHost(_) => "Host providing container or VM infrastructure."
         }
     }
 }

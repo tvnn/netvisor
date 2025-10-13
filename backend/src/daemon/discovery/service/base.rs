@@ -336,6 +336,7 @@ pub trait DiscoversNetworkedEntities:
             services: Vec::new(),
             ports: Vec::new(),
             source: EntitySource::Discovery(self.discovery_type(), daemon_id),
+            virtualization: None,
         });
 
         let services = self.discover_services(&mut host, &params, &gateway_ips)?;

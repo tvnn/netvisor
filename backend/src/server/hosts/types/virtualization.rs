@@ -9,24 +9,24 @@ use crate::server::shared::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, IntoStaticStr)]
-#[serde(tag = "type", content = "details")]
-pub enum ServiceVirtualization {
-    Docker(DockerVirtualization),
+#[serde(tag = "type", content = "config")]
+pub enum HostVirtualization {
+    Proxmox(ProxmoxVirtualization),
 }
 
 #[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash)]
-pub struct DockerVirtualization {
-    pub container_name: Option<String>,
-    pub container_id: Option<String>,
+pub struct ProxmoxVirtualization {
+    pub vm_name: Option<String>,
+    pub vm_id: Option<String>,
 }
 
-impl HasId for ServiceVirtualization {
+impl HasId for HostVirtualization {
     fn id(&self) -> &'static str {
         self.into()
     }
 }
 
-impl EntityMetadataProvider for ServiceVirtualization {
+impl EntityMetadataProvider for HostVirtualization {
     fn color(&self) -> &'static str {
         Entity::Virtualization.color()
     }
@@ -35,12 +35,12 @@ impl EntityMetadataProvider for ServiceVirtualization {
     }
 }
 
-impl TypeMetadataProvider for ServiceVirtualization {
+impl TypeMetadataProvider for HostVirtualization {
     fn name(&self) -> &'static str {
-        "Docker"
+        "Proxmox"
     }
 
     fn description(&self) -> &'static str {
-        "A service running in a docker container"
+        "A host running as a Proxmox VM"
     }
 }

@@ -19,16 +19,15 @@ use crate::daemon::discovery::service::base::{
 use crate::daemon::discovery::types::base::DiscoverySessionUpdate;
 use crate::daemon::utils::base::DaemonUtils;
 use crate::server::discovery::types::base::DiscoveryType;
-use crate::server::groups::types::{Group, GroupBase, GroupType};
 use crate::server::hosts::types::base::HostBase;
 use crate::server::hosts::types::interfaces::ALL_INTERFACES_IP;
 use crate::server::hosts::types::ports::Port;
 use crate::server::services::definitions::docker_container::DockerContainer;
 use crate::server::services::types::base::{Service, ServiceBase, ServiceDiscoveryBaselineParams};
 use crate::server::services::types::bindings::Binding;
-use crate::server::services::types::definitions::{ServiceDefinition, ServiceDefinitionExt};
+use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::virtualization::{DockerVirtualization, Virtualization};
+use crate::server::services::types::virtualization::{DockerVirtualization, ServiceVirtualization};
 use crate::server::subnets::types::base::{Subnet, SubnetBase, SubnetType};
 use crate::server::utils::base::NetworkUtils;
 use crate::{
@@ -114,19 +113,29 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
         let containers_interfaces_and_subnets =
             self.get_container_interfaces(&containers, &subnets, &mut host_interfaces);
 
-        let discovery_result = self
+        let discovered_hosts_services = self
             .scan_and_process_containers(
                 cancel.clone(),
                 containers,
                 &containers_interfaces_and_subnets,
             )
-            .await
-            .map(|_| ());
+            .await;
+
+        let discovery_result = if discovered_hosts_services.is_ok() {
+            Ok(())
+        } else {
+            Err(anyhow::Error::msg(""))
+        };
+
+        let services: Vec<Service> = discovered_hosts_services?
+            .iter()
+            .flat_map(|(_, s)| s.clone())
+            .collect();
 
         self.finish_discovery(discovery_result, cancel.clone())
             .await?;
 
-        self.create_docker_daemon_service(&containers_interfaces_and_subnets)
+        self.create_docker_daemon_service(&containers_interfaces_and_subnets, services)
             .await?;
 
         Ok(())
@@ -196,77 +205,10 @@ impl Discovery<DockerScanDiscovery> {
         Ok(client)
     }
 
-    pub async fn create_docker_virtualization_group(
-        &self,
-        containers_interfaces_and_subnets: &HashMap<String, Vec<(Interface, Subnet)>>,
-        services: &[Service],
-        host: &Host,
-    ) -> Result<Group, Error> {
-        let host_ip = self.as_ref().utils.get_own_ip_address()?;
-        let hostname = self
-            .as_ref()
-            .utils
-            .get_own_hostname()
-            .unwrap_or("Host".to_string());
-
-        let docker_daemon_service = services
-            .iter()
-            .find(|s| s.base.service_definition.is_docker_daemon())
-            .ok_or_else(|| anyhow!("Could not find docker daemon service"))?;
-
-        // Find host's primary interface (the one with host_ip)
-        let host_primary_interface_id = host
-            .base
-            .interfaces
-            .iter()
-            .find(|i| i.base.ip_address == host_ip)
-            .map(|i| i.id)
-            .ok_or_else(|| anyhow!("Could not find host primary interface with IP {}", host_ip))?;
-
-        // Collect all Docker bridge subnets
-        let docker_bridge_subnets: Vec<&Subnet> = containers_interfaces_and_subnets
-            .values()
-            .flat_map(|v| v.iter().map(|(_, s)| s))
-            .filter(|s| s.base.subnet_type == SubnetType::DockerBridge)
-            .collect();
-
-        let mut bindings: Vec<Uuid> = Vec::new();
-
-        // First, add the host's primary interface binding (if it exists)
-        let host_binding = docker_daemon_service
-            .base
-            .bindings
-            .iter()
-            .find(|b| b.interface_id() == Some(host_primary_interface_id))
-            .ok_or_else(|| anyhow!("Could not find host binding"))?;
-
-        // Then add all Docker bridge bindings
-        for binding in &docker_daemon_service.base.bindings {
-            if let Some(interface) = host.get_interface(&binding.interface_id()) {
-                // Check if this interface is on a Docker bridge subnet
-                if docker_bridge_subnets
-                    .iter()
-                    .any(|s| s.id == interface.base.subnet_id)
-                {
-                    bindings.push(binding.id());
-                }
-            }
-        }
-
-        let group = Group::new(GroupBase {
-            name: format!("Docker on {}", hostname),
-            description: None,
-            service_bindings: bindings,
-            group_type: GroupType::VirtualizationHost(host_binding.id()),
-            source: EntitySource::System,
-        });
-
-        self.create_group(&group).await
-    }
-
     pub async fn create_docker_daemon_service(
         &self,
         containers_interfaces_and_subnets: &HashMap<String, Vec<(Interface, Subnet)>>,
+        services: Vec<Service>,
     ) -> Result<(), Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
         let host_id = self.domain.host_id;
@@ -288,6 +230,8 @@ impl Discovery<DockerScanDiscovery> {
             bindings: interfaces.iter().map(|i| Binding::new_l3(i.id)).collect(),
             host_id,
             virtualization: None,
+            vms: vec![],
+            containers: services.iter().map(|s| s.id).collect(),
         });
 
         let mut temp_docker_daemon_host = Host::new(HostBase::default());
@@ -297,16 +241,8 @@ impl Discovery<DockerScanDiscovery> {
         temp_docker_daemon_host.base.interfaces = interfaces;
         temp_docker_daemon_host.base.services = vec![docker_service.id];
 
-        let (created_host, created_services) = self
-            .create_host(temp_docker_daemon_host, vec![docker_service])
+        self.create_host(temp_docker_daemon_host, vec![docker_service])
             .await?;
-
-        self.create_docker_virtualization_group(
-            containers_interfaces_and_subnets,
-            &created_services,
-            &created_host,
-        )
-        .await?;
 
         Ok(())
     }
@@ -316,7 +252,7 @@ impl Discovery<DockerScanDiscovery> {
         cancel: CancellationToken,
         containers: Vec<(ContainerInspectResponse, ContainerSummary)>,
         containers_interfaces_and_subnets: &HashMap<String, Vec<(Interface, Subnet)>>,
-    ) -> Result<Vec<Host>> {
+    ) -> Result<Vec<(Host, Vec<Service>)>> {
         let session = self.as_ref().get_session().await?;
         let scanned_count = session.scanned_count.clone();
         let discovered_count = session.discovered_count.clone();
@@ -357,7 +293,7 @@ impl Discovery<DockerScanDiscovery> {
             }
 
             match result {
-                Ok(Some(container_data)) => all_container_data.push(container_data),
+                Ok(Some((host, services))) => all_container_data.push((host, services)),
                 Ok(None) => {}
                 Err(e) => tracing::warn!("Error processing container: {}", e),
             }
@@ -378,7 +314,7 @@ impl Discovery<DockerScanDiscovery> {
         scanned_count: Arc<std::sync::atomic::AtomicUsize>,
         discovered_count: Arc<std::sync::atomic::AtomicUsize>,
         cancel: CancellationToken,
-    ) -> Result<Option<Host>> {
+    ) -> Result<Option<(Host, Vec<Service>)>> {
         scanned_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         if cancel.is_cancelled() {
@@ -450,10 +386,12 @@ impl Discovery<DockerScanDiscovery> {
                         all_ports: container_ports_on_interface,
                         endpoint_responses: &endpoint_responses,
                         host_has_docker_client: &false,
-                        virtualization: &Some(Virtualization::Docker(DockerVirtualization {
-                            container_name: container_name.clone(),
-                            container_id: container_id.clone(),
-                        })),
+                        virtualization: &Some(ServiceVirtualization::Docker(
+                            DockerVirtualization {
+                                container_name: container_name.clone(),
+                                container_id: container_id.clone(),
+                            },
+                        )),
                     },
                     None,
                 )
@@ -575,8 +513,12 @@ impl Discovery<DockerScanDiscovery> {
                 });
 
                 discovered_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                if let Ok((created_host, _)) = self.create_host(host, services).await {
-                    return Ok::<Option<Host>, Error>(Some(created_host));
+                if let Ok((created_host, created_services)) = self.create_host(host, services).await
+                {
+                    return Ok::<Option<(Host, Vec<Service>)>, Error>(Some((
+                        created_host,
+                        created_services,
+                    )));
                 }
                 return Ok(None);
             }

@@ -4,11 +4,11 @@
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import { field } from 'svelte-forms';
 	import { maxLength } from '$lib/shared/components/forms/validators';
-	import type { Virtualization } from '$lib/features/services/types/base';
+	import type { ServiceVirtualization } from '$lib/features/services/types/base';
 
 	export let formApi: FormApi;
 	export let formData: {
-		virtualization: Virtualization | null;
+		virtualization: ServiceVirtualization | null;
 	};
 
 	// Form fields for Docker
@@ -28,18 +28,18 @@
 	);
 
 	// Form fields for Proxmox
-	const vmName = field(
-		'vm_name',
-		formData.virtualization?.type === 'Proxmox'
-			? formData.virtualization.details.vm_name || ''
-			: '',
-		[maxLength(100)]
-	);
-	const vmId = field(
-		'vm_id',
-		formData.virtualization?.type === 'Proxmox' ? formData.virtualization.details.vm_id || '' : '',
-		[maxLength(100)]
-	);
+	// const vmName = field(
+	// 	'vm_name',
+	// 	formData.virtualization?.type === 'Proxmox'
+	// 		? formData.virtualization.details.vm_name || ''
+	// 		: '',
+	// 	[maxLength(100)]
+	// );
+	// const vmId = field(
+	// 	'vm_id',
+	// 	formData.virtualization?.type === 'Proxmox' ? formData.virtualization.details.vm_id || '' : '',
+	// 	[maxLength(100)]
+	// );
 
 	// Virtualization type options
 	const virtualizationTypes = [
@@ -78,12 +78,12 @@
 	}
 
 	// Update formData when Proxmox fields change
-	$: if (formData.virtualization?.type === 'Proxmox') {
-		formData.virtualization.details = {
-			vm_name: $vmName.value || '',
-			vm_id: $vmId.value || ''
-		};
-	}
+	// $: if (formData.virtualization?.type === 'Proxmox') {
+	// 	formData.virtualization.details = {
+	// 		vm_name: $vmName.value || '',
+	// 		vm_id: $vmId.value || ''
+	// 	};
+	// }
 
 	// Handle virtualization type changes
 	function handleVirtualizationTypeChange(event: Event) {
@@ -101,17 +101,19 @@
 			};
 			containerName.set('');
 			containerId.set('');
-		} else if (newType === 'Proxmox') {
-			formData.virtualization = {
-				type: 'Proxmox',
-				details: {
-					vm_name: '',
-					vm_id: ''
-				}
-			};
-			vmName.set('');
-			vmId.set('');
-		} else {
+		}
+		// else if (newType === 'Proxmox') {
+		// 	formData.virtualization = {
+		// 		type: 'Proxmox',
+		// 		details: {
+		// 			vm_name: '',
+		// 			vm_id: ''
+		// 		}
+		// 	};
+		// 	vmName.set('');
+		// 	vmId.set('');
+		// }
+		else {
 			formData.virtualization = null;
 		}
 
@@ -161,12 +163,12 @@
 						field={containerId}
 					/>
 				</div>
-			{:else if formData.virtualization && formData.virtualization.type === 'Proxmox'}
+				<!-- {:else if formData.virtualization && formData.virtualization.type === 'Proxmox'} -->
 				<!-- Proxmox Configuration -->
-				<div class="grid grid-cols-2 gap-4">
+				<!-- <div class="grid grid-cols-2 gap-4">
 					<TextInput label="VM Name" id="vm_name" {formApi} placeholder="my-vm" field={vmName} />
 					<TextInput label="VM ID" id="vm_id" {formApi} placeholder="100" field={vmId} />
-				</div>
+				</div> -->
 			{/if}
 		</div>
 	</div>

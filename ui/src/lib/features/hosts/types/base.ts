@@ -5,6 +5,8 @@ export interface HostWithServicesRequest {
 	services: Service[];
 }
 
+export type HostVirtualization = { type: 'Proxmox'; details: ProxmoxVirtualization };
+
 export interface Host {
 	id: string;
 	created_at: string;
@@ -17,6 +19,12 @@ export interface Host {
 	ports: Port[];
 	interfaces: Interface[];
 	source: string;
+	virtualization: HostVirtualization | null;
+}
+
+export interface ProxmoxVirtualization {
+	vm_id: string;
+	vm_name: string;
 }
 
 export interface AllInterfaces {

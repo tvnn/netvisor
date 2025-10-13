@@ -1,10 +1,8 @@
 use petgraph::{graph::NodeIndex, Graph};
 use std::collections::HashMap;
-use strum::IntoDiscriminant;
 use uuid::Uuid;
 
 use crate::server::{
-    groups::types::GroupTypeDiscriminants,
     subnets::types::base::{Subnet, SubnetType},
     topology::{
         service::context::TopologyContext,
@@ -64,24 +62,11 @@ impl EdgeBuilder {
                             target_is_infra && target_needs_infra_constraint,
                         );
 
-                        // Don't label edges if they are within a subnet (avoid clutter) or between subnets that have been
-                        // consolidated (ie docker bridge subnets)
-                        let label = if source_subnet == target_subnet
-                            || (source_subnet.base.subnet_type == SubnetType::DockerBridge
-                                && target_subnet.base.subnet_type == SubnetType::DockerBridge
-                                && group.base.group_type.discriminant()
-                                    == GroupTypeDiscriminants::VirtualizationHost)
-                        {
-                            None
-                        } else {
-                            Some(group.base.name.to_string())
-                        };
-
                         return Some(Edge {
                             source: interface_0,
                             target: interface_1,
                             edge_type: EdgeType::Group(group.base.group_type),
-                            label,
+                            label: Some(group.base.name.to_string()),
                             source_handle,
                             target_handle,
                         });

@@ -128,6 +128,7 @@ impl Discovery<SelfReportDiscovery> {
             interfaces: interfaces.clone(),
             ports: vec![own_port],
             source: EntitySource::System,
+            virtualization: None,
         };
 
         let host = Host::new(host_base);
@@ -149,6 +150,8 @@ impl Discovery<SelfReportDiscovery> {
                 .collect(),
             host_id: host.id,
             virtualization: None,
+            vms: vec![],
+            containers: vec![],
         });
 
         services.push(daemon_service);

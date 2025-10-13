@@ -43,6 +43,7 @@ pub fn host() -> Host {
         services: vec![],
         ports: vec![Port::new(PortBase::new_tcp(22))],
         source: EntitySource::System,
+        virtualization: None,
     })
 }
 
@@ -75,6 +76,8 @@ pub fn service(host_id: &Uuid) -> Service {
         bindings: vec![],
         service_definition: service_def,
         virtualization: None,
+        vms: vec![],
+        containers: vec![],
     })
 }
 

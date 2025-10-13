@@ -7,7 +7,7 @@ use crate::server::services::types::{
     base::{Service, ServiceBase},
     bindings::Binding,
     definitions::ServiceDefinition,
-    virtualization::Virtualization,
+    virtualization::ServiceVirtualization,
 };
 
 #[async_trait]
@@ -36,12 +36,14 @@ impl ServiceStorage for SqliteServiceStorage {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
         let bindings_str = serde_json::to_string(&service.base.bindings)?;
         let virtualization_str = serde_json::to_string(&service.base.virtualization)?;
+        let vms_str = serde_json::to_string(&service.base.vms)?;
+        let containers_str = serde_json::to_string(&service.base.containers)?;
 
         sqlx::query(
             r#"
             INSERT INTO services (
-                id, name, host_id, service_definition, bindings, virtualization, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                id, name, host_id, service_definition, bindings, virtualization, vms, containers, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(blob_uuid::to_blob(&service.id))
@@ -50,6 +52,8 @@ impl ServiceStorage for SqliteServiceStorage {
         .bind(service_def_str)
         .bind(bindings_str)
         .bind(virtualization_str)
+        .bind(vms_str)
+        .bind(containers_str)
         .bind(service.created_at.to_rfc3339())
         .bind(service.updated_at.to_rfc3339())
         .execute(&self.pool)
@@ -101,11 +105,13 @@ impl ServiceStorage for SqliteServiceStorage {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
         let bindings_str = serde_json::to_string(&service.base.bindings)?;
         let virtualization_str = serde_json::to_string(&service.base.virtualization)?;
+        let vms_str = serde_json::to_string(&service.base.vms)?;
+        let containers_str = serde_json::to_string(&service.base.containers)?;
 
         sqlx::query(
             r#"
             UPDATE services SET 
-                name = ?, host_id = ?, service_definition = ?, bindings = ?, virtualization = ?, updated_at = ?
+                name = ?, host_id = ?, service_definition = ?, bindings = ?, virtualization = ?, vms = ?, containers = ?, updated_at = ?
             WHERE id = ?
             "#,
         )
@@ -114,6 +120,8 @@ impl ServiceStorage for SqliteServiceStorage {
         .bind(service_def_str)
         .bind(bindings_str)
         .bind(virtualization_str)
+        .bind(vms_str)
+        .bind(containers_str)
         .bind(service.updated_at.to_rfc3339())
         .bind(blob_uuid::to_blob(&service.id))
         .execute(&self.pool)
@@ -139,9 +147,13 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
             .or(Err(Error::msg("Failed to deserialize service_definition")))?;
     let bindings: Vec<Binding> = serde_json::from_str(&row.get::<String, _>("bindings"))
         .or(Err(Error::msg("Failed to deserialize bindings")))?;
-    let virtualization: Option<Virtualization> =
+    let virtualization: Option<ServiceVirtualization> =
         serde_json::from_str(&row.get::<String, _>("virtualization"))
             .or(Err(Error::msg("Failed to deserialize virtualization")))?;
+    let vms: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("vms"))
+        .or(Err(Error::msg("Failed to deserialize vms")))?;
+    let containers: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("containers"))
+        .or(Err(Error::msg("Failed to deserialize containers")))?;
 
     let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
         .with_timezone(&chrono::Utc);
@@ -158,6 +170,8 @@ fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
                 .or(Err(Error::msg("Failed to deserialize host_id")))?,
             service_definition,
             virtualization,
+            vms,
+            containers,
             bindings,
         },
     })

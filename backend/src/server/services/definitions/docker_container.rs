@@ -3,7 +3,7 @@ use crate::server::services::types::base::ServiceDiscoveryParams;
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::patterns::Pattern;
-use crate::server::services::types::virtualization::{DockerVirtualization, Virtualization};
+use crate::server::services::types::virtualization::{DockerVirtualization, ServiceVirtualization};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct DockerContainer;
@@ -25,7 +25,7 @@ impl ServiceDefinition for DockerContainer {
             Pattern::Custom(|p: &ServiceDiscoveryParams| {
                 // If there's a matched service with the id of the container, the container was already detected as a non-generic service
                 let c_id = match p.baseline_params.virtualization {
-                    Some(Virtualization::Docker(DockerVirtualization {
+                    Some(ServiceVirtualization::Docker(DockerVirtualization {
                         container_id: Some(id),
                         ..
                     })) => id,
@@ -34,8 +34,9 @@ impl ServiceDefinition for DockerContainer {
 
                 p.discovery_state_params.matched_services.iter().all(|s| {
                     match &s.base.virtualization {
-                        Some(Virtualization::Docker(DockerVirtualization {
-                            container_id, ..
+                        Some(ServiceVirtualization::Docker(DockerVirtualization {
+                            container_id,
+                            ..
                         })) if container_id.is_some() => *container_id != Some(c_id.clone()),
                         _ => true,
                     }

@@ -6,11 +6,12 @@
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import InterfacesForm from './Interfaces/InterfacesForm.svelte';
 	import ServicesForm from './Services/ServicesForm.svelte';
-	import { entities } from '$lib/shared/stores/metadata';
+	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import type { Service } from '$lib/features/services/types/base';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { getServicesForHost } from '$lib/features/services/store';
 	import PortsDisplay from './Ports/PortsForm.svelte';
+	import VirtualizationForm from './Vms/VirtualizationForm.svelte';
 
 	export let host: Host | null = null;
 	export let isOpen = false;
@@ -24,9 +25,32 @@
 
 	let currentHostServices: Service[] = [];
 
+	$: isEditing = host !== null;
+	$: title = isEditing ? `Edit ${host?.name}` : 'Create Host';
+
+	let formData: Host = createEmptyHostFormData();
+
+	// Initialize form data when host changes or modal opens
+	$: if (isOpen) {
+		resetForm();
+	}
+
+	$: vmManagerServices = currentHostServices.filter(
+		(s) => serviceDefinitions.getMetadata(s.service_definition).manages_virtualization != null
+	);
+
+	function handleVmManagerServiceChange(updatedService: Service) {
+		// Find the actual index in currentHostServices
+		const actualIndex = currentHostServices.findIndex((s) => s.id === updatedService.id);
+		if (actualIndex >= 0) {
+			currentHostServices[actualIndex] = updatedService;
+			currentHostServices = [...currentHostServices]; // Trigger reactivity
+		}
+	}
+
 	// Tab management
 	let activeTab = 'details';
-	const tabs = [
+	$: tabs = [
 		{
 			id: 'details',
 			label: 'Details',
@@ -50,7 +74,17 @@
 			label: 'Services',
 			icon: entities.getIconComponent('Service'),
 			description: 'Service configuration'
-		}
+		},
+		...(vmManagerServices && vmManagerServices.length > 0
+			? [
+					{
+						id: 'virtualization',
+						label: 'Virtualization',
+						icon: entities.getIconComponent('Virtualization'),
+						description: 'VMs and containers managed by services on this host'
+					}
+				]
+			: [])
 	];
 
 	$: currentTabIndex = tabs.findIndex((t) => t.id === activeTab) || 0;
@@ -65,16 +99,6 @@
 		if (currentTabIndex > 0) {
 			activeTab = tabs[currentTabIndex - 1].id;
 		}
-	}
-
-	$: isEditing = host !== null;
-	$: title = isEditing ? `Edit ${host?.name}` : 'Create Host';
-
-	let formData: Host = createEmptyHostFormData();
-
-	// Initialize form data when host changes or modal opens
-	$: if (isOpen) {
-		resetForm();
 	}
 
 	function resetForm() {
@@ -202,7 +226,7 @@
 				</div>
 			{/if}
 
-			<!-- Interfaces Tab -->
+			<!-- Ports Tab -->
 			{#if activeTab === 'ports'}
 				<div class="h-full">
 					<div class="relative flex-1">
@@ -220,6 +244,18 @@
 							bind:formData
 							bind:currentServices={currentHostServices}
 							{isEditing}
+						/>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Services Tab -->
+			{#if activeTab === 'virtualization'}
+				<div class="h-full">
+					<div class="relative flex-1">
+						<VirtualizationForm
+							virtualizationManagerServices={vmManagerServices}
+							onServiceChange={handleVmManagerServiceChange}
 						/>
 					</div>
 				</div>

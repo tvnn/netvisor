@@ -29,7 +29,9 @@ export function createDefaultService(
 		service_definition: serviceType,
 		name: serviceName || serviceType,
 		bindings: [],
-		virtualization: null
+		virtualization: null,
+		vms: [],
+		containers: []
 	};
 }
 
