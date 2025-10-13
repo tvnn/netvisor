@@ -36,7 +36,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-      start_period: 10s
+      start_period: 30s
     networks:
       netvisor-dev:
         ipv4_address: 172.25.0.3
@@ -63,7 +63,7 @@ services:
       - NETVISOR_HEARTBEAT_INTERVAL=${NETVISOR_HEARTBEAT_INTERVAL:-30}
     volumes:
       - ./backend:/app
-      - daemon-config-volume:/root/.config/daemon
+      - ./data/daemon_config:/root/.config/daemon 
       - cargo-cache:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
       - target-cache:/app/target

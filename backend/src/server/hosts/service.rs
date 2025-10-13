@@ -6,7 +6,6 @@ use crate::server::{
         service::ServiceService,
         types::{base::Service, bindings::Binding},
     },
-    subnets::service::SubnetService,
 };
 use anyhow::{anyhow, Error, Result};
 use futures::future::{join_all, try_join_all};
@@ -18,7 +17,6 @@ use uuid::Uuid;
 
 pub struct HostService {
     storage: Arc<dyn HostStorage>,
-    subnet_service: Arc<SubnetService>,
     service_service: Arc<ServiceService>,
     daemon_service: Arc<DaemonService>,
     host_locks: Arc<Mutex<HashMap<Uuid, Arc<Mutex<()>>>>>,
@@ -27,13 +25,11 @@ pub struct HostService {
 impl HostService {
     pub fn new(
         storage: Arc<dyn HostStorage>,
-        subnet_service: Arc<SubnetService>,
         service_service: Arc<ServiceService>,
         daemon_service: Arc<DaemonService>,
     ) -> Self {
         Self {
             storage,
-            subnet_service,
             service_service,
             daemon_service,
             host_locks: Arc::new(Mutex::new(HashMap::new())),
@@ -114,8 +110,7 @@ impl HostService {
                     existing_host.base.name,
                     existing_host.id
                 );
-                self.update_subnet_host_relationships(&existing_host, true)
-                    .await?;
+
                 self.upsert_host(existing_host, host).await?
             }
             _ => {
@@ -125,9 +120,6 @@ impl HostService {
                 host
             }
         };
-
-        self.update_subnet_host_relationships(&host_from_storage, false)
-            .await?;
 
         Ok(host_from_storage)
     }
@@ -144,10 +136,6 @@ impl HostService {
             .ok_or_else(|| anyhow!("Host '{}' not found", host.id))?;
 
         self.update_host_services(&current_host, &host).await?;
-
-        self.update_subnet_host_relationships(&current_host, true)
-            .await?;
-        self.update_subnet_host_relationships(&host, false).await?;
 
         host.updated_at = chrono::Utc::now();
 
@@ -390,38 +378,6 @@ impl HostService {
         Ok(())
     }
 
-    async fn update_subnet_host_relationships(
-        &self,
-        host: &Host,
-        remove: bool,
-    ) -> Result<(), Error> {
-        let subnet_ids: Vec<Uuid> = host
-            .base
-            .interfaces
-            .iter()
-            .map(|i| i.base.subnet_id)
-            .unique()
-            .collect();
-
-        if let Ok(mut subnets) = self.subnet_service.get_by_ids(&subnet_ids).await {
-            let subnet_futures: Vec<_> = subnets
-                .iter_mut()
-                .map(|subnet| {
-                    if remove {
-                        subnet.remove_host_relationship(host)
-                    } else {
-                        subnet.create_host_relationship(host)
-                    };
-
-                    self.subnet_service.update_subnet(subnet.clone())
-                })
-                .collect();
-
-            try_join_all(subnet_futures).await?;
-        };
-        Ok(())
-    }
-
     pub async fn delete_host(&self, id: &Uuid, delete_services: bool) -> Result<()> {
         let host = self
             .get_host(id)
@@ -436,8 +392,6 @@ impl HostService {
                 self.service_service.delete_service(service_id).await?;
             }
         }
-
-        self.update_subnet_host_relationships(&host, true).await?;
 
         self.storage.delete(id).await?;
         tracing::info!(

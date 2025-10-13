@@ -40,15 +40,11 @@ impl DatabaseMigrations {
         tracing::info!("Seeding default data...");
 
         // Use actual compiled structs
-        let mut wan_subnet = create_wan_subnet();
-        let mut remote_subnet = create_remote_subnet();
+        let wan_subnet = create_wan_subnet();
+        let remote_subnet = create_remote_subnet();
         let (dns_host, dns_service) = create_public_dns_host(&wan_subnet);
         let (web_host, web_service) = create_internet_connectivity_host(&wan_subnet);
         let (remote_host, client_service) = create_remote_host(&remote_subnet);
-
-        wan_subnet.create_host_relationship(&dns_host);
-        wan_subnet.create_host_relationship(&web_host);
-        remote_subnet.create_host_relationship(&remote_host);
 
         let host_storage = SqliteHostStorage::new(pool.clone());
         let service_storage = SqliteServiceStorage::new(pool.clone());

@@ -20,7 +20,6 @@ impl ServiceFactory {
         // Initialize services with proper dependencies
         let daemon_service = Arc::new(DaemonService::new(storage.daemons.clone()));
 
-        let subnet_service = Arc::new(SubnetService::new(storage.subnets.clone()));
         let group_service = Arc::new(GroupService::new(storage.host_groups.clone()));
 
         let service_service = Arc::new(ServiceService::new(
@@ -30,12 +29,15 @@ impl ServiceFactory {
 
         let host_service = Arc::new(HostService::new(
             storage.hosts.clone(),
-            subnet_service.clone(),
             service_service.clone(),
             daemon_service.clone(),
         ));
 
-        let _ = subnet_service.set_host_service(host_service.clone());
+        let subnet_service = Arc::new(SubnetService::new(
+            storage.subnets.clone(),
+            host_service.clone(),
+        ));
+
         let _ = service_service.set_host_service(host_service.clone());
 
         let topology_service = Arc::new(TopologyService::new(

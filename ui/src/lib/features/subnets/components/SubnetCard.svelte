@@ -1,20 +1,14 @@
 <script lang="ts">
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
-	import { hosts } from '$lib/features/hosts/store';
-	import { get } from 'svelte/store';
 	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
 	import { formatServiceAsHost } from '$lib/features/services/store';
-	import { getSubnetInfraServices, isContainerSubnet } from '../store';
+	import { getSubnetServices, isContainerSubnet } from '../store';
 	import type { Subnet } from '../types/base';
 
 	export let subnet: Subnet;
 	export let onEdit: (subnet: Subnet) => void = () => {};
 	export let onDelete: (subnet: Subnet) => void = () => {};
-
-	function getHostName(id: string): string | null {
-		return get(hosts).find((h) => h.id == id)?.name || null;
-	}
 
 	// Build card data
 	$: cardData = {
@@ -46,7 +40,7 @@
 			},
 			{
 				label: 'DNS Resolvers',
-				items: getSubnetInfraServices(subnet, 'is_dns_resolver').map((s) => ({
+				items: getSubnetServices(subnet, 'is_dns_resolver').map((s) => ({
 					id: s.id,
 					label: formatServiceAsHost(s.id),
 					color: entities.getColorString('Dns')
@@ -55,7 +49,7 @@
 			},
 			{
 				label: 'Gateways',
-				items: getSubnetInfraServices(subnet, 'is_gateway').map((s) => ({
+				items: getSubnetServices(subnet, 'is_gateway').map((s) => ({
 					id: s.id,
 					label: formatServiceAsHost(s.id),
 					color: entities.getColorString('Gateway')
@@ -64,7 +58,7 @@
 			},
 			{
 				label: 'Reverse Proxies',
-				items: getSubnetInfraServices(subnet, 'is_reverse_proxy').map((s) => ({
+				items: getSubnetServices(subnet, 'is_reverse_proxy').map((s) => ({
 					id: s.id,
 					label: formatServiceAsHost(s.id),
 					color: entities.getColorString('ReverseProxy')
@@ -73,12 +67,12 @@
 			},
 			{
 				label: 'Hosts',
-				items: subnet.hosts.map((hostId) => ({
-					id: hostId,
-					label: getHostName(hostId) || 'Unknown Host',
+				items: getSubnetServices(subnet).map((s) => ({
+					id: s.id,
+					label: formatServiceAsHost(s.id),
 					color: entities.getColorString('Host')
 				})),
-				emptyText: 'No hosts'
+				emptyText: 'No reverse proxies'
 			}
 		],
 

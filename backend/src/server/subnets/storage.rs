@@ -32,23 +32,21 @@ impl SqliteSubnetStorage {
 impl SubnetStorage for SqliteSubnetStorage {
     async fn create(&self, subnet: &Subnet) -> Result<()> {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
-        let hosts_str = serde_json::to_string(&subnet.base.hosts)?;
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
         let subnet_source_str = serde_json::to_string(&subnet.base.source)?;
 
         sqlx::query(
             r#"
             INSERT INTO subnets (
-                id, name, description, cidr, hosts, 
+                id, name, description, cidr, 
                 subnet_type, source, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(blob_uuid::to_blob(&subnet.id))
         .bind(&subnet.base.name)
         .bind(&subnet.base.description)
         .bind(&cidr_str)
-        .bind(hosts_str)
         .bind(subnet_type_str)
         .bind(subnet_source_str)
         .bind(subnet.created_at.to_rfc3339())
@@ -106,14 +104,13 @@ impl SubnetStorage for SqliteSubnetStorage {
 
     async fn update(&self, subnet: &Subnet) -> Result<()> {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
-        let hosts_str = serde_json::to_string(&subnet.base.hosts)?;
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
         let subnet_source_str = serde_json::to_string(&subnet.base.source)?;
 
         sqlx::query(
             r#"
             UPDATE subnets SET 
-                name = ?, description = ?, cidr = ?, hosts = ?,
+                name = ?, description = ?, cidr = ?,
                 subnet_type = ?, source = ?, updated_at = ?
             WHERE id = ?
             "#,
@@ -121,7 +118,6 @@ impl SubnetStorage for SqliteSubnetStorage {
         .bind(&subnet.base.name)
         .bind(&subnet.base.description)
         .bind(cidr_str)
-        .bind(hosts_str)
         .bind(subnet_type_str)
         .bind(subnet_source_str)
         .bind(subnet.updated_at.to_rfc3339())
@@ -146,8 +142,6 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet, Error> {
     // Parse JSON fields safely
     let cidr: IpCidr = serde_json::from_str(&row.get::<String, _>("cidr"))
         .or(Err(Error::msg("Failed to deserialize cidr")))?;
-    let hosts: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("hosts"))
-        .or(Err(Error::msg("Failed to deserialize hosts")))?;
     let subnet_type: SubnetType = serde_json::from_str(&row.get::<String, _>("subnet_type"))
         .or(Err(Error::msg("Failed to deserialize subnet_type")))?;
     let source: EntitySource = serde_json::from_str(&row.get::<String, _>("source"))
@@ -167,7 +161,6 @@ fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet, Error> {
             description: row.get("description"),
             source,
             cidr,
-            hosts,
             subnet_type,
         },
     })

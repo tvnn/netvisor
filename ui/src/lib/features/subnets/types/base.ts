@@ -4,7 +4,6 @@ export interface Subnet {
 	updated_at: string;
 	cidr: string;
 	name: string;
-	hosts: string[];
 	description?: string;
 	subnet_type: string;
 	source: string;

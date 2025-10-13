@@ -5,7 +5,6 @@ use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
-use itertools::Itertools;
 use pnet::ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
@@ -30,7 +29,6 @@ pub struct SubnetBase {
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     #[validate(length(min = 0, max = 500))]
     pub description: Option<String>,
-    pub hosts: Vec<Uuid>,
     pub subnet_type: SubnetType,
     pub source: EntitySource,
 }
@@ -41,7 +39,6 @@ impl Default for SubnetBase {
             cidr: IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(127, 0, 0, 1), 24).unwrap()),
             name: "New Subnet".to_string(),
             description: None,
-            hosts: Vec::new(),
             subnet_type: SubnetType::Unknown,
             source: EntitySource::Manual,
         }
@@ -100,14 +97,13 @@ impl Subnet {
                     description: None,
                     name: cidr.to_string(),
                     subnet_type,
-                    hosts: Vec::new(),
                     source: EntitySource::Discovery(*discovery_type, daemon_id),
                 }))
             }
         }
     }
 
-    pub fn interface_with_service(&self, host: &Host, service: &Service) -> bool {
+    pub fn has_interface_with_service(&self, host: &Host, service: &Service) -> bool {
         service.base.bindings.iter().any(|binding| {
             host.base.interfaces.iter().any(|interface| {
                 let interface_match = match binding.interface_id() {
@@ -130,35 +126,12 @@ impl Subnet {
             .filter(|s| {
                 if let Some(host) = hosts.iter().find(|h| h.id == s.base.host_id) {
                     return s.base.service_definition.is_infra_service()
-                        && self.interface_with_service(host, s)
-                        && self.base.hosts.contains(&s.base.host_id);
+                        && self.has_interface_with_service(host, s);
                 }
 
                 false
             })
             .collect()
-    }
-
-    pub fn remove_host_relationship(&mut self, host: &Host) {
-        self.base.hosts = self
-            .base
-            .hosts
-            .iter()
-            .filter(|host_id| **host_id != host.id)
-            .cloned()
-            .collect();
-    }
-
-    pub fn create_host_relationship(&mut self, host: &Host) {
-        if host
-            .base
-            .interfaces
-            .iter()
-            .map(|i| i.base.subnet_id)
-            .contains(&self.id)
-        {
-            self.base.hosts.push(host.id)
-        }
     }
 }
 

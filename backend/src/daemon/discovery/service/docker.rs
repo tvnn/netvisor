@@ -640,7 +640,6 @@ impl Discovery<DockerScanDiscovery> {
                                 name: network_name.clone(),
                                 subnet_type: SubnetType::DockerBridge,
                                 source: EntitySource::Discovery(self.discovery_type(), daemon_id),
-                                hosts: Vec::new(),
                             }));
                         }
                         None

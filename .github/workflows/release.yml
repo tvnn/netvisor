@@ -227,9 +227,9 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.dev.yml cp server:/data/netvisor.db ./backend/src/tests/netvisor.db
           echo "✓ Copied netvisor.db from server container"
           
-          # Copy daemon config from daemon container
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml cp daemon:/root/.config/daemon/config.json ./backend/src/tests/daemon_config.json
-          echo "✓ Copied config.json from daemon container"
+          # Copy daemon config from bind mount (no need to copy from container)
+          cp ./data/daemon_config/config.json ./backend/src/tests/daemon_config.json
+          echo "✓ Copied config.json from daemon bind mount"
       
       - name: Stop dev environment
         if: always()

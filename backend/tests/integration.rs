@@ -364,9 +364,6 @@ async fn test_container_daemon_server_integration() {
         .start()
         .expect("Failed to start containers");
 
-    println!("Waiting for services to fully initialize...");
-    tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
-
     let client = reqwest::Client::new();
 
     // Step 1: Check daemon registration

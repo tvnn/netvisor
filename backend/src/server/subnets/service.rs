@@ -4,24 +4,20 @@ use crate::server::{
 };
 use anyhow::Result;
 use futures::future::try_join_all;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use uuid::Uuid;
 
 pub struct SubnetService {
     storage: Arc<dyn SubnetStorage>,
-    host_service: OnceLock<Arc<HostService>>,
+    host_service: Arc<HostService>,
 }
 
 impl SubnetService {
-    pub fn new(storage: Arc<dyn SubnetStorage>) -> Self {
+    pub fn new(storage: Arc<dyn SubnetStorage>, host_service: Arc<HostService>) -> Self {
         Self {
             storage,
-            host_service: OnceLock::new(),
+            host_service,
         }
-    }
-
-    pub fn set_host_service(&self, host_service: Arc<HostService>) -> Result<(), Arc<HostService>> {
-        self.host_service.set(host_service)
     }
 
     /// Create a new subnet
@@ -73,12 +69,7 @@ impl SubnetService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Subnet not found"))?;
 
-        let host_service = self
-            .host_service
-            .get()
-            .ok_or_else(|| anyhow::anyhow!("Host service not initialized"))?;
-
-        let hosts = host_service.get_all_hosts().await?;
+        let hosts = self.host_service.get_all_hosts().await?;
         let update_futures = hosts.into_iter().filter_map(|mut host| {
             let has_subnet = host.base.interfaces.iter().any(|i| &i.base.subnet_id == id);
             if has_subnet {
@@ -89,7 +80,7 @@ impl SubnetService {
                     .filter(|i| &i.base.subnet_id != id)
                     .cloned()
                     .collect();
-                return Some(host_service.update_host(host));
+                return Some(self.host_service.update_host(host));
             }
             None
         });
