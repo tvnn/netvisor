@@ -2,15 +2,13 @@
 	import { createEmptyGroupFormData } from '../../store';
 	import EditModal from '$lib/shared/components/forms/EditModal.svelte';
 	import type { Group } from '../../types/base';
-	import type { ServiceBinding } from '$lib/features/hosts/types/base';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { entities } from '$lib/shared/stores/metadata';
-	import { getServiceBindingsFromService, services } from '$lib/features/services/store';
-	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
+	import { getBindingFromId, services } from '$lib/features/services/store';
+	import { BindingWithServiceDisplay } from '$lib/shared/components/forms/selection/display/BindingWithServiceDisplay.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import GroupDetailsForm from './GroupDetailsForm.svelte';
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
-	import { serviceBindingIdToObj, serviceBindingToId } from '$lib/features/hosts/store';
 
 	export let group: Group | null = null;
 	export let isOpen = false;
@@ -37,19 +35,11 @@
 	}
 
 	$: serviceBindings = $services
-		.flatMap((s) => getServiceBindingsFromService(s))
-		.filter(
-			(sb) =>
-				!formData.service_bindings.some(
-					(binding) => serviceBindingToId(binding) == serviceBindingToId(sb)
-				)
-		);
+		.flatMap((s) => s.bindings)
+		.filter((sb) => !formData.service_bindings.some((binding) => binding == sb.id));
 
-	function handleAdd(serviceBindingId: string) {
-		let newBinding = serviceBindingIdToObj(serviceBindingId);
-		if (newBinding) {
-			formData.service_bindings = [...formData.service_bindings, newBinding];
-		}
+	function handleAdd(bindingId: string) {
+		formData.service_bindings = [...formData.service_bindings, bindingId];
 	}
 
 	function handleRemove(index: number) {
@@ -61,12 +51,6 @@
 		const [movedBinding] = newBindings.splice(fromIndex, 1);
 		newBindings.splice(toIndex, 0, movedBinding);
 		formData.service_bindings = newBindings;
-	}
-
-	function handleEdit(item: ServiceBinding, index: number) {
-		const updatedBindings = [...formData.service_bindings];
-		updatedBindings[index] = item;
-		formData.service_bindings = updatedBindings;
 	}
 
 	async function handleSubmit() {
@@ -141,21 +125,19 @@
 						<div class="rounded-lg bg-gray-800/50 p-4">
 							<ListManager
 								label="Services"
-								helpText="Select services and configure their interface bindings for this group"
+								helpText="Select services and configure their bindings for this group"
 								placeholder="Select a service to add..."
 								emptyMessage="No services in this group yet."
 								allowReorder={true}
 								showSearch={true}
 								options={serviceBindings}
-								items={formData.service_bindings}
-								allowItemEdit={() => true}
-								optionDisplayComponent={ServiceBindingDisplay}
-								itemDisplayComponent={ServiceBindingDisplay}
+								items={formData.service_bindings.map((b) => getBindingFromId(b))}
+								optionDisplayComponent={BindingWithServiceDisplay}
+								itemDisplayComponent={BindingWithServiceDisplay}
 								onAdd={handleAdd}
 								onRemove={handleRemove}
 								onMoveUp={handleReorder}
 								onMoveDown={handleReorder}
-								onEdit={handleEdit}
 							/>
 						</div>
 					</div>

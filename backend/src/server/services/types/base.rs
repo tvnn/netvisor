@@ -1,7 +1,7 @@
 use crate::server::hosts::types::interfaces::Interface;
 use crate::server::hosts::types::ports::{Port, PortBase};
 use crate::server::services::definitions::ServiceDefinitionRegistry;
-use crate::server::services::types::bindings::{Binding, BindingDiscriminants, ServiceBinding};
+use crate::server::services::types::bindings::{Binding, BindingDiscriminants};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
@@ -124,17 +124,6 @@ impl Service {
 
     pub fn get_binding(&self, id: Uuid) -> Option<&Binding> {
         self.base.bindings.iter().find(|b| b.id() == id)
-    }
-
-    pub fn to_bindings(&self) -> Vec<ServiceBinding> {
-        self.base
-            .bindings
-            .iter()
-            .map(|b| ServiceBinding {
-                service_id: self.id,
-                binding_id: b.id(),
-            })
-            .collect()
     }
 
     pub fn to_bound_interface_ids(&self) -> Vec<Uuid> {

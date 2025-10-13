@@ -1,9 +1,10 @@
 use petgraph::{graph::NodeIndex, Graph};
 use std::collections::HashMap;
+use strum::IntoDiscriminant;
 use uuid::Uuid;
 
 use crate::server::{
-    groups::types::GroupType,
+    groups::types::GroupTypeDiscriminants,
     subnets::types::base::{Subnet, SubnetType},
     topology::{
         service::context::TopologyContext,
@@ -25,18 +26,14 @@ impl EdgeBuilder {
                 let bindings = &group.base.service_bindings;
                 bindings.windows(2).filter_map(|window| {
                     let interface_0 = ctx.services.iter().find_map(|s| {
-                        if s.id == window[0].service_id {
-                            if let Some(binding) = s.get_binding(window[0].binding_id) {
-                                return Some(binding.interface_id());
-                            }
+                        if let Some(binding) = s.get_binding(window[0]) {
+                            return Some(binding.interface_id());
                         }
                         None
                     });
                     let interface_1 = ctx.services.iter().find_map(|s| {
-                        if s.id == window[1].service_id {
-                            if let Some(binding) = s.get_binding(window[1].binding_id) {
-                                return Some(binding.interface_id());
-                            }
+                        if let Some(binding) = s.get_binding(window[1]) {
+                            return Some(binding.interface_id());
                         }
                         None
                     });
@@ -72,7 +69,8 @@ impl EdgeBuilder {
                         let label = if source_subnet == target_subnet
                             || (source_subnet.base.subnet_type == SubnetType::DockerBridge
                                 && target_subnet.base.subnet_type == SubnetType::DockerBridge
-                                && group.base.group_type == GroupType::VirtualizationHost)
+                                && group.base.group_type.discriminant()
+                                    == GroupTypeDiscriminants::VirtualizationHost)
                         {
                             None
                         } else {

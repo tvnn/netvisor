@@ -1,3 +1,7 @@
+export type Virtualization =
+	| { type: 'Docker'; details: DockerVirtualization }
+	| { type: 'Proxmox'; details: ProxmoxVirtualization };
+
 export interface Service<T extends Binding = Binding> {
 	id: string;
 	created_at: string;
@@ -6,15 +10,17 @@ export interface Service<T extends Binding = Binding> {
 	service_definition: string;
 	name: string;
 	bindings: T[];
-	virtualization: null | {
-		type: string;
-		content: DockerVirtualization;
-	};
+	virtualization: Virtualization | null;
 }
 
 export interface DockerVirtualization {
 	container_id: string;
 	container_name: string;
+}
+
+export interface ProxmoxVirtualization {
+	vm_id: string;
+	vm_name: string;
 }
 
 export type Binding =

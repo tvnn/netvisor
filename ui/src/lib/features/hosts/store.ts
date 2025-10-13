@@ -1,12 +1,5 @@
 import { get, writable } from 'svelte/store';
-import type {
-	AllInterfaces,
-	Host,
-	HostWithServicesRequest,
-	Interface,
-	Port,
-	ServiceBinding
-} from './types/base';
+import type { AllInterfaces, Host, HostWithServicesRequest, Interface, Port } from './types/base';
 import { api } from '../../shared/utils/api';
 import { pushSuccess } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
@@ -87,7 +80,7 @@ export function createEmptyHostFormData(): Host {
 export function getHostTargetString(host: Host): string | null {
 	switch (host.target.type) {
 		case 'ServiceBinding': {
-			const binding = getBindingFromId(host.target.config.binding_id);
+			const binding = getBindingFromId(host.target.config);
 			if (binding) {
 				return getLayerBindingDisplayName(binding);
 			}
@@ -129,17 +122,4 @@ export function getPortFromId(id: string): Port | undefined {
 		}
 	}
 	return undefined;
-}
-
-export function serviceBindingToId(binding: ServiceBinding): string {
-	return JSON.stringify(Object.fromEntries(Object.entries(binding).sort()));
-}
-
-export function serviceBindingIdToObj(binding_string: string): ServiceBinding | null {
-	const parsed = JSON.parse(binding_string);
-	if (parsed?.binding_id && parsed?.service_id) {
-		return parsed as ServiceBinding;
-	} else {
-		return null;
-	}
 }

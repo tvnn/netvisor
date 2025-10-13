@@ -1,7 +1,6 @@
 use crate::server::{
     discovery::types::base::EntitySource,
     groups::types::{Group, GroupBase, GroupType},
-    services::types::bindings::ServiceBinding,
 };
 use anyhow::{Error, Result};
 use async_trait::async_trait;
@@ -118,7 +117,7 @@ impl GroupStorage for SqliteGroupStorage {
 }
 
 fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group, Error> {
-    let service_bindings: Vec<ServiceBinding> =
+    let service_bindings: Vec<Uuid> =
         serde_json::from_str(&row.get::<String, _>("service_bindings"))
             .or(Err(Error::msg("Failed to deserialize service bindings")))?;
     let group_type: GroupType = serde_json::from_str(&row.get::<String, _>("group_type"))

@@ -16,7 +16,7 @@
 	import { consolidateHosts, createHost, deleteHost, getHosts, hosts, updateHost } from '../store';
 	import { getGroups, groups } from '$lib/features/groups/store';
 	import { loadData } from '$lib/shared/utils/dataLoader';
-	import { getServices } from '$lib/features/services/store';
+	import { getServiceForBinding, getServices } from '$lib/features/services/store';
 	import { getSubnets } from '$lib/features/subnets/store';
 
 	const loading = loadData([
@@ -44,7 +44,9 @@
 		$hosts.map((host) => {
 			const foundGroups = $groups.filter((g) => {
 				return g.service_bindings.some((b) => {
-					return host.services.includes(b.service_id);
+					let service = getServiceForBinding(b);
+					if (service) return host.services.includes(service.id);
+					return false;
 				});
 			});
 

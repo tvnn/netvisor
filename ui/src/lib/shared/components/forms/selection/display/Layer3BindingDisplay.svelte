@@ -15,7 +15,7 @@
 		getTags: () => [],
 		getIsDisabled: () => false,
 		getCategory: (binding: Layer3Binding) => {
-			const service = getServiceForBinding(binding);
+			const service = getServiceForBinding(binding.id);
 			if (!service) return null;
 
 			const serviceType = serviceDefinitions.getItem(service.service_definition);

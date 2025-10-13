@@ -39,7 +39,7 @@ use crate::{
             definitions::{gateway::Gateway, ServiceDefinitionRegistry},
             types::{
                 base::Service,
-                bindings::{Binding, BindingDiscriminants, ServiceBinding},
+                bindings::{Binding, BindingDiscriminants},
                 definitions::{ServiceDefinition, ServiceDefinitionExt},
             },
         },
@@ -425,10 +425,7 @@ pub trait DiscoversNetworkedEntities:
                     }),
                     matches!(host.base.target, HostTarget::Hostname | HostTarget::None),
                 ) {
-                    host.base.target = HostTarget::ServiceBinding(ServiceBinding {
-                        binding_id: binding.id(),
-                        service_id: service.id,
-                    })
+                    host.base.target = HostTarget::ServiceBinding(binding.id())
                 }
 
                 // Add any bound ports to host ports array, remove from open ports

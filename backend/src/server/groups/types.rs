@@ -1,12 +1,10 @@
+use crate::server::discovery::types::base::EntitySource;
 use crate::server::shared::constants::Entity;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider};
-use crate::server::{
-    discovery::types::base::EntitySource, services::types::bindings::ServiceBinding,
-};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use strum_macros::{EnumIter, IntoStaticStr};
+use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -22,11 +20,14 @@ use validator::Validate;
     Eq,
     EnumIter,
     IntoStaticStr,
+    EnumDiscriminants,
 )]
+#[strum_discriminants(derive(IntoStaticStr))]
 pub enum GroupType {
     #[default]
     NetworkPath,
-    VirtualizationHost,
+    // ID of binding for service providing virtualization (ie Docker Daemon, Proxmox, etc)
+    VirtualizationHost(Uuid),
 }
 
 #[derive(Debug, Clone, Serialize, Validate, Deserialize)]
@@ -36,7 +37,7 @@ pub struct GroupBase {
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     #[validate(length(min = 0, max = 500))]
     pub description: Option<String>,
-    pub service_bindings: Vec<ServiceBinding>,
+    pub service_bindings: Vec<Uuid>,
     pub group_type: GroupType,
     pub source: EntitySource,
 }
@@ -72,14 +73,14 @@ impl EntityMetadataProvider for GroupType {
     fn color(&self) -> &'static str {
         match self {
             GroupType::NetworkPath => Entity::Group.color(),
-            GroupType::VirtualizationHost => Entity::Virtualization.color(),
+            GroupType::VirtualizationHost(_) => Entity::Virtualization.color(),
         }
     }
 
     fn icon(&self) -> &'static str {
         match self {
             GroupType::NetworkPath => "Route",
-            GroupType::VirtualizationHost => Entity::Virtualization.icon(),
+            GroupType::VirtualizationHost(_) => Entity::Virtualization.icon(),
         }
     }
 }
@@ -88,14 +89,14 @@ impl TypeMetadataProvider for GroupType {
     fn name(&self) -> &'static str {
         match self {
             GroupType::NetworkPath => "Network Path",
-            GroupType::VirtualizationHost => "Virtualization Host",
+            GroupType::VirtualizationHost(_) => "Virtualization Host",
         }
     }
 
     fn description(&self) -> &'static str {
         match self {
             GroupType::NetworkPath => "Path of network traffic between sources. Edge will be directed based on service order.",
-            GroupType::VirtualizationHost => "Host providing container or VM infrastructure."
+            GroupType::VirtualizationHost(_) => "Host providing container or VM infrastructure."
         }
     }
 }

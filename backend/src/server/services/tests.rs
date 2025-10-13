@@ -1,7 +1,4 @@
-use crate::{
-    server::services::types::bindings::{Binding, ServiceBinding},
-    tests::*,
-};
+use crate::{server::services::types::bindings::Binding, tests::*};
 
 #[tokio::test]
 async fn test_service_deduplication_on_create() {
@@ -88,10 +85,7 @@ async fn test_service_deletion_cleans_up_relationships() {
     let created_svc = &created_svcs[0];
 
     let mut group_obj = group();
-    group_obj.base.service_bindings = vec![ServiceBinding {
-        service_id: created_svc.id,
-        binding_id: created_svc.base.bindings[0].id(),
-    }];
+    group_obj.base.service_bindings = vec![created_svc.base.bindings[0].id()];
     let created_group = services
         .group_service
         .create_group(group_obj)

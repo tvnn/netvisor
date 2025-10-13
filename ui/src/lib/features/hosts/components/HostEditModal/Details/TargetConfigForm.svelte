@@ -1,26 +1,23 @@
 <script lang="ts">
 	import { Globe, Network } from 'lucide-svelte';
-	import type { Host, ServiceBinding } from '$lib/features/hosts/types/base';
+	import type { Host } from '$lib/features/hosts/types/base';
 	import RichSelect from '$lib/shared/components/forms/selection/RichSelect.svelte';
 	import type { FormType } from '$lib/shared/components/forms/types';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
-	import { getServiceBindingsFromService, getServicesForHost } from '$lib/features/services/store';
-	import { serviceBindingIdToObj, serviceBindingToId } from '$lib/features/hosts/store';
-	import { uuidv4Sentinel } from '$lib/shared/utils/formatting';
-	import { ServiceBindingDisplay } from '$lib/shared/components/forms/selection/display/ServiceBindingDisplay.svelte';
+	import { getBindingFromId, getServicesForHost } from '$lib/features/services/store';
+	import type { Binding } from '$lib/features/services/types/base';
+	import { BindingWithServiceDisplay } from '$lib/shared/components/forms/selection/display/BindingWithServiceDisplay.svelte';
 
 	export let form: FormType;
 	export let formData: Host;
 
-	let selectedBinding: ServiceBinding;
+	let selectedBinding: Binding | null = null;
 
 	if (formData.target.type == 'ServiceBinding') {
-		selectedBinding = formData.target.config;
+		selectedBinding = getBindingFromId(formData.target.config);
 	}
 
-	$: serviceBindings = getServicesForHost(formData.id).flatMap((s) =>
-		getServiceBindingsFromService(s)
-	);
+	$: serviceBindings = getServicesForHost(formData.id).flatMap((s) => s.bindings);
 
 	$: hostnameField = form.getField('hostname');
 	$: has_hostname = $hostnameField ? $hostnameField.value.length > 0 : false;
@@ -64,15 +61,12 @@
 
 		// Reset target config when type changes
 		if (newType === 'ServiceBinding') {
-			let binding = serviceBindings[0];
+			let binding_id = serviceBindings[0].id;
 			formData.target = {
 				type: 'ServiceBinding',
-				config: binding
+				config: binding_id
 			};
-			selectedBinding = {
-				service_id: uuidv4Sentinel,
-				binding_id: uuidv4Sentinel
-			};
+			selectedBinding = serviceBindings[0];
 		} else if (newType === 'Hostname') {
 			formData.target = {
 				type: 'Hostname'
@@ -88,12 +82,12 @@
 	}
 
 	// Handle interface selection
-	function handleServiceBindingSelect(binding: string) {
-		let parsed_binding = serviceBindingIdToObj(binding);
-		if (parsed_binding) {
-			selectedBinding = parsed_binding;
+	function handleServiceBindingSelect(binding_id: string) {
+		let binding = getBindingFromId(binding_id);
+		if (binding) {
+			selectedBinding = binding;
 			if (formData.target.type == 'ServiceBinding') {
-				formData.target.config = parsed_binding;
+				formData.target.config = binding.id;
 			}
 		}
 	}
@@ -136,10 +130,10 @@
 							/>
 						{:else}
 							<RichSelect
-								selectedValue={serviceBindingToId(selectedBinding)}
+								selectedValue={selectedBinding ? selectedBinding.id : null}
 								options={serviceBindings}
 								placeholder="Select a service binding..."
-								displayComponent={ServiceBindingDisplay}
+								displayComponent={BindingWithServiceDisplay}
 								onSelect={handleServiceBindingSelect}
 							/>
 						{/if}

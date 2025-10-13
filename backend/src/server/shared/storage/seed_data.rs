@@ -13,7 +13,7 @@ use crate::server::{
         definitions::{client::Client, dns_server::DnsServer, web_service::WebService},
         types::{
             base::{Service, ServiceBase},
-            bindings::{Binding, ServiceBinding},
+            bindings::Binding,
         },
     },
     subnets::types::base::{Subnet, SubnetBase, SubnetType},
@@ -84,10 +84,7 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
         virtualization: None,
     });
 
-    host.base.target = HostTarget::ServiceBinding(ServiceBinding {
-        binding_id,
-        service_id: client_service.id,
-    });
+    host.base.target = HostTarget::ServiceBinding(binding_id);
 
     host.add_service(client_service.id);
     (host, client_service)
@@ -121,10 +118,7 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
         virtualization: None,
     });
 
-    host.base.target = HostTarget::ServiceBinding(ServiceBinding {
-        binding_id,
-        service_id: web_service.id,
-    });
+    host.base.target = HostTarget::ServiceBinding(binding_id);
 
     host.add_service(web_service.id);
 
@@ -159,10 +153,7 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
         virtualization: None,
     });
 
-    host.base.target = HostTarget::ServiceBinding(ServiceBinding {
-        binding_id,
-        service_id: dns_service.id,
-    });
+    host.base.target = HostTarget::ServiceBinding(binding_id);
 
     host.add_service(dns_service.id);
 

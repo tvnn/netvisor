@@ -3,7 +3,7 @@ import { api } from '../../shared/utils/api';
 import type { Binding, Service } from './types/base';
 import { formatPort, utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { formatInterface, getInterfaceFromId, getPortFromId, hosts } from '../hosts/store';
-import { ALL_INTERFACES, type Host, type ServiceBinding } from '../hosts/types/base';
+import { ALL_INTERFACES, type Host } from '../hosts/types/base';
 import { groups } from '../groups/store';
 
 export const services = writable<Service[]>([]);
@@ -87,10 +87,8 @@ export function getServicesForGroupReactive(group_id: string) {
 		const group = $groups.find((g) => g.id == group_id);
 
 		if (group) {
-			const serviceMap = new Map($services.map((s) => [s.id, s]));
-			return group.service_bindings
-				.map((sb) => serviceMap.get(sb.service_id))
-				.filter((s) => s !== undefined);
+			const serviceMap = new Map($services.flatMap((s) => s.bindings.map((b) => [b.id, s])));
+			return group.service_bindings.map((sb) => serviceMap.get(sb)).filter((s) => s !== undefined);
 		} else {
 			return [];
 		}
@@ -133,17 +131,8 @@ export function getServicesForInterface(interface_id: string): Service[] {
 	return [];
 }
 
-export function getServiceBindingsFromService(service: Service): ServiceBinding[] {
-	return service.bindings.map((binding) => {
-		return {
-			service_id: service.id,
-			binding_id: binding.id
-		} as ServiceBinding;
-	});
-}
-
-export function getServiceForBinding(binding: Binding): Service | null {
-	return get(services).find((s) => s.bindings.map((b) => b.id).includes(binding.id)) || null;
+export function getServiceForBinding(binding_id: string): Service | null {
+	return get(services).find((s) => s.bindings.map((b) => b.id).includes(binding_id)) || null;
 }
 
 export function getBindingFromId(id: string): Binding | null {
@@ -155,7 +144,7 @@ export function getBindingFromId(id: string): Binding | null {
 }
 
 export function getLayerBindingDisplayName(binding: Binding): string {
-	const service = getServiceForBinding(binding);
+	const service = getServiceForBinding(binding.id);
 	if (service) {
 		const iface = binding.interface_id ? getInterfaceFromId(binding.interface_id) : ALL_INTERFACES;
 		const host = getServiceHost(service.id);

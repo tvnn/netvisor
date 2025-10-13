@@ -25,7 +25,7 @@ use crate::server::hosts::types::interfaces::ALL_INTERFACES_IP;
 use crate::server::hosts::types::ports::Port;
 use crate::server::services::definitions::docker_container::DockerContainer;
 use crate::server::services::types::base::{Service, ServiceBase, ServiceDiscoveryBaselineParams};
-use crate::server::services::types::bindings::{Binding, ServiceBinding};
+use crate::server::services::types::bindings::Binding;
 use crate::server::services::types::definitions::{ServiceDefinition, ServiceDefinitionExt};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::services::types::virtualization::{DockerVirtualization, Virtualization};
@@ -230,20 +230,15 @@ impl Discovery<DockerScanDiscovery> {
             .filter(|s| s.base.subnet_type == SubnetType::DockerBridge)
             .collect();
 
-        let mut bindings: Vec<ServiceBinding> = Vec::new();
+        let mut bindings: Vec<Uuid> = Vec::new();
 
         // First, add the host's primary interface binding (if it exists)
-        if let Some(host_binding) = docker_daemon_service
+        let host_binding = docker_daemon_service
             .base
             .bindings
             .iter()
             .find(|b| b.interface_id() == Some(host_primary_interface_id))
-        {
-            bindings.push(ServiceBinding {
-                service_id: docker_daemon_service.id,
-                binding_id: host_binding.id(),
-            });
-        }
+            .ok_or_else(|| anyhow!("Could not find host binding"))?;
 
         // Then add all Docker bridge bindings
         for binding in &docker_daemon_service.base.bindings {
@@ -253,26 +248,16 @@ impl Discovery<DockerScanDiscovery> {
                     .iter()
                     .any(|s| s.id == interface.base.subnet_id)
                 {
-                    bindings.push(ServiceBinding {
-                        service_id: docker_daemon_service.id,
-                        binding_id: binding.id(),
-                    });
+                    bindings.push(binding.id());
                 }
             }
-        }
-
-        // Ensure we have at least the host binding
-        if bindings.is_empty() {
-            return Err(anyhow!(
-                "No valid bindings found for Docker virtualization group"
-            ));
         }
 
         let group = Group::new(GroupBase {
             name: format!("Docker on {}", hostname),
             description: None,
             service_bindings: bindings,
-            group_type: GroupType::VirtualizationHost,
+            group_type: GroupType::VirtualizationHost(host_binding.id()),
             source: EntitySource::System,
         });
 

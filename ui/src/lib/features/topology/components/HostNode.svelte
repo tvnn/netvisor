@@ -42,13 +42,18 @@
 						services: servicesOnInterface,
 						headerText,
 						bodyText,
-						showServices
+						showServices,
+						isVirtualized: servicesOnInterface.some((s) => s.virtualization != null)
 					};
 				})()
 			: null
 	);
 
-	const colorHelper = entities.getColorHelper('Host');
+	const colorHelper = $derived(
+		!nodeData?.isVirtualized
+			? entities.getColorHelper('Host')
+			: entities.getColorHelper('Virtualization')
+	);
 
 	let nodeClasses = $derived(`
         ${colorHelper.bg} ${colorHelper.text} border-2 ${colorHelper.border} 

@@ -3,24 +3,11 @@ use std::hash::Hash;
 use strum_macros::{EnumDiscriminants, IntoStaticStr};
 use uuid::Uuid;
 
-#[derive(Copy, Debug, Clone, Serialize, Eq, Deserialize)]
-pub struct ServiceBinding {
-    pub binding_id: Uuid,
-    pub service_id: Uuid,
-}
-
-impl PartialEq for ServiceBinding {
-    fn eq(&self, other: &Self) -> bool {
-        self.binding_id == other.binding_id && self.service_id == other.service_id
-    }
-}
-
-impl Hash for ServiceBinding {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.binding_id.hash(state);
-        self.service_id.hash(state);
-    }
-}
+// impl PartialEq for ServiceBinding {
+//     fn eq(&self, other: &Self) -> bool {
+//         self.binding_id == other.binding_id && self.service_id == other.service_id
+//     }
+// }
 
 #[derive(Copy, Debug, Clone, Serialize, Deserialize, Eq, EnumDiscriminants)]
 #[strum_discriminants(derive(IntoStaticStr))]
@@ -60,6 +47,16 @@ impl Binding {
     }
 }
 
+impl Default for Binding {
+    fn default() -> Self {
+        Self::Layer4 {
+            id: Uuid::nil(),
+            port_id: Uuid::nil(),
+            interface_id: Some(Uuid::nil()),
+        }
+    }
+}
+
 impl PartialEq for Binding {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -92,19 +89,7 @@ impl PartialEq for Binding {
 
 impl Hash for Binding {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        match self {
-            Binding::Layer3 { interface_id, .. } => {
-                interface_id.hash(state);
-            }
-            Binding::Layer4 {
-                port_id,
-                interface_id,
-                ..
-            } => {
-                port_id.hash(state);
-                interface_id.hash(state);
-            }
-        }
+        self.id().hash(state);
     }
 }
 

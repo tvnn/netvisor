@@ -17,4 +17,5 @@ pub enum DiscoveryType {
     SelfReport,
     Network,
     Docker { host_id: Uuid },
+    Proxmox { host_id: Uuid },
 }

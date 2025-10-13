@@ -12,12 +12,19 @@ use crate::server::shared::{
 #[serde(tag = "type", content = "details")]
 pub enum Virtualization {
     Docker(DockerVirtualization),
+    Proxmox(ProxmoxVirtualization),
 }
 
 #[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash)]
 pub struct DockerVirtualization {
     pub container_name: Option<String>,
     pub container_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash)]
+pub struct ProxmoxVirtualization {
+    pub vm_name: Option<String>,
+    pub vm_id: Option<String>,
 }
 
 impl HasId for Virtualization {

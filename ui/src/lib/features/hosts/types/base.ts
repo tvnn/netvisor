@@ -38,9 +38,8 @@ export interface Interface {
 }
 
 export type HostTarget =
-	| { type: 'ServiceBinding'; config: ServiceBinding }
-	| { type: 'None' }
-	| { type: 'Hostname' };
+	// Binding ID
+	{ type: 'ServiceBinding'; config: string } | { type: 'None' } | { type: 'Hostname' };
 
 // For backwards compatibility during transition
 export interface IpTargetConfig {
@@ -49,10 +48,6 @@ export interface IpTargetConfig {
 
 export interface HostnameTargetConfig {
 	hostname: string;
-}
-export interface ServiceBinding {
-	service_id: string;
-	binding_id: string;
 }
 
 export interface Port {

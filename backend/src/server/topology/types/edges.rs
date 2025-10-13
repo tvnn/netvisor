@@ -1,5 +1,5 @@
 use crate::server::{
-    groups::types::GroupType,
+    groups::types::{GroupType, GroupTypeDiscriminants},
     shared::{
         constants::Entity,
         types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
@@ -176,7 +176,9 @@ impl HasId for EdgeType {
         match self {
             EdgeType::Interface => self.into(),
             EdgeType::Group(GroupType::NetworkPath) => GroupType::NetworkPath.into(),
-            EdgeType::Group(GroupType::VirtualizationHost) => GroupType::VirtualizationHost.into(),
+            EdgeType::Group(GroupType::VirtualizationHost(_)) => {
+                GroupTypeDiscriminants::VirtualizationHost.into()
+            }
         }
     }
 }
@@ -185,7 +187,7 @@ impl EntityMetadataProvider for EdgeType {
     fn color(&self) -> &'static str {
         match self {
             EdgeType::Group(GroupType::NetworkPath) => Entity::Group.color(),
-            EdgeType::Group(GroupType::VirtualizationHost) => Entity::Virtualization.color(),
+            EdgeType::Group(GroupType::VirtualizationHost(_)) => Entity::Virtualization.color(),
             EdgeType::Interface => Entity::Host.color(),
         }
     }
@@ -193,7 +195,7 @@ impl EntityMetadataProvider for EdgeType {
     fn icon(&self) -> &'static str {
         match self {
             EdgeType::Group(GroupType::NetworkPath) => Entity::Group.icon(),
-            EdgeType::Group(GroupType::VirtualizationHost) => Entity::Virtualization.icon(),
+            EdgeType::Group(GroupType::VirtualizationHost(_)) => Entity::Virtualization.icon(),
             EdgeType::Interface => Entity::Host.icon(),
         }
     }
@@ -203,7 +205,7 @@ impl TypeMetadataProvider for EdgeType {
     fn name(&self) -> &'static str {
         match self {
             EdgeType::Group(GroupType::NetworkPath) => "Network Path",
-            EdgeType::Group(GroupType::VirtualizationHost) => "Virtualization",
+            EdgeType::Group(GroupType::VirtualizationHost(_)) => "Virtualization",
             EdgeType::Interface => "Host Interface",
         }
     }
@@ -211,13 +213,13 @@ impl TypeMetadataProvider for EdgeType {
     fn metadata(&self) -> serde_json::Value {
         let is_dashed = match &self {
             EdgeType::Group(GroupType::NetworkPath) => false,
-            EdgeType::Group(GroupType::VirtualizationHost) => true,
+            EdgeType::Group(GroupType::VirtualizationHost(_)) => true,
             EdgeType::Interface => true,
         };
 
         let style_label_like_nodes = match &self {
             EdgeType::Group(GroupType::NetworkPath) => false,
-            EdgeType::Group(GroupType::VirtualizationHost) => true,
+            EdgeType::Group(GroupType::VirtualizationHost(_)) => true,
             EdgeType::Interface => true,
         };
 
@@ -225,7 +227,7 @@ impl TypeMetadataProvider for EdgeType {
 
         let has_end_marker = match &self {
             EdgeType::Group(GroupType::NetworkPath) => true,
-            EdgeType::Group(GroupType::VirtualizationHost) => false,
+            EdgeType::Group(GroupType::VirtualizationHost(_)) => false,
             EdgeType::Interface => false,
         };
 

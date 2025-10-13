@@ -183,20 +183,29 @@ impl ServiceService {
 
         let _guard = self.group_update_lock.lock().await;
 
+        let current_service_binding_ids: Vec<Uuid> = current_service
+            .base
+            .bindings
+            .iter()
+            .map(|b| b.id())
+            .collect();
+        let updated_service_binding_ids: Vec<Uuid> = match updates {
+            Some(updated_service) => updated_service
+                .base
+                .bindings
+                .iter()
+                .map(|b| b.id())
+                .collect(),
+            None => Vec::new(),
+        };
+
         let group_futures = groups.into_iter().filter_map(|mut group| {
             let initial_bindings_length = group.base.service_bindings.len();
 
             group.base.service_bindings.retain(|sb| {
-                // Remove if updated service doesn't have binding (or updated service is None aka getting deleted)
-                if sb.service_id == current_service.id {
-                    return match updates {
-                        Some(updated_service) => updated_service
-                            .base
-                            .bindings
-                            .iter()
-                            .any(|pb| pb.id() == sb.binding_id),
-                        None => false,
-                    };
+                // Remove if updated service doesn't have binding
+                if current_service_binding_ids.contains(sb) {
+                    return updated_service_binding_ids.contains(sb);
                 }
                 true
             });

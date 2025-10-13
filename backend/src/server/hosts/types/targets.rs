@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
-
-use crate::server::services::types::bindings::ServiceBinding;
+use uuid::Uuid;
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type", content = "config")]
 pub enum HostTarget {
-    ServiceBinding(ServiceBinding),
+    // ID of service's binding
+    ServiceBinding(Uuid),
     Hostname,
     None,
 }
