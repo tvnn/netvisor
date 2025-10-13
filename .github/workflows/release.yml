@@ -218,28 +218,18 @@ jobs:
           fi
           echo "✓ Daemon config file created"
       
-      - name: Extract fixtures from data directory
+      - name: Extract fixtures from containers
         run: |
           # Create tests directory if it doesn't exist
           mkdir -p backend/src/tests
-                    
-          # Copy database
-          if [ -f "./data/netvisor.db" ]; then
-            cp ./data/netvisor.db ./backend/src/tests/netvisor.db
-            echo "✓ Copied netvisor.db to backend/src/tests/netvisor.db"
-          else
-            echo "⚠ netvisor.db not found in data directory"
-            exit 1
-          fi
           
-          # Copy daemon config
-          if [ -f "./data/daemon_config/config.json" ]; then
-            cp ./data/daemon_config/config.json ./backend/src/tests/daemon_config.json
-            echo "✓ Copied config.json to backend/src/tests/daemon_config.json"
-          else
-            echo "⚠ config.json not found at ./data/daemon_config/config.json"
-            exit 1
-          fi
+          # Copy database from server container
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml cp server:/data/netvisor.db ./backend/src/tests/netvisor.db
+          echo "✓ Copied netvisor.db from server container"
+          
+          # Copy daemon config from daemon container
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml cp daemon:/root/.config/daemon/config.json ./backend/src/tests/daemon_config.json
+          echo "✓ Copied config.json from daemon container"
       
       - name: Stop dev environment
         if: always()
