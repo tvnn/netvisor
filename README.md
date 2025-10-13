@@ -10,15 +10,31 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 
 ## Table of Contents
 
+- [Architecture](#architecture)
 - [Installation](#installation)
-- [Network Discovery](#network-discovery)
+- [Discovery](#discovery)
+  - [Docker](#docker)
+  - [Network Scanning](#network-scanning)
 - [Network Organization](#network-organization)
+  - [Consolidating Hosts](#consolidating-hosts)
+  - [Subnets](#subnets)
+  - [Groups](#groups)
 - [Topology Visualization](#topology-visualization)
 - [Configuration](#configuration)
   - [Daemon Configuration](#daemon-configuration)
   - [Server Configuration](#server-configuration)
 - [Uninstall Daemon](#uninstall-daemon)
 - [FAQ](#faq)
+
+## Architecture
+
+NetVisor consists of two components:
+
+**Server**: Central hub that stores network data, generates topology visualizations, and serves the web UI. Runs as a Docker container with a SQLite database.
+
+**Daemon**: Lightweight agent that performs network scanning and reports back to the server. Can run on one or multiple hosts to map different network segments.
+
+The server-daemon architecture allows you to scan networks from multiple vantage points, essential for mapping VLANs and complex network topologies.
 
 ## Installation
 
@@ -83,11 +99,26 @@ netvisor-daemon --server-target YOUR_SERVER_IP --server-port 60072
 
 If you used the Docker command above, the daemon is already connected and running.
 
-## Docker Discovery
+### 4. Accessing the Web Interface
 
-If the host running the daemon is also running docker, the daemon will automatically detect dockerized services using docker socket.
+Once the server is running, open your web browser and navigate to:
 
-## Network Discovery
+`http://<your-server-ip>:60072`
+
+
+## Discovery
+
+### Docker
+
+If the host running the daemon is also running Docker, the daemon automatically detects containerized services by connecting to the Docker socket. This provides enhanced service discovery including:
+- Container names and metadata
+- Service-to-container relationships
+- Internal Docker networks
+- Container ports and exposed services
+
+The daemon connects to the Docker socket at `/var/run/docker.sock`.
+
+### Network Scanning
 
 Once you connect a daemon to the server, a host will be created with a discovery button. Click to start discovery.
 
@@ -128,7 +159,7 @@ Subnets organize your network into logical segments of hosts. Subnets are automa
 
 ### Groups
 
-Groups let you visualize logical connections between services, such as a web app talking to its database, or representing network paths between different parts of your infrastructure. You'll need to create groups manually.
+Groups let you visualize logical connections between services, such as a web app talking to its database, or representing network paths between different parts of your infrastructure. You can also create groups to represent the relatinoship between hosts and any virtualized services (ie Docker, K8s, LXC). You'll need to create groups manually.
 
 <p align="center">
   <img src="./media/group.png" width="400" alt="Group">
@@ -210,7 +241,17 @@ sudo rm /usr/local/bin/netvisor-daemon
 rm -rf ~/Library/Application\ Support/com.netvisor.daemon
 ```
 
+#### Windows (Binary)
+```cmd
+del %LOCALAPPDATA%\Programs\netvisor-daemon\netvisor-daemon.exe
+rmdir /s %APPDATA%\netvisor\daemon
+```
+
 ## FAQ
+
+### Where does NetVisor store my data?
+
+NetVisor stores all data locally in a SQLite database on your server. No data is sent to external services. Communication between daemon and server occurs over your local network.
 
 ### Are VLANs supported?
 
@@ -219,3 +260,21 @@ Yes, you can collect information from hosts on multiple vlans by using multiple 
 ### Is IPv6 supported?
 
 Not currently. Future plans to support IPv6 will focus on collecting a host's IPv6 address during discovery and/or allowing manual entry of it during editing. Scanning the entire IPv6 space of a discovered subnet will never be supported as it will take too long to do so.
+
+### What Services Are Supported?
+
+NetVisor automatically detects 50+ common services including:
+
+**Media Servers**: Plex, Jellyfin, Emby  
+**Home Automation**: Home Assistant, Philips Hue Bridge  
+**Virtualization**: Proxmox, Docker, Kubernetes  
+**Network Services**: Pi-hole, AdGuard Home, Unifi Controller, pfSense, OPNsense  
+**Storage**: Synology, QNAP, TrueNAS, Nextcloud  
+**Monitoring**: Grafana, Prometheus, Uptime Kuma  
+**Reverse Proxies**: Nginx Proxy Manager, Traefik, Cloudflared  
+...and many more
+
+For a complete list, see the [service definitions](https://github.com/mayanayza/netvisor/tree/main/backend/src/server/services/definitions).
+
+If you are running a service which is on this list but it isn't detected, OR
+If you are running a service which is not on this list and want it to be added - [open an issue](https://github.com/mayanayza/netvisor/issues/new)
