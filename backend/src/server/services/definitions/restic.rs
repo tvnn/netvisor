@@ -18,7 +18,7 @@ impl ServiceDefinition for Restic {
         ServiceCategory::Backup
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::Port(PortBase::new_tcp(8000)),
             Pattern::WebService("/", "restic"),

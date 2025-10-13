@@ -1,7 +1,7 @@
 use crate::server::{
     config::AppState,
-    daemons::types::api::{DaemonDiscoveryRequest, DiscoveryType, DiscoveryUpdatePayload},
-    discovery::types::api::InitiateDiscoveryRequest,
+    daemons::types::api::{DaemonDiscoveryRequest, DiscoveryUpdatePayload},
+    discovery::types::{api::InitiateDiscoveryRequest, base::DiscoveryType},
     shared::types::api::{ApiError, ApiResponse, ApiResult},
 };
 use axum::{

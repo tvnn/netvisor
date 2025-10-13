@@ -17,7 +17,7 @@ impl ServiceDefinition for WebService {
         ServiceCategory::Web
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::None
     }
 }

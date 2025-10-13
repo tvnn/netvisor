@@ -30,7 +30,7 @@
 			<!-- Tags -->
 			{#if tags.length > 0}
 				<div class="flex gap-1">
-					{#each tags as tag (tag.label)}
+					{#each tags as tag, i (`${tag.label}-${i}`)}
 						<Tag
 							label={tag.label}
 							color={tag.color}

@@ -2,7 +2,7 @@ use crate::server::{
     groups::service::GroupService,
     hosts::{
         service::HostService,
-        types::{base::Host, interfaces::Interface, ports::Port},
+        types::{base::Host, interfaces::Interface},
     },
     services::{
         storage::ServiceStorage,
@@ -12,7 +12,10 @@ use crate::server::{
 use anyhow::anyhow;
 use anyhow::{Error, Result};
 use futures::{future::try_join_all, lock::Mutex};
-use std::sync::{Arc, OnceLock};
+use std::{
+    collections::HashMap,
+    sync::{Arc, OnceLock},
+};
 use uuid::Uuid;
 
 pub struct ServiceService {
@@ -20,6 +23,7 @@ pub struct ServiceService {
     host_service: OnceLock<Arc<HostService>>,
     group_service: Arc<GroupService>,
     group_update_lock: Arc<Mutex<()>>,
+    service_locks: Arc<Mutex<HashMap<Uuid, Arc<Mutex<()>>>>>,
 }
 
 impl ServiceService {
@@ -29,7 +33,16 @@ impl ServiceService {
             group_service,
             host_service: OnceLock::new(),
             group_update_lock: Arc::new(Mutex::new(())),
+            service_locks: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    async fn get_service_lock(&self, service_id: &Uuid) -> Arc<Mutex<()>> {
+        let mut locks = self.service_locks.lock().await;
+        locks
+            .entry(*service_id)
+            .or_insert_with(|| Arc::new(Mutex::new(())))
+            .clone()
     }
 
     pub fn set_host_service(&self, host_service: Arc<HostService>) -> Result<(), Arc<HostService>> {
@@ -37,6 +50,9 @@ impl ServiceService {
     }
 
     pub async fn create_service(&self, service: Service) -> Result<Service> {
+        let lock = self.get_service_lock(&service.id).await;
+        let _guard = lock.lock().await;
+
         let existing_services = self.get_services_for_host(&service.base.host_id).await?;
 
         let service_from_storage = match existing_services
@@ -79,13 +95,13 @@ impl ServiceService {
             existing_service
         );
 
+        let lock = self.get_service_lock(&existing_service.id).await;
+        let _guard = lock.lock().await;
+
         for new_service_binding in &new_service_data.base.bindings {
             if !existing_service.base.bindings.contains(new_service_binding) {
                 binding_updates += 1;
-                existing_service
-                    .base
-                    .bindings
-                    .push(new_service_binding.clone());
+                existing_service.base.bindings.push(*new_service_binding);
             }
         }
 
@@ -129,6 +145,9 @@ impl ServiceService {
     pub async fn update_service(&self, mut service: Service) -> Result<Service> {
         tracing::debug!("Updating service: {:?}", service);
 
+        let lock = self.get_service_lock(&service.id).await;
+        let _guard = lock.lock().await;
+
         let current_service = self
             .get_service(&service.id)
             .await?
@@ -149,7 +168,7 @@ impl ServiceService {
         Ok(service)
     }
 
-    pub async fn update_group_service_bindings(
+    async fn update_group_service_bindings(
         &self,
         current_service: &Service,
         updates: Option<&Service>,
@@ -160,9 +179,9 @@ impl ServiceService {
             updates
         );
 
-        let _guard = self.group_update_lock.lock().await;
-
         let groups = self.group_service.get_all_groups().await?;
+
+        let _guard = self.group_update_lock.lock().await;
 
         let group_futures = groups.into_iter().filter_map(|mut group| {
             let initial_bindings_length = group.base.service_bindings.len();
@@ -195,28 +214,34 @@ impl ServiceService {
         Ok(())
     }
 
-    pub fn transfer_service_to_new_host(
+    /// Update bindings to match ports and interfaces available on new host
+    pub async fn prepare_service_for_transfer_to_new_host(
         &self,
-        service: &mut Service,
+        service: Service,
         original_host: &Host,
         new_host: &Host,
     ) -> Service {
+        let lock = self.get_service_lock(&service.id).await;
+        let _guard = lock.lock().await;
+
         tracing::debug!(
-            "Transferring service {:?} from host {:?} to host {:?}",
+            "Preparing service {:?} for transfer from host {:?} to host {:?}",
             service,
             original_host,
             new_host
         );
 
-        service.base.bindings = service
+        let mut mutable_service = service.clone();
+
+        mutable_service.base.bindings = mutable_service
             .base
             .bindings
-            .iter()
-            .filter_map(|b| {
+            .iter_mut()
+            .filter_map(|mut b| {
                 let original_interface = original_host.get_interface(&b.interface_id());
 
-                match b {
-                    Binding::Layer3 { .. } => {
+                match &mut b {
+                    Binding::Layer3 { interface_id, .. } => {
                         if let Some(original_interface) = original_interface {
                             let new_interface: Option<&Interface> = new_host
                                 .base
@@ -225,35 +250,49 @@ impl ServiceService {
                                 .find(|i| *i == original_interface);
 
                             if let Some(new_interface) = new_interface {
-                                return Some(Binding::new_l3(new_interface.id));
+                                *interface_id = new_interface.id;
+                                return Some(*b);
                             }
                         }
+                        // this shouldn't happen because we just transferred bindings from old host to new
+                        None::<Binding>
                     }
-                    Binding::Layer4 { port_id, .. } => {
-                        let original_port = original_host.get_port(port_id);
+                    Binding::Layer4 {
+                        port_id,
+                        interface_id,
+                        ..
+                    } => {
+                        if let Some(original_port) = original_host.get_port(port_id) {
+                            if let Some(new_port) =
+                                new_host.base.ports.iter().find(|p| *p == original_port)
+                            {
+                                let new_interface: Option<Option<Interface>> =
+                                    match original_interface {
+                                        // None interface = listen on all interfaces, assume same for new host
+                                        None => Some(None),
+                                        Some(original_interface) => new_host
+                                            .base
+                                            .interfaces
+                                            .iter()
+                                            .find(|i| *i == original_interface)
+                                            .map(|found_interface| Some(found_interface.clone())),
+                                    };
 
-                        let new_port: Option<&Port> = if let Some(port) = original_port {
-                            new_host.base.ports.iter().find(|p| *p == port)
-                        } else {
-                            None
-                        };
-
-                        let new_interface: Option<&Interface> =
-                            if let Some(interface) = original_interface {
-                                new_host.base.interfaces.iter().find(|i| *i == interface)
-                            } else {
-                                None
-                            };
-
-                        match (new_port, new_interface) {
-                            (Some(new_port), Some(new_interface)) => {
-                                return Some(Binding::new_l4(new_port.id, Some(new_interface.id)));
+                                match new_interface {
+                                    None => return None,
+                                    Some(new_interface) => {
+                                        *port_id = new_port.id;
+                                        *interface_id = match new_interface {
+                                            Some(new_interface) => Some(new_interface.id),
+                                            None => None,
+                                        };
+                                        return Some(*b);
+                                    }
+                                }
                             }
-                            (Some(new_port), None) if b.interface_id().is_none() => {
-                                return Some(Binding::new_l4(new_port.id, None));
-                            }
-                            _ => return None,
                         }
+                        // this shouldn't happen because we just transferred bindings from old host to new
+                        None::<Binding>
                     }
                 };
 
@@ -261,22 +300,16 @@ impl ServiceService {
             })
             .collect();
 
-        service.base.host_id = new_host.id;
+        mutable_service.base.host_id = new_host.id;
 
-        tracing::info!(
-            "Transferred service {} from host {} to host {}",
-            service,
-            original_host,
-            new_host
-        );
         tracing::debug!(
-            "Transferred service {:?} from host {:?} to host {:?}",
-            service,
+            "Prepared service {:?} for transfer from host {:?} to host {:?}",
+            mutable_service,
             original_host,
             new_host
         );
 
-        service.clone()
+        mutable_service
     }
 
     pub async fn delete_service(&self, id: &Uuid) -> Result<()> {
@@ -284,6 +317,9 @@ impl ServiceService {
             .get_service(id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Service {} not found", id))?;
+
+        let lock = self.get_service_lock(&service.id).await;
+        let _guard = lock.lock().await;
 
         self.update_group_service_bindings(&service, None).await?;
 
@@ -295,125 +331,5 @@ impl ServiceService {
             service.base.host_id
         );
         Ok(())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::{
-        server::services::types::bindings::{Binding, ServiceBinding},
-        tests::*,
-    };
-
-    #[tokio::test]
-    async fn test_service_deduplication_on_create() {
-        let (_, services) = test_services().await;
-
-        let subnet_obj = subnet();
-        services
-            .subnet_service
-            .create_subnet(subnet_obj.clone())
-            .await
-            .unwrap();
-
-        // Create first service + host
-        let mut host_obj = host();
-        host_obj.base.interfaces = vec![interface(&subnet_obj.id)];
-
-        let mut svc1 = service(&host_obj.id);
-        // Add bindings so the deduplication logic can match them
-        svc1.base.bindings = vec![Binding::new_l4(
-            host_obj.base.ports[0].id,
-            Some(host_obj.base.interfaces[0].id),
-        )];
-
-        let (created_host, created1) = services
-            .host_service
-            .create_host_with_services(host_obj.clone(), vec![svc1.clone()])
-            .await
-            .unwrap();
-
-        // Try to create duplicate (same definition + matching bindings)
-        // Must use created_host's IDs since host deduplication may have changed them
-        let mut svc2 = service(&created_host.id);
-        svc2.base.service_definition = svc1.base.service_definition.clone();
-        svc2.base.bindings = vec![Binding::new_l4(
-            created_host.base.ports[0].id,
-            Some(created_host.base.interfaces[0].id),
-        )];
-
-        let created2 = services
-            .service_service
-            .create_service(svc2.clone())
-            .await
-            .unwrap();
-
-        // Should return same service (upserted)
-        assert_eq!(created1[0].id, created2.id);
-
-        // Verify only one service in DB
-        let all_services = services
-            .service_service
-            .get_services_for_host(&created_host.id)
-            .await
-            .unwrap();
-        assert_eq!(all_services.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_service_deletion_cleans_up_relationships() {
-        let (_, services) = test_services().await;
-
-        let subnet_obj = subnet();
-        let created_subnet = services
-            .subnet_service
-            .create_subnet(subnet_obj.clone())
-            .await
-            .unwrap();
-
-        let mut host_obj = host();
-        host_obj.base.interfaces = vec![interface(&created_subnet.id)];
-
-        // Create service in a group
-        let mut svc = service(&host_obj.id);
-        let binding = Binding::new_l4(
-            host_obj.base.ports[0].id,
-            Some(host_obj.base.interfaces[0].id),
-        );
-        svc.base.bindings = vec![binding];
-
-        let (_, created_svcs) = services
-            .host_service
-            .create_host_with_services(host_obj.clone(), vec![svc])
-            .await
-            .unwrap();
-        let created_svc = &created_svcs[0];
-
-        let mut group_obj = group();
-        group_obj.base.service_bindings = vec![ServiceBinding {
-            service_id: created_svc.id,
-            binding_id: created_svc.base.bindings[0].id(),
-        }];
-        let created_group = services
-            .group_service
-            .create_group(group_obj)
-            .await
-            .unwrap();
-
-        // Delete service
-        services
-            .service_service
-            .delete_service(&created_svc.id)
-            .await
-            .unwrap();
-
-        // Group should no longer have service binding
-        let group_after = services
-            .group_service
-            .get_group(&created_group.id)
-            .await
-            .unwrap()
-            .unwrap();
-        assert!(group_after.base.service_bindings.is_empty());
     }
 }

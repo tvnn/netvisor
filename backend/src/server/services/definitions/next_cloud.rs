@@ -17,7 +17,7 @@ impl ServiceDefinition for NextCloud {
         ServiceCategory::Web
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::WebService("/", "Nextcloud")
     }
 

@@ -3,7 +3,7 @@ use std::hash::Hash;
 use strum_macros::{EnumDiscriminants, IntoStaticStr};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Eq, Deserialize)]
+#[derive(Copy, Debug, Clone, Serialize, Eq, Deserialize)]
 pub struct ServiceBinding {
     pub binding_id: Uuid,
     pub service_id: Uuid,
@@ -22,7 +22,7 @@ impl Hash for ServiceBinding {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, EnumDiscriminants)]
+#[derive(Copy, Debug, Clone, Serialize, Deserialize, Eq, EnumDiscriminants)]
 #[strum_discriminants(derive(IntoStaticStr))]
 #[serde(tag = "type")]
 pub enum Binding {

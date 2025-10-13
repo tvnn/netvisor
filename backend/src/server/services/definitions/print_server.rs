@@ -18,7 +18,7 @@ impl ServiceDefinition for PrintServer {
         ServiceCategory::Printer
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AnyPort(vec![PortBase::Ipp, PortBase::LdpTcp, PortBase::LdpUdp])
     }
 

@@ -17,7 +17,7 @@ impl ServiceDefinition for TpLinkEap {
         ServiceCategory::NetworkAccess
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::TPLINK),
             Pattern::WebService("/", "TP-LINK"),

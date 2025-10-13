@@ -6,6 +6,15 @@ export interface Service<T extends Binding = Binding> {
 	service_definition: string;
 	name: string;
 	bindings: T[];
+	virtualization: null | {
+		type: string;
+		content: DockerVirtualization;
+	};
+}
+
+export interface DockerVirtualization {
+	container_id: string;
+	container_name: string;
 }
 
 export type Binding =

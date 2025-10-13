@@ -1,11 +1,11 @@
 use crate::{
     daemon::discovery::service::{
-        base::{CreatesDiscoveredEntities, DiscoveryHandler, InitiatesOwnDiscovery},
+        base::{CreatesDiscoveredEntities, Discovery, HasDiscoveryType, InitiatesOwnDiscovery},
         docker::DockerScanDiscovery,
     },
     server::{
-        daemons::types::api::{DaemonDiscoveryRequest, DiscoveryType},
-        discovery::types::base::EntitySource,
+        daemons::types::api::DaemonDiscoveryRequest,
+        discovery::types::base::{DiscoveryType, EntitySource},
         hosts::types::{
             interfaces::{Interface, ALL_INTERFACES_IP},
             ports::{Port, PortBase},
@@ -39,9 +39,15 @@ use uuid::Uuid;
 #[derive(Default)]
 pub struct SelfReportDiscovery {}
 
-impl CreatesDiscoveredEntities for DiscoveryHandler<SelfReportDiscovery> {}
+impl HasDiscoveryType for Discovery<SelfReportDiscovery> {
+    fn discovery_type(&self) -> DiscoveryType {
+        DiscoveryType::SelfReport
+    }
+}
 
-impl DiscoveryHandler<SelfReportDiscovery> {
+impl CreatesDiscoveredEntities for Discovery<SelfReportDiscovery> {}
+
+impl Discovery<SelfReportDiscovery> {
     pub async fn run_self_report_docker_discovery(&self) -> Result<(), Error> {
         let config_store = &self.as_ref().config_store;
         let utils = &self.as_ref().utils;
@@ -50,7 +56,7 @@ impl DiscoveryHandler<SelfReportDiscovery> {
         let docker_ok = utils.scan_docker_socket().await?;
 
         if let (Some(host_id), true) = (host_id, docker_ok) {
-            let docker_discovery = Arc::new(DiscoveryHandler::new(
+            let docker_discovery = Arc::new(Discovery::new(
                 self.service.clone(),
                 self.manager.clone(),
                 DockerScanDiscovery::new(host_id),
@@ -77,7 +83,9 @@ impl DiscoveryHandler<SelfReportDiscovery> {
         let binding_address = config_store.get_bind_address().await?;
         let binding_ip = IpAddr::V4(binding_address.parse::<Ipv4Addr>()?);
 
-        let (mut interfaces, subnets) = utils.scan_interfaces(daemon_id).await?;
+        let (mut interfaces, subnets) = utils
+            .scan_interfaces(self.discovery_type(), daemon_id)
+            .await?;
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
         let created_subnets = try_join_all(subnet_futures).await?;
@@ -124,7 +132,8 @@ impl DiscoveryHandler<SelfReportDiscovery> {
 
         let host = Host::new(host_base);
 
-        let service_definition = NetvisorDaemon;
+        let mut services = Vec::new();
+        let daemon_service_definition = NetvisorDaemon;
 
         let daemon_service_bound_interfaces: Vec<&Interface> = interfaces
             .iter()
@@ -132,16 +141,19 @@ impl DiscoveryHandler<SelfReportDiscovery> {
             .collect();
 
         let daemon_service = Service::new(ServiceBase {
-            name: ServiceDefinition::name(&service_definition).to_string(),
-            service_definition: Box::new(service_definition),
+            name: ServiceDefinition::name(&daemon_service_definition).to_string(),
+            service_definition: Box::new(daemon_service_definition),
             bindings: daemon_service_bound_interfaces
                 .iter()
                 .map(|i| Binding::new_l4(own_port_id, Some(i.id)))
                 .collect(),
             host_id: host.id,
+            virtualization: None,
         });
 
-        let created_host = self.create_host(host, vec![daemon_service]).await?;
+        services.push(daemon_service);
+
+        let (created_host, _) = self.create_host(host, services).await?;
 
         tracing::info!(
             "Created host with local IP: {}, Hostname: {:?}",

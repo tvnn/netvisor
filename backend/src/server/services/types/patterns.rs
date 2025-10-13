@@ -1,11 +1,11 @@
 use std::net::IpAddr;
 
-use crate::{
-    daemon::discovery::service::docker::DOCKER_PORT,
-    server::services::types::base::{
+use crate::server::services::types::{
+    base::{
         Service, ServiceDiscoveryBaselineParams, ServiceDiscoveryParams,
         ServiceDiscoveryStateParams,
     },
+    virtualization::Virtualization,
 };
 use anyhow::Error;
 use mac_oui::Oui;
@@ -122,22 +122,24 @@ impl Pattern<'_> {
         let ServiceDiscoveryBaselineParams {
             subnet,
             interface,
-            open_ports,
             endpoint_responses,
             host_has_docker_client,
-            docker_container_name,
+            virtualization,
+            ..
         } = baseline_params;
 
         let ServiceDiscoveryStateParams {
-            matched_services, ..
+            matched_services,
+            unbound_ports,
+            ..
         } = discovery_state_params;
 
         let no_match = Err(Error::msg("No match"));
 
         match self {
             Pattern::Port(port_base) => {
-                if let Some(matched_port) = open_ports.iter().find(|p| **p == *port_base) {
-                    Ok(vec![Some(Port::new(matched_port.clone()))])
+                if let Some(matched_port) = unbound_ports.iter().find(|p| **p == *port_base) {
+                    Ok(vec![Some(Port::new(*matched_port))])
                 } else {
                     no_match
                 }
@@ -149,7 +151,7 @@ impl Pattern<'_> {
                     actual.endpoint == expected.endpoint
                         && actual.response.contains(&expected.response)
                 }) {
-                    Ok(vec![Some(Port::new(actual.endpoint.port_base.clone()))])
+                    Ok(vec![Some(Port::new(actual.endpoint.port_base))])
                 } else {
                     no_match
                 }
@@ -238,10 +240,10 @@ impl Pattern<'_> {
             }
 
             Pattern::AnyPort(port_bases) => {
-                let matched_ports: Vec<Option<Port>> = open_ports
+                let matched_ports: Vec<Option<Port>> = unbound_ports
                     .iter()
                     .filter(|p| port_bases.contains(p))
-                    .map(|p| Some(Port::new(p.clone())))
+                    .map(|p| Some(Port::new(*p)))
                     .collect();
 
                 if matched_ports.is_empty() {
@@ -252,10 +254,10 @@ impl Pattern<'_> {
             }
 
             Pattern::AllPort(port_bases) => {
-                let matched_ports: Vec<Option<Port>> = open_ports
+                let matched_ports: Vec<Option<Port>> = unbound_ports
                     .iter()
                     .filter(|p| port_bases.contains(p))
-                    .map(|p| Some(Port::new(p.clone())))
+                    .map(|p| Some(Port::new(*p)))
                     .collect();
 
                 if matched_ports.len() == port_bases.len() {
@@ -355,23 +357,17 @@ impl Pattern<'_> {
             }
 
             Pattern::DockerClient => {
-                let http_port_base = PortBase::new_tcp(DOCKER_PORT);
-                // let https_port_base = PortBase::new_tcp(2376);
-
                 if **host_has_docker_client {
-                    Ok(vec![Some(Port::new(http_port_base))])
-                } else {
-                    no_match
-                }
-            }
-
-            Pattern::DockerContainer => {
-                if docker_container_name.is_some() {
                     Ok(vec![None])
                 } else {
                     no_match
                 }
             }
+
+            Pattern::DockerContainer => match virtualization {
+                Some(Virtualization::Docker(..)) => Ok(vec![None]),
+                _ => no_match,
+            },
 
             Pattern::None => no_match,
         }
@@ -379,8 +375,8 @@ impl Pattern<'_> {
 
     pub fn ports(&self) -> Vec<PortBase> {
         match self {
-            Pattern::Port(port) => vec![port.clone()],
-            Pattern::Endpoint(response) => vec![response.endpoint.port_base.clone()],
+            Pattern::Port(port) => vec![*port],
+            Pattern::Endpoint(response) => vec![response.endpoint.port_base],
             Pattern::AnyPort(ports) => ports.clone(),
             Pattern::AllPort(ports) => ports.clone(),
             Pattern::AnyOf(patterns) => patterns.iter().flat_map(|p| p.ports().to_vec()).collect(),
@@ -433,7 +429,7 @@ impl Pattern<'_> {
 mod tests {
     use std::net::IpAddr;
 
-    use crate::server::services::types::patterns::Service;
+    use crate::server::services::types::{patterns::Service, virtualization::Virtualization};
     use uuid::Uuid;
 
     use crate::{
@@ -464,7 +460,7 @@ mod tests {
         gateway_ips: Vec<IpAddr>,
         endpoint_responses: Vec<EndpointResponse>,
         host_has_docker_client: bool,
-        docker_container_name: Option<String>,
+        virtualization: Option<Virtualization>,
         l3_interface_bound: bool,
         matched_services: Vec<Service>,
     }
@@ -489,7 +485,7 @@ mod tests {
                 gateway_ips: vec![],
                 endpoint_responses,
                 host_has_docker_client: false,
-                docker_container_name: None,
+                virtualization: None,
                 l3_interface_bound: false,
                 matched_services: vec![],
             }
@@ -498,6 +494,7 @@ mod tests {
         fn create_params_with_ports<'a>(
             &'a self,
             baseline_params: &'a ServiceDiscoveryBaselineParams<'a>,
+            unbound_ports: &'a Vec<PortBase>,
         ) -> ServiceDiscoveryParams<'a> {
             ServiceDiscoveryParams {
                 host_id: &self.host_id,
@@ -507,21 +504,22 @@ mod tests {
                     service_definition: self.pi.clone(),
                     l3_interface_bound: &self.l3_interface_bound,
                     matched_services: &self.matched_services,
+                    unbound_ports,
                 },
             }
         }
 
         fn create_baseline_params<'a>(
             &'a self,
-            open_ports: &'a Vec<PortBase>,
+            all_ports: &'a Vec<PortBase>,
         ) -> ServiceDiscoveryBaselineParams<'a> {
             ServiceDiscoveryBaselineParams {
                 subnet: &self.subnet,
                 interface: &self.interface,
-                open_ports,
+                all_ports,
                 endpoint_responses: &self.endpoint_responses,
                 host_has_docker_client: &self.host_has_docker_client,
-                docker_container_name: &self.docker_container_name,
+                virtualization: &self.virtualization,
             }
         }
     }
@@ -532,7 +530,7 @@ mod tests {
 
         let ports = vec![PortBase::DnsUdp, PortBase::DnsTcp];
         let baseline = ctx.create_baseline_params(&ports);
-        let params = ctx.create_params_with_ports(&baseline);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
         let result = ctx.pi.discovery_pattern().matches(&params);
 
         assert!(
@@ -543,7 +541,7 @@ mod tests {
         // Test with wrong port - should not match
         let ports = vec![PortBase::new_tcp(80)];
         let baseline = ctx.create_baseline_params(&ports);
-        let params = ctx.create_params_with_ports(&baseline);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
         let result = ctx.pi.discovery_pattern().matches(&params);
 
         assert!(result.is_err(), "SSH pattern should not match port 80");
@@ -560,7 +558,7 @@ mod tests {
 
         let ports = vec![PortBase::new_tcp(80), PortBase::new_tcp(443)];
         let baseline = ctx.create_baseline_params(&ports);
-        let params = ctx.create_params_with_ports(&baseline);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
         let result = pattern.matches(&params);
 
         assert!(
@@ -571,7 +569,7 @@ mod tests {
         // Test with only one port - should not match
         let ports = vec![PortBase::new_tcp(80)];
         let baseline = ctx.create_baseline_params(&ports);
-        let params = ctx.create_params_with_ports(&baseline);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
         let result = pattern.matches(&params);
 
         assert!(
@@ -582,7 +580,7 @@ mod tests {
         // Test with neither port - should not match
         let ports = vec![PortBase::new_tcp(22)];
         let baseline = ctx.create_baseline_params(&ports);
-        let params = ctx.create_params_with_ports(&baseline);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
         let result = pattern.matches(&params);
 
         assert!(
@@ -603,28 +601,28 @@ mod tests {
 
         let ports = vec![PortBase::new_tcp(3306)];
         let baseline = ctx.create_baseline_params(&ports);
-        let params = ctx.create_params_with_ports(&baseline);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
         let result = pattern.matches(&params);
         assert!(result.is_ok(), "OR pattern should match MySQL port");
 
         // Test with PostgreSQL port - should match
         let ports = vec![PortBase::new_tcp(5432)];
         let baseline = ctx.create_baseline_params(&ports);
-        let params = ctx.create_params_with_ports(&baseline);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
         let result = pattern.matches(&params);
         assert!(result.is_ok(), "OR pattern should match PostgreSQL port");
 
         // Test with both ports - should match
         let ports = vec![PortBase::new_tcp(3306), PortBase::new_tcp(5432)];
         let baseline = ctx.create_baseline_params(&ports);
-        let params = ctx.create_params_with_ports(&baseline);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
         let result = pattern.matches(&params);
         assert!(result.is_ok(), "OR pattern should match with both ports");
 
         // Test with neither port - should not match
         let ports = vec![PortBase::new_tcp(22)];
         let baseline = ctx.create_baseline_params(&ports);
-        let params = ctx.create_params_with_ports(&baseline);
+        let params = ctx.create_params_with_ports(&baseline, &ports);
         let result = pattern.matches(&params);
         assert!(
             result.is_err(),

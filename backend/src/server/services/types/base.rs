@@ -5,6 +5,7 @@ use crate::server::services::types::bindings::{Binding, BindingDiscriminants, Se
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
+use crate::server::services::types::virtualization::{DockerVirtualization, Virtualization};
 use crate::server::subnets::types::base::Subnet;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -18,9 +19,10 @@ use validator::Validate;
 pub struct ServiceBase {
     pub host_id: Uuid,
     pub service_definition: Box<dyn ServiceDefinition>,
-    #[validate(length(min = 1, max = 100))]
+    #[validate(length(min = 0, max = 100))]
     pub name: String,
     pub bindings: Vec<Binding>,
+    pub virtualization: Option<Virtualization>,
 }
 
 impl Default for ServiceBase {
@@ -30,6 +32,7 @@ impl Default for ServiceBase {
             service_definition: Box::new(DefaultServiceDefinition),
             name: String::new(),
             bindings: Vec::new(),
+            virtualization: None,
         }
     }
 }
@@ -56,10 +59,10 @@ pub struct ServiceDiscoveryParams<'a> {
 pub struct ServiceDiscoveryBaselineParams<'a> {
     pub subnet: &'a Subnet,
     pub interface: &'a Interface,
-    pub open_ports: &'a Vec<PortBase>,
+    pub all_ports: &'a Vec<PortBase>,
     pub endpoint_responses: &'a Vec<EndpointResponse>,
     pub host_has_docker_client: &'a bool,
-    pub docker_container_name: &'a Option<String>,
+    pub virtualization: &'a Option<Virtualization>,
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +70,7 @@ pub struct ServiceDiscoveryStateParams<'a> {
     pub service_definition: Box<dyn ServiceDefinition>,
     pub l3_interface_bound: &'a bool,
     pub matched_services: &'a Vec<Service>,
+    pub unbound_ports: &'a Vec<PortBase>,
 }
 
 impl PartialEq for Service {
@@ -78,6 +82,17 @@ impl PartialEq for Service {
         let id_match = self.id == other.id;
 
         (host_match && definition_match && name_match) || id_match
+    }
+}
+
+impl Default for Service {
+    fn default() -> Self {
+        Self {
+            id: Uuid::nil(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            base: ServiceBase::default(),
+        }
     }
 }
 
@@ -122,6 +137,22 @@ impl Service {
             .collect()
     }
 
+    pub fn to_bound_interface_ids(&self) -> Vec<Uuid> {
+        self.base
+            .bindings
+            .iter()
+            .filter_map(|i| i.interface_id())
+            .collect()
+    }
+
+    pub fn to_bound_port_ids(&self) -> Vec<Uuid> {
+        self.base
+            .bindings
+            .iter()
+            .filter_map(|i| i.port_id())
+            .collect()
+    }
+
     pub fn all_discovery_ports() -> Vec<PortBase> {
         let mut ports: Vec<PortBase> = ServiceDefinitionRegistry::all_service_definitions()
             .iter()
@@ -161,10 +192,12 @@ impl Service {
 
         let ServiceDiscoveryBaselineParams {
             interface,
-            open_ports,
-            docker_container_name,
+            all_ports,
+            virtualization,
             ..
         } = baseline_params;
+
+        let virtualization = *virtualization;
 
         let ServiceDiscoveryStateParams {
             service_definition,
@@ -173,12 +206,18 @@ impl Service {
         } = discovery_state_params;
 
         if let Ok(result) = service_definition.discovery_pattern().matches(&params) {
-            let name = if let Some(container_name) = docker_container_name {
-                container_name.clone()
-            } else {
-                service_definition.name().to_string()
-            };
+            let mut name = service_definition.name().to_string();
             let matched_ports: Vec<Port> = result.into_iter().flatten().collect();
+
+            if service_definition.is_generic() {
+                if let Some(Virtualization::Docker(DockerVirtualization {
+                    container_name: Some(c_name),
+                    ..
+                })) = virtualization
+                {
+                    name = c_name.clone()
+                }
+            }
 
             if service_definition.layer() == BindingDiscriminants::Layer3 && !l3_interface_bound {
                 tracing::debug!("Matched service with params {:?}", params);
@@ -194,6 +233,7 @@ impl Service {
                         service_definition,
                         name,
                         bindings: vec![Binding::new_l3(interface.id)],
+                        virtualization: virtualization.clone(),
                     })),
                     Vec::new(),
                 )
@@ -211,6 +251,7 @@ impl Service {
                         host_id: *host_id,
                         service_definition,
                         name,
+                        virtualization: virtualization.clone(),
                         bindings: matched_ports
                             .iter()
                             .map(|p| Binding::new_l4(p.id, Some(interface.id)))
@@ -223,7 +264,7 @@ impl Service {
                     "{}: No services matched. L3 interface already bound: {}, open ports on host: {:?}",
                     interface.base.ip_address,
                     l3_interface_bound,
-                    open_ports
+                    all_ports
                 );
 
                 (None, Vec::new())

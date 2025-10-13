@@ -1,5 +1,5 @@
 <script lang="ts" context="module">
-	import { serviceDefinitions } from '$lib/shared/stores/metadata';
+	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 
 	export const ServiceDisplay: EntityDisplayComponent<Service> = {
 		getId: (service: Service) => service.id,
@@ -11,7 +11,20 @@
 		getIcon: (service: Service) => serviceDefinitions.getIconComponent(service.service_definition),
 		getIconColor: (service: Service) =>
 			serviceDefinitions.getColorHelper(service.service_definition).icon,
-		getTags: () => [],
+		getTags: (service: Service) => {
+			let tags = [];
+
+			if (service.virtualization) {
+				const tag: TagProps = {
+					label: service.virtualization.type,
+					color: entities.getColorHelper('Virtualization').string
+				};
+
+				tags.push(tag);
+			}
+
+			return tags;
+		},
 		getIsDisabled: () => false,
 		getCategory: () => null
 	};
@@ -21,6 +34,7 @@
 	import ListSelectItem from '$lib/shared/components/forms/selection/ListSelectItem.svelte';
 	import type { EntityDisplayComponent } from '../types';
 	import type { Service } from '$lib/features/services/types/base';
+	import type { TagProps } from '$lib/shared/components/data/types';
 
 	export let item: Service;
 </script>

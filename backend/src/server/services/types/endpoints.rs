@@ -7,6 +7,7 @@ use strum_macros::{Display, EnumDiscriminants, EnumIter};
 
 #[derive(
     Debug,
+    Copy,
     Clone,
     Default,
     Display,
@@ -46,9 +47,9 @@ impl Endpoint {
 
     pub fn use_ip(&self, ip: IpAddr) -> Self {
         Self {
-            protocol: self.protocol.clone(),
+            protocol: self.protocol,
             ip: Some(ip),
-            port_base: self.port_base.clone(),
+            port_base: self.port_base,
             path: self.path.clone(),
         }
     }
@@ -96,9 +97,9 @@ impl Endpoint {
         path: &Option<String>,
     ) -> Self {
         Endpoint {
-            protocol: protocol.clone(),
+            protocol: *protocol,
             ip,
-            port_base: port_base.clone(),
+            port_base: *port_base,
             path: path.clone(),
         }
     }

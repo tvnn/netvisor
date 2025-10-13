@@ -8,6 +8,7 @@ use crate::server::shared::{
 
 #[derive(
     Debug,
+    Copy,
     Clone,
     PartialEq,
     Eq,
@@ -75,7 +76,7 @@ impl EntityMetadataProvider for ServiceCategory {
             ServiceCategory::Storage => "HardDrive",
             ServiceCategory::Media => "PlayCircle",
             ServiceCategory::HomeAutomation => "Home",
-            ServiceCategory::Virtualization => "MonitorCog",
+            ServiceCategory::Virtualization => Entity::Virtualization.icon(),
 
             // Network Services
             ServiceCategory::DNS => Entity::Dns.icon(),
@@ -115,7 +116,7 @@ impl EntityMetadataProvider for ServiceCategory {
             ServiceCategory::Storage => "green",
             ServiceCategory::Media => "blue",
             ServiceCategory::HomeAutomation => "blue",
-            ServiceCategory::Virtualization => "orange",
+            ServiceCategory::Virtualization => Entity::Virtualization.color(),
             ServiceCategory::Backup => "gray",
 
             // Network Services

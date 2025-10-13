@@ -18,7 +18,7 @@ impl ServiceDefinition for UnifiController {
         ServiceCategory::NetworkAccess
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AnyPort(vec![PortBase::new_tcp(2049)])
     }
 

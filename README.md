@@ -83,6 +83,10 @@ netvisor-daemon --server-target YOUR_SERVER_IP --server-port 60072
 
 If you used the Docker command above, the daemon is already connected and running.
 
+## Docker Discovery
+
+If the host running the daemon is also running docker, the daemon will automatically detect dockerized services using docker socket.
+
 ## Network Discovery
 
 Once you connect a daemon to the server, a host will be created with a discovery button. Click to start discovery.

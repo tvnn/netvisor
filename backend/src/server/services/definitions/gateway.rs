@@ -17,7 +17,7 @@ impl ServiceDefinition for Gateway {
         ServiceCategory::NetworkCore
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::IsGateway
     }
 

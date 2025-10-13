@@ -2,18 +2,21 @@
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import type { Group } from '../types/base';
-	import { entities } from '$lib/shared/stores/metadata';
-	import { formatServiceAsHost } from '$lib/features/services/store';
+	import { entities, groupTypes } from '$lib/shared/stores/metadata';
+	import { formatServiceAsHost, getServicesForGroupReactive } from '$lib/features/services/store';
 
 	export let group: Group;
 	export let onEdit: (group: Group) => void = () => {};
 	export let onDelete: (group: Group) => void = () => {};
 
+	$: groupServicesStore = getServicesForGroupReactive(group.id);
+	$: groupServices = $groupServicesStore;
+
 	// Build card data
 	$: cardData = {
 		title: group.name,
-		iconColor: entities.getColorHelper('Group').icon,
-		icon: entities.getIconComponent('Group'),
+		iconColor: groupTypes.getColorHelper(group.group_type).icon,
+		icon: groupTypes.getIconComponent(group.group_type),
 
 		sections: group.description
 			? [
@@ -26,12 +29,25 @@
 
 		lists: [
 			{
+				label: 'Group Type',
+				items: [
+					{
+						id: 'type',
+						label: groupTypes.getName(group.group_type),
+						color: groupTypes.getColorString(group.group_type)
+					}
+				],
+				emptyText: 'No type specified'
+			},
+			{
 				label: 'Services',
-				items: group.service_bindings.map((s) => ({
-					id: s.service_id,
-					label: formatServiceAsHost(s.service_id),
-					color: entities.getColorString('Service')
-				})),
+				items: groupServices.map((s, i) => {
+					return {
+						id: s.id + i,
+						label: formatServiceAsHost(s.id),
+						color: entities.getColorString('Service')
+					};
+				}),
 				emptyText: 'No services in group'
 			}
 		],

@@ -18,9 +18,8 @@ use crate::server::{
     },
 };
 
-const SUBNET_PADDING: Uxy = Uxy { x: 75, y: 75 };
+const SUBNET_PADDING: Uxy = Uxy { x: 125, y: 125 };
 const NODE_PADDING: Uxy = Uxy { x: 50, y: 50 };
-const GROUP_DOCKER_BRIDGES_BY_HOST: bool = true;
 
 pub struct SubnetLayoutPlanner {
     no_subnet_id: Uuid,
@@ -60,8 +59,9 @@ impl SubnetLayoutPlanner {
         &mut self,
         ctx: &TopologyContext,
         all_edges: &[Edge],
+        group_docker_bridges_by_host: bool
     ) -> (HashMap<Uuid, SubnetLayout>, Vec<Node>) {
-        let children_by_subnet = self.group_children_by_subnet(ctx, all_edges);
+        let children_by_subnet = self.group_children_by_subnet(ctx, all_edges, group_docker_bridges_by_host);
         let mut child_nodes = Vec::new();
 
         let subnet_sizes: HashMap<Uuid, SubnetLayout> = children_by_subnet
@@ -77,12 +77,13 @@ impl SubnetLayoutPlanner {
     }
 
     /// Group host interfaces by subnet, with optional special handling for DockerBridge
-    /// If GROUP_DOCKER_BRIDGES_BY_HOST is true, all DockerBridge interfaces for a given host
+    /// If group_docker_bridges_by_host is true, all DockerBridge interfaces for a given host
     /// are consolidated into one subnet
     fn group_children_by_subnet(
         &mut self,
         ctx: &TopologyContext,
         all_edges: &[Edge],
+        group_docker_bridges_by_host: bool
     ) -> HashMap<Uuid, Vec<SubnetChild>> {
         let mut children_by_subnet: HashMap<Uuid, Vec<SubnetChild>> = HashMap::new();
 
@@ -110,9 +111,7 @@ impl SubnetLayoutPlanner {
 
             for interface in &host.base.interfaces {
                 let subnet = ctx.get_subnet_by_id(interface.base.subnet_id);
-                let subnet_type = subnet
-                    .map(|s| s.base.subnet_type.clone())
-                    .unwrap_or_default();
+                let subnet_type = subnet.map(|s| s.base.subnet_type).unwrap_or_default();
 
                 let interface_bound_services: Vec<Uuid> = ctx
                     .services
@@ -155,7 +154,7 @@ impl SubnetLayoutPlanner {
                 };
 
                 // Special handling for DockerBridge (only if grouping is enabled)
-                if GROUP_DOCKER_BRIDGES_BY_HOST && matches!(subnet_type, SubnetType::DockerBridge) {
+                if group_docker_bridges_by_host && matches!(subnet_type, SubnetType::DockerBridge) {
                     let entry = docker_by_host.entry(host.id).or_insert_with(|| {
                         // Use the first DockerBridge subnet we encounter for this host
                         (interface.base.subnet_id, Vec::new())
@@ -171,7 +170,7 @@ impl SubnetLayoutPlanner {
         }
 
         // Consolidate all DockerBridge children into their primary subnet (only if grouping is enabled)
-        if GROUP_DOCKER_BRIDGES_BY_HOST {
+        if group_docker_bridges_by_host {
             for (_host_id, (primary_subnet_id, docker_children_with_subnets)) in docker_by_host {
                 if !docker_children_with_subnets.is_empty() {
                     // Track which subnets were consolidated
@@ -279,7 +278,7 @@ impl SubnetLayoutPlanner {
             if let Some(position) = infra_child_positions.get(&child.id) {
                 if child.should_relocate_handles {
                     if let Some(handle) = &child.primary_handle {
-                        self.handle_relocation_map.insert(child.id, handle.clone());
+                        self.handle_relocation_map.insert(child.id, *handle);
                     }
                 }
 
@@ -302,7 +301,7 @@ impl SubnetLayoutPlanner {
             if let Some(position) = regular_child_positions.get(&child.id) {
                 if child.should_relocate_handles {
                     if let Some(handle) = &child.primary_handle {
-                        self.handle_relocation_map.insert(child.id, handle.clone());
+                        self.handle_relocation_map.insert(child.id, *handle);
                     }
                 }
 
@@ -396,7 +395,7 @@ impl SubnetLayoutPlanner {
                             id: *subnet_id,
                             node_type: NodeType::SubnetNode {
                                 infra_width: layout.infra_width,
-                                subnet_type: subnet.base.subnet_type.clone(),
+                                subnet_type: subnet.base.subnet_type,
                                 label_override: None,
                             },
                             position: position.clone(),

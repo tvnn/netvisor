@@ -18,7 +18,7 @@ impl ServiceDefinition for DnsServer {
         ServiceCategory::DNS
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AnyPort(vec![PortBase::DnsTcp, PortBase::DnsUdp])
     }
 

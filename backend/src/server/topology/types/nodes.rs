@@ -48,7 +48,7 @@ pub struct SubnetChild {
     pub should_relocate_handles: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum SubnetChildNodeSize {
     Small,
     Medium,
@@ -58,8 +58,7 @@ pub enum SubnetChildNodeSize {
 impl SubnetChildNodeSize {
     pub fn from_service_count(count: usize) -> Self {
         match count {
-            0..=1 => SubnetChildNodeSize::Small,
-            2..=3 => SubnetChildNodeSize::Medium,
+            0..=3 => SubnetChildNodeSize::Medium,
             _ => SubnetChildNodeSize::Large,
         }
     }

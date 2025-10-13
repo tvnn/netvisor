@@ -42,7 +42,7 @@ impl ChildNodePlacement {
 
         let grouped: HashMap<Option<EdgeHandle>, Vec<_>> = sorted_children
             .into_iter()
-            .into_group_map_by(|c| c.primary_handle.clone());
+            .into_group_map_by(|c| c.primary_handle);
 
         // Collect all unplaced nodes to handle overflow
         let mut unplaced: Vec<&SubnetChild> = Vec::new();

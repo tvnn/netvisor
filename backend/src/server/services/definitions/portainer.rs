@@ -18,7 +18,7 @@ impl ServiceDefinition for Portainer {
         ServiceCategory::Virtualization
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AnyPort(vec![PortBase::new_tcp(9000), PortBase::new_tcp(9443)])
     }
 

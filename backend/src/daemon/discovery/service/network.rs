@@ -1,7 +1,9 @@
 use crate::daemon::discovery::service::base::{
-    CreatesDiscoveredEntities, DiscoversNetworkedEntities, DiscoveryHandler, CONCURRENT_SCANS,
+    CreatesDiscoveredEntities, DiscoversNetworkedEntities, Discovery, HasDiscoveryType,
+    CONCURRENT_SCANS,
 };
 use crate::daemon::discovery::types::base::DiscoverySessionUpdate;
+use crate::server::discovery::types::base::DiscoveryType;
 use crate::server::hosts::types::{
     interfaces::{Interface, InterfaceBase},
     ports::PortBase,
@@ -30,10 +32,16 @@ use tokio_util::sync::CancellationToken;
 #[derive(Default)]
 pub struct NetworkScanDiscovery {}
 
-impl CreatesDiscoveredEntities for DiscoveryHandler<NetworkScanDiscovery> {}
+impl HasDiscoveryType for Discovery<NetworkScanDiscovery> {
+    fn discovery_type(&self) -> DiscoveryType {
+        DiscoveryType::Network
+    }
+}
+
+impl CreatesDiscoveredEntities for Discovery<NetworkScanDiscovery> {}
 
 #[async_trait]
-impl DiscoversNetworkedEntities for DiscoveryHandler<NetworkScanDiscovery> {
+impl DiscoversNetworkedEntities for Discovery<NetworkScanDiscovery> {
     async fn start_discovery_session(
         &self,
         request: DaemonDiscoveryRequest,
@@ -67,7 +75,11 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<NetworkScanDiscovery> {
 
     async fn discover_create_subnets(&self) -> Result<Vec<Subnet>, Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
-        let (_, subnets) = self.as_ref().utils.scan_interfaces(daemon_id).await?;
+        let (_, subnets) = self
+            .as_ref()
+            .utils
+            .scan_interfaces(self.discovery_type(), daemon_id)
+            .await?;
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
         let subnets = try_join_all(subnet_futures).await?;
 
@@ -75,7 +87,7 @@ impl DiscoversNetworkedEntities for DiscoveryHandler<NetworkScanDiscovery> {
     }
 }
 
-impl DiscoveryHandler<NetworkScanDiscovery> {
+impl Discovery<NetworkScanDiscovery> {
     /// Scan subnet concurrently and process hosts immediately as they're discovered
     async fn scan_and_process_hosts(
         &self,
@@ -104,7 +116,7 @@ impl DiscoveryHandler<NetworkScanDiscovery> {
                 let subnet = subnet.clone();
                 let scanned_count = scanned_count.clone();
 
-                if let Ok(Some((open_ports, endpoint_responses, host_has_docker_client))) =
+                if let Ok(Some((all_ports, endpoint_responses, host_has_docker_client))) =
                     self.scan_host(ip, scanned_count, cancel).await
                 {
                     let hostname = self.as_ref().utils.get_hostname_for_ip(ip).await?;
@@ -126,17 +138,17 @@ impl DiscoveryHandler<NetworkScanDiscovery> {
                             ServiceDiscoveryBaselineParams {
                                 subnet: &subnet,
                                 interface: &interface,
-                                open_ports: &open_ports,
+                                all_ports: &all_ports,
                                 endpoint_responses: &endpoint_responses,
                                 host_has_docker_client: &host_has_docker_client,
-                                docker_container_name: &None,
+                                virtualization: &None,
                             },
                             hostname,
                         )
                         .await
                     {
                         discovered_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                        if let Ok(created_host) = self.create_host(host, services).await {
+                        if let Ok((created_host, _)) = self.create_host(host, services).await {
                             return Ok::<Option<Host>, Error>(Some(created_host));
                         }
                         return Ok(None);

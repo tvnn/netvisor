@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::server::topology::types::{
     base::Ixy,
-    edges::{Edge, EdgeHandle},
+    edges::Edge,
     nodes::{Node, NodeType},
 };
 
@@ -42,8 +42,8 @@ impl CrossingReducer {
             return;
         }
 
-        let node_handles = self.determine_node_handles(&inter_subnet_edges);
-        let subnet_groups = self.group_nodes_by_subnet_type_and_handle(nodes, &node_handles);
+        // Group nodes by subnet and infra status ONLY
+        let subnet_groups = self.group_nodes_by_subnet_and_infra(nodes);
 
         let mut improved = true;
         let mut iteration = 0;
@@ -52,60 +52,23 @@ impl CrossingReducer {
             improved = false;
             iteration += 1;
 
-            subnet_groups.iter().for_each(|(_sub_id, type_groups)| {
-                type_groups.iter().for_each(|(_is_infra, handle_groups)| {
-                    handle_groups.iter().for_each(|(_handle, node_ids)| {
-                        if node_ids.len() >= 2
-                            && self.try_swaps_in_group(
-                                nodes,
-                                node_ids,
-                                &inter_subnet_edges,
-                                subnet_positions,
-                            )
-                        {
-                            improved = true;
-                        }
-                    });
-                });
-            });
+            for ((_subnet_id, _is_infra), node_ids) in subnet_groups.iter() {
+                if node_ids.len() >= 2
+                    && self.try_swaps_in_group(
+                        nodes,
+                        node_ids,
+                        &inter_subnet_edges,
+                        subnet_positions,
+                    )
+                {
+                    improved = true;
+                }
+            }
         }
     }
 
-    fn determine_node_handles(&self, edges: &[&Edge]) -> HashMap<Uuid, EdgeHandle> {
-        let mut node_handles: HashMap<Uuid, HashMap<EdgeHandle, usize>> = HashMap::new();
-
-        for edge in edges {
-            *node_handles
-                .entry(edge.source)
-                .or_default()
-                .entry(edge.source_handle.clone())
-                .or_insert(0) += 1;
-
-            *node_handles
-                .entry(edge.target)
-                .or_default()
-                .entry(edge.target_handle.clone())
-                .or_insert(0) += 1;
-        }
-
-        node_handles
-            .into_iter()
-            .filter_map(|(node_id, handles)| {
-                handles
-                    .into_iter()
-                    .max_by_key(|(_, count)| *count)
-                    .map(|(handle, _)| (node_id, handle))
-            })
-            .collect()
-    }
-
-    fn group_nodes_by_subnet_type_and_handle(
-        &self,
-        nodes: &[Node],
-        node_handles: &HashMap<Uuid, EdgeHandle>,
-    ) -> HashMap<Uuid, HashMap<bool, HashMap<EdgeHandle, Vec<Uuid>>>> {
-        let mut groups: HashMap<Uuid, HashMap<bool, HashMap<EdgeHandle, Vec<Uuid>>>> =
-            HashMap::new();
+    fn group_nodes_by_subnet_and_infra(&self, nodes: &[Node]) -> HashMap<(Uuid, bool), Vec<Uuid>> {
+        let mut groups: HashMap<(Uuid, bool), Vec<Uuid>> = HashMap::new();
 
         for node in nodes {
             match node.node_type {
@@ -115,16 +78,10 @@ impl CrossingReducer {
                     is_infra,
                     ..
                 } => {
-                    if let Some(handle) = node_handles.get(&node.id) {
-                        groups
-                            .entry(subnet_id)
-                            .or_default()
-                            .entry(is_infra)
-                            .or_default()
-                            .entry(handle.clone())
-                            .or_default()
-                            .push(node.id);
-                    }
+                    groups
+                        .entry((subnet_id, is_infra))
+                        .or_default()
+                        .push(node.id);
                 }
             }
         }

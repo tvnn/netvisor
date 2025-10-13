@@ -18,7 +18,7 @@ impl ServiceDefinition for DhcpServer {
         ServiceCategory::NetworkCore
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Port(PortBase::Dhcp)
     }
 

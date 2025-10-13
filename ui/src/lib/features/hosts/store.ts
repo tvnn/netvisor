@@ -21,10 +21,10 @@ export async function getHosts() {
 }
 
 export async function createHost(data: HostWithServicesRequest) {
-	const result = await api.request<Host, Host[]>(
+	const result = await api.request<HostWithServicesRequest, Host[]>(
 		'/hosts',
 		hosts,
-		(host, current) => [...current, host],
+		({ host }, current) => [...current, host],
 		{ method: 'POST', body: JSON.stringify(data) }
 	);
 

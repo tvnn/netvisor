@@ -17,7 +17,7 @@ impl ServiceDefinition for Synology {
         ServiceCategory::Storage
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::WebService("/", "Synology")
     }
 

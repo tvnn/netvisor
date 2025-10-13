@@ -1,4 +1,5 @@
 use crate::server::{
+    discovery::types::base::EntitySource,
     groups::types::{Group, GroupBase, GroupType},
     services::types::bindings::ServiceBinding,
 };
@@ -31,13 +32,14 @@ impl GroupStorage for SqliteGroupStorage {
     async fn create(&self, group: &Group) -> Result<()> {
         let services_json = serde_json::to_string(&group.base.service_bindings)?;
         let group_type_json = serde_json::to_string(&group.base.group_type)?;
+        let source_json = serde_json::to_string(&group.base.source)?;
 
         sqlx::query(
             r#"
             INSERT INTO groups (
-                id, name, description, service_bindings, group_type,
+                id, name, description, service_bindings, group_type, source,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(blob_uuid::to_blob(&group.id))
@@ -45,6 +47,7 @@ impl GroupStorage for SqliteGroupStorage {
         .bind(&group.base.description)
         .bind(services_json)
         .bind(group_type_json)
+        .bind(source_json)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(chrono::Utc::now().to_rfc3339())
         .execute(&self.pool)
@@ -81,11 +84,12 @@ impl GroupStorage for SqliteGroupStorage {
     async fn update(&self, group: &Group) -> Result<()> {
         let services_json = serde_json::to_string(&group.base.service_bindings)?;
         let group_type_json = serde_json::to_string(&group.base.group_type)?;
+        let source_json = serde_json::to_string(&group.base.source)?;
 
         sqlx::query(
             r#"
             UPDATE groups SET 
-                name = ?, description = ?, service_bindings = ?, group_type = ?,
+                name = ?, description = ?, service_bindings = ?, group_type = ?, source = ?,
                 updated_at = ?
             WHERE id = ?
             "#,
@@ -94,6 +98,7 @@ impl GroupStorage for SqliteGroupStorage {
         .bind(&group.base.description)
         .bind(services_json)
         .bind(group_type_json)
+        .bind(source_json)
         .bind(chrono::Utc::now().to_rfc3339())
         .bind(blob_uuid::to_blob(&group.id))
         .execute(&self.pool)
@@ -104,7 +109,7 @@ impl GroupStorage for SqliteGroupStorage {
 
     async fn delete(&self, id: &Uuid) -> Result<()> {
         sqlx::query("DELETE FROM groups WHERE id = ?")
-            .bind(id)
+            .bind(blob_uuid::to_blob(id))
             .execute(&self.pool)
             .await?;
 
@@ -119,6 +124,9 @@ fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group, Error> {
     let group_type: GroupType = serde_json::from_str(&row.get::<String, _>("group_type"))
         .or(Err(Error::msg("Failed to deserialize group_type")))?;
 
+    let source: EntitySource = serde_json::from_str(&row.get::<String, _>("source"))
+        .or(Err(Error::msg("Failed to deserialize group_type")))?;
+
     Ok(Group {
         id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize ID")))?,
         created_at: row.get("created_at"),
@@ -127,6 +135,7 @@ fn row_to_group(row: sqlx::sqlite::SqliteRow) -> Result<Group, Error> {
             name: row.get("name"),
             description: row.get("description"),
             service_bindings,
+            source,
             group_type,
         },
     })

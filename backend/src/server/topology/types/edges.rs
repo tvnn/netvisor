@@ -1,4 +1,5 @@
 use crate::server::{
+    groups::types::GroupType,
     shared::{
         constants::Entity,
         types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
@@ -6,6 +7,7 @@ use crate::server::{
     subnets::types::base::Subnet,
 };
 use serde::{Deserialize, Serialize};
+use strum::IntoEnumIterator;
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
 
@@ -14,12 +16,14 @@ pub struct Edge {
     pub source: Uuid,
     pub target: Uuid,
     pub edge_type: EdgeType,
-    pub label: String,
+    pub label: Option<String>,
     pub source_handle: EdgeHandle,
     pub target_handle: EdgeHandle,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Default)]
+#[derive(
+    Serialize, Copy, Deserialize, Debug, Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Default,
+)]
 pub enum EdgeHandle {
     #[default]
     Top,
@@ -132,6 +136,7 @@ impl EdgeHandle {
 #[derive(
     Debug,
     Clone,
+    Copy,
     PartialEq,
     Eq,
     Hash,
@@ -144,26 +149,51 @@ impl EdgeHandle {
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum EdgeType {
     Interface, // Connecting hosts with interfaces in multiple subnets
-    Group,     // User-defined logical connection
+    #[serde(untagged)]
+    Group(GroupType), // User-defined logical connection
+}
+
+impl EdgeType {
+    pub fn all_variants() -> Vec<EdgeType> {
+        let mut variants = Vec::new();
+
+        // Exhaustive match ensures compiler error if new variant added
+        EdgeTypeDiscriminants::iter().for_each(|discriminant| match discriminant {
+            EdgeTypeDiscriminants::Interface => {
+                variants.push(EdgeType::Interface);
+            }
+            EdgeTypeDiscriminants::Group => {
+                variants.extend(GroupType::iter().map(EdgeType::Group));
+            }
+        });
+
+        variants
+    }
 }
 
 impl HasId for EdgeType {
     fn id(&self) -> &'static str {
-        self.into()
+        match self {
+            EdgeType::Interface => self.into(),
+            EdgeType::Group(GroupType::NetworkPath) => GroupType::NetworkPath.into(),
+            EdgeType::Group(GroupType::VirtualizationHost) => GroupType::VirtualizationHost.into(),
+        }
     }
 }
 
 impl EntityMetadataProvider for EdgeType {
     fn color(&self) -> &'static str {
         match self {
-            EdgeType::Group => Entity::Group.color(),
+            EdgeType::Group(GroupType::NetworkPath) => Entity::Group.color(),
+            EdgeType::Group(GroupType::VirtualizationHost) => Entity::Virtualization.color(),
             EdgeType::Interface => Entity::Host.color(),
         }
     }
 
     fn icon(&self) -> &'static str {
         match self {
-            EdgeType::Group => Entity::Group.icon(),
+            EdgeType::Group(GroupType::NetworkPath) => Entity::Group.icon(),
+            EdgeType::Group(GroupType::VirtualizationHost) => Entity::Virtualization.icon(),
             EdgeType::Interface => Entity::Host.icon(),
         }
     }
@@ -172,28 +202,38 @@ impl EntityMetadataProvider for EdgeType {
 impl TypeMetadataProvider for EdgeType {
     fn name(&self) -> &'static str {
         match self {
-            EdgeType::Group => "Host Group",
+            EdgeType::Group(GroupType::NetworkPath) => "Network Path",
+            EdgeType::Group(GroupType::VirtualizationHost) => "Virtualization",
             EdgeType::Interface => "Host Interface",
         }
     }
 
     fn metadata(&self) -> serde_json::Value {
         let is_dashed = match &self {
-            EdgeType::Group => false,
+            EdgeType::Group(GroupType::NetworkPath) => false,
+            EdgeType::Group(GroupType::VirtualizationHost) => true,
+            EdgeType::Interface => true,
+        };
+
+        let style_label_like_nodes = match &self {
+            EdgeType::Group(GroupType::NetworkPath) => false,
+            EdgeType::Group(GroupType::VirtualizationHost) => true,
             EdgeType::Interface => true,
         };
 
         let has_start_marker = false;
 
         let has_end_marker = match &self {
-            EdgeType::Group => true,
+            EdgeType::Group(GroupType::NetworkPath) => true,
+            EdgeType::Group(GroupType::VirtualizationHost) => false,
             EdgeType::Interface => false,
         };
 
         serde_json::json!({
             "is_dashed": is_dashed,
             "has_start_marker": has_start_marker,
-            "has_end_marker": has_end_marker
+            "has_end_marker": has_end_marker,
+            "style_label_like_nodes": style_label_like_nodes
         })
     }
 }

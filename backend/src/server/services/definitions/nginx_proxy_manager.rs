@@ -17,7 +17,7 @@ impl ServiceDefinition for NginxProxyManager {
         ServiceCategory::ReverseProxy
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::WebService("/", "Nginx Proxy Manager")
     }
 

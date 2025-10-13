@@ -30,14 +30,17 @@ pub fn create_router() -> Router<Arc<AppState>> {
 async fn create_host(
     State(state): State<Arc<AppState>>,
     Json(request): Json<HostWithServicesRequest>,
-) -> ApiResult<Json<ApiResponse<Host>>> {
+) -> ApiResult<Json<ApiResponse<HostWithServicesRequest>>> {
     let host_service = &state.services.host_service;
 
-    let (host, _) = host_service
+    let (host, services) = host_service
         .create_host_with_services(request.host, request.services)
         .await?;
 
-    Ok(Json(ApiResponse::success(host)))
+    Ok(Json(ApiResponse::success(HostWithServicesRequest {
+        host,
+        services,
+    })))
 }
 
 async fn get_all_hosts(

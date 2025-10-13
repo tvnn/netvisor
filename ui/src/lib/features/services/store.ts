@@ -4,6 +4,7 @@ import type { Binding, Service } from './types/base';
 import { formatPort, utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { formatInterface, getInterfaceFromId, getPortFromId, hosts } from '../hosts/store';
 import { ALL_INTERFACES, type Host, type ServiceBinding } from '../hosts/types/base';
+import { groups } from '../groups/store';
 
 export const services = writable<Service[]>([]);
 
@@ -27,7 +28,8 @@ export function createDefaultService(
 		host_id,
 		service_definition: serviceType,
 		name: serviceName || serviceType,
-		bindings: []
+		bindings: [],
+		virtualization: null
 	};
 }
 
@@ -74,6 +76,21 @@ export function getServicesForHostReactive(host_id: string) {
 		if (host) {
 			const serviceMap = new Map($services.map((s) => [s.id, s]));
 			return host.services.map((id) => serviceMap.get(id)).filter((s) => s !== undefined);
+		} else {
+			return [];
+		}
+	});
+}
+
+export function getServicesForGroupReactive(group_id: string) {
+	return derived([groups, services], ([$groups, $services]) => {
+		const group = $groups.find((g) => g.id == group_id);
+
+		if (group) {
+			const serviceMap = new Map($services.map((s) => [s.id, s]));
+			return group.service_bindings
+				.map((sb) => serviceMap.get(sb.service_id))
+				.filter((s) => s !== undefined);
 		} else {
 			return [];
 		}

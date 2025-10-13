@@ -18,7 +18,7 @@ impl ServiceDefinition for Workstation {
         ServiceCategory::Workstation
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllPort(vec![PortBase::Rdp, PortBase::Samba])
     }
 

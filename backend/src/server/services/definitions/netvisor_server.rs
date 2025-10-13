@@ -9,16 +9,16 @@ pub struct NetvisorServer;
 
 impl ServiceDefinition for NetvisorServer {
     fn name(&self) -> &'static str {
-        "NetVisor Server"
+        "NetVisor Server API"
     }
     fn description(&self) -> &'static str {
-        "NetVisor server for network management"
+        "NetVisor Server API for network management"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Netvisor
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AnyPort(vec![PortBase::new_tcp(60072)])
     }
 }

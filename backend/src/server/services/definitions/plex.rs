@@ -18,7 +18,7 @@ impl ServiceDefinition for Plex {
         ServiceCategory::Media
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AnyPort(vec![PortBase::new_tcp(32400)])
     }
 

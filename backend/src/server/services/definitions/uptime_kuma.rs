@@ -17,7 +17,7 @@ impl ServiceDefinition for UptimeKuma {
         ServiceCategory::Monitoring
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::WebService("/", "Uptime Kuma")
     }
 

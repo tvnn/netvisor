@@ -18,7 +18,7 @@ impl ServiceDefinition for Prometheus {
         ServiceCategory::Monitoring
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Port(PortBase::new_tcp(9090))
     }
 

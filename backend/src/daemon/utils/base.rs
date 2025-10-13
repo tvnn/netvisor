@@ -1,6 +1,7 @@
 use crate::daemon::utils::udp::{
     send_udp_probe, test_dhcp_service, test_dns_service, test_ntp_service, test_snmp_service,
 };
+use crate::server::discovery::types::base::DiscoveryType;
 use crate::server::hosts::types::interfaces::{Interface, InterfaceBase};
 use crate::server::hosts::types::ports::{PortBase, TransportProtocol};
 use crate::server::services::types::base::Service;
@@ -53,7 +54,11 @@ pub trait DaemonUtils: NetworkUtils {
         }
     }
 
-    async fn scan_interfaces(&self, daemon_id: Uuid) -> Result<(Vec<Interface>, Vec<Subnet>)> {
+    async fn scan_interfaces(
+        &self,
+        discovery_type: DiscoveryType,
+        daemon_id: Uuid,
+    ) -> Result<(Vec<Interface>, Vec<Subnet>)> {
         let interfaces = self.get_own_interfaces();
 
         // First pass: collect all interface data and potential subnets
@@ -79,7 +84,9 @@ pub trait DaemonUtils: NetworkUtils {
         let mut subnet_map: HashMap<IpCidr, Subnet> = HashMap::new();
 
         for (interface_name, ip_network) in potential_subnets {
-            if let Some(subnet) = Subnet::from_discovery(interface_name, &ip_network, daemon_id) {
+            if let Some(subnet) =
+                Subnet::from_discovery(interface_name, &ip_network, daemon_id, &discovery_type)
+            {
                 subnet_map.entry(subnet.base.cidr).or_insert(subnet);
             }
         }

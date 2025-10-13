@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS services (
     groups TEXT,
     bindings TEXT,
     service_definition TEXT NOT NULL,
+    virtualization TEXT NOT NULL,
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
 );
 

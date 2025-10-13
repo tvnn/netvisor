@@ -17,7 +17,7 @@ impl ServiceDefinition for Traefik {
         ServiceCategory::ReverseProxy
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::WebService("/dashboard/", "Traefik")
     }
 

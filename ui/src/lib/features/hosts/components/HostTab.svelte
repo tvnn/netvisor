@@ -43,15 +43,14 @@
 	$: hostGroups = new Map(
 		$hosts.map((host) => {
 			const foundGroups = $groups.filter((g) => {
-				g.service_bindings.some((b) => {
-					host.services.includes(b.service_id);
+				return g.service_bindings.some((b) => {
+					return host.services.includes(b.service_id);
 				});
 			});
 
 			return [host.id, foundGroups];
 		})
 	);
-
 	function handleCreateHost() {
 		editingHost = null;
 		showHostEditor = true;

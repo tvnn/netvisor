@@ -9,16 +9,16 @@ pub struct NetvisorDaemon;
 
 impl ServiceDefinition for NetvisorDaemon {
     fn name(&self) -> &'static str {
-        "NetVisor Daemon"
+        "NetVisor Daemon API"
     }
     fn description(&self) -> &'static str {
-        "NetVisor Daemon for network scanning"
+        "NetVisor Daemon API for network scanning"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Netvisor
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Port(PortBase::new_tcp(60073))
     }
 }

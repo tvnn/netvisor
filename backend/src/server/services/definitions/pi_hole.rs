@@ -18,7 +18,7 @@ impl ServiceDefinition for PiHole {
         ServiceCategory::AdBlock
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::AllPort(vec![PortBase::DnsUdp, PortBase::DnsTcp]),
             Pattern::WebService("/admin", "Pi-hole"),

@@ -1,3 +1,4 @@
+use crate::server::groups::types::GroupType;
 use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::shared::constants::Entity;
@@ -38,7 +39,11 @@ async fn get_metadata_registry() -> Json<ApiResponse<MetadataRegistry>> {
             .map(|t| t.to_metadata())
             .collect(),
         subnet_types: SubnetType::iter().map(|t| t.to_metadata()).collect(),
-        edge_types: EdgeType::iter().map(|t| t.to_metadata()).collect(),
+        group_types: GroupType::iter().map(|t| t.to_metadata()).collect(),
+        edge_types: EdgeType::all_variants()
+            .into_iter()
+            .map(|t| t.to_metadata())
+            .collect(),
         entities: Entity::iter().map(|e| e.to_metadata()).collect(),
         ports: PortBase::iter().map(|p| p.to_metadata()).collect(),
     };
@@ -47,5 +52,5 @@ async fn get_metadata_registry() -> Json<ApiResponse<MetadataRegistry>> {
 }
 
 async fn get_health() -> Json<ApiResponse<String>> {
-    Json(ApiResponse::success("API Running".to_string()))
+    Json(ApiResponse::success("Netvisor Server Running".to_string()))
 }

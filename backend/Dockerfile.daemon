@@ -32,7 +32,7 @@ EXPOSE 60073
 
 # Health check for daemon
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD curl -f http://localhost:60073/health || exit 1
+    CMD curl -f http://localhost:60073/api/health || exit 1
 
 # Default command - can be overridden with docker-compose
 CMD ["netvisor-daemon", "--server-target", "host.docker.internal", "--server-port", "60072"]

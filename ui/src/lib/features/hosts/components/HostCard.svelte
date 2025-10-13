@@ -36,7 +36,7 @@
 	// Build card data
 	$: cardData = {
 		title: host.name,
-		link: `http://${connectionInfo}`,
+		link: connectionInfo ? `http://${connectionInfo}` : undefined,
 		iconColor: entities.getColorHelper('Host').icon,
 		icon:
 			serviceDefinitions.getIconComponent(hostServices[0]?.service_definition) ||

@@ -18,7 +18,7 @@ impl ServiceDefinition for DockerSwarm {
         ServiceCategory::Virtualization
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllPort(vec![PortBase::new_tcp(2377), PortBase::new_tcp(7946)])
     }
 

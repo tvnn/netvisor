@@ -18,7 +18,7 @@ impl ServiceDefinition for NasDevice {
         ServiceCategory::Storage
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Port(PortBase::Nfs)
     }
 

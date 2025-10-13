@@ -18,7 +18,7 @@ impl ServiceDefinition for Proxmox {
         ServiceCategory::Virtualization
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AnyPort(vec![PortBase::new_tcp(8006)])
     }
 

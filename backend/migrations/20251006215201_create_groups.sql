@@ -5,5 +5,6 @@ CREATE TABLE IF NOT EXISTS groups (
     group_type TEXT,
     service_bindings TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    updated_at TEXT NOT NULL,
+    source TEXT NOT NULL
 );

@@ -18,7 +18,7 @@ impl ServiceDefinition for OpenMediaVault {
         ServiceCategory::Storage
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::AllPort(vec![PortBase::Samba]),
             Pattern::WebService("/", "OpenMediaVault"),

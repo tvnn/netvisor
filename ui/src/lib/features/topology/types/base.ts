@@ -36,7 +36,7 @@ export enum EdgeHandle {
 
 export interface CustomEdgeData extends Record<string, unknown> {
 	edgeType: string;
-	label: string;
+	label: string | null;
 	sourceHandle: EdgeHandle;
 	targetHandle: EdgeHandle;
 }
@@ -52,4 +52,8 @@ export interface CustomNodeData extends Record<string, unknown> {
 	height: number;
 	subnet_type: string | null;
 	label_override: string | null;
+}
+
+export interface TopologyRequestOptions {
+    group_docker_bridges_by_host: boolean
 }

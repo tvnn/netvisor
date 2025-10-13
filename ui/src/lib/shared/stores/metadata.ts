@@ -28,6 +28,7 @@ export interface MetadataRegistry {
 	service_definitions: TypeMetadata[];
 	subnet_types: TypeMetadata[];
 	edge_types: TypeMetadata[];
+	group_types: TypeMetadata[];
 	entities: EntityMetadata[];
 	ports: TypeMetadata[];
 }
@@ -172,6 +173,7 @@ function createEntityMetadataHelpers<T extends EntityMetadataKeys>(category: T) 
 export const serviceDefinitions = createTypeMetadataHelpers('service_definitions');
 export const subnetTypes = createTypeMetadataHelpers('subnet_types');
 export const edgeTypes = createTypeMetadataHelpers('edge_types');
+export const groupTypes = createTypeMetadataHelpers('group_types');
 export const entities = createEntityMetadataHelpers('entities');
 export const ports = createTypeMetadataHelpers('ports');
 

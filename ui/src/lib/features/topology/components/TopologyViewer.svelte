@@ -94,10 +94,10 @@
 								} as EdgeMarkerType);
 
 						const labelStyle =
-							edgeType === 'Interface'
-								? `background: ${twColorToRgba(hostColorHelper.bg)};
-								color: ${hostColorHelper.rgb};
-								border: 2px solid ${twColorToRgba(hostColorHelper.border)};`
+							edgeMetadata.style_label_like_nodes
+								? `background: ${twColorToRgba(edgeColorHelper.bg)};
+								color: ${edgeColorHelper.rgb};
+								border: 2px solid ${twColorToRgba(edgeColorHelper.border)};`
 								: 'background: #374151; color: #f3f4f6; border: 1px solid #4b5563;';
 
 						const data: CustomEdgeData = {

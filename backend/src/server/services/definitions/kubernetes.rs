@@ -18,7 +18,7 @@ impl ServiceDefinition for Kubernetes {
         ServiceCategory::Virtualization
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::AllPort(vec![PortBase::new_tcp(6443)]),
             Pattern::AnyPort(vec![

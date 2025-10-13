@@ -3,7 +3,7 @@ use std::hash::Hash;
 
 use crate::server::services::types::bindings::ServiceBinding;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type", content = "config")]
 pub enum HostTarget {
     ServiceBinding(ServiceBinding),

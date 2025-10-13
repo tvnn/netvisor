@@ -17,7 +17,7 @@ impl ServiceDefinition for Client {
         ServiceCategory::Mobile
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::None // Clients aren't typically discoverable
     }
 }

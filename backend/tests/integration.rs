@@ -1,117 +1,421 @@
-use std::process::Command;
+use std::process::{Child, Command};
 
+use netvisor::server::daemons::types::api::DiscoveryUpdatePayload;
 use netvisor::server::daemons::types::base::Daemon;
+use netvisor::server::discovery::types::api::InitiateDiscoveryRequest;
+use netvisor::server::services::definitions::home_assistant::HomeAssistant;
+use netvisor::server::services::types::base::Service;
 use netvisor::server::shared::types::api::ApiResponse;
+use netvisor::server::shared::types::metadata::HasId;
+use uuid::Uuid;
+
+struct ContainerManager {
+    container_process: Option<Child>
+}
+
+/// Container lifecycle management
+impl ContainerManager {
+    fn new() -> Self {
+        Self {
+            container_process: None,
+        }
+    }
+
+    fn start(&mut self) -> Result<(), String> {
+        println!("Starting containers with docker compose...");
+        
+        // Start containers in detached mode
+        let status = Command::new("docker")
+            .args([
+                "compose",
+                "-f", "docker-compose.yml",
+                "-f", "docker-compose.dev.yml",
+                "up",
+                "-d"
+            ])
+            .current_dir("..")
+            .status()
+            .map_err(|e| format!("Failed to start containers: {}", e))?;
+
+        if !status.success() {
+            return Err("Failed to start containers".to_string());
+        }
+
+        // Wait for services with healthchecks to be healthy
+        println!("Waiting for server and daemon to be healthy...");
+        let wait_status = Command::new("docker")
+            .args([
+                "compose",
+                "-f", "docker-compose.yml",
+                "-f", "docker-compose.dev.yml",
+                "wait",
+                "server",
+                "daemon"
+            ])
+            .current_dir("..")
+            .status()
+            .map_err(|e| format!("Failed to wait for containers: {}", e))?;
+
+        if !wait_status.success() {
+            return Err("Containers failed to become healthy".to_string());
+        }
+
+        println!("✅ Server and daemon are healthy!");
+        Ok(())
+    }
+    
+    fn cleanup(&mut self) {
+        println!("\nCleaning up containers...");
+
+        // Kill the spawned process
+        if let Some(mut process) = self.container_process.take() {
+            let _ = process.kill();
+            let _ = process.wait();
+        }
+
+        // Stop all containers with make dev-down
+        let cleanup_output = Command::new("make")
+            .arg("dev-down")
+            .current_dir("..")
+            .output()
+            .expect("Failed to run make dev-down");
+
+        if !cleanup_output.status.success() {
+            eprintln!(
+                "make dev-down failed: {}",
+                String::from_utf8_lossy(&cleanup_output.stderr)
+            );
+        }
+
+        // Additional safety: force kill any remaining containers
+        let docker_cleanup = Command::new("docker")
+            .args(["compose", "down", "-v", "--remove-orphans"])
+            .current_dir("..")
+            .output();
+
+        match docker_cleanup {
+            Ok(output) if output.status.success() => {
+                println!("✅ All containers cleaned up successfully");
+            }
+            Ok(output) => {
+                eprintln!(
+                    "docker compose down warning: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            Err(e) => {
+                eprintln!("Failed to run docker compose down: {}", e);
+            }
+        }
+    }
+}
+
+impl Drop for ContainerManager {
+    fn drop(&mut self) {
+        self.cleanup();
+    }
+}
+
+/// Generic retry helper with exponential backoff
+async fn retry_api_request<T, F, Fut>(
+    description: &str,
+    max_retries: u32,
+    initial_delay_secs: u64,
+    request_fn: F,
+) -> Result<T, String>
+where
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = Result<T, String>>,
+{
+    let mut last_error = String::new();
+
+    for attempt in 1..=max_retries {
+        println!("Attempt {}/{} to {}...", attempt, max_retries, description);
+
+        match request_fn().await {
+            Ok(result) => {
+                println!("✅ Successfully {}", description);
+                return Ok(result);
+            }
+            Err(e) => {
+                println!("⏳ {}: {}", description, e);
+                last_error = e;
+            }
+        }
+
+        if attempt < max_retries {
+            tokio::time::sleep(tokio::time::Duration::from_secs(initial_delay_secs)).await;
+        }
+    }
+
+    Err(last_error)
+}
+
+/// Verify daemon is registered
+async fn check_daemon_registered(client: &reqwest::Client) -> Result<Daemon, String> {
+    let daemons = retry_api_request("check daemon registration", 15, 2, || {
+        let client = client.clone();
+        async move {
+            let response = client
+                .get("http://localhost:60072/api/daemons")
+                .send()
+                .await
+                .map_err(|e| format!("Request failed: {}", e))?;
+
+            let status = response.status();
+            if !status.is_success() {
+                let body = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Could not read body".to_string());
+                return Err(format!("Status {}: {}", status, body));
+            }
+
+            let api_response = response
+                .json::<ApiResponse<Vec<Daemon>>>()
+                .await
+                .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+            if !api_response.success {
+                let error = api_response
+                    .error
+                    .unwrap_or_else(|| "Unknown error".to_string());
+                return Err(format!("API returned success=false: {}", error));
+            }
+
+            let daemon_list = api_response
+                .data
+                .ok_or_else(|| "No data in response".to_string())?;
+
+            if daemon_list.is_empty() {
+                return Err("No daemons registered yet".to_string());
+            }
+
+            println!("✅ Found {} daemon(s) registered", daemon_list.len());
+            Ok(daemon_list)
+        }
+    })
+    .await?;
+
+    if daemons.len() != 1 {
+        return Err(format!(
+            "Expected 1 daemon to be registered, found {}",
+            daemons.len()
+        ));
+    }
+
+    Ok(daemons.into_iter().next().unwrap())
+}
+
+/// Start discovery and wait for it to complete
+async fn run_discovery_and_wait(
+    client: &reqwest::Client,
+    daemon_id: Uuid,
+) -> Result<(), String> {
+    // Initiate discovery
+    println!("\n=== Starting Discovery ===");
+    let response = client
+        .post("http://localhost:60072/api/discovery/initiate")
+        .json(&InitiateDiscoveryRequest { daemon_id })
+        .send()
+        .await
+        .map_err(|e| format!("Failed to initiate discovery: {}", e))?;
+
+    let status = response.status();
+
+    if !status.is_success() {
+        let body = &response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Could not read body".to_string());
+        return Err(format!(
+            "Discovery initiation failed with status {}: {}",
+            status,
+            body
+        ));
+    }
+
+    let api_response = response
+        .json::<ApiResponse<DiscoveryUpdatePayload>>()
+        .await
+        .map_err(|e| format!("Failed to parse discovery response: {}", e))?;
+
+    if !api_response.success {
+        let error = api_response
+            .error
+            .unwrap_or_else(|| "Unknown error".to_string());
+        return Err(format!("Discovery initiation returned error: {}", error));
+    }
+
+    let initial_update = api_response
+        .data
+        .ok_or_else(|| "No session data in response".to_string())?;
+
+    let session_id = initial_update.session_id;
+    println!("✅ Discovery session started: {}", session_id);
+
+    // Poll for completion
+    retry_api_request("wait for discovery to complete", 60, 5, || {
+        let client = client.clone();
+        let session_id = session_id;
+        async move {
+            let response = client
+                .get(format!(
+                    "http://localhost:60072/api/discovery/{}/status",
+                    session_id
+                ))
+                .send()
+                .await
+                .map_err(|e| format!("Request failed: {}", e))?;
+
+            let status = response.status();
+
+            if !status.is_success() {
+                let body = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Could not read body".to_string());
+                return Err(format!("Status {}: {}", status, body));
+            }
+
+            let api_response = response
+                .json::<ApiResponse<DiscoveryUpdatePayload>>()
+                .await
+                .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+            if !api_response.success {
+                return Err("API returned success=false".to_string());
+            }
+
+            let update = api_response
+                .data
+                .ok_or_else(|| "No data in response".to_string())?;
+
+            println!(
+                "Discovery progress: phase={:?}, {}/{} scanned, {} discovered",
+                update.phase, update.completed, update.total, update.discovered_count
+            );
+
+            // Check if discovery is complete
+            if update.finished_at.is_some() {
+                if let Some(error) = &update.error {
+                    return Err(format!("Discovery failed: {}", error));
+                }
+                println!("✅ Discovery completed successfully!");
+                println!("   Total scanned: {}", update.completed);
+                println!("   Hosts discovered: {}", update.discovered_count);
+                Ok(())
+            } else {
+                Err("Discovery still in progress".to_string())
+            }
+        }
+    })
+    .await
+}
+
+/// Check for Home Assistant service
+async fn check_for_home_assistant_service(client: &reqwest::Client) -> Result<Service, String> {
+    println!("\n=== Checking for Home Assistant Service ===");
+    
+    let services = retry_api_request("fetch services", 10, 2, || {
+        let client = client.clone();
+        async move {
+            let response = client
+                .get("http://localhost:60072/api/services")
+                .send()
+                .await
+                .map_err(|e| format!("Request failed: {}", e))?;
+
+            let status = response.status();
+            if !status.is_success() {
+                let body = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Could not read body".to_string());
+                return Err(format!("Status {}: {}", status, body));
+            }
+
+            let api_response = response
+                .json::<ApiResponse<Vec<Service>>>()
+                .await
+                .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+            if !api_response.success {
+                let error = api_response
+                    .error
+                    .unwrap_or_else(|| "Unknown error".to_string());
+                return Err(format!("API returned success=false: {}", error));
+            }
+
+            let service_list = api_response
+                .data
+                .ok_or_else(|| "No data in response".to_string())?;
+
+            if service_list.is_empty() {
+                return Err("No services found yet".to_string());
+            }
+
+            println!("✅ Found {} service(s)", service_list.len());
+            Ok(service_list)
+        }
+    })
+    .await?;
+
+    // Find Home Assistant service
+    let home_assistant_service = services.clone()
+        .into_iter()
+        .find(|s| s.base.service_definition.id() == HomeAssistant.id())
+        .ok_or_else(|| {
+            format!(
+                "Home Assistant service not found. Available services: {:?}",
+                services.iter().map(|s| &s.base.name).collect::<Vec<_>>()
+            )
+        })?;
+
+    println!(
+        "✅ Found Home Assistant service: {:?}",
+        home_assistant_service.base.name
+    );
+
+    Ok(home_assistant_service)
+}
 
 #[tokio::test]
 async fn test_container_daemon_server_integration() {
-    // Start all services (server, daemon, ui) with docker-compose in background
-    println!("Starting containers with make dev-container...");
-    let mut container_process = Command::new("make")
-        .arg("dev-container")
-        .current_dir("..")
-        .spawn()
+    // Start containers
+    let mut container_manager = ContainerManager::new();
+    container_manager
+        .start()
         .expect("Failed to start containers");
 
     println!("Waiting for services to fully initialize...");
     tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
 
-    // Verify daemon registration via API with retries
     let client = reqwest::Client::new();
-    let max_retries = 15;
-    let mut daemons = Vec::new();
-    let mut last_error = String::new();
 
-    for attempt in 1..=max_retries {
-        println!(
-            "Attempt {}/{} to check daemon registration...",
-            attempt, max_retries
-        );
+    // Step 1: Check daemon registration
+    println!("\n=== Step 1: Checking Daemon Registration ===");
+    let daemon = check_daemon_registered(&client)
+        .await
+        .expect("Failed to verify daemon registration");
+    println!("Daemon ID: {}", daemon.id);
 
-        match client
-            .get("http://localhost:60072/api/daemons")
-            .send()
-            .await
-        {
-            Ok(response) => {
-                let status = response.status();
+    // Step 2: Run discovery and wait for completion
+    println!("\n=== Step 2: Running Discovery ===");
+    run_discovery_and_wait(&client, daemon.id)
+        .await
+        .expect("Discovery failed");
 
-                if status.is_success() {
-                    match response.json::<ApiResponse<Vec<Daemon>>>().await {
-                        Ok(api_response) => {
-                            if api_response.success {
-                                if let Some(daemon_list) = api_response.data {
-                                    daemons = daemon_list;
-                                    if !daemons.is_empty() {
-                                        println!("✅ Found {} daemon(s) registered", daemons.len());
-                                        break;
-                                    } else {
-                                        println!("⏳ No daemons registered yet, waiting...");
-                                    }
-                                }
-                            } else {
-                                let error = api_response
-                                    .error
-                                    .unwrap_or_else(|| "Unknown error".to_string());
-                                println!("API returned success=false: {}", error);
-                                last_error = error;
-                            }
-                        }
-                        Err(e) => {
-                            println!("Failed to parse response: {}", e);
-                            last_error = e.to_string();
-                        }
-                    }
-                } else {
-                    let body = response
-                        .text()
-                        .await
-                        .unwrap_or_else(|_| "Could not read body".to_string());
-                    println!("Status {}: {}", status, body);
-                    last_error = body;
-                }
-            }
-            Err(e) => {
-                println!("Request failed: {}", e);
-                last_error = e.to_string();
-            }
-        }
+    // Step 3: Verify Home Assistant service was discovered
+    println!("\n=== Step 3: Verifying Service Discovery ===");
+    let _service = check_for_home_assistant_service(&client)
+        .await
+        .expect("Failed to find Home Assistant service");
 
-        if attempt < max_retries {
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
-        }
-    }
+    println!("\n✅ All integration tests passed!");
+    println!("   ✓ Daemon registered successfully");
+    println!("   ✓ Discovery completed successfully");
+    println!("   ✓ Home Assistant service discovered");
 
-    assert!(
-        !daemons.is_empty(),
-        "Expected 1 daemon to be registered, found 0. Last error: {}",
-        last_error
-    );
-
-    assert_eq!(
-        daemons.len(),
-        1,
-        "Expected 1 daemon to be registered, found {}",
-        daemons.len()
-    );
-
-    println!("✅ Container integration test passed! Daemon successfully registered.");
-
-    // Cleanup - kill the make process and stop containers
-    println!("\nCleaning up containers...");
-    let _ = container_process.kill();
-    let _ = container_process.wait();
-
-    let cleanup_output = Command::new("make")
-        .arg("dev-down")
-        .current_dir("..")
-        .output()
-        .expect("Failed to stop containers");
-
-    if !cleanup_output.status.success() {
-        eprintln!(
-            "make dev-down warning: {}",
-            String::from_utf8_lossy(&cleanup_output.stderr)
-        );
-    }
+    // Cleanup happens automatically via Drop trait
 }

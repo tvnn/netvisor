@@ -20,6 +20,7 @@ pub enum Entity {
     ReverseProxy,
     IoT,
     Storage,
+    Virtualization,
 }
 
 impl HasId for Entity {
@@ -33,8 +34,8 @@ impl EntityMetadataProvider for Entity {
         match self {
             Entity::Host => "blue",
             Entity::Service => "indigo",
-            Entity::Interface => "purple",
-            Entity::Port => "purple",
+            Entity::Interface => "cyan",
+            Entity::Port => "cyan",
 
             Entity::Dns => "emerald",
             Entity::Vpn => "green",
@@ -47,6 +48,7 @@ impl EntityMetadataProvider for Entity {
 
             Entity::IoT => "yellow",
             Entity::Storage => "green",
+            Entity::Virtualization => "purple",
         }
     }
 
@@ -65,6 +67,7 @@ impl EntityMetadataProvider for Entity {
             Entity::Topology => "ChartNetwork",
             Entity::IoT => "Cpu",
             Entity::Storage => "HardDrive",
+            Entity::Virtualization => "MonitorCog",
         }
     }
 }

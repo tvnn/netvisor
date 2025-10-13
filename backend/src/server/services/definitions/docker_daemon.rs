@@ -1,30 +1,31 @@
-use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::patterns::Pattern;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
-pub struct Jellyfin;
+pub struct DockerDaemon;
 
-impl ServiceDefinition for Jellyfin {
+impl ServiceDefinition for DockerDaemon {
     fn name(&self) -> &'static str {
-        "Jellyfin"
+        "Docker Daemon"
     }
     fn description(&self) -> &'static str {
-        "Free media server for personal streaming"
+        "Docker daemon"
     }
     fn category(&self) -> ServiceCategory {
-        ServiceCategory::Media
+        ServiceCategory::Virtualization
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::new_tcp(8096)])
+        Pattern::DockerClient
     }
 
     fn icon(&self) -> &'static str {
-        "jellyfin"
+        "docker"
     }
 }
 
-inventory::submit!(ServiceDefinitionFactory::new(create_service::<Jellyfin>));
+inventory::submit!(ServiceDefinitionFactory::new(
+    create_service::<DockerDaemon>
+));

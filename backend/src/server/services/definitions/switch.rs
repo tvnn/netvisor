@@ -18,7 +18,7 @@ impl ServiceDefinition for Switch {
         ServiceCategory::NetworkCore
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::Not(&Pattern::IsGateway),
             Pattern::AllPort(vec![PortBase::Http, PortBase::Telnet]),

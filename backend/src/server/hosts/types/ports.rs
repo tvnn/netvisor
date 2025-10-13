@@ -10,14 +10,16 @@ use crate::server::shared::{
     types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
 };
 
-#[derive(Debug, Clone, PartialOrd, Ord, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(
+    Copy, Debug, Clone, PartialOrd, Ord, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+)]
 pub enum TransportProtocol {
     #[default]
     Udp,
     Tcp,
 }
 
-#[derive(Debug, Validate, Clone, Eq)]
+#[derive(Copy, Debug, Validate, Clone, Eq)]
 pub struct Port {
     pub id: Uuid,
     pub base: PortBase,
@@ -35,7 +37,7 @@ impl PartialEq for Port {
     }
 }
 
-#[derive(Debug, Clone, Eq, EnumDiscriminants, EnumIter, IntoStaticStr)]
+#[derive(Copy, Debug, Clone, Eq, EnumDiscriminants, EnumIter, IntoStaticStr)]
 #[strum_discriminants(derive(Display, Hash, EnumIter))]
 pub enum PortBase {
     Ssh,
@@ -72,7 +74,7 @@ impl PartialEq for PortBase {
     }
 }
 
-#[derive(Debug, Clone, Validate, Default, Eq, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, Validate, Default, Eq, Serialize, Deserialize)]
 pub struct PortConfig {
     #[validate(range(min = 1, max = 65535))]
     pub number: u16,
@@ -215,7 +217,7 @@ impl PortBase {
                 number: 8443,
                 protocol: TransportProtocol::Tcp,
             },
-            PortBase::Custom(config) => config.clone(),
+            PortBase::Custom(config) => *config,
         }
     }
 }

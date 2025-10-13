@@ -20,8 +20,8 @@
 	$: cardData = {
 		title: subnet.name,
 		subtitle: isContainerSubnet(subnet.id) ? '' : subnet.cidr,
-		iconColor: entities.getColorHelper('Subnet').icon,
-		icon: entities.getIconComponent('Subnet'),
+		iconColor: subnetTypes.getColorHelper(subnet.subnet_type).icon,
+		icon: subnetTypes.getIconComponent(subnet.subnet_type),
 
 		sections: subnet.description
 			? [

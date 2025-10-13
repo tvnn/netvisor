@@ -1,6 +1,6 @@
 use std::net::Ipv4Addr;
 
-use crate::server::discovery::types::base::EntitySource;
+use crate::server::discovery::types::base::{DiscoveryType, EntitySource};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use chrono::{DateTime, Utc};
@@ -25,10 +25,10 @@ use crate::server::{
 #[derive(Debug, Clone, Validate, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SubnetBase {
     pub cidr: IpCidr,
-    #[validate(length(min = 1, max = 100))]
+    #[validate(length(min = 0, max = 100))]
     pub name: String, // "Home LAN", "VPN Network", etc.
-    #[validate(length(min = 1, max = 500))]
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
+    #[validate(length(min = 0, max = 500))]
     pub description: Option<String>,
     pub hosts: Vec<Uuid>,
     pub subnet_type: SubnetType,
@@ -72,6 +72,7 @@ impl Subnet {
         interface_name: String,
         ip_network: &IpNetwork,
         daemon_id: Uuid,
+        discovery_type: &DiscoveryType,
     ) -> Option<Self> {
         let subnet_type = SubnetType::from_interface_name(&interface_name);
 
@@ -100,7 +101,7 @@ impl Subnet {
                     name: cidr.to_string(),
                     subnet_type,
                     hosts: Vec::new(),
-                    source: EntitySource::Discovery(daemon_id),
+                    source: EntitySource::Discovery(*discovery_type, daemon_id),
                 }))
             }
         }
@@ -119,7 +120,7 @@ impl Subnet {
         })
     }
 
-    pub fn get_dns_resolvers<'a>(
+    pub fn get_infra_services<'a>(
         &'a self,
         hosts: &'a [Host],
         services: &'a [Service],
@@ -128,45 +129,7 @@ impl Subnet {
             .iter()
             .filter(|s| {
                 if let Some(host) = hosts.iter().find(|h| h.id == s.base.host_id) {
-                    return s.base.service_definition.is_dns_resolver()
-                        && self.interface_with_service(host, s)
-                        && self.base.hosts.contains(&s.base.host_id);
-                }
-
-                false
-            })
-            .collect()
-    }
-
-    pub fn get_gateways<'a>(
-        &'a self,
-        hosts: &'a [Host],
-        services: &'a [Service],
-    ) -> Vec<&'a Service> {
-        services
-            .iter()
-            .filter(|s| {
-                if let Some(host) = hosts.iter().find(|h| h.id == s.base.host_id) {
-                    return s.base.service_definition.is_gateway()
-                        && self.interface_with_service(host, s)
-                        && self.base.hosts.contains(&s.base.host_id);
-                }
-
-                false
-            })
-            .collect()
-    }
-
-    pub fn get_reverse_proxies<'a>(
-        &'a self,
-        hosts: &'a [Host],
-        services: &'a [Service],
-    ) -> Vec<&'a Service> {
-        services
-            .iter()
-            .filter(|s| {
-                if let Some(host) = hosts.iter().find(|h| h.id == s.base.host_id) {
-                    return s.base.service_definition.is_reverse_proxy()
+                    return s.base.service_definition.is_infra_service()
                         && self.interface_with_service(host, s)
                         && self.base.hosts.contains(&s.base.host_id);
                 }
@@ -221,6 +184,7 @@ impl Hash for Subnet {
 #[derive(
     Debug,
     Clone,
+    Copy,
     Serialize,
     Deserialize,
     Eq,
@@ -357,7 +321,7 @@ impl EntityMetadataProvider for SubnetType {
             SubnetType::WiFi => "teal",
 
             SubnetType::Management => "gray",
-            SubnetType::DockerBridge => "blue",
+            SubnetType::DockerBridge => Entity::Virtualization.color(),
             SubnetType::Storage => Entity::Storage.color(),
 
             SubnetType::Unknown => "gray",

@@ -18,7 +18,7 @@ impl ServiceDefinition for HomeAssistant {
         ServiceCategory::HomeAutomation
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AnyPort(vec![PortBase::new_tcp(8123)])
     }
 

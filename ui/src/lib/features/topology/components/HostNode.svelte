@@ -17,7 +17,7 @@
 
 					const servicesForHost = getServicesForHost(data.host_id as string);
 					const servicesOnInterface = servicesForHost.filter((s) =>
-						s.bindings.some((b) => iface && b.interface_id == iface.id)
+						s.bindings.some((b) => b.interface_id == null || (iface && b.interface_id == iface.id))
 					);
 
 					let bodyText: string | null = null;

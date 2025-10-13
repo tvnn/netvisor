@@ -17,7 +17,7 @@ impl ServiceDefinition for PhilipsHueBridge {
         ServiceCategory::IoT
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::PHILIPS),
             Pattern::WebService("/", "hue"),

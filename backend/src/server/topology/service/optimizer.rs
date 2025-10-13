@@ -40,8 +40,8 @@ impl TopologyOptimizer {
         // Step 1: Relocate handles for nodes with opposing vertical edges
         let mut edges = Self::relocate_edge_handles(edges, relocation_map);
 
-        // Step 2: Propagate relocated handles to connected nodes
-        edges = Self::propagate_handle_relocation(&edges, relocation_map);
+        // Step 2: Propagate relocated handles to connected nodes (respecting infra constraints)
+        edges = Self::propagate_handle_relocation(&edges, relocation_map, nodes);
 
         // Step 3: Order nodes within subnets based on edge flow (topological ordering)
         self.order_nodes_by_flow(nodes, &edges);
@@ -69,14 +69,14 @@ impl TopologyOptimizer {
                 if let Some(new_handle) = relocation_map.get(&edge.source) {
                     // If the edge has a vertical handle (Top/Bottom), relocate it to the side
                     if matches!(edge.source_handle, EdgeHandle::Top | EdgeHandle::Bottom) {
-                        edge.source_handle = new_handle.clone();
+                        edge.source_handle = *new_handle;
                     }
                 }
 
                 // Check if target needs relocation
                 if let Some(new_handle) = relocation_map.get(&edge.target) {
                     if matches!(edge.target_handle, EdgeHandle::Top | EdgeHandle::Bottom) {
-                        edge.target_handle = new_handle.clone();
+                        edge.target_handle = *new_handle;
                     }
                 }
 
@@ -85,27 +85,127 @@ impl TopologyOptimizer {
             .collect()
     }
 
+    /// Choose Top or Bottom handle based on the relative positions of source and target subnets
+    /// from the perspective of the node that will use this handle
+    fn choose_vertical_handle_by_subnet_position(
+        node_id: Uuid,
+        other_node_id: Uuid,
+        nodes: &[Node],
+    ) -> EdgeHandle {
+        // Get subnet positions
+        let subnet_positions: HashMap<Uuid, Ixy> = nodes
+            .iter()
+            .filter_map(|n| match n.node_type {
+                NodeType::SubnetNode { .. } => Some((n.id, n.position.clone())),
+                _ => None,
+            })
+            .collect();
+
+        // Find the subnets for both nodes
+        let node_subnet = Self::get_node_subnet(node_id, nodes);
+        let other_subnet = Self::get_node_subnet(other_node_id, nodes);
+
+        if let (Some(node_sub), Some(other_sub)) = (node_subnet, other_subnet) {
+            if let (Some(node_pos), Some(other_pos)) = (
+                subnet_positions.get(&node_sub),
+                subnet_positions.get(&other_sub),
+            ) {
+                // From this node's perspective:
+                // If the other node is below us, we use Bottom handle
+                // If the other node is above us, we use Top handle
+                if other_pos.y > node_pos.y {
+                    return EdgeHandle::Bottom;
+                } else {
+                    return EdgeHandle::Top;
+                }
+            }
+        }
+
+        // Fallback to Top if we can't determine positions
+        EdgeHandle::Top
+    }
+
+    /// Apply infra constraints to a handle, considering subnet positions
+    /// - Infra nodes cannot use Right handle
+    /// - Non-infra nodes cannot use Left handle
+    /// - Choose Top/Bottom based on actual subnet positions FROM THE NODE'S PERSPECTIVE
+    fn apply_infra_constraint(
+        handle: EdgeHandle,
+        is_infra: bool,
+        node_id: Uuid,
+        other_node_id: Uuid,
+        nodes: &[Node],
+    ) -> EdgeHandle {
+        match (&handle, is_infra) {
+            // Infra node trying to use Right -> use vertical based on subnet positions
+            (EdgeHandle::Right, true) => {
+                Self::choose_vertical_handle_by_subnet_position(node_id, other_node_id, nodes)
+            }
+            // Non-infra node trying to use Left -> use vertical based on subnet positions
+            (EdgeHandle::Left, false) => {
+                Self::choose_vertical_handle_by_subnet_position(node_id, other_node_id, nodes)
+            }
+            // All other cases are fine
+            _ => handle,
+        }
+    }
+
     /// Propagate handle relocation to connected nodes
     /// If a node was relocated to the side, update connected nodes' handles to match
+    /// WHILE respecting infra constraints and subnet positions
     fn propagate_handle_relocation(
         edges: &[Edge],
         relocation_map: &HashMap<Uuid, EdgeHandle>,
+        nodes: &[Node],
     ) -> Vec<Edge> {
+        // Build a map of node ID to infra status
+        let node_infra_status: HashMap<Uuid, bool> = nodes
+            .iter()
+            .filter_map(|n| match n.node_type {
+                NodeType::HostNode { is_infra, .. } => Some((n.id, is_infra)),
+                _ => None,
+            })
+            .collect();
+
         edges
             .iter()
             .map(|edge| {
                 let mut new_edge = edge.clone();
 
-                // If source was relocated, update target handle to match
+                // Get infra status for both source and target
+                let source_is_infra = node_infra_status
+                    .get(&edge.source)
+                    .copied()
+                    .unwrap_or(false);
+                let target_is_infra = node_infra_status
+                    .get(&edge.target)
+                    .copied()
+                    .unwrap_or(false);
+
+                // If source was relocated, update target handle to match (respecting constraints)
+                // IMPORTANT: Pass target_id first, then source_id, because we're determining
+                // the handle FROM THE TARGET'S PERSPECTIVE
                 if let Some(relocated_handle) = relocation_map.get(&edge.source) {
-                    // Source is on a side (Left/Right), update target to match
-                    new_edge.target_handle = relocated_handle.clone();
+                    new_edge.target_handle = Self::apply_infra_constraint(
+                        *relocated_handle,
+                        target_is_infra,
+                        edge.target, // The node that will use this handle
+                        edge.source, // The other end of the edge
+                        nodes,
+                    );
                 }
 
-                // If target was relocated, update source handle to match
+                // If target was relocated, update source handle to match (respecting constraints)
+                // IMPORTANT: Pass source_id first, then target_id, because we're determining
+                // the handle FROM THE SOURCE'S PERSPECTIVE
                 if let Some(relocated_handle) = relocation_map.get(&edge.target) {
-                    // Target is on a side (Left/Right), update source to match
-                    new_edge.source_handle = relocated_handle.clone();
+                    new_edge.source_handle = Self::apply_infra_constraint(
+                        *relocated_handle,
+                        source_is_infra,
+                        edge.source, // The node that will use this handle
+                        edge.target, // The other end of the edge
+                        nodes,
+                    );
                 }
 
                 new_edge

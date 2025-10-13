@@ -14,7 +14,7 @@ use crate::server::{
             context::TopologyContext, edge_builder::EdgeBuilder, optimizer::TopologyOptimizer,
             subnet_layout_planner::SubnetLayoutPlanner,
         },
-        types::{edges::Edge, nodes::Node},
+        types::{api::TopologyRequestOptions, edges::Edge, nodes::Node},
     },
 };
 
@@ -40,7 +40,7 @@ impl TopologyService {
         }
     }
 
-    pub async fn build_graph(&self) -> Result<Graph<Node, Edge>, Error> {
+    pub async fn build_graph(&self, options: TopologyRequestOptions) -> Result<Graph<Node, Edge>, Error> {
         // Fetch all data
         let hosts = self.host_service.get_all_hosts().await?;
         let subnets = self.subnet_service.get_all_subnets().await?;
@@ -58,7 +58,7 @@ impl TopologyService {
         // Create nodes with layout
         let mut layout_planner = SubnetLayoutPlanner::new();
         let (subnet_layouts, child_nodes) =
-            layout_planner.create_subnet_child_nodes(&ctx, &all_edges);
+            layout_planner.create_subnet_child_nodes(&ctx, &all_edges, options.group_docker_bridges_by_host);
 
         // Get relocation info from layout planner
         let relocation_map = layout_planner.get_handle_relocation_map();

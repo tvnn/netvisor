@@ -1,4 +1,4 @@
-.PHONY: help build test clean install-dev dev-server dev-ui dev-daemon dev-container dev-container-rebuild dev-container-rebuild-clean format
+.PHONY: help build test clean install-dev dev-server dev-ui dev-daemon dev-container dev-container-rebuild dev-container-rebuild-clean dev-down format
 
 help:
 	@echo "NetVisor Development Commands"
@@ -9,6 +9,7 @@ help:
 	@echo "  make dev-container  - Start containerized development environment using docker-compose.dev.yml (server + ui + daemon)"
 	@echo "  make dev-container-rebuild  - Rebuild and start containerized dev environment"
 	@echo "  make dev-container-rebuild-clean  - Rebuild, clean, and start containerized dev environment"
+	@echo "  make dev-down       - Stop development containers"
 	@echo "  make build          - Build production Docker images (server + ui + daemon)"
 	@echo "  make test           - Run all tests"
 	@echo "  make lint           - Run all linters"
@@ -35,6 +36,9 @@ dev-container-rebuild-clean:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
+dev-down:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
 build:
 	@echo "Building server Docker image..."
 	docker compose build
@@ -43,8 +47,10 @@ build:
 	@echo "✓ Daemon image built: mayanayza/netvisor-daemon:latest"
 
 test:
-	rm -rf ./data/*
-	cd backend && cargo test
+	@echo "Cleaning data directory..."
+	@rm -rf ./data/*
+	@echo "Running tests with output..."
+	cd backend && cargo test -- --nocapture --test-threads=1
 
 format:
 	@echo "Formatting Server..."

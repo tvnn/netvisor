@@ -219,7 +219,7 @@
 					No options match "{filterText}"
 				</div>
 			{:else}
-				{#each groupedOptions as group, groupIndex (groupIndex)}
+				{#each groupedOptions as group, groupIndex (group.category ?? '__ungrouped__')}
 					{#if group.options.length > 0}
 						<!-- Category Header -->
 						{#if group.category !== null}
@@ -231,7 +231,7 @@
 						{/if}
 
 						<!-- Options in this category -->
-						{#each group.options as option, optionIndex (optionIndex)}
+						{#each group.options as option, optionIndex (displayComponent.getId(option))}
 							{@const isLastInGroup = optionIndex === group.options.length - 1}
 							{@const isLastGroup = groupIndex === groupedOptions.length - 1}
 							<button

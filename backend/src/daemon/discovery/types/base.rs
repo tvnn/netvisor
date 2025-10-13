@@ -2,9 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::server::daemons::types::api::DiscoveryType;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Copy)]
 pub enum DiscoveryPhase {
     Initiated, // Initial state, set by server; all subsequent states until Finished are set by Daemon
     Started,
@@ -18,7 +16,6 @@ pub enum DiscoveryPhase {
 #[derive(Debug, Clone)]
 pub struct DiscoverySessionInfo {
     pub total_to_scan: usize,
-    pub discovery_type: DiscoveryType,
     pub session_id: Uuid,
     pub daemon_id: Uuid,
     pub started_at: Option<DateTime<Utc>>,

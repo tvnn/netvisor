@@ -17,7 +17,7 @@ impl ServiceDefinition for AccessPoint {
         ServiceCategory::NetworkAccess
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::None
     }
 

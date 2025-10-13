@@ -18,7 +18,7 @@ impl ServiceDefinition for Unbound {
         ServiceCategory::DNS
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllPort(vec![PortBase::DnsUdp, PortBase::new_tcp(8953)])
     }
 

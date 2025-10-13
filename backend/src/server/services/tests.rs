@@ -1,0 +1,116 @@
+use crate::{
+    server::services::types::bindings::{Binding, ServiceBinding},
+    tests::*,
+};
+
+#[tokio::test]
+async fn test_service_deduplication_on_create() {
+    let (_, services) = test_services().await;
+
+    let subnet_obj = subnet();
+    services
+        .subnet_service
+        .create_subnet(subnet_obj.clone())
+        .await
+        .unwrap();
+
+    // Create first service + host
+    let mut host_obj = host();
+    host_obj.base.interfaces = vec![interface(&subnet_obj.id)];
+
+    let mut svc1 = service(&host_obj.id);
+    // Add bindings so the deduplication logic can match them
+    svc1.base.bindings = vec![Binding::new_l4(
+        host_obj.base.ports[0].id,
+        Some(host_obj.base.interfaces[0].id),
+    )];
+
+    let (created_host, created1) = services
+        .host_service
+        .create_host_with_services(host_obj.clone(), vec![svc1.clone()])
+        .await
+        .unwrap();
+
+    // Try to create duplicate (same definition + matching bindings)
+    // Must use created_host's IDs since host deduplication may have changed them
+    let mut svc2 = service(&created_host.id);
+    svc2.base.service_definition = svc1.base.service_definition.clone();
+    svc2.base.bindings = vec![Binding::new_l4(
+        created_host.base.ports[0].id,
+        Some(created_host.base.interfaces[0].id),
+    )];
+
+    let created2 = services
+        .service_service
+        .create_service(svc2.clone())
+        .await
+        .unwrap();
+
+    // Should return same service (upserted)
+    assert_eq!(created1[0].id, created2.id);
+
+    // Verify only one service in DB
+    let all_services = services
+        .service_service
+        .get_services_for_host(&created_host.id)
+        .await
+        .unwrap();
+    assert_eq!(all_services.len(), 1);
+}
+
+#[tokio::test]
+async fn test_service_deletion_cleans_up_relationships() {
+    let (_, services) = test_services().await;
+
+    let subnet_obj = subnet();
+    let created_subnet = services
+        .subnet_service
+        .create_subnet(subnet_obj.clone())
+        .await
+        .unwrap();
+
+    let mut host_obj = host();
+    host_obj.base.interfaces = vec![interface(&created_subnet.id)];
+
+    // Create service in a group
+    let mut svc = service(&host_obj.id);
+    let binding = Binding::new_l4(
+        host_obj.base.ports[0].id,
+        Some(host_obj.base.interfaces[0].id),
+    );
+    svc.base.bindings = vec![binding];
+
+    let (_, created_svcs) = services
+        .host_service
+        .create_host_with_services(host_obj.clone(), vec![svc])
+        .await
+        .unwrap();
+    let created_svc = &created_svcs[0];
+
+    let mut group_obj = group();
+    group_obj.base.service_bindings = vec![ServiceBinding {
+        service_id: created_svc.id,
+        binding_id: created_svc.base.bindings[0].id(),
+    }];
+    let created_group = services
+        .group_service
+        .create_group(group_obj)
+        .await
+        .unwrap();
+
+    // Delete service
+    services
+        .service_service
+        .delete_service(&created_svc.id)
+        .await
+        .unwrap();
+
+    // Group should no longer have service binding
+    let group_after = services
+        .group_service
+        .get_group(&created_group.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(group_after.base.service_bindings.is_empty());
+}

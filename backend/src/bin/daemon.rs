@@ -1,13 +1,13 @@
 use axum::{http::Method, Router};
 use clap::Parser;
 use netvisor::daemon::{
-    discovery::service::{base::DiscoveryHandler, self_report::SelfReportDiscovery},
+    discovery::service::{base::Discovery, self_report::SelfReportDiscovery},
     runtime::types::DaemonAppState,
     shared::{
         handlers::create_router,
         storage::{AppConfig, CliArgs, ConfigStore},
     },
-    utils::base::PlatformDaemonUtils,
+    utils::base::{DaemonUtils, PlatformDaemonUtils},
 };
 use netvisor::server::utils::base::NetworkUtils;
 use std::sync::Arc;
@@ -89,9 +89,10 @@ async fn main() -> anyhow::Result<()> {
     let utils = PlatformDaemonUtils::new();
 
     let daemon_id = config_store.get_id().await?;
+    let has_docker_client = utils.scan_docker_socket().await?;
     let own_addr = format!(
         "{}:{}",
-        utils.get_own_ip_address()?,
+        &utils.get_own_ip_address()?,
         &config_store.get_port().await?
     );
     let server_addr = &config_store.get_server_endpoint().await?;
@@ -116,7 +117,7 @@ async fn main() -> anyhow::Result<()> {
     } else {
         tracing::info!("📝 Registering with server...");
         // Create self as host, register with server, and save daemon ID
-        let discovery = DiscoveryHandler::new(
+        let discovery = Discovery::new(
             state.services.discovery_service.clone(),
             state.services.discovery_manager.clone(),
             SelfReportDiscovery::default(),
@@ -133,7 +134,9 @@ async fn main() -> anyhow::Result<()> {
             .register_with_server(host_id, daemon_id)
             .await?;
 
-        discovery.run_self_report_docker_discovery().await?;
+        if has_docker_client {
+            discovery.run_self_report_docker_discovery().await?;
+        }
     };
 
     tracing::info!("✅ Daemon ID: {}", daemon_id);

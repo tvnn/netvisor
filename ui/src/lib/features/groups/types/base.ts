@@ -8,4 +8,5 @@ export interface Group {
 	description: string;
 	service_bindings: ServiceBinding[];
 	group_type: string;
+	source: string;
 }

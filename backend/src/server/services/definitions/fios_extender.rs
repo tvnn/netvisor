@@ -17,7 +17,7 @@ impl ServiceDefinition for FiosExtender {
         ServiceCategory::NetworkAccess
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::WebService("/#/login/", "fios"),
             Pattern::IsGateway,

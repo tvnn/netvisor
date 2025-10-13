@@ -9,7 +9,10 @@ export const topology = writable<TopologyResponse>();
 
 export async function getTopology() {
 	return await api.request<TopologyResponse>('/topology', topology, (topology) => topology, {
-		method: 'GET'
+		method: 'POST',
+		body: JSON.stringify({
+			group_docker_bridges_by_host: true
+		})
 	});
 }
 

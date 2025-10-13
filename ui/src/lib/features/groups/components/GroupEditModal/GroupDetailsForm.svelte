@@ -6,6 +6,7 @@
 	import type { Group } from '../../types/base';
 	import TextInput from '$lib/shared/components/forms/input/TextInput.svelte';
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
+	import { groupTypes } from '$lib/shared/stores/metadata';
 
 	export let formApi: FormApi;
 	export let formData: Group;
@@ -31,6 +32,21 @@
 		required={true}
 		field={name}
 	/>
+
+	<!-- Subnet Type -->
+	<label for="group_type" class="mb-2 block text-sm font-medium text-gray-300">
+		Network Type
+	</label>
+	<select
+		id="group_type"
+		bind:value={formData.group_type}
+		class="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2"
+	>
+		{#each groupTypes.getItems() as group_type (group_type.id)}
+			<option value={group_type.id}>{group_type.name}</option>
+		{/each}
+	</select>
+	<p class="text-xs text-gray-400">{groupTypes.getDescription(formData.group_type)}</p>
 
 	<TextArea
 		label="Description"

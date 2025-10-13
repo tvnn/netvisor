@@ -4,11 +4,10 @@ use crate::{
     daemon::discovery::types::base::{
         DiscoveryPhase, DiscoverySessionInfo, DiscoverySessionUpdate,
     },
-    server::daemons::types::base::Daemon,
+    server::{daemons::types::base::Daemon, discovery::types::base::DiscoveryType},
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use strum_macros::Display;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,12 +35,6 @@ pub struct DaemonRegistrationResponse {
 pub struct DaemonDiscoveryRequest {
     pub session_id: Uuid,
     pub discovery_type: DiscoveryType,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Display)]
-pub enum DiscoveryType {
-    Network,
-    Docker { host_id: Uuid },
 }
 
 /// Daemon discovery response (for immediate acknowledgment)

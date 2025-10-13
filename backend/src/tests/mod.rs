@@ -75,6 +75,7 @@ pub fn service(host_id: &Uuid) -> Service {
         host_id: *host_id,
         bindings: vec![],
         service_definition: service_def,
+        virtualization: None,
     })
 }
 
@@ -84,6 +85,7 @@ pub fn group() -> Group {
         description: None,
         group_type: GroupType::NetworkPath,
         service_bindings: vec![],
+        source: EntitySource::System,
     })
 }
 

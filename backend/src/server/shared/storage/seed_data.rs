@@ -83,6 +83,7 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
         name: "Client".to_string(),
         service_definition: Box::new(Client),
         bindings: vec![binding],
+        virtualization: None,
     });
 
     host.base.target = HostTarget::ServiceBinding(ServiceBinding {
@@ -119,6 +120,7 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
         name: "Google.com".to_string(),
         service_definition: Box::new(WebService),
         bindings: vec![binding],
+        virtualization: None,
     });
 
     host.base.target = HostTarget::ServiceBinding(ServiceBinding {
@@ -156,6 +158,7 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
         name: "DNS".to_string(),
         service_definition: Box::new(DnsServer),
         bindings: vec![binding],
+        virtualization: None,
     });
 
     host.base.target = HostTarget::ServiceBinding(ServiceBinding {

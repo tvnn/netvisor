@@ -9,7 +9,7 @@
 	import { getServices } from '$lib/features/services/store';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 
-	const loading = loadData([getGroups, getServices]);
+	const loading = loadData([getServices, getGroups]);
 
 	let showGroupEditor = false;
 	let editingGroup: Group | null = null;

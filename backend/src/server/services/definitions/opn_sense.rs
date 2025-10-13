@@ -17,7 +17,7 @@ impl ServiceDefinition for OpnSense {
         ServiceCategory::NetworkSecurity
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::WebService("/", "OPNSense")
     }
 

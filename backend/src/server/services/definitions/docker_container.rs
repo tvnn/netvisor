@@ -1,7 +1,9 @@
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
+use crate::server::services::types::base::ServiceDiscoveryParams;
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::patterns::Pattern;
+use crate::server::services::types::virtualization::{DockerVirtualization, Virtualization};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct DockerContainer;
@@ -17,21 +19,27 @@ impl ServiceDefinition for DockerContainer {
         ServiceCategory::Virtualization
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::DockerContainer,
-            Pattern::Custom(|p| {
-                // If there's a matched service with the name of the container, the container was already detected as a non-generic service
-                let default_name = &String::new();
-                let container_name = p
-                    .baseline_params
-                    .docker_container_name
-                    .as_ref()
-                    .unwrap_or(default_name);
-                p.discovery_state_params
-                    .matched_services
-                    .iter()
-                    .all(|s| s.base.name != *container_name)
+            Pattern::Custom(|p: &ServiceDiscoveryParams| {
+                // If there's a matched service with the id of the container, the container was already detected as a non-generic service
+                let c_id = match p.baseline_params.virtualization {
+                    Some(Virtualization::Docker(DockerVirtualization {
+                        container_id: Some(id),
+                        ..
+                    })) => id,
+                    _ => return false, // No docker container_id -> not a docker container
+                };
+
+                p.discovery_state_params.matched_services.iter().all(|s| {
+                    match &s.base.virtualization {
+                        Some(Virtualization::Docker(DockerVirtualization {
+                            container_id, ..
+                        })) if container_id.is_some() => *container_id != Some(c_id.clone()),
+                        _ => true,
+                    }
+                })
             }),
         ])
     }

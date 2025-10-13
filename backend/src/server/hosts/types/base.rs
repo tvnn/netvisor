@@ -24,11 +24,11 @@ static INVALID_MACS_BYTES: &[[u8; 6]; 2] = &[
 
 #[derive(Debug, Clone, Serialize, Validate, Deserialize, Eq, PartialEq, Hash)]
 pub struct HostBase {
-    #[validate(length(min = 1, max = 100))]
+    #[validate(length(min = 0, max = 100))]
     pub name: String,
     #[validate(regex(path = *HOSTNAME_REGEX))]
     pub hostname: Option<String>,
-    #[validate(length(min = 1, max = 100))]
+    #[validate(length(min = 0, max = 100))]
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     pub description: Option<String>,
     pub target: HostTarget,
@@ -36,6 +36,21 @@ pub struct HostBase {
     pub services: Vec<Uuid>,
     pub ports: Vec<Port>,
     pub source: EntitySource,
+}
+
+impl Default for HostBase {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            hostname: None,
+            description: None,
+            target: HostTarget::None,
+            interfaces: Vec::new(),
+            services: Vec::new(),
+            ports: Vec::new(),
+            source: EntitySource::Unknown,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq)]

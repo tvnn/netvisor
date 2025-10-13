@@ -18,7 +18,7 @@ impl ServiceDefinition for Syncthing {
         ServiceCategory::Backup
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::Port(PortBase::new_tcp(8384))
     }
 

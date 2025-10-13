@@ -6,7 +6,14 @@
 		getId: (host: Host) => host.id,
 		getLabel: (host: Host) => host.name,
 		getDescription: (host: Host) => getHostTargetString(host) || 'Unknown Host',
-		getIcon: () => entities.getIconComponent('Host'),
+		getIcon: (host: Host) => {
+			let firstService = host.services.length > 0 ? getServiceById(host.services[0]) : null;
+			if (firstService) {
+				return serviceDefinitions.getIconComponent(firstService.service_definition);
+			} else {
+				return entities.getIconComponent('Host');
+			}
+		},
 		getIconColor: () => entities.getColorHelper('Host').icon,
 		getTags: (host: Host) => {
 			let services = getServicesForHost(host.id);
@@ -16,13 +23,12 @@
 				color: serviceDefinitions.getColorString(service.service_definition)
 			}));
 		},
-		getIsDisabled: () => false,
-		getCategory: () => null
+		getIsDisabled: () => false
 	};
 </script>
 
 <script lang="ts">
-	import { getServicesForHost } from '$lib/features/services/store';
+	import { getServiceById, getServicesForHost } from '$lib/features/services/store';
 	import type { EntityDisplayComponent } from '../types';
 	import ListSelectItem from '../ListSelectItem.svelte';
 	import { getHostTargetString } from '$lib/features/hosts/store';

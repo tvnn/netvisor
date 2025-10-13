@@ -18,7 +18,7 @@ impl ServiceDefinition for CUPS {
         ServiceCategory::Printer
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::AnyPort(vec![PortBase::Ipp]),
             Pattern::WebService("/", "CUPS"),

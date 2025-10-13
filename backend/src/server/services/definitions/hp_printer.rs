@@ -18,7 +18,7 @@ impl ServiceDefinition for HpPrinter {
         ServiceCategory::Printer
     }
 
-    fn discovery_pattern(&self) -> Pattern {
+    fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::MacVendor(Vendor::HP),
             Pattern::AnyPort(vec![PortBase::Ipp, PortBase::LdpTcp, PortBase::LdpUdp]),

@@ -6,7 +6,8 @@ use std::{
 use crate::{
     daemon::discovery::manager::DaemonDiscoverySessionManager,
     server::{
-        discovery::types::api::InitiateDiscoveryRequest,
+        discovery::types::{api::InitiateDiscoveryRequest, base::DiscoveryType},
+        groups::types::Group,
         services::types::base::{
             ServiceDiscoveryBaselineParams, ServiceDiscoveryParams, ServiceDiscoveryStateParams,
         },
@@ -49,27 +50,31 @@ use crate::{
 
 pub const CONCURRENT_SCANS: usize = 15;
 
-pub struct DiscoveryHandler<T> {
-    pub service: Arc<DaemonDiscoveryService>,
-    pub manager: Arc<DaemonDiscoverySessionManager>,
-    pub discovery_type: T,
+pub trait HasDiscoveryType {
+    fn discovery_type(&self) -> DiscoveryType;
 }
 
-impl<T> DiscoveryHandler<T> {
+pub struct Discovery<T> {
+    pub service: Arc<DaemonDiscoveryService>,
+    pub manager: Arc<DaemonDiscoverySessionManager>,
+    pub domain: T,
+}
+
+impl<T> Discovery<T> {
     pub fn new(
         service: Arc<DaemonDiscoveryService>,
         manager: Arc<DaemonDiscoverySessionManager>,
-        discovery_type: T,
+        domain: T,
     ) -> Self {
         Self {
             service,
-            discovery_type,
+            domain,
             manager,
         }
     }
 }
 
-impl<T> DiscoveryHandler<T>
+impl<T> Discovery<T>
 where
     T: 'static,
     Self: DiscoversNetworkedEntities,
@@ -109,7 +114,7 @@ where
     }
 }
 
-impl<T> AsRef<DaemonDiscoveryService> for DiscoveryHandler<T> {
+impl<T> AsRef<DaemonDiscoveryService> for Discovery<T> {
     fn as_ref(&self) -> &DaemonDiscoveryService {
         &self.service
     }
@@ -168,7 +173,9 @@ impl AsRef<DaemonDiscoveryService> for DaemonDiscoveryService {
 }
 
 #[async_trait]
-pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Sync {
+pub trait DiscoversNetworkedEntities:
+    AsRef<DaemonDiscoveryService> + Send + Sync + HasDiscoveryType
+{
     async fn get_gateway_ips(&self) -> Result<Vec<IpAddr>, Error>;
 
     async fn initialize_discovery_session(
@@ -186,7 +193,6 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
 
         let session_info = DiscoverySessionInfo {
             total_to_scan,
-            discovery_type: request.discovery_type,
             session_id: request.session_id,
             daemon_id,
             started_at: Some(Utc::now()),
@@ -308,16 +314,7 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
         params: ServiceDiscoveryBaselineParams<'a>,
         hostname: Option<String>,
     ) -> Result<Option<(Host, Vec<Service>)>, Error> {
-        let ServiceDiscoveryBaselineParams::<'a> {
-            interface,
-            open_ports,
-            endpoint_responses,
-            ..
-        } = params;
-
-        if open_ports.is_empty() && endpoint_responses.is_empty() {
-            return Ok(None); // Skip hosts with no interesting services
-        }
+        let ServiceDiscoveryBaselineParams::<'a> { interface, .. } = params;
 
         let daemon_id = self.as_ref().config_store.get_id().await?;
 
@@ -334,11 +331,11 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
             name,
             hostname,
             target,
-            description: Some("Discovered device".to_owned()),
+            description: Some("Discovered host".to_owned()),
             interfaces: vec![interface.clone()],
             services: Vec::new(),
             ports: Vec::new(),
-            source: EntitySource::Discovery(daemon_id),
+            source: EntitySource::Discovery(self.discovery_type(), daemon_id),
         });
 
         let services = self.discover_services(&mut host, &params, &gateway_ips)?;
@@ -353,7 +350,7 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
         baseline_params: &ServiceDiscoveryBaselineParams,
         gateway_ips: &[IpAddr],
     ) -> Result<Vec<Service>, Error> {
-        let ServiceDiscoveryBaselineParams { open_ports, .. } = baseline_params;
+        let ServiceDiscoveryBaselineParams { all_ports, .. } = baseline_params;
 
         let mut services = Vec::new();
         let mut matched_services = Vec::new();
@@ -362,7 +359,7 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
         let mut l3_interface_bound = false;
 
         // Need to track which ports are bound vs open for services to bind to
-        let mut l4_unbound_ports = open_ports.to_vec();
+        let mut l4_unbound_ports = all_ports.to_vec();
 
         let mut sorted_service_definitions: Vec<Box<dyn ServiceDefinition>> =
             ServiceDefinitionRegistry::all_service_definitions()
@@ -387,6 +384,7 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
                 l3_interface_bound: &l3_interface_bound,
                 service_definition,
                 matched_services: &matched_services,
+                unbound_ports: &l4_unbound_ports,
             };
 
             let params = ServiceDiscoveryParams {
@@ -434,8 +432,7 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
                 }
 
                 // Add any bound ports to host ports array, remove from open ports
-                let bound_port_bases: Vec<PortBase> =
-                    bound_ports.iter().map(|p| p.base.clone()).collect();
+                let bound_port_bases: Vec<PortBase> = bound_ports.iter().map(|p| p.base).collect();
 
                 host.base.ports.append(&mut bound_ports);
 
@@ -515,7 +512,9 @@ pub trait DiscoversNetworkedEntities: AsRef<DaemonDiscoveryService> + Send + Syn
 }
 
 #[async_trait]
-pub trait InitiatesOwnDiscovery: AsRef<DaemonDiscoveryService> + Send + Sync {
+pub trait InitiatesOwnDiscovery:
+    AsRef<DaemonDiscoveryService> + Send + Sync + HasDiscoveryType
+{
     async fn initiate_own_discovery(&self) -> Result<Uuid, Error> {
         let server_target = self.as_ref().config_store.get_server_endpoint().await?;
         let daemon_id = self.as_ref().config_store.get_id().await?;
@@ -560,8 +559,14 @@ pub trait InitiatesOwnDiscovery: AsRef<DaemonDiscoveryService> + Send + Sync {
 }
 
 #[async_trait]
-pub trait CreatesDiscoveredEntities: AsRef<DaemonDiscoveryService> + Send + Sync {
-    async fn create_host(&self, host: Host, services: Vec<Service>) -> Result<Host, Error> {
+pub trait CreatesDiscoveredEntities:
+    AsRef<DaemonDiscoveryService> + Send + Sync + HasDiscoveryType
+{
+    async fn create_host(
+        &self,
+        host: Host,
+        services: Vec<Service>,
+    ) -> Result<(Host, Vec<Service>), Error> {
         let server_target = self.as_ref().config_store.get_server_endpoint().await?;
 
         tracing::info!("Creating host {}", host.base.name);
@@ -581,7 +586,7 @@ pub trait CreatesDiscoveredEntities: AsRef<DaemonDiscoveryService> + Send + Sync
             );
         }
 
-        let api_response: ApiResponse<Host> = response.json().await?;
+        let api_response: ApiResponse<HostWithServicesRequest> = response.json().await?;
 
         if !api_response.success {
             let error_msg = api_response
@@ -590,11 +595,11 @@ pub trait CreatesDiscoveredEntities: AsRef<DaemonDiscoveryService> + Send + Sync
             anyhow::bail!("Failed to create host: {}", error_msg);
         }
 
-        let created_host = api_response
+        let HostWithServicesRequest { host, services } = api_response
             .data
             .ok_or_else(|| anyhow::anyhow!("No host data in successful response"))?;
 
-        Ok(created_host)
+        Ok((host, services))
     }
 
     async fn create_subnet(&self, subnet: &Subnet) -> Result<Subnet, Error> {
@@ -611,7 +616,7 @@ pub trait CreatesDiscoveredEntities: AsRef<DaemonDiscoveryService> + Send + Sync
         if !response.status().is_success() {
             anyhow::bail!(
                 "Failed to report discovered subnet: HTTP {}",
-                response.status()
+                response.status(),
             );
         }
 
@@ -663,5 +668,39 @@ pub trait CreatesDiscoveredEntities: AsRef<DaemonDiscoveryService> + Send + Sync
             .ok_or_else(|| anyhow::anyhow!("No service data in successful response"))?;
 
         Ok(created_service)
+    }
+
+    async fn create_group(&self, group: &Group) -> Result<Group, Error> {
+        let server_target = self.as_ref().config_store.get_server_endpoint().await?;
+
+        let response = self
+            .as_ref()
+            .client
+            .post(format!("{}/api/groups", server_target))
+            .json(&group)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!(
+                "Failed to report discovered group: HTTP {}",
+                response.status()
+            );
+        }
+
+        let api_response: ApiResponse<Group> = response.json().await?;
+
+        if !api_response.success {
+            let error_msg = api_response
+                .error
+                .unwrap_or_else(|| "Unknown error".to_string());
+            anyhow::bail!("Failed to create group: {}", error_msg);
+        }
+
+        let created_group = api_response
+            .data
+            .ok_or_else(|| anyhow::anyhow!("No group data in successful response"))?;
+
+        Ok(created_group)
     }
 }
