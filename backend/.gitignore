@@ -3,4 +3,9 @@
 /.vscode/
 .DS_STORE
 .env
-netvisor.db
+
+# Ignore all .db files
+*.db
+
+# But allow test fixtures
+!backend/src/tests/*.db

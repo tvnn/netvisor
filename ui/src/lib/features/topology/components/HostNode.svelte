@@ -8,6 +8,9 @@
 
 	let { data, selected, width, height }: NodeProps = $props();
 
+	height = height ? height : 0;
+	width = width ? width : 0;
+
 	let nodeData = $derived(
 		data.host_id
 			? (() => {
@@ -41,6 +44,28 @@
 			: null
 	);
 
+	// const hostColorHelper = entities.getColorHelper('Host');
+	// const virtualizationColorHelper = entities.getColorHelper('Virtualization');
+
+	// const headerColorHelper = $derived(
+	// 	!nodeData?.isVirtualized ? hostColorHelper : virtualizationColorHelper
+	// );
+
+	// let nodeClasses = $derived(`
+	//     border-2 ${hostColorHelper.border} ${hostColorHelper.text}
+	//     rounded-lg text-s font-medium transition-all duration-200
+	//     shadow-md overflow-hidden
+	//     ${selected ? `ring-2 ${hostColorHelper.ring} ring-opacity-75` : ''}
+	// `);
+	// let nodeStyle = $derived(
+	// 	`width: ${width}px; height: ${height}px; display: flex; flex-direction: column;
+	// 	background: linear-gradient(to bottom,
+	// 		${twColorToRgba(headerColorHelper.bg)} 0%,
+	// 		color-mix(in srgb, ${twColorToRgba(hostColorHelper.bg)} 15%, ${twColorToRgba(headerColorHelper.bg)} 85%) 30%,
+	// 		${twColorToRgba(hostColorHelper.bg)} 70%,
+	// 		color-mix(in srgb, ${twColorToRgba(hostColorHelper.bg)} 75%, black) ${height}px);`
+	// );
+
 	const hostColorHelper = entities.getColorHelper('Host');
 	const virtualizationColorHelper = entities.getColorHelper('Virtualization');
 
@@ -49,19 +74,38 @@
 	);
 
 	let nodeClasses = $derived(`
-        border-2 ${hostColorHelper.border} ${hostColorHelper.text}
-        rounded-lg text-s font-medium transition-all duration-200
-        shadow-md overflow-hidden
-        ${selected ? `ring-2 ${hostColorHelper.ring} ring-opacity-75` : ''}
-    `);
-	let nodeStyle = $derived(
-		`width: ${width}px; height: ${height}px; display: flex; flex-direction: column;
-		background: linear-gradient(to bottom, 
-			${twColorToRgba(headerColorHelper.bg)} 0%, 
-			color-mix(in srgb, ${twColorToRgba(hostColorHelper.bg)} 15%, ${twColorToRgba(headerColorHelper.bg)} 85%) 30%, 
-			${twColorToRgba(hostColorHelper.bg)} 70%, 
-			color-mix(in srgb, ${twColorToRgba(hostColorHelper.bg)} 75%, black) 100%);`
-	);
+		border-2 ${hostColorHelper.border} ${hostColorHelper.text}
+		rounded-lg text-s font-medium transition-all duration-200
+		shadow-md overflow-hidden
+		${selected ? `ring-2 ${hostColorHelper.ring} ring-opacity-75` : ''}
+	`);
+
+	let nodeStyle = $state('');
+
+	$effect(() => {
+		const isVirtualized = !!nodeData?.isVirtualized;
+
+		const topBlendHeight = 50;
+		const bottomBlendHeight = 50;
+
+		const hostBg = twColorToRgba(hostColorHelper.bg);
+		const headerBg = twColorToRgba(headerColorHelper.bg);
+
+		nodeStyle = `
+			width: ${width}px;
+			height: ${height}px;
+			display: flex;
+			flex-direction: column;
+			background: linear-gradient(
+				to bottom,
+				${isVirtualized ? `${headerBg} ` : `color-mix(in srgb, ${hostBg} 97%, white) `} 0px,
+				${isVirtualized ? `${headerBg} ` : `color-mix(in srgb, ${hostBg} 97%, white) `} ${topBlendHeight / 2}px,
+				${hostBg} ${topBlendHeight}px,
+				${hostBg} ${height - bottomBlendHeight}px,
+				color-mix(in srgb, ${hostBg} 80%, black) ${height}px
+			);
+		`;
+	});
 </script>
 
 {#if nodeData}

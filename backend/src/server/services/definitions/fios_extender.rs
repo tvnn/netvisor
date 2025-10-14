@@ -20,7 +20,7 @@ impl ServiceDefinition for FiosExtender {
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
             Pattern::WebService("/#/login/", "fios"),
-            Pattern::IsGateway,
+            Pattern::Not(&Pattern::IsGateway),
         ])
     }
 

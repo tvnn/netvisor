@@ -3,10 +3,10 @@
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import type { Service } from '$lib/features/services/types/base';
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
-	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import VmManagerConfigPanel from './VmManagerConfigPanel.svelte';
 	import ContainerManagerConfigPanel from './ContainerManagerConfigPanel.svelte';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
+	import { VirtualizationManagerServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay copy.svelte';
 
 	export let virtualizationManagerServices: Service[];
 	export let onServiceChange: (service: Service, index: number) => void;
@@ -18,25 +18,18 @@
 
 <div class="space-y-6">
 	<ListConfigEditor bind:items={virtualizationManagerServices} onChange={handleServiceChange}>
-		<svelte:fragment
-			slot="list"
-			let:items
-			let:onEdit
-			let:highlightedIndex
-			let:onMoveUp
-			let:onMoveDown
-		>
+		<svelte:fragment slot="list" let:items let:onEdit let:highlightedIndex>
 			<ListManager
 				label="Virtualization Services"
 				helpText="Services that manage virtual machines or containers on this host"
 				emptyMessage="No virtualization services on this host."
 				{items}
 				allowItemRemove={() => false}
+				allowReorder={false}
+				allowAddFromOptions={false}
 				options={[] as Service[]}
-				itemDisplayComponent={ServiceDisplay}
-				optionDisplayComponent={ServiceDisplay}
-				{onMoveDown}
-				{onMoveUp}
+				itemDisplayComponent={VirtualizationManagerServiceDisplay}
+				optionDisplayComponent={VirtualizationManagerServiceDisplay}
 				{onEdit}
 				{highlightedIndex}
 			/>

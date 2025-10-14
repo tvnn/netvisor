@@ -35,7 +35,6 @@
 	let edges = writable<Edge[]>([]);
 	// let selectedNodeId: string | null = null;
 
-	// Add debugging to see what's happening
 	$: if ($topology?.nodes && $topology?.edges) {
 		loadTopologyData();
 	}
@@ -135,10 +134,9 @@
 	}
 
 	// Event handlers
-	function onNodeClick({ node }: { node: Node; event: MouseEvent | TouchEvent }) {
-		// selectedNodeId = node.id;
-		console.log('Node clicked:', node);
-	}
+	// function onNodeClick({ node }: { node: Node; event: MouseEvent | TouchEvent }) {
+	// 	// selectedNodeId = node.id;
+	// }
 
 	function onEdgeClick({ edge, event }: { edge: Edge; event: MouseEvent }) {
 		// Get click coordinates relative to the flow canvas
@@ -199,7 +197,6 @@
 		nodes={$nodes}
 		edges={$edges}
 		{nodeTypes}
-		onnodeclick={onNodeClick}
 		onedgeclick={onEdgeClick}
 		fitView
 		snapGrid={[25, 25]}
