@@ -32,6 +32,10 @@ NetVisor scans your network, identifies hosts and services, and generates an int
   - [Server Configuration](#server-configuration)
 - [Uninstall Daemon](#uninstall-daemon)
 - [FAQ](#faq)
+  - [Where does NetVisor store my data?](#where-does-netvisor-store-my-data)
+  - [What services can NetVisor discover?](#what-services-can-netvisor-discover)
+  - [Are VLANs supported?](#are-vlans-supported)
+  - [Is IPv6 Supported?](#is-ipv6-supported)
 
 ## Architecture
 
@@ -277,7 +281,7 @@ Yes, you can collect information from hosts on multiple vlans by using multiple 
 
 Not currently. Future plans to support IPv6 will focus on collecting a host's IPv6 address during discovery and/or allowing manual entry of it during editing. Scanning the entire IPv6 space of a discovered subnet will never be supported as it will take too long to do so.
 
-### What Services Are Supported?
+### What services can NetVisor discover?
 
 NetVisor automatically detects 50+ common services including:
 
