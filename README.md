@@ -153,7 +153,7 @@ Discovery can take 5-10+ minutes depending on how many subnets the daemon's host
 Hosts with Proxmox and Docker services will have an additional virtualization tab allowing you to manage hosts / services that they manage as VMs / containers. This will change how these hosts / services are represented in the visualization.
 
 <p align="center">
-  <img src="./media/virtualization_management.png" width="400" alt="Virtualization Management">
+  <img src="./media/virtualization_management.png" width="800" alt="Virtualization Management">
 </p>
 
 
