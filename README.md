@@ -4,7 +4,7 @@
 
 NetVisor scans your network, identifies hosts and services, and generates an interactive visualization showing how everything connects, letting you easily create and maintain network documentation.
 
-![License](https://img.shields.io/github/license/yourusername/netvisor)![GitHub release](https://img.shields.io/github/v/release/mayanayza/netvisor)
+![License](https://img.shields.io/github/license/mayanayza/netvisor)![GitHub release](https://img.shields.io/github/v/release/mayanayza/netvisor)
 ![Build](https://img.shields.io/github/actions/workflow/status/mayanayza/netvisor/daemon-ci.yml)![Build](https://img.shields.io/github/actions/workflow/status/mayanayza/netvisor/server-ci.yml)![Build](https://img.shields.io/github/actions/workflow/status/mayanayza/netvisor/ui-ci.yml)
 
 
