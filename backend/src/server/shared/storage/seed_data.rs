@@ -64,7 +64,7 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
     let binding_id = binding.id();
 
     let base = HostBase {
-        name: "Mobile Phone".to_string(), // Device type in name, not service
+        name: "Mobile Device".to_string(), // Device type in name, not service
         hostname: None,
         description: Some("A mobile device connecting from a remote network".to_string()),
         interfaces: vec![interface],
@@ -79,7 +79,7 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
 
     let client_service = Service::new(ServiceBase {
         host_id: host.id,
-        name: "Client".to_string(),
+        name: "Mobile Device".to_string(),
         service_definition: Box::new(Client),
         bindings: vec![binding],
         virtualization: None,
@@ -101,7 +101,7 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
     let binding_id = binding.id();
 
     let base = HostBase {
-        name: "Google".to_string(),
+        name: "Google.com".to_string(),
         hostname: Some("google.com".to_string()),
         description: Some("Google.com".to_string()),
         interfaces: vec![interface],
@@ -139,9 +139,9 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
     let binding_id = binding.id();
 
     let base = HostBase {
-        name: "Cloudflare".to_string(),
+        name: "Cloudflare DNS".to_string(),
         hostname: None,
-        description: Some("Cloudflare DNS for DNS resolution testing".to_string()),
+        description: Some("Cloudflare DNS".to_string()),
         target: HostTarget::None,
         interfaces: vec![interface],
         ports: vec![dns_udp_port],
@@ -154,7 +154,7 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
 
     let dns_service = Service::new(ServiceBase {
         host_id: host.id,
-        name: "DNS".to_string(),
+        name: "Cloudflare DNS".to_string(),
         service_definition: Box::new(DnsServer),
         bindings: vec![binding],
         virtualization: None,

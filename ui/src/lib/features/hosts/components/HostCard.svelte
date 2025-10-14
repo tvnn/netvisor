@@ -1,6 +1,12 @@
 <script lang="ts">
 	import { Edit, Radar, Replace, Trash2 } from 'lucide-svelte';
-	import { formatInterface, getHostTargetString } from '../store';
+	import {
+		formatInterface,
+		getHostFromId,
+		getHostIsVirtualized,
+		getHostTargetString,
+		getHostVirtualizerService
+	} from '../store';
 	import type { Host } from '../types/base';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
@@ -9,7 +15,7 @@
 	import { sessions } from '$lib/features/discovery/store';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import type { Group } from '$lib/features/groups/types/base';
-	import { getServicesForHostReactive } from '$lib/features/services/store';
+	import { getServiceById, getServicesForHostReactive } from '$lib/features/services/store';
 
 	export let host: Host;
 	export let daemon: Daemon | null;
@@ -33,6 +39,13 @@
 	$: hostServicesStore = getServicesForHostReactive(host.id);
 	$: hostServices = $hostServicesStore;
 
+	$: vms = hostServices
+		.flatMap((sv) => sv.vms.map((h_id) => getHostFromId(h_id)))
+		.filter((h) => h != undefined);
+	$: containerIds = hostServices
+		.flatMap((sv) => sv.containers.map((s_id) => getServiceById(s_id)))
+		.filter((s) => s != undefined)
+		.map((s) => s.id);
 	// Build card data
 	$: cardData = {
 		title: host.name,
@@ -41,17 +54,45 @@
 		icon:
 			serviceDefinitions.getIconComponent(hostServices[0]?.service_definition) ||
 			entities.getIconComponent('Host'),
-		sections: [],
+		sections: [
+			...(getHostIsVirtualized(host.id)
+				? [
+						{
+							label: 'VM Managed By',
+							value: getHostVirtualizerService(host.id)?.name || 'Unknown Service'
+						}
+					]
+				: [])
+		],
 		lists: [
+			...(vms.length > 0
+				? [
+						{
+							label: 'VMs',
+							items: vms.map((h) => {
+								return {
+									id: h.id,
+									label: h.name,
+									color: entities.getColorHelper('Virtualization').string
+								};
+							}),
+							emptyText: 'No VMs assigned'
+						}
+					]
+				: []),
 			{
 				label: 'Services',
-				items: hostServices.map((sv) => {
-					return {
-						id: sv.id,
-						label: sv.name,
-						color: entities.getColorHelper('Service').string
-					};
-				}),
+				items: hostServices
+					.map((sv) => {
+						return {
+							id: sv.id,
+							label: (containerIds.includes(sv.id) ? 'Container: ' : '') + sv.name,
+							color: !containerIds.includes(sv.id)
+								? entities.getColorHelper('Service').string
+								: entities.getColorHelper('Virtualization').string
+						};
+					})
+					.sort((a) => (containerIds.includes(a.id) ? 1 : -1)),
 				emptyText: 'No services assigned'
 			},
 			{

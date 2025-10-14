@@ -56,7 +56,12 @@ impl TopologyService {
         // Create all edges (needed for anchor analysis)
         let interface_edges = EdgeBuilder::create_interface_edges(&ctx);
         let group_edges = EdgeBuilder::create_group_edges(&ctx);
-        let all_edges: Vec<Edge> = interface_edges.into_iter().chain(group_edges).collect();
+        let container_edges = EdgeBuilder::create_containerized_service_edges(&ctx);
+        let all_edges: Vec<Edge> = interface_edges
+            .into_iter()
+            .chain(group_edges)
+            .chain(container_edges)
+            .collect();
 
         // Create nodes with layout
         let mut layout_planner = SubnetLayoutPlanner::new();

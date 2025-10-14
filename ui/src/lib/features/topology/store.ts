@@ -59,7 +59,7 @@ export async function exportToPNG() {
 	});
 
 	// Add padding (in flow coordinates)
-	const padding = 40;
+	const padding = 50;
 	minX -= padding;
 	minY -= padding;
 	maxX += padding;
@@ -93,7 +93,7 @@ export async function exportToPNG() {
 		position: absolute;
 		bottom: 2px;
 		right: 10px;
-		font-size: 14px;
+		font-size: 12px;
 		color: #9ca3af;
 		font-weight: 500;
 		z-index: 1000;

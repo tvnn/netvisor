@@ -1,8 +1,10 @@
 use itertools::Itertools;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::server::{
+    hosts::types::base::Host,
+    services::types::base::Service,
     shared::types::metadata::TypeMetadataProvider,
     subnets::types::base::SubnetType,
     topology::{
@@ -13,7 +15,7 @@ use crate::server::{
         types::{
             base::{Ixy, NodeLayout, SubnetLayout, Uxy},
             edges::{Edge, EdgeHandle},
-            nodes::{Node, NodeType, SubnetChild, SubnetChildNodeSize},
+            nodes::{Node, NodeType, SubnetChild},
         },
     },
 };
@@ -77,6 +79,85 @@ impl SubnetLayoutPlanner {
         (subnet_sizes, child_nodes)
     }
 
+    fn determine_subnet_child_header_text(
+        &self,
+        ctx: &TopologyContext,
+        interface_bound_services: &Vec<&Service>,
+        host: &Host,
+    ) -> Option<String> {
+        if let Some(service) = ctx.get_host_is_virtualized_by(&host.id) {
+            let host_interface_subnet_ids: Vec<Uuid> = host
+                .base
+                .interfaces
+                .iter()
+                .map(|i| i.base.subnet_id)
+                .collect();
+            let virtualization_service_interface_subnet_ids: Vec<Uuid> = service
+                .base
+                .bindings
+                .iter()
+                .filter_map(|b| ctx.get_interface_by_id(b.interface_id()))
+                .map(|i| i.base.subnet_id)
+                .collect();
+
+            let host_interface_subnet_ids_hashset: HashSet<&Uuid> =
+                host_interface_subnet_ids.iter().collect();
+            let virtualization_service_interface_subnet_ids_hashset: HashSet<&Uuid> =
+                virtualization_service_interface_subnet_ids.iter().collect();
+
+            let intersection: Vec<&Uuid> = host_interface_subnet_ids_hashset
+                .intersection(&virtualization_service_interface_subnet_ids_hashset)
+                .cloned()
+                .collect();
+
+            // If they have one interface on a common subnet, and they both don't have multiple interfaces with the subnet
+            match intersection.first() {
+                Some(first) if intersection.len() == 1 => {
+                    if let Some(interface) = host
+                        .base
+                        .interfaces
+                        .iter()
+                        .find(|i| i.base.subnet_id == **first)
+                    {
+                        if host_interface_subnet_ids
+                            .iter()
+                            .filter(|i| i == first)
+                            .count()
+                            == 1
+                            && virtualization_service_interface_subnet_ids
+                                .iter()
+                                .filter(|i| i == first)
+                                .count()
+                                == 1
+                        {
+                            return Some(format!(
+                                "VM: {} @ {}",
+                                service.base.name, interface.base.ip_address
+                            ));
+                        }
+                    }
+                    return Some(format!("VM: {}", service.base.name));
+                }
+                _ => return Some(format!("VM: {}", service.base.name)),
+            }
+        }
+
+        let first_service_name_matches_host_name = match interface_bound_services.first() {
+            Some(first_service) => first_service.base.name == host.base.name,
+            None => false,
+        };
+
+        let host_has_name = host.base.name != "Unknown Device" && !host.base.name.is_empty();
+
+        let interface_count = host.base.interfaces.len();
+
+        if !first_service_name_matches_host_name && host_has_name && interface_count < 2 {
+            return Some(host.base.name.clone());
+        }
+
+        None
+    }
+
     /// Group host interfaces by subnet, with optional special handling for DockerBridge
     /// If group_docker_bridges_by_host is true, all DockerBridge interfaces for a given host
     /// are consolidated into one subnet
@@ -93,47 +174,21 @@ impl SubnetLayoutPlanner {
         let mut docker_by_host: HashMap<Uuid, (Uuid, Vec<(Uuid, SubnetChild)>)> = HashMap::new();
 
         for host in ctx.hosts {
-            if host.base.interfaces.is_empty() {
-                // No interfaces - add to no_subnet
-                children_by_subnet
-                    .entry(self.no_subnet_id)
-                    .or_default()
-                    .push(SubnetChild {
-                        id: host.id,
-                        host_id: host.id,
-                        interface_id: None,
-                        size: SubnetChildNodeSize::Small,
-                        primary_handle: None,
-                        anchor_count: 0,
-                        should_relocate_handles: false,
-                    });
-                continue;
-            }
-
             for interface in &host.base.interfaces {
                 let subnet = ctx.get_subnet_by_id(interface.base.subnet_id);
                 let subnet_type = subnet.map(|s| s.base.subnet_type).unwrap_or_default();
 
-                let interface_bound_services: Vec<Uuid> = ctx
+                let interface_bound_services: Vec<&Service> = ctx
                     .services
                     .iter()
-                    .filter_map(|s| {
-                        let has_relevant_binding =
-                            s.base.bindings.iter().any(|b| match b.interface_id() {
-                                Some(binding_interface_id)
-                                    if binding_interface_id == interface.id =>
-                                {
-                                    true
-                                }
-                                None => !subnet_type.is_internal(),
-                                _ => false,
-                            });
-
-                        if has_relevant_binding {
-                            Some(s.id)
-                        } else {
-                            None
-                        }
+                    .filter(|s| {
+                        s.base.bindings.iter().any(|b| match b.interface_id() {
+                            Some(binding_interface_id) if binding_interface_id == interface.id => {
+                                true
+                            }
+                            None => !subnet_type.is_internal(),
+                            _ => false,
+                        })
                     })
                     .collect();
 
@@ -144,11 +199,18 @@ impl SubnetLayoutPlanner {
                 let (primary_handle, anchor_count, should_relocate) =
                     AnchorAnalyzer::analyze_child_anchors(interface.id, all_edges, ctx);
 
+                let header_text =
+                    self.determine_subnet_child_header_text(ctx, &interface_bound_services, host);
+
                 let child = SubnetChild {
                     id: interface.id,
                     host_id: host.id,
+                    size: Uxy::subnet_child_size_from_service_count(
+                        interface_bound_services.len(),
+                        header_text.is_some(),
+                    ),
+                    header: header_text,
                     interface_id: Some(interface.id),
-                    size: SubnetChildNodeSize::from_service_count(interface_bound_services.len()),
                     primary_handle,
                     anchor_count,
                     should_relocate_handles: should_relocate,
@@ -219,7 +281,7 @@ impl SubnetLayoutPlanner {
 
                 let (infrastructure, regular): (Vec<SubnetChild>, Vec<SubnetChild>) = children
                     .iter()
-                    .sorted_by_key(|c| c.size.size().y)
+                    .sorted_by_key(|c| c.size.y)
                     .cloned()
                     .partition(|c| infrastructure_interface_ids.contains(&c.interface_id));
 
@@ -290,9 +352,10 @@ impl SubnetLayoutPlanner {
                         interface_id: child.interface_id,
                         host_id: child.host_id,
                         is_infra: true,
+                        header: child.header.clone(),
                     },
-                    position: position.clone(),
-                    size: child.size.size(),
+                    position: *position,
+                    size: child.size,
                 });
             }
         });
@@ -322,9 +385,10 @@ impl SubnetLayoutPlanner {
                         interface_id: child.interface_id,
                         host_id: child.host_id,
                         is_infra: false,
+                        header: child.header.clone(),
                     },
                     position: node_position,
-                    size: child.size.size(),
+                    size: child.size,
                 });
             };
         });
@@ -358,17 +422,17 @@ impl SubnetLayoutPlanner {
                             node_type: NodeType::SubnetNode {
                                 infra_width: layout.infra_width,
                                 subnet_type: SubnetType::None,
-                                label_override: None,
+                                header: None,
                             },
-                            position: position.clone(),
-                            size: layout.size.clone(),
+                            position: *position,
+                            size: layout.size,
                         });
                     }
 
                     if let Some(consolidated_subnet_ids) =
                         self.consolidated_docker_subnets.get(subnet_id)
                     {
-                        let label_override = SubnetType::DockerBridge.name().to_owned()
+                        let header = SubnetType::DockerBridge.name().to_owned()
                             + ": ("
                             + &ctx
                                 .subnets
@@ -383,10 +447,10 @@ impl SubnetLayoutPlanner {
                             node_type: NodeType::SubnetNode {
                                 infra_width: layout.infra_width,
                                 subnet_type: SubnetType::DockerBridge,
-                                label_override: Some(label_override),
+                                header: Some(header),
                             },
-                            position: position.clone(),
-                            size: layout.size.clone(),
+                            position: *position,
+                            size: layout.size,
                         });
                     }
 
@@ -397,10 +461,10 @@ impl SubnetLayoutPlanner {
                             node_type: NodeType::SubnetNode {
                                 infra_width: layout.infra_width,
                                 subnet_type: subnet.base.subnet_type,
-                                label_override: None,
+                                header: None,
                             },
-                            position: position.clone(),
-                            size: layout.size.clone(),
+                            position: *position,
+                            size: layout.size,
                         });
                     }
                 }
@@ -446,7 +510,7 @@ impl SubnetLayoutPlanner {
                         (
                             *id,
                             NodeLayout {
-                                size: layout.size.clone(),
+                                size: layout.size,
                                 grid_position: Uxy { x: row_index, y },
                             },
                         )

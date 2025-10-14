@@ -4,14 +4,14 @@ use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::patterns::Pattern;
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
-pub struct DockerDaemon;
+pub struct Docker;
 
-impl ServiceDefinition for DockerDaemon {
+impl ServiceDefinition for Docker {
     fn name(&self) -> &'static str {
-        "Docker Daemon"
+        "Docker"
     }
     fn description(&self) -> &'static str {
-        "Docker daemon"
+        "Docker"
     }
     fn category(&self) -> ServiceCategory {
         ServiceCategory::Virtualization
@@ -26,6 +26,4 @@ impl ServiceDefinition for DockerDaemon {
     }
 }
 
-inventory::submit!(ServiceDefinitionFactory::new(
-    create_service::<DockerDaemon>
-));
+inventory::submit!(ServiceDefinitionFactory::new(create_service::<Docker>));

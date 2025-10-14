@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { NodeResizeControl, type NodeProps } from '@xyflow/svelte';
-	import { createColorHelper } from '$lib/shared/utils/styling';
+	import { createColorHelper, twColorToRgba } from '$lib/shared/utils/styling';
 	import { subnetTypes } from '$lib/shared/stores/metadata';
 	import {
 		createEmptySubnetFormData,
@@ -18,10 +18,10 @@
 	let IconComponent = subnetTypes.getIconComponent(subnet.subnet_type) as any;
 	let cidr = subnet.cidr;
 
-	let label_override = data.label_override as string | null;
+	let header = data.header as string | null;
 
-	let label = label_override
-		? label_override
+	let label = header
+		? header
 		: (subnet.name != subnet.cidr ? subnet.name : subnetTypes.getName(subnet.subnet_type)) +
 			(isContainerSubnet(subnet.id) ? '' : ': ' + subnet.cidr);
 	let infra_width = (data.infra_width as number) || 0;
@@ -34,21 +34,9 @@
         transition-all duration-200
         shadow-lg
         `
-			.trim()
-			.replace(/\s+/g, ' ')
-	);
-
-	let infraClasses = $derived(
-		`
-        ${grayColorHelper.bg}
-        opacity-50
-        `
-			.trim()
-			.replace(/\s+/g, ' ')
 	);
 
 	let nodeStyle = $derived(`width: ${width}px; height: ${height}px;`);
-	let infraStyle = $derived(`width: ${infra_width}px; height: 100%;`);
 	let hasInfra = $derived(infra_width > 0);
 </script>
 
@@ -140,16 +128,16 @@
 	<!-- External label in upper left corner -->
 	{#if cidr || label}
 		<div
-			class="absolute -top-8 left-0 z-10 flex items-center gap-1 rounded-md border border-gray-600 bg-gray-800/90 px-2 py-1 shadow-lg backdrop-blur-sm"
+			class="absolute -top-10 left-0 z-10 flex items-center gap-1 rounded-md border border-gray-600 bg-gray-800/90 px-2 py-1 shadow-lg backdrop-blur-sm"
 		>
 			<!-- Icon -->
 			{#if IconComponent}
 				<!-- eslint-disable-next-line @typescript-eslint/no-explicit-any -->
-				<IconComponent class={`h-3 w-3 ${subnetColorHelper.icon}`} />
+				<IconComponent class={`h-5 w-5 ${subnetColorHelper.icon}`} />
 			{/if}
 
 			<!-- Label -->
-			<span class="whitespace-nowrap text-xs font-medium text-gray-200">
+			<span class="text-s whitespace-nowrap font-medium text-gray-200">
 				{label || cidr}
 			</span>
 		</div>
@@ -157,11 +145,14 @@
 
 	<!-- Main container -->
 	<div class={nodeClasses} style="width: 100%; height: 100%; position: relative; overflow: hidden;">
-		<!-- Infrastructure background area -->
+		<!-- Infrastructure background area with gradient centered at infra_width -->
 		{#if hasInfra}
 			<div
-				class={infraClasses}
-				style={`${infraStyle} position: absolute; top: 0; left: 0; border-radius: 0.75rem 0 0 0.75rem;`}
+				style={`position: absolute; top: 0; left: 0; width: ${infra_width + 20}px; height: 100%; border-radius: 0.75rem 0 0 0.75rem; pointer-events: none;
+					background: linear-gradient(to right, 
+						${twColorToRgba(grayColorHelper.bg, 0.2)} 0%, 
+						${twColorToRgba(grayColorHelper.bg, 0.2)} ${((infra_width - 20) / (infra_width + 20)) * 100}%, 
+						${twColorToRgba(grayColorHelper.bg, 0)} 100%);`}
 			>
 				<!-- Infrastructure title -->
 				<div

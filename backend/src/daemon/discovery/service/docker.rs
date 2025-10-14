@@ -135,8 +135,7 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
         self.finish_discovery(discovery_result, cancel.clone())
             .await?;
 
-        self.create_docker_daemon_service(&containers_interfaces_and_subnets, services)
-            .await?;
+        self.create_docker_daemon_service(services).await?;
 
         Ok(())
     }
@@ -205,29 +204,17 @@ impl Discovery<DockerScanDiscovery> {
         Ok(client)
     }
 
-    pub async fn create_docker_daemon_service(
-        &self,
-        containers_interfaces_and_subnets: &HashMap<String, Vec<(Interface, Subnet)>>,
-        services: Vec<Service>,
-    ) -> Result<(), Error> {
+    /// Create service which has all discovered containers in containers field
+    pub async fn create_docker_daemon_service(&self, services: Vec<Service>) -> Result<(), Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
         let host_id = self.domain.host_id;
 
-        let docker_service_definition =
-            crate::server::services::definitions::docker_daemon::DockerDaemon;
-
-        use std::collections::HashSet;
-        let interfaces: Vec<Interface> = containers_interfaces_and_subnets
-            .iter()
-            .flat_map(|(_, interfaces_subnets)| interfaces_subnets.iter().map(|(i, _)| i).cloned())
-            .collect::<HashSet<_>>()
-            .into_iter()
-            .collect();
+        let docker_service_definition = crate::server::services::definitions::docker_daemon::Docker;
 
         let docker_service = Service::new(ServiceBase {
             name: ServiceDefinition::name(&docker_service_definition).to_string(),
             service_definition: Box::new(docker_service_definition),
-            bindings: interfaces.iter().map(|i| Binding::new_l3(i.id)).collect(),
+            bindings: vec![],
             host_id,
             virtualization: None,
             vms: vec![],
@@ -238,7 +225,6 @@ impl Discovery<DockerScanDiscovery> {
         temp_docker_daemon_host.id = self.domain.host_id;
         temp_docker_daemon_host.base.source =
             EntitySource::Discovery(self.discovery_type(), daemon_id);
-        temp_docker_daemon_host.base.interfaces = interfaces;
         temp_docker_daemon_host.base.services = vec![docker_service.id];
 
         self.create_host(temp_docker_daemon_host, vec![docker_service])

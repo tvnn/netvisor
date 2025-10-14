@@ -181,7 +181,7 @@ impl HostService {
         }
 
         existing_host.base.services =
-            [new_host_data.base.services, existing_host.base.services].concat();
+            [existing_host.base.services, new_host_data.base.services].concat();
 
         // Update other fields if they have more information
         if existing_host.base.hostname.is_none() && new_host_data.base.hostname.is_some() {

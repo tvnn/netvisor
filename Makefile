@@ -37,7 +37,7 @@ dev-container-rebuild-clean:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 dev-down:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml down --volumes
 
 build:
 	@echo "Building server Docker image..."

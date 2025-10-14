@@ -1,6 +1,6 @@
 use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::custom_l3::CustomLayer3;
-use crate::server::services::definitions::docker_daemon::DockerDaemon;
+use crate::server::services::definitions::docker_daemon::Docker;
 use crate::server::services::definitions::proxmox::Proxmox;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::types::bindings::BindingDiscriminants;
@@ -108,7 +108,7 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
     }
 
     fn layer(&self) -> BindingDiscriminants {
-        if self.is_gateway() || self.id() == CustomLayer3.id() || self.id() == DockerDaemon.id() {
+        if self.is_gateway() || self.id() == CustomLayer3.id() {
             return BindingDiscriminants::Layer3;
         }
         BindingDiscriminants::Layer4
@@ -133,7 +133,7 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
         let id = self.id();
         match id {
             _ if id == Proxmox.id() => Some("vms"),
-            _ if id == DockerDaemon.id() => Some("containers"),
+            _ if id == Docker.id() => Some("containers"),
             _ => None,
         }
     }

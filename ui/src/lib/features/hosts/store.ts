@@ -4,7 +4,8 @@ import { api } from '../../shared/utils/api';
 import { pushSuccess } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { isContainerSubnet } from '../subnets/store';
-import { getBindingFromId, getLayerBindingDisplayName } from '../services/store';
+import { getBindingFromId, getLayerBindingDisplayName, services } from '../services/store';
+import type { Service } from '../services/types/base';
 
 export const hosts = writable<Host[]>([]);
 export const polling = writable(false);
@@ -103,6 +104,14 @@ export function formatInterface(i: Interface | AllInterfaces): string {
 
 export function getHostFromId(id: string): Host | undefined {
 	return get(hosts).find((h) => h.id == id);
+}
+
+export function getHostIsVirtualized(id: string): boolean {
+	return get(services).some((s) => s.vms.includes(id));
+}
+
+export function getHostVirtualizerService(id: string): Service | null {
+	return get(services).find((s) => s.vms.includes(id)) || null;
 }
 
 export function getInterfaceFromId(id: string): Interface | undefined {

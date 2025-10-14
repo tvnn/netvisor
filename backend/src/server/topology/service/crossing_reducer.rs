@@ -130,18 +130,18 @@ impl CrossingReducer {
 
         for node in nodes.iter() {
             if node.id == node_id_1 {
-                pos1 = Some(node.position.clone());
+                pos1 = Some(node.position);
             } else if node.id == node_id_2 {
-                pos2 = Some(node.position.clone());
+                pos2 = Some(node.position);
             }
         }
 
         if let (Some(p1), Some(p2)) = (pos1, pos2) {
             for node in nodes.iter_mut() {
                 if node.id == node_id_1 {
-                    node.position = p2.clone();
+                    node.position = p2;
                 } else if node.id == node_id_2 {
-                    node.position = p1.clone();
+                    node.position = p1;
                 }
             }
         }

@@ -11,7 +11,7 @@
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { getServicesForHost } from '$lib/features/services/store';
 	import PortsDisplay from './Ports/PortsForm.svelte';
-	import VirtualizationForm from './Vms/VirtualizationForm.svelte';
+	import VirtualizationForm from './Virtualization/VirtualizationForm.svelte';
 
 	export let host: Host | null = null;
 	export let isOpen = false;

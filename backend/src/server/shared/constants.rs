@@ -33,7 +33,7 @@ impl EntityMetadataProvider for Entity {
     fn color(&self) -> &'static str {
         match self {
             Entity::Host => "blue",
-            Entity::Service => "indigo",
+            Entity::Service => "purple",
             Entity::Interface => "cyan",
             Entity::Port => "cyan",
 
@@ -48,7 +48,7 @@ impl EntityMetadataProvider for Entity {
 
             Entity::IoT => "yellow",
             Entity::Storage => "green",
-            Entity::Virtualization => "purple",
+            Entity::Virtualization => "indigo",
         }
     }
 

@@ -149,6 +149,8 @@ impl EdgeHandle {
 #[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
 pub enum EdgeType {
     Interface, // Connecting hosts with interfaces in multiple subnets
+    HostVirtualization,
+    ServiceVirtualization,
     #[serde(untagged)]
     Group(GroupType), // User-defined logical connection
 }
@@ -157,13 +159,18 @@ impl EdgeType {
     pub fn all_variants() -> Vec<EdgeType> {
         let mut variants = Vec::new();
 
-        // Exhaustive match ensures compiler error if new variant added
         EdgeTypeDiscriminants::iter().for_each(|discriminant| match discriminant {
             EdgeTypeDiscriminants::Interface => {
                 variants.push(EdgeType::Interface);
             }
             EdgeTypeDiscriminants::Group => {
                 variants.extend(GroupType::iter().map(EdgeType::Group));
+            }
+            EdgeTypeDiscriminants::HostVirtualization => {
+                variants.push(EdgeType::HostVirtualization)
+            }
+            EdgeTypeDiscriminants::ServiceVirtualization => {
+                variants.push(EdgeType::ServiceVirtualization)
             }
         });
 
@@ -176,6 +183,8 @@ impl HasId for EdgeType {
         match self {
             EdgeType::Interface => self.into(),
             EdgeType::Group(GroupType::NetworkPath) => GroupType::NetworkPath.into(),
+            EdgeType::HostVirtualization => self.into(),
+            EdgeType::ServiceVirtualization => self.into(),
         }
     }
 }
@@ -185,6 +194,8 @@ impl EntityMetadataProvider for EdgeType {
         match self {
             EdgeType::Group(GroupType::NetworkPath) => Entity::Group.color(),
             EdgeType::Interface => Entity::Host.color(),
+            EdgeType::HostVirtualization => Entity::Virtualization.color(),
+            EdgeType::ServiceVirtualization => Entity::Virtualization.color(),
         }
     }
 
@@ -192,6 +203,8 @@ impl EntityMetadataProvider for EdgeType {
         match self {
             EdgeType::Group(GroupType::NetworkPath) => Entity::Group.icon(),
             EdgeType::Interface => Entity::Host.icon(),
+            EdgeType::HostVirtualization => Entity::Virtualization.icon(),
+            EdgeType::ServiceVirtualization => Entity::Virtualization.icon(),
         }
     }
 }
@@ -201,6 +214,8 @@ impl TypeMetadataProvider for EdgeType {
         match self {
             EdgeType::Group(GroupType::NetworkPath) => "Network Path",
             EdgeType::Interface => "Host Interface",
+            EdgeType::HostVirtualization => "Virtualized Host",
+            EdgeType::ServiceVirtualization => "Virtualized Service",
         }
     }
 
@@ -208,11 +223,15 @@ impl TypeMetadataProvider for EdgeType {
         let is_dashed = match &self {
             EdgeType::Group(GroupType::NetworkPath) => false,
             EdgeType::Interface => true,
+            EdgeType::HostVirtualization => true,
+            EdgeType::ServiceVirtualization => true,
         };
 
         let style_label_like_nodes = match &self {
             EdgeType::Group(GroupType::NetworkPath) => false,
             EdgeType::Interface => true,
+            EdgeType::HostVirtualization => true,
+            EdgeType::ServiceVirtualization => true,
         };
 
         let has_start_marker = false;
@@ -220,6 +239,8 @@ impl TypeMetadataProvider for EdgeType {
         let has_end_marker = match &self {
             EdgeType::Group(GroupType::NetworkPath) => true,
             EdgeType::Interface => false,
+            EdgeType::HostVirtualization => false,
+            EdgeType::ServiceVirtualization => false,
         };
 
         serde_json::json!({

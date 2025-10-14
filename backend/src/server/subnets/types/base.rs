@@ -192,6 +192,10 @@ pub enum SubnetType {
 }
 
 impl SubnetType {
+    pub fn is_for_containers(&self) -> bool {
+        *self == SubnetType::DockerBridge
+    }
+
     pub fn is_internal(&self) -> bool {
         matches!(self, SubnetType::DockerBridge | SubnetType::VpnTunnel)
     }

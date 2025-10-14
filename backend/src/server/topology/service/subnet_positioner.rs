@@ -121,7 +121,7 @@ impl SubnetPositioner {
                 nodes
                     .iter()
                     .find(|n| n.id == *id)
-                    .map(|n| (*id, n.position.clone()))
+                    .map(|n| (*id, n.position))
             })
             .collect();
 
@@ -167,7 +167,7 @@ impl SubnetPositioner {
         let subnet_positions: HashMap<Uuid, Ixy> = nodes
             .iter()
             .filter_map(|n| match n.node_type {
-                NodeType::SubnetNode { .. } => Some((n.id, n.position.clone())),
+                NodeType::SubnetNode { .. } => Some((n.id, n.position)),
                 _ => None,
             })
             .collect();
@@ -237,10 +237,7 @@ impl SubnetPositioner {
         let current_length = self.calculate_total_edge_length(nodes, edges);
 
         // Capture original position BEFORE any changes
-        let original_pos = nodes
-            .iter()
-            .find(|n| n.id == subnet_id)
-            .map(|n| n.position.clone());
+        let original_pos = nodes.iter().find(|n| n.id == subnet_id).map(|n| n.position);
 
         if let Some(pos) = original_pos {
             let optimal_x = self.calculate_optimal_subnet_x(nodes, subnet_id, edges);
@@ -281,7 +278,7 @@ impl SubnetPositioner {
         let subnet_positions: HashMap<Uuid, Ixy> = nodes
             .iter()
             .filter_map(|n| match n.node_type {
-                NodeType::SubnetNode { .. } => Some((n.id, n.position.clone())),
+                NodeType::SubnetNode { .. } => Some((n.id, n.position)),
                 _ => None,
             })
             .collect();
@@ -336,7 +333,7 @@ impl SubnetPositioner {
         let subnet_positions: HashMap<Uuid, Ixy> = nodes
             .iter()
             .filter_map(|n| match n.node_type {
-                NodeType::SubnetNode { .. } => Some((n.id, n.position.clone())),
+                NodeType::SubnetNode { .. } => Some((n.id, n.position)),
                 _ => None,
             })
             .collect();

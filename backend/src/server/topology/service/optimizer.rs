@@ -96,7 +96,7 @@ impl TopologyOptimizer {
         let subnet_positions: HashMap<Uuid, Ixy> = nodes
             .iter()
             .filter_map(|n| match n.node_type {
-                NodeType::SubnetNode { .. } => Some((n.id, n.position.clone())),
+                NodeType::SubnetNode { .. } => Some((n.id, n.position)),
                 _ => None,
             })
             .collect();
@@ -335,7 +335,7 @@ impl TopologyOptimizer {
                     && infra == is_infra
                     && reordered_node_ids.contains(&n.id) =>
                 {
-                    Some((n.id, n.position.clone()))
+                    Some((n.id, n.position))
                 }
                 _ => None,
             })
@@ -349,16 +349,13 @@ impl TopologyOptimizer {
         reordered_positions.sort_by_key(|(_, pos)| pos.x);
 
         // Create a mapping from order index to position
-        let position_values: Vec<Ixy> = reordered_positions
-            .iter()
-            .map(|(_, pos)| pos.clone())
-            .collect();
+        let position_values: Vec<Ixy> = reordered_positions.iter().map(|(_, pos)| *pos).collect();
 
         // Assign new positions based on topological order
         for (new_idx, &node_id) in order.iter().enumerate() {
             if new_idx < position_values.len() {
                 if let Some(node) = nodes.iter_mut().find(|n| n.id == node_id) {
-                    node.position = position_values[new_idx].clone();
+                    node.position = position_values[new_idx];
                 }
             }
         }
@@ -370,7 +367,7 @@ impl TopologyOptimizer {
         let subnet_positions: HashMap<Uuid, Ixy> = nodes
             .iter()
             .filter_map(|n| match n.node_type {
-                NodeType::SubnetNode { .. } => Some((n.id, n.position.clone())),
+                NodeType::SubnetNode { .. } => Some((n.id, n.position)),
                 _ => None,
             })
             .collect();
@@ -498,7 +495,7 @@ impl TopologyOptimizer {
 
     /// Get absolute position of a node (including subnet offset)
     fn get_absolute_position(node: &Node, subnet_positions: &HashMap<Uuid, Ixy>) -> Ixy {
-        let mut pos = node.position.clone();
+        let mut pos = node.position;
 
         if let NodeType::HostNode { subnet_id, .. } = node.node_type {
             if let Some(subnet_pos) = subnet_positions.get(&subnet_id) {
@@ -517,18 +514,18 @@ impl TopologyOptimizer {
 
         for node in nodes.iter() {
             if node.id == node_a {
-                pos_a = Some(node.position.clone());
+                pos_a = Some(node.position);
             } else if node.id == node_b {
-                pos_b = Some(node.position.clone());
+                pos_b = Some(node.position);
             }
         }
 
         if let (Some(pa), Some(pb)) = (pos_a, pos_b) {
             for node in nodes.iter_mut() {
                 if node.id == node_a {
-                    node.position = pb.clone();
+                    node.position = pb;
                 } else if node.id == node_b {
-                    node.position = pa.clone();
+                    node.position = pa;
                 }
             }
         }
@@ -539,7 +536,7 @@ impl TopologyOptimizer {
         let subnet_positions: HashMap<Uuid, Ixy> = nodes
             .iter()
             .filter_map(|n| match n.node_type {
-                NodeType::SubnetNode { .. } => Some((n.id, n.position.clone())),
+                NodeType::SubnetNode { .. } => Some((n.id, n.position)),
                 _ => None,
             })
             .collect();
@@ -576,7 +573,7 @@ impl TopologyOptimizer {
                     subnet_id,
                     is_infra,
                     ..
-                } => Some((n.id, (n.position.clone(), *subnet_id, *is_infra))),
+                } => Some((n.id, (n.position, *subnet_id, *is_infra))),
                 _ => None,
             })
             .collect();

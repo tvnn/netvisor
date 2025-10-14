@@ -1,7 +1,9 @@
 use uuid::Uuid;
 
 use crate::server::{
-    groups::types::Group, hosts::types::base::Host, services::types::base::Service,
+    groups::types::Group,
+    hosts::types::{base::Host, interfaces::Interface},
+    services::types::base::Service,
     subnets::types::base::Subnet,
 };
 
@@ -41,6 +43,12 @@ impl<'a> TopologyContext<'a> {
         self.services.iter().find(|s| s.id == service_id)
     }
 
+    pub fn get_interface_by_id(&self, interface_id: Option<Uuid>) -> Option<&'a Interface> {
+        self.hosts
+            .iter()
+            .find_map(|h| h.get_interface(&interface_id))
+    }
+
     pub fn get_services_bound_to_interface(&self, interface_id: Uuid) -> Vec<&'a Service> {
         self.services
             .iter()
@@ -61,6 +69,16 @@ impl<'a> TopologyContext<'a> {
         self.hosts
             .iter()
             .find(|h| h.base.interfaces.iter().any(|i| i.id == interface_id))
+    }
+
+    pub fn get_host_is_virtualized_by(&self, host_id: &Uuid) -> Option<&Service> {
+        self.services.iter().find(|s| s.base.vms.contains(host_id))
+    }
+
+    pub fn get_service_is_containerized_by(&self, service_id: &Uuid) -> Option<&Service> {
+        self.services
+            .iter()
+            .find(|s| s.base.containers.contains(service_id))
     }
 
     pub fn get_interfaces_with_infra_service(&self, subnet: &Subnet) -> Vec<Option<Uuid>> {

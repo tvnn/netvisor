@@ -27,49 +27,27 @@ pub enum NodeType {
     SubnetNode {
         infra_width: usize,
         subnet_type: SubnetType,
-        label_override: Option<String>,
+        header: Option<String>,
     },
     HostNode {
         subnet_id: Uuid,
         host_id: Uuid,
         interface_id: Option<Uuid>,
         is_infra: bool,
+        header: Option<String>,
     },
 }
 
 #[derive(Debug, Clone)]
 pub struct SubnetChild {
     pub id: Uuid,
+    pub header: Option<String>,
     pub host_id: Uuid,
     pub interface_id: Option<Uuid>,
-    pub size: SubnetChildNodeSize,
+    pub size: Uxy,
     pub primary_handle: Option<EdgeHandle>,
     pub anchor_count: usize,
     pub should_relocate_handles: bool,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum SubnetChildNodeSize {
-    Small,
-    Medium,
-    Large,
-}
-
-impl SubnetChildNodeSize {
-    pub fn from_service_count(count: usize) -> Self {
-        match count {
-            0..=3 => SubnetChildNodeSize::Medium,
-            _ => SubnetChildNodeSize::Large,
-        }
-    }
-
-    pub fn size(&self) -> Uxy {
-        match self {
-            SubnetChildNodeSize::Small => Uxy { x: 175, y: 100 },
-            SubnetChildNodeSize::Medium => Uxy { x: 175, y: 125 },
-            SubnetChildNodeSize::Large => Uxy { x: 175, y: 150 },
-        }
-    }
 }
 
 impl SubnetType {

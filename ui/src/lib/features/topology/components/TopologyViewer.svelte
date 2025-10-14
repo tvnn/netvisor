@@ -54,7 +54,7 @@
 						width: node.size.x,
 						height: node.size.y,
 						subnet_type: node.subnet_type,
-						label_override: node.label_override
+						header: node.header
 					};
 
 					return {

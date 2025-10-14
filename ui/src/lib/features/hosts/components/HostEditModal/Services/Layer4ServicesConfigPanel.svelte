@@ -13,7 +13,6 @@
 	import { v4 as uuidv4 } from 'uuid';
 	import { getServicesForPort } from '$lib/features/services/store';
 	import { Layer4BindingDisplay } from '$lib/shared/components/forms/selection/display/Layer4BindingDisplay.svelte';
-	import VirtualizationConfigForm from './VirtualizationConfigForm.svelte';
 
 	export let formApi: FormApi;
 	export let formData: Host;
@@ -160,7 +159,7 @@
 			{/if}
 		</div>
 
-		<VirtualizationConfigForm formData={service} {formApi} />
+		<!-- <VirtualizationConfigForm formData={service} {formApi} /> -->
 
 		<!-- Bindings -->
 		<div class="space-y-4">

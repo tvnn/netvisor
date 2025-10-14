@@ -66,11 +66,11 @@
 				emptyText: 'No reverse proxies'
 			},
 			{
-				label: 'Hosts',
+				label: 'Services',
 				items: getSubnetServices(subnet).map((s) => ({
 					id: s.id,
 					label: formatServiceAsHost(s.id),
-					color: entities.getColorString('Host')
+					color: entities.getColorString('Service')
 				})),
 				emptyText: 'No reverse proxies'
 			}

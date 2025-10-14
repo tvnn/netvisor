@@ -49,11 +49,13 @@
 
 	<ListManager
 		label="Managed Containers"
-		helpText="Select which services are containers managed by this service"
+		helpText="Select which services are containers managed by {service.name}"
 		placeholder="Add container service..."
 		emptyMessage="No containers managed by this service yet. Add services that run in containers on this host."
 		allowReorder={false}
 		allowDuplicates={false}
+		allowItemEdit={() => false}
+		showSearch={true}
 		options={selectableContainers}
 		items={managedContainers}
 		optionDisplayComponent={ServiceDisplay}

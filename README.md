@@ -137,6 +137,15 @@ Discovery can take 5-10+ minutes depending on how many subnets the daemon's host
 
 ## Network Organization
 
+### Managing Virtualization & Containers
+
+Hosts with Proxmox and Docker services will have an additional virtualization tab allowing you to manage hosts / services that they manage as VMs / containers. This will change how these hosts / services are represented in the visualization.
+
+<p align="center">
+  <img src="./media/virtualization_management.png" width="400" alt="Virtualization Management">
+</p>
+
+
 ### Consolidating Hosts
 
 The discovery process does its best to merge duplicate hosts, but this isn't always possible. You can consolidate hosts that actually represent multiple interfaces or services on the same host using the Consolidate feature. This migrates all ports, interfaces, and services to a single host record.

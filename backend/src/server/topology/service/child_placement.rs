@@ -35,7 +35,7 @@ impl ChildNodePlacement {
                         .map(|h| h.layout_priority())
                         .unwrap_or(255),
                     std::cmp::Reverse(c.anchor_count),
-                    std::cmp::Reverse(c.size.size().y),
+                    std::cmp::Reverse(c.size.y),
                 )
             })
             .collect();
@@ -129,7 +129,7 @@ impl ChildNodePlacement {
                     rows[row_idx].push((
                         child.id,
                         NodeLayout {
-                            size: child.size.size(),
+                            size: child.size,
                             grid_position: Uxy {
                                 x: col_idx,
                                 y: row_idx,

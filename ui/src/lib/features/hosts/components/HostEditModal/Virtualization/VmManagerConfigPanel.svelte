@@ -52,6 +52,7 @@
 		emptyMessage="No VMs managed by this service yet. Add hosts that are VMs running on this hypervisor."
 		allowReorder={false}
 		allowDuplicates={false}
+		showSearch={true}
 		options={selectableVms}
 		items={managedVms}
 		optionDisplayComponent={HostDisplay}

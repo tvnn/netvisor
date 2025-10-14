@@ -36,7 +36,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-      start_period: 30s
+      start_period: 60s
     networks:
       netvisor-dev:
         ipv4_address: 172.25.0.3
@@ -73,14 +73,14 @@ services:
       interval: 5s
       timeout: 3s
       retries: 15
-      start_period: 30s
+      start_period: 60s
     networks:
       netvisor-dev:
         ipv4_address: 172.25.0.4
 
   homeassistant:
     image: lscr.io/linuxserver/homeassistant:latest
-    container_name: homeassistant
+    container_name: homeassistant-discovery
     environment:
       - PUID=1000
       - PGID=1000
