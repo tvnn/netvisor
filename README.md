@@ -4,8 +4,8 @@
 
 NetVisor scans your network, identifies hosts and services, and generates an interactive visualization showing how everything connects, letting you easily create and maintain network documentation.
 
-![License](https://img.shields.io/github/license/yourusername/netvisor)![GitHub release](https://img.shields.io/github/v/release/mayanayza/netvisor)
-![Build](https://img.shields.io/github/actions/workflow/status/mayanayza/netvisor/daemon-ci.yml)![Build](https://img.shields.io/github/actions/workflow/status/mayanayza/netvisor/server-ci.yml)![Build](https://img.shields.io/github/actions/workflow/status/mayanayza/netvisor/ui-ci.yml)
+![License](https://img.shields.io/github/license/mayanayza/netvisor)![GitHub release](https://img.shields.io/github/v/release/mayanayza/netvisor)
+![Daemon](https://img.shields.io/github/actions/workflow/status/mayanayza/netvisor/daemon-ci.yml?label=daemon-ci)![Server](https://img.shields.io/github/actions/workflow/status/mayanayza/netvisor/server-ci.yml?label=server-ci)![UI](https://img.shields.io/github/actions/workflow/status/mayanayza/netvisor/ui-ci.yml?label=ui-ci)
 
 
 
@@ -32,6 +32,10 @@ NetVisor scans your network, identifies hosts and services, and generates an int
   - [Server Configuration](#server-configuration)
 - [Uninstall Daemon](#uninstall-daemon)
 - [FAQ](#faq)
+  - [Where does NetVisor store my data?](#where-does-netvisor-store-my-data)
+  - [What services can NetVisor discover?](#what-services-can-netvisor-discover)
+  - [Are VLANs supported?](#are-vlans-supported)
+  - [Is IPv6 Supported?](#is-ipv6-supported)
 
 ## Architecture
 
@@ -149,7 +153,7 @@ Discovery can take 5-10+ minutes depending on how many subnets the daemon's host
 Hosts with Proxmox and Docker services will have an additional virtualization tab allowing you to manage hosts / services that they manage as VMs / containers. This will change how these hosts / services are represented in the visualization.
 
 <p align="center">
-  <img src="./media/virtualization_management.png" width="400" alt="Virtualization Management">
+  <img src="./media/virtualization_management.png" width="800" alt="Virtualization Management">
 </p>
 
 
@@ -277,7 +281,7 @@ Yes, you can collect information from hosts on multiple vlans by using multiple 
 
 Not currently. Future plans to support IPv6 will focus on collecting a host's IPv6 address during discovery and/or allowing manual entry of it during editing. Scanning the entire IPv6 space of a discovered subnet will never be supported as it will take too long to do so.
 
-### What Services Are Supported?
+### What services can NetVisor discover?
 
 NetVisor automatically detects 50+ common services including:
 
