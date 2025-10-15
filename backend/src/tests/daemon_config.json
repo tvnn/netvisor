@@ -6,7 +6,7 @@
   "log_level": "info",
   "heartbeat_interval": 30,
   "bind_address": "0.0.0.0",
-  "id": "2340fd0b-d8dc-41e7-a391-75249ce8a068",
-  "last_heartbeat": "2025-10-07T21:16:09.545756669Z",
-  "host_id": "92a64b4d-fe36-43d2-9823-216ffbb6b652"
+  "id": "f7927234-c7e1-4751-969c-ada1cfadf16e",
+  "last_heartbeat": "2025-10-15T17:44:45.468653082Z",
+  "host_id": "a0ba5ff7-e6de-4373-b908-b95b72c943c5"
 }
