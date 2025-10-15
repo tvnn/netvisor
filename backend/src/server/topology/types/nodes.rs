@@ -1,9 +1,7 @@
+use crate::server::topology::types::edges::Edge;
 use crate::server::{
     subnets::types::base::SubnetType,
-    topology::types::{
-        base::{Ixy, Uxy},
-        edges::EdgeHandle,
-    },
+    topology::types::base::{Ixy, Uxy},
 };
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
@@ -45,13 +43,11 @@ pub struct SubnetChild {
     pub host_id: Uuid,
     pub interface_id: Option<Uuid>,
     pub size: Uxy,
-    pub primary_handle: Option<EdgeHandle>,
-    pub anchor_count: usize,
-    pub should_relocate_handles: bool,
+    pub edges: Vec<Edge>,
 }
 
 impl SubnetType {
-    pub fn default_layer(&self) -> usize {
+    pub fn vertical_order(&self) -> usize {
         match self {
             // Layer 0: External
             SubnetType::Internet => 0,
@@ -79,7 +75,7 @@ impl SubnetType {
         }
     }
 
-    pub fn layer_priority(&self) -> usize {
+    pub fn horizontal_order(&self) -> usize {
         match self {
             // Layer 0
             SubnetType::Internet => 0,

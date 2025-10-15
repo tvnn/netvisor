@@ -11,8 +11,8 @@ use crate::server::{
     subnets::service::SubnetService,
     topology::{
         service::{
-            context::TopologyContext, edge_builder::EdgeBuilder, optimizer::TopologyOptimizer,
-            subnet_layout_planner::SubnetLayoutPlanner,
+            context::TopologyContext, edge_builder::EdgeBuilder,
+            optimizer::main::TopologyOptimizer, subnet_layout_planner::SubnetLayoutPlanner,
         },
         types::{api::TopologyRequestOptions, edges::Edge, nodes::Node},
     },
@@ -56,8 +56,12 @@ impl TopologyService {
         // Create all edges (needed for anchor analysis)
         let interface_edges = EdgeBuilder::create_interface_edges(&ctx);
         let group_edges = EdgeBuilder::create_group_edges(&ctx);
-        let container_edges = EdgeBuilder::create_containerized_service_edges(&ctx);
-        let all_edges: Vec<Edge> = interface_edges
+        let (container_edges, docker_bridge_host_subnet_id_to_group_on) =
+            EdgeBuilder::create_containerized_service_edges(
+                &ctx,
+                options.group_docker_bridges_by_host,
+            );
+        let mut all_edges: Vec<Edge> = interface_edges
             .into_iter()
             .chain(group_edges)
             .chain(container_edges)
@@ -67,19 +71,18 @@ impl TopologyService {
         let mut layout_planner = SubnetLayoutPlanner::new();
         let (subnet_layouts, child_nodes) = layout_planner.create_subnet_child_nodes(
             &ctx,
-            &all_edges,
+            &mut all_edges,
             options.group_docker_bridges_by_host,
+            docker_bridge_host_subnet_id_to_group_on,
         );
-
-        // Get relocation info from layout planner
-        let relocation_map = layout_planner.get_handle_relocation_map();
 
         let subnet_nodes = layout_planner.create_subnet_nodes(&ctx, &subnet_layouts);
 
         // Optimize node positions and handle edge adjustments
-        let optimizer = TopologyOptimizer::new();
+        let optimizer = TopologyOptimizer::new(&ctx);
         let mut all_nodes: Vec<Node> = subnet_nodes.into_iter().chain(child_nodes).collect();
-        let all_edges = optimizer.optimize_graph(&mut all_nodes, all_edges, relocation_map);
+
+        let optimized_edges = optimizer.optimize_graph(&mut all_nodes, &all_edges);
 
         // Build graph
         let mut graph: Graph<Node, Edge> = Graph::new();
@@ -93,7 +96,7 @@ impl TopologyService {
             .collect();
 
         // Add edges to graph
-        EdgeBuilder::add_edges_to_graph(&mut graph, &node_indices, all_edges);
+        EdgeBuilder::add_edges_to_graph(&mut graph, &node_indices, optimized_edges);
 
         Ok(graph)
     }

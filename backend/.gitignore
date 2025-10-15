@@ -1,6 +1,7 @@
 /target/
 /releases/
 /.vscode/
+/static/
 .DS_STORE
 .env
 
@@ -8,4 +9,4 @@
 *.db
 
 # But allow test fixtures
-!backend/src/tests/*.db
+!src/tests/netvisor.db

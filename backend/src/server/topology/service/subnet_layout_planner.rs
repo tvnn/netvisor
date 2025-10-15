@@ -9,23 +9,21 @@ use crate::server::{
     subnets::types::base::SubnetType,
     topology::{
         service::{
-            anchor_analyzer::AnchorAnalyzer, child_placement::ChildNodePlacement,
+            anchor_analyzer::ChildEdgeAnalyzer, child_placement::ChildNodePlacement,
             context::TopologyContext, grid_calculator::GridCalculator,
         },
         types::{
             base::{Ixy, NodeLayout, SubnetLayout, Uxy},
-            edges::{Edge, EdgeHandle},
+            edges::Edge,
             nodes::{Node, NodeType, SubnetChild},
         },
     },
 };
 
-const SUBNET_PADDING: Uxy = Uxy { x: 125, y: 125 };
-const NODE_PADDING: Uxy = Uxy { x: 50, y: 50 };
+pub const SUBNET_PADDING: Uxy = Uxy { x: 125, y: 125 };
+pub const NODE_PADDING: Uxy = Uxy { x: 50, y: 50 };
 
 pub struct SubnetLayoutPlanner {
-    no_subnet_id: Uuid,
-    handle_relocation_map: HashMap<Uuid, EdgeHandle>,
     consolidated_docker_subnets: HashMap<Uuid, Vec<Uuid>>,
 }
 
@@ -38,18 +36,8 @@ impl Default for SubnetLayoutPlanner {
 impl SubnetLayoutPlanner {
     pub fn new() -> Self {
         Self {
-            no_subnet_id: Uuid::new_v4(),
-            handle_relocation_map: HashMap::new(),
             consolidated_docker_subnets: HashMap::new(),
         }
-    }
-
-    pub fn no_subnet_id(&self) -> Uuid {
-        self.no_subnet_id
-    }
-
-    pub fn get_handle_relocation_map(&self) -> &HashMap<Uuid, EdgeHandle> {
-        &self.handle_relocation_map
     }
 
     pub fn get_consolidated_docker_subnets(&self) -> &HashMap<Uuid, Vec<Uuid>> {
@@ -60,11 +48,16 @@ impl SubnetLayoutPlanner {
     pub fn create_subnet_child_nodes(
         &mut self,
         ctx: &TopologyContext,
-        all_edges: &[Edge],
+        all_edges: &mut [Edge],
         group_docker_bridges_by_host: bool,
+        docker_bridge_host_subnet_id_to_group_on: HashMap<Uuid, Uuid>,
     ) -> (HashMap<Uuid, SubnetLayout>, Vec<Node>) {
-        let children_by_subnet =
-            self.group_children_by_subnet(ctx, all_edges, group_docker_bridges_by_host);
+        let children_by_subnet = self.group_children_by_subnet(
+            ctx,
+            all_edges,
+            group_docker_bridges_by_host,
+            docker_bridge_host_subnet_id_to_group_on,
+        );
         let mut child_nodes = Vec::new();
 
         let subnet_sizes: HashMap<Uuid, SubnetLayout> = children_by_subnet
@@ -111,6 +104,7 @@ impl SubnetLayoutPlanner {
                 .collect();
 
             // If they have one interface on a common subnet, and they both don't have multiple interfaces with the subnet
+            // Use the IP address from that interface in the header text
             match intersection.first() {
                 Some(first) if intersection.len() == 1 => {
                     if let Some(interface) = host
@@ -164,14 +158,15 @@ impl SubnetLayoutPlanner {
     fn group_children_by_subnet(
         &mut self,
         ctx: &TopologyContext,
-        all_edges: &[Edge],
+        all_edges: &mut [Edge],
         group_docker_bridges_by_host: bool,
+        docker_bridge_host_subnet_id_to_group_on: HashMap<Uuid, Uuid>,
     ) -> HashMap<Uuid, Vec<SubnetChild>> {
         let mut children_by_subnet: HashMap<Uuid, Vec<SubnetChild>> = HashMap::new();
 
         // Track DockerBridge interfaces by host (only used if grouping is enabled)
-        // Map: host_id -> (primary_subnet_id, Vec<(subnet_id, SubnetChild)>)
-        let mut docker_by_host: HashMap<Uuid, (Uuid, Vec<(Uuid, SubnetChild)>)> = HashMap::new();
+        // Map: (host_id, primary_subnet_id) -> Vec<subnet_id>)
+        let mut docker_subnets_by_host: HashMap<(Uuid, Uuid), Vec<Uuid>> = HashMap::new();
 
         for host in ctx.hosts {
             for interface in &host.base.interfaces {
@@ -196,8 +191,7 @@ impl SubnetLayoutPlanner {
                     continue;
                 }
 
-                let (primary_handle, anchor_count, should_relocate) =
-                    AnchorAnalyzer::analyze_child_anchors(interface.id, all_edges, ctx);
+                let edges = ChildEdgeAnalyzer::analyze_child_edges(interface.id, all_edges, ctx);
 
                 let header_text =
                     self.determine_subnet_child_header_text(ctx, &interface_bound_services, host);
@@ -211,18 +205,24 @@ impl SubnetLayoutPlanner {
                     ),
                     header: header_text,
                     interface_id: Some(interface.id),
-                    primary_handle,
-                    anchor_count,
-                    should_relocate_handles: should_relocate,
+                    edges,
                 };
 
                 // Special handling for DockerBridge (only if grouping is enabled)
                 if group_docker_bridges_by_host && matches!(subnet_type, SubnetType::DockerBridge) {
-                    let entry = docker_by_host.entry(host.id).or_insert_with(|| {
-                        // Use the first DockerBridge subnet we encounter for this host
-                        (interface.base.subnet_id, Vec::new())
-                    });
-                    entry.1.push((interface.base.subnet_id, child));
+                    if let Some(subnet_grouping_id) =
+                        docker_bridge_host_subnet_id_to_group_on.get(&host.id)
+                    {
+                        docker_subnets_by_host
+                            .entry((host.id, *subnet_grouping_id))
+                            .or_default()
+                            .push(interface.base.subnet_id);
+
+                        children_by_subnet
+                            .entry(*subnet_grouping_id)
+                            .or_default()
+                            .push(child);
+                    }
                 } else {
                     children_by_subnet
                         .entry(interface.base.subnet_id)
@@ -234,32 +234,14 @@ impl SubnetLayoutPlanner {
 
         // Consolidate all DockerBridge children into their primary subnet (only if grouping is enabled)
         if group_docker_bridges_by_host {
-            for (_host_id, (primary_subnet_id, docker_children_with_subnets)) in docker_by_host {
-                if !docker_children_with_subnets.is_empty() {
-                    // Track which subnets were consolidated
-                    let mut consolidated_subnet_ids: Vec<Uuid> = docker_children_with_subnets
-                        .iter()
-                        .map(|(subnet_id, _)| *subnet_id)
-                        .collect();
+            for ((_, grouping_id), mut subnet_ids) in docker_subnets_by_host {
+                // Remove duplicates and sort for consistency
+                subnet_ids.sort();
+                subnet_ids.dedup();
 
-                    // Remove duplicates and sort for consistency
-                    consolidated_subnet_ids.sort();
-                    consolidated_subnet_ids.dedup();
-
-                    // Store the consolidation mapping
-                    self.consolidated_docker_subnets
-                        .insert(primary_subnet_id, consolidated_subnet_ids);
-
-                    // Add all children to the primary subnet
-                    children_by_subnet
-                        .entry(primary_subnet_id)
-                        .or_default()
-                        .extend(
-                            docker_children_with_subnets
-                                .into_iter()
-                                .map(|(_, child)| child),
-                        );
-                }
+                // Store the consolidation mapping
+                self.consolidated_docker_subnets
+                    .insert(grouping_id, subnet_ids);
             }
         }
 
@@ -299,6 +281,7 @@ impl SubnetLayoutPlanner {
                 ChildNodePlacement::calculate_anchor_based_positions(
                     &regular_children,
                     &regular_grid_dimensions,
+                    ctx,
                 );
 
             let (regular_child_positions, regular_grid_size) =
@@ -327,6 +310,7 @@ impl SubnetLayoutPlanner {
                 ChildNodePlacement::calculate_anchor_based_positions(
                     &infrastructure_children,
                     &infra_grid_dimensions,
+                    ctx,
                 );
 
             let (infra_child_positions, infra_grid_size) = GridCalculator::calculate_container_size(
@@ -339,12 +323,6 @@ impl SubnetLayoutPlanner {
         // Create infrastructure nodes
         infrastructure_children.iter().for_each(|child| {
             if let Some(position) = infra_child_positions.get(&child.id) {
-                if child.should_relocate_handles {
-                    if let Some(handle) = &child.primary_handle {
-                        self.handle_relocation_map.insert(child.id, *handle);
-                    }
-                }
-
                 child_nodes.push(Node {
                     id: child.id,
                     node_type: NodeType::HostNode {
@@ -363,12 +341,6 @@ impl SubnetLayoutPlanner {
         // Create regular nodes
         regular_children.iter().for_each(|child| {
             if let Some(position) = regular_child_positions.get(&child.id) {
-                if child.should_relocate_handles {
-                    if let Some(handle) = &child.primary_handle {
-                        self.handle_relocation_map.insert(child.id, *handle);
-                    }
-                }
-
                 let node_position = Ixy {
                     x: position.x
                         + if infra_cols > 0 {
@@ -415,20 +387,6 @@ impl SubnetLayoutPlanner {
             .iter()
             .filter_map(|(subnet_id, layout)| {
                 if let Some(position) = positions.get(subnet_id) {
-                    // Handle no_subnet case
-                    if *subnet_id == self.no_subnet_id {
-                        return Some(Node {
-                            id: *subnet_id,
-                            node_type: NodeType::SubnetNode {
-                                infra_width: layout.infra_width,
-                                subnet_type: SubnetType::None,
-                                header: None,
-                            },
-                            position: *position,
-                            size: layout.size,
-                        });
-                    }
-
                     if let Some(consolidated_subnet_ids) =
                         self.consolidated_docker_subnets.get(subnet_id)
                     {
@@ -484,8 +442,8 @@ impl SubnetLayoutPlanner {
             .iter()
             .sorted_by_key(|s| {
                 (
-                    s.base.subnet_type.default_layer(),
-                    s.base.subnet_type.layer_priority(),
+                    s.base.subnet_type.vertical_order(),
+                    s.base.subnet_type.horizontal_order(),
                     s.base.name.clone(),
                 )
             })
@@ -495,7 +453,7 @@ impl SubnetLayoutPlanner {
         let mut subnets_by_layer: BTreeMap<usize, Vec<(&Uuid, &SubnetLayout)>> = BTreeMap::new();
         for (subnet, layout) in sorted {
             subnets_by_layer
-                .entry(subnet.base.subnet_type.default_layer())
+                .entry(subnet.base.subnet_type.vertical_order())
                 .or_default()
                 .push((&subnet.id, layout));
         }

@@ -2,14 +2,11 @@ use petgraph::{graph::NodeIndex, Graph};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::server::{
-    subnets::types::base::Subnet,
-    topology::{
-        service::context::TopologyContext,
-        types::{
-            edges::{Edge, EdgeHandle, EdgeType},
-            nodes::Node,
-        },
+use crate::server::topology::{
+    service::context::TopologyContext,
+    types::{
+        edges::{Edge, EdgeHandle, EdgeType},
+        nodes::Node,
     },
 };
 
@@ -46,11 +43,19 @@ impl EdgeBuilder {
                                 &interface_1,
                             )?;
 
+                        let label = if ctx.get_subnet_from_interface_id(interface_0).map(|s| s.id)
+                            == ctx.get_subnet_from_interface_id(interface_1).map(|s| s.id)
+                        {
+                            None
+                        } else {
+                            Some(group.base.name.to_string())
+                        };
+
                         return Some(Edge {
                             source: interface_0,
                             target: interface_1,
                             edge_type: EdgeType::Group(group.base.group_type),
-                            label: Some(group.base.name.to_string()),
+                            label,
                             source_handle,
                             target_handle,
                         });
@@ -61,13 +66,23 @@ impl EdgeBuilder {
             .collect()
     }
 
-    pub fn create_containerized_service_edges(ctx: &TopologyContext) -> Vec<Edge> {
-        ctx.services
+    pub fn create_containerized_service_edges(
+        ctx: &TopologyContext,
+        group_docker_bridges_by_host: bool,
+    ) -> (Vec<Edge>, HashMap<Uuid, Uuid>) {
+        // Host id to subnet id that will be used for grouping, if enabled
+        let mut docker_bridge_host_subnet_id_to_group_on: HashMap<Uuid, Uuid> = HashMap::new();
+
+        let edges = ctx
+            .services
             .iter()
             .filter(|s| !s.base.containers.is_empty())
             .filter_map(|s| {
                 let host = ctx.get_host_by_id(s.base.host_id)?;
-
+                let origin_interface = host.base.interfaces.first()?;
+                Some((s, host, origin_interface))
+            })
+            .flat_map(|(s, host, origin_interface)| {
                 let container_subnets: Vec<Uuid> = host
                     .base
                     .interfaces
@@ -93,12 +108,34 @@ impl EdgeBuilder {
                     })
                     .collect();
 
-                let origin_interface = host.base.interfaces.first()?;
+                if group_docker_bridges_by_host {
+                    // If subnets are grouped, pick an arbitrary
+                    if let (Some(first_interface_id), Some(first_subnet_id)) = (
+                        container_subnet_interface_ids.first(),
+                        container_subnets.first(),
+                    ) {
+                        if let Some((source_handle, target_handle)) =
+                            EdgeBuilder::determine_interface_handles(
+                                ctx,
+                                &origin_interface.id,
+                                first_interface_id,
+                            )
+                        {
+                            docker_bridge_host_subnet_id_to_group_on
+                                .entry(host.id)
+                                .or_insert(*first_subnet_id);
 
-                Some((s, origin_interface.id, container_subnet_interface_ids))
-            })
-            .flat_map(|(s, origin_interface_id, container_subnet_interface_ids)| {
-                if let Some(host) = ctx.get_host_by_id(s.base.host_id) {
+                            return vec![Edge {
+                                source: origin_interface.id,
+                                target: *first_subnet_id,
+                                edge_type: EdgeType::ServiceVirtualization,
+                                label: Some(format!("{} on {}", s.base.name, host.base.name)),
+                                source_handle,
+                                target_handle,
+                            }];
+                        }
+                    }
+                } else {
                     return s
                         .base
                         .containers
@@ -116,12 +153,12 @@ impl EdgeBuilder {
                             let (source_handle, target_handle) =
                                 EdgeBuilder::determine_interface_handles(
                                     ctx,
-                                    &origin_interface_id,
+                                    &origin_interface.id,
                                     &container_binding_interface_id,
                                 )?;
 
                             Some(Edge {
-                                source: origin_interface_id,
+                                source: origin_interface.id,
                                 target: container_binding_interface_id,
                                 edge_type: EdgeType::ServiceVirtualization,
                                 label: Some(format!("{} on {}", s.base.name, host.base.name)),
@@ -130,10 +167,13 @@ impl EdgeBuilder {
                             })
                         })
                         .collect();
-                };
+                }
+
                 Vec::new()
             })
-            .collect()
+            .collect();
+
+        (edges, docker_bridge_host_subnet_id_to_group_on)
     }
 
     /// Create interface edges (connecting multiple interfaces on the same host)
@@ -204,8 +244,8 @@ impl EdgeBuilder {
             .contains(&Some(*target_interface_id));
 
         // Check if infra constraints are actually necessary
-        let source_needs_infra_constraint = Self::subnet_has_mixed_infra(ctx, source_subnet);
-        let target_needs_infra_constraint = Self::subnet_has_mixed_infra(ctx, target_subnet);
+        let source_needs_infra_constraint = ctx.subnet_has_mixed_infra(source_subnet);
+        let target_needs_infra_constraint = ctx.subnet_has_mixed_infra(target_subnet);
 
         Some(EdgeHandle::from_subnet_layers(
             source_subnet,
@@ -213,36 +253,6 @@ impl EdgeBuilder {
             source_is_infra && source_needs_infra_constraint,
             target_is_infra && target_needs_infra_constraint,
         ))
-    }
-
-    /// Check if a subnet has both infra and non-infra nodes
-    /// If it only has one type, infra constraints are not necessary
-    fn subnet_has_mixed_infra(ctx: &TopologyContext, subnet: &Subnet) -> bool {
-        let infra_interfaces = ctx.get_interfaces_with_infra_service(subnet);
-
-        // Get all interfaces in this subnet
-        let all_interfaces_in_subnet: Vec<Uuid> = ctx
-            .hosts
-            .iter()
-            .flat_map(|h| &h.base.interfaces)
-            .filter(|i| i.base.subnet_id == subnet.id)
-            .map(|i| i.id)
-            .collect();
-
-        if all_interfaces_in_subnet.is_empty() {
-            return false;
-        }
-
-        // Check if we have both infra and non-infra
-        let has_infra = all_interfaces_in_subnet
-            .iter()
-            .any(|id| infra_interfaces.contains(&Some(*id)));
-
-        let has_non_infra = all_interfaces_in_subnet
-            .iter()
-            .any(|id| !infra_interfaces.contains(&Some(*id)));
-
-        has_infra && has_non_infra
     }
 
     /// Add edges to a petgraph Graph

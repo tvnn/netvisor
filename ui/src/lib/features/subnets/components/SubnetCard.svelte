@@ -72,7 +72,7 @@
 					label: formatServiceAsHost(s.id),
 					color: entities.getColorString('Service')
 				})),
-				emptyText: 'No reverse proxies'
+				emptyText: 'No reverse services'
 			}
 		],
 

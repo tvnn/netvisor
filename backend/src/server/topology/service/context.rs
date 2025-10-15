@@ -5,6 +5,10 @@ use crate::server::{
     hosts::types::{base::Host, interfaces::Interface},
     services::types::base::Service,
     subnets::types::base::Subnet,
+    topology::types::{
+        edges::Edge,
+        nodes::{Node, NodeType},
+    },
 };
 
 /// Central context for topology building operations
@@ -56,6 +60,26 @@ impl<'a> TopologyContext<'a> {
             .collect()
     }
 
+    pub fn get_node_subnet(&self, node_id: Uuid, nodes: &[Node]) -> Option<Uuid> {
+        nodes
+            .iter()
+            .find(|n| n.id == node_id)
+            .map(|node| match node.node_type {
+                NodeType::HostNode { subnet_id, .. } => subnet_id,
+                NodeType::SubnetNode { .. } => node.id,
+            })
+    }
+
+    pub fn edge_is_intra_subnet(&self, edge: &Edge) -> bool {
+        if let (Some(source_subnet), Some(target_subnet)) = (
+            self.get_subnet_from_interface_id(edge.source),
+            self.get_subnet_from_interface_id(edge.target),
+        ) {
+            return source_subnet.id == target_subnet.id;
+        }
+        false
+    }
+
     pub fn get_subnet_from_interface_id(&self, interface_id: Uuid) -> Option<&'a Subnet> {
         let interface = self
             .hosts
@@ -87,5 +111,43 @@ impl<'a> TopologyContext<'a> {
             .into_iter()
             .flat_map(|s| s.base.bindings.iter().map(|b| b.interface_id()))
             .collect()
+    }
+
+    pub fn is_interface_infra(&self, interface_id: Uuid) -> bool {
+        if let Some(subnet) = self.get_subnet_from_interface_id(interface_id) {
+            let infra_interfaces = self.get_interfaces_with_infra_service(subnet);
+            return infra_interfaces.contains(&Some(interface_id));
+        }
+        false
+    }
+
+    /// Check if a subnet has both infra and non-infra nodes
+    /// If it only has one type, infra constraints are not necessary
+    pub fn subnet_has_mixed_infra(&self, subnet: &Subnet) -> bool {
+        let infra_interfaces = self.get_interfaces_with_infra_service(subnet);
+
+        // Get all interfaces in this subnet
+        let all_interfaces_in_subnet: Vec<Uuid> = self
+            .hosts
+            .iter()
+            .flat_map(|h| &h.base.interfaces)
+            .filter(|i| i.base.subnet_id == subnet.id)
+            .map(|i| i.id)
+            .collect();
+
+        if all_interfaces_in_subnet.is_empty() {
+            return false;
+        }
+
+        // Check if we have both infra and non-infra
+        let has_infra = all_interfaces_in_subnet
+            .iter()
+            .any(|id| infra_interfaces.contains(&Some(*id)));
+
+        let has_non_infra = all_interfaces_in_subnet
+            .iter()
+            .any(|id| !infra_interfaces.contains(&Some(*id)));
+
+        has_infra && has_non_infra
     }
 }

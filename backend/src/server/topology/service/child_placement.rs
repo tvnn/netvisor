@@ -1,11 +1,12 @@
-use itertools::Itertools;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::server::topology::types::{
-    base::{NodeLayout, Uxy},
-    edges::EdgeHandle,
-    nodes::SubnetChild,
+use crate::server::topology::{
+    service::context::TopologyContext,
+    types::{
+        base::{Ixy, NodeLayout, Uxy},
+        nodes::SubnetChild,
+    },
 };
 
 pub struct ChildNodePlacement;
@@ -16,113 +17,115 @@ impl ChildNodePlacement {
     pub fn calculate_anchor_based_positions(
         children: &[SubnetChild],
         container_grid: &Uxy,
+        ctx: &TopologyContext,
     ) -> Vec<Vec<(Uuid, NodeLayout)>> {
         if children.is_empty() {
             return vec![Vec::new(); container_grid.y];
         }
 
-        // Create a 2D grid to track which positions are filled
-        let mut grid: Vec<Vec<Option<&SubnetChild>>> =
-            vec![vec![None; container_grid.x]; container_grid.y];
+        let grid_w = container_grid.x;
+        let grid_h = container_grid.y;
 
-        // Group by primary handle
-        let sorted_children: Vec<_> = children
+        // Create force directed map of subnet children
+        let force_directed_children: Vec<_> = children
             .iter()
-            .sorted_by_key(|c| {
-                (
-                    c.primary_handle
-                        .as_ref()
-                        .map(|h| h.layout_priority())
-                        .unwrap_or(255),
-                    std::cmp::Reverse(c.anchor_count),
-                    std::cmp::Reverse(c.size.y),
-                )
+            .map(|c| {
+                let force_direction = c.edges.iter().fold(Ixy::default(), |mut acc, e| {
+                    if !ctx.edge_is_intra_subnet(e) {
+                        if c.interface_id == Some(e.source) {
+                            acc.x += e.source_handle.direction().x;
+                            acc.y += e.source_handle.direction().y;
+                        } else if c.interface_id == Some(e.target) {
+                            acc.x += e.target_handle.direction().x;
+                            acc.y += e.target_handle.direction().y;
+                        }
+                    }
+
+                    acc
+                });
+
+                (c, force_direction)
             })
             .collect();
 
-        let grouped: HashMap<Option<EdgeHandle>, Vec<_>> = sorted_children
-            .into_iter()
-            .into_group_map_by(|c| c.primary_handle);
+        // Find force extremes ---
+        let (min_x, max_x) = force_directed_children
+            .iter()
+            .map(|(_, f)| f.x)
+            .fold((f32::INFINITY, f32::NEG_INFINITY), |(min, max), x| {
+                (min.min(x as f32), max.max(x as f32))
+            });
+        let (min_y, max_y) = force_directed_children
+            .iter()
+            .map(|(_, f)| f.y)
+            .fold((f32::INFINITY, f32::NEG_INFINITY), |(min, max), y| {
+                (min.min(y as f32), max.max(y as f32))
+            });
 
-        // Collect all unplaced nodes to handle overflow
-        let mut unplaced: Vec<&SubnetChild> = Vec::new();
-
-        // Top edge: place along first row
-        if let Some(top_children) = grouped.get(&Some(EdgeHandle::Top)) {
-            for (i, child) in top_children.iter().enumerate() {
-                if i < container_grid.x {
-                    grid[0][i] = Some(child);
-                } else {
-                    unplaced.push(child);
-                }
+        // Normalize to [0,1] space ---
+        let normalize = |v: isize, min: f32, max: f32| {
+            if (max - min).abs() < f32::EPSILON {
+                0.5 // avoid division by zero; center everything
+            } else {
+                (v as f32 - min) / (max - min)
             }
-        }
+        };
 
-        // Bottom edge: place along last row
-        if let Some(bottom_children) = grouped.get(&Some(EdgeHandle::Bottom)) {
-            if container_grid.y > 1 {
-                let last_row = container_grid.y - 1;
-                for (i, child) in bottom_children.iter().enumerate() {
-                    if i < container_grid.x {
-                        grid[last_row][i] = Some(child);
-                    } else {
-                        unplaced.push(child);
+        // Build grid ---
+        let mut grid = vec![vec![None; grid_w]; grid_h];
+        let mut placed = HashMap::new();
+
+        // Fill stronger directional children first
+        let mut sorted = force_directed_children.to_vec();
+        sorted.sort_by(|(_, a), (_, b)| {
+            b.x.abs()
+                .max(b.y.abs())
+                .partial_cmp(&a.x.abs().max(a.y.abs()))
+                .unwrap()
+        });
+
+        for (child, f) in sorted {
+            // --- 4️⃣ Map to grid coordinates separately for width & height ---
+            let gx = (normalize(f.x, min_x, max_x) * (grid_w as f32 - 1.0)).round() as isize;
+            let gy = (normalize(f.y, min_y, max_y) * (grid_h as f32 - 1.0)).round() as isize;
+
+            // Flip Y so positive Y means “up” visually
+            let gx = gx.clamp(0, (grid_w - 1) as isize);
+            let gy = ((grid_h - 1) as isize - gy).clamp(0, (grid_h - 1) as isize);
+
+            // --- 5️⃣ Find nearest available slot ---
+            let mut found_slot = None;
+            let mut radius = 0;
+            while found_slot.is_none() && radius < grid_w.max(grid_h) as isize {
+                for dy in -radius..=radius {
+                    for dx in -radius..=radius {
+                        let nx = gx + dx;
+                        let ny = gy + dy;
+                        if nx >= 0
+                            && ny >= 0
+                            && nx < grid_w as isize
+                            && ny < grid_h as isize
+                            && grid[ny as usize][nx as usize].is_none()
+                        {
+                            found_slot = Some((nx as usize, ny as usize));
+                            break;
+                        }
+                    }
+                    if found_slot.is_some() {
+                        break;
                     }
                 }
-            } else {
-                // No space for bottom row, add all to unplaced
-                unplaced.extend(bottom_children.iter().copied());
+                radius += 1;
             }
-        }
 
-        // Left edge: place along first column (skip corners if already filled)
-        if let Some(left_children) = grouped.get(&Some(EdgeHandle::Left)) {
-            for (i, child) in left_children.iter().enumerate() {
-                let row = i + 1; // Start from row 1 to avoid top corner
-                if row < container_grid.y.saturating_sub(1) && grid[row][0].is_none() {
-                    grid[row][0] = Some(child);
-                } else {
-                    unplaced.push(child);
-                }
-            }
-        }
-
-        // Right edge: place along last column (skip corners if already filled)
-        if let Some(right_children) = grouped.get(&Some(EdgeHandle::Right)) {
-            if container_grid.x > 1 {
-                let last_col = container_grid.x - 1;
-                for (i, child) in right_children.iter().enumerate() {
-                    let row = i + 1; // Start from row 1 to avoid top corner
-                    if row < container_grid.y.saturating_sub(1) && grid[row][last_col].is_none() {
-                        grid[row][last_col] = Some(child);
-                    } else {
-                        unplaced.push(child);
-                    }
-                }
-            } else {
-                // No space for right column, add all to unplaced
-                unplaced.extend(right_children.iter().copied());
-            }
-        }
-
-        // Add center nodes to unplaced list
-        if let Some(center_children) = grouped.get(&None) {
-            unplaced.extend(center_children.iter().copied());
-        }
-
-        // Fill remaining positions with unplaced nodes (center nodes + overflow from edges)
-        let mut unplaced_idx = 0;
-        for grid_row in grid.iter_mut().take(container_grid.y) {
-            for cell in grid_row.iter_mut().take(container_grid.x) {
-                if cell.is_none() && unplaced_idx < unplaced.len() {
-                    *cell = Some(unplaced[unplaced_idx]);
-                    unplaced_idx += 1;
-                }
+            if let Some((x, y)) = found_slot {
+                grid[y][x] = Some(child.clone());
+                placed.insert(child.id, (x, y));
             }
         }
 
         // Convert grid to the expected output format
-        let mut rows: Vec<Vec<(Uuid, NodeLayout)>> = vec![Vec::new(); container_grid.y];
+        let mut rows: Vec<Vec<(Uuid, NodeLayout)>> = vec![Vec::new(); grid_h];
         for (row_idx, row) in grid.iter().enumerate() {
             for (col_idx, cell) in row.iter().enumerate() {
                 if let Some(child) = cell {

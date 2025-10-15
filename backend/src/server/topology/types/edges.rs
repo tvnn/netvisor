@@ -5,6 +5,7 @@ use crate::server::{
         types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
     },
     subnets::types::base::Subnet,
+    topology::types::base::Ixy,
 };
 use serde::{Deserialize, Serialize};
 use strum::IntoEnumIterator;
@@ -42,6 +43,15 @@ impl EdgeHandle {
         }
     }
 
+    pub fn direction(&self) -> Ixy {
+        match self {
+            EdgeHandle::Top => Ixy { x: 0, y: 1 },
+            EdgeHandle::Bottom => Ixy { x: 0, y: -1 },
+            EdgeHandle::Left => Ixy { x: -1, y: 0 },
+            EdgeHandle::Right => Ixy { x: 1, y: 0 },
+        }
+    }
+
     /// Determine edge handle orientations based on subnet layer and priority
     pub fn from_subnet_layers(
         source_subnet: &Subnet,
@@ -54,12 +64,12 @@ impl EdgeHandle {
             return Self::from_same_subnet(source_is_infra, target_is_infra);
         }
 
-        let source_layer = source_subnet.base.subnet_type.default_layer();
-        let source_priority = source_subnet.base.subnet_type.layer_priority();
-        let target_layer = target_subnet.base.subnet_type.default_layer();
-        let target_priority = target_subnet.base.subnet_type.layer_priority();
+        let source_vertical_order = source_subnet.base.subnet_type.vertical_order();
+        let source_horizontal_order = source_subnet.base.subnet_type.horizontal_order();
+        let target_vertical_order = target_subnet.base.subnet_type.vertical_order();
+        let target_horizontal_order = target_subnet.base.subnet_type.horizontal_order();
 
-        match source_layer.cmp(&target_layer) {
+        match source_vertical_order.cmp(&target_vertical_order) {
             // Different layers - vertical flow
             std::cmp::Ordering::Less => {
                 // Edge flows downward: source Bottom -> target Top
@@ -71,7 +81,7 @@ impl EdgeHandle {
             }
             // Same layer - horizontal flow based on priority and infra status
             std::cmp::Ordering::Equal => {
-                match source_priority.cmp(&target_priority) {
+                match source_horizontal_order.cmp(&target_horizontal_order) {
                     // Source has lower priority (leftmost) -> flows right
                     std::cmp::Ordering::Less => {
                         let source_handle = if source_is_infra {

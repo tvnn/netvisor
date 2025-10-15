@@ -6,30 +6,32 @@ use crate::server::topology::{
     types::edges::{Edge, EdgeHandle},
 };
 
-pub struct AnchorAnalyzer;
+pub struct ChildEdgeAnalyzer;
 
-impl AnchorAnalyzer {
-    /// Analyze edges to determine optimal anchor placement for a child node
-    /// Returns (primary_handle, total_edges, should_relocate_handles)
-    pub fn analyze_child_anchors(
+impl ChildEdgeAnalyzer {
+    /// Analyze edges to determine figure out if they need to change anchor points to avoid intersecting with other nodes
+    /// Returns edges
+    pub fn analyze_child_edges(
         interface_id: Uuid,
-        edges: &[Edge],
+        edges: &mut [Edge],
         ctx: &TopologyContext,
-    ) -> (Option<EdgeHandle>, usize, bool) {
-        // Find all edges involving this child
-        let child_edges: Vec<_> = edges
+    ) -> Vec<Edge> {
+        // Find all non-intra subnet edges involving this child
+        let child_edges: Vec<Edge> = edges
             .iter()
-            .filter(|edge| edge.source == interface_id || edge.target == interface_id)
+            .filter(|edge| {
+                (edge.source == interface_id || edge.target == interface_id)
+                    && !ctx.edge_is_intra_subnet(edge)
+            })
+            .cloned()
             .collect();
 
-        let total_edges = child_edges.len();
-
         if child_edges.is_empty() {
-            return (None, 0, false);
+            return vec![];
         }
 
         // Determine if this interface has infra services
-        let is_infra = Self::is_interface_infra(interface_id, ctx);
+        let is_infra = ctx.is_interface_infra(interface_id);
 
         // Count anchors by handle direction
         let mut handle_counts: HashMap<EdgeHandle, usize> = HashMap::new();
@@ -45,32 +47,34 @@ impl AnchorAnalyzer {
             *handle_counts.entry(*relevant_handle).or_insert(0) += 1;
         }
 
-        let (primary_handle, should_relocate) =
-            Self::calculate_optimal_handle(&handle_counts, is_infra, interface_id, edges, ctx);
-
-        (primary_handle, total_edges, should_relocate)
-    }
-
-    fn is_interface_infra(interface_id: Uuid, ctx: &TopologyContext) -> bool {
-        if let Some(subnet) = ctx.get_subnet_from_interface_id(interface_id) {
-            let infra_interfaces = ctx.get_interfaces_with_infra_service(subnet);
-            return infra_interfaces.contains(&Some(interface_id));
+        if let Some(override_handle) =
+            Self::determine_override_handle(&handle_counts, is_infra, interface_id, edges, ctx)
+        {
+            edges.iter_mut().for_each(|edge| {
+                if edge.source == interface_id || edge.target == interface_id {
+                    edge.source_handle = override_handle;
+                    edge.target_handle = override_handle;
+                }
+            });
         }
-        false
+
+        edges
+            .iter()
+            .filter(|edge| edge.source == interface_id || edge.target == interface_id)
+            .cloned()
+            .collect()
     }
 
-    /// Calculate the optimal handle placement based on edge distribution
-    /// Returns (handle, should_relocate_handles)
-    /// should_relocate_handles is true when edges should be relocated to avoid crossing nodes
-    fn calculate_optimal_handle(
+    /// Determine whether to override edge handles
+    fn determine_override_handle(
         handle_counts: &HashMap<EdgeHandle, usize>,
         is_infra: bool,
         interface_id: Uuid,
         edges: &[Edge],
         ctx: &TopologyContext,
-    ) -> (Option<EdgeHandle>, bool) {
+    ) -> Option<EdgeHandle> {
         if handle_counts.is_empty() {
-            return (None, false);
+            return None;
         }
 
         // Get edge counts
@@ -107,12 +111,13 @@ impl AnchorAnalyzer {
 
             if would_cross {
                 // Place on the appropriate edge to avoid crossing
-                let preferred_handle = if is_infra {
+                let override_handle = if is_infra {
                     EdgeHandle::Left
                 } else {
                     EdgeHandle::Right
                 };
-                return (Some(preferred_handle), true);
+
+                return Some(override_handle);
             }
         }
 
@@ -122,47 +127,16 @@ impl AnchorAnalyzer {
             let would_cross = Self::would_horizontal_edges_cross_middle(interface_id, edges, ctx);
 
             if would_cross {
-                return (
-                    Some(if bottom_count >= top_count {
-                        EdgeHandle::Bottom
-                    } else {
-                        EdgeHandle::Top
-                    }),
-                    false,
-                );
+                let override_handle = if bottom_count >= top_count {
+                    EdgeHandle::Bottom
+                } else {
+                    EdgeHandle::Top
+                };
+                return Some(override_handle);
             }
         }
 
-        // Standard case: choose handle based on edge count
-        // But prefer handles that don't conflict with subnet layout
-        let max_count = top_count.max(bottom_count).max(left_count).max(right_count);
-
-        if max_count == 0 {
-            return (Some(EdgeHandle::Top), false);
-        }
-
-        // Prioritize vertical handles as they're safer
-        if top_count == max_count {
-            return (Some(EdgeHandle::Top), false);
-        }
-        if bottom_count == max_count {
-            return (Some(EdgeHandle::Bottom), false);
-        }
-
-        // Only use horizontal handles if allowed and they're the clear winner
-        if is_infra && left_count == max_count {
-            return (Some(EdgeHandle::Left), false);
-        }
-        if !is_infra && right_count == max_count {
-            return (Some(EdgeHandle::Right), false);
-        }
-
-        // Fallback to vertical with most edges
-        if top_count >= bottom_count {
-            (Some(EdgeHandle::Top), false)
-        } else {
-            (Some(EdgeHandle::Bottom), false)
-        }
+        None
     }
 
     /// Check if vertical edges (top/bottom) would cross through the middle of the subnet

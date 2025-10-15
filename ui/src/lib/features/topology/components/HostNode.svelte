@@ -156,7 +156,7 @@
 			</div>
 		{/if}
 
-		<!-- Connection handles remain the same -->
+		<!-- Connection Handles -->
 		<Handle type="target" id="Top" position={Position.Top} style="opacity: 0" />
 		<Handle type="target" id="Right" position={Position.Right} style="opacity: 0" />
 		<Handle type="target" id="Bottom" position={Position.Bottom} style="opacity: 0" />

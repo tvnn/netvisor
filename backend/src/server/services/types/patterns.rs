@@ -307,14 +307,6 @@ impl Pattern<'_> {
                     false
                 };
 
-                tracing::info!(
-                    "interface ip: {}, gateways in subnet: {:?}, last_octet: {}, is_gateway: {}",
-                    interface.base.ip_address,
-                    gateway_ips_in_subnet,
-                    last_octet_1_or_254,
-                    is_gateway
-                );
-
                 if is_gateway {
                     Ok(vec![None])
                 } else {
