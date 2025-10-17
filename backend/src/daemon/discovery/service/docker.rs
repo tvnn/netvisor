@@ -18,18 +18,16 @@ use crate::daemon::discovery::service::base::{
 };
 use crate::daemon::discovery::types::base::DiscoverySessionUpdate;
 use crate::daemon::utils::base::DaemonUtils;
-use crate::server::discovery::types::base::DiscoveryType;
+use crate::server::discovery::types::base::{DiscoveryType, MatchMetadata};
 use crate::server::hosts::types::base::HostBase;
 use crate::server::hosts::types::interfaces::ALL_INTERFACES_IP;
 use crate::server::hosts::types::ports::Port;
-use crate::server::services::definitions::docker_container::DockerContainer;
-use crate::server::services::types::base::{Service, ServiceBase, ServiceDiscoveryBaselineParams};
+use crate::server::services::types::base::{Service, ServiceBase, ServiceMatchBaselineParams};
 use crate::server::services::types::bindings::Binding;
 use crate::server::services::types::definitions::ServiceDefinition;
-use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
+use crate::server::services::types::endpoints::{ApplicationProtocol, Endpoint, EndpointResponse};
 use crate::server::services::types::virtualization::{DockerVirtualization, ServiceVirtualization};
 use crate::server::subnets::types::base::{Subnet, SubnetBase, SubnetType};
-use crate::server::utils::base::NetworkUtils;
 use crate::{
     daemon::discovery::service::base::{
         CreatesDiscoveredEntities, DiscoversNetworkedEntities, Discovery,
@@ -219,12 +217,16 @@ impl Discovery<DockerScanDiscovery> {
             virtualization: None,
             vms: vec![],
             containers: services.iter().map(|s| s.id).collect(),
+            source: EntitySource::Discovery(MatchMetadata::new(
+                DiscoveryType::SelfReport,
+                daemon_id,
+            )),
         });
 
         let mut temp_docker_daemon_host = Host::new(HostBase::default());
         temp_docker_daemon_host.id = self.domain.host_id;
         temp_docker_daemon_host.base.source =
-            EntitySource::Discovery(self.discovery_type(), daemon_id);
+            EntitySource::Discovery(MatchMetadata::new(self.discovery_type(), daemon_id));
         temp_docker_daemon_host.base.services = vec![docker_service.id];
 
         self.create_host(temp_docker_daemon_host, vec![docker_service])
@@ -312,22 +314,11 @@ impl Discovery<DockerScanDiscovery> {
             return Ok(None);
         }
 
-        let container_name = Some(
-            container
-                .name
-                .clone()
-                .unwrap_or(DockerContainer.name().to_string())
-                .trim_start_matches("/")
-                .to_string(),
-        );
-
-        let container_id = container.id.clone();
-
         let empty_vec_ref: &Vec<_> = &Vec::new();
 
-        let container_interfaces_and_subnets = if let Some(id) = container.id {
+        let container_interfaces_and_subnets = if let Some(id) = &container.id {
             containers_interfaces_and_subnets
-                .get(&id)
+                .get(id)
                 .unwrap_or(empty_vec_ref)
         } else {
             empty_vec_ref
@@ -341,15 +332,17 @@ impl Discovery<DockerScanDiscovery> {
                 return Err(Error::msg("Discovery was cancelled"));
             }
 
-            let endpoint_responses = self
-                .scan_container_endpoints(
+            let endpoint_responses = if let Some(name) = &container.name {
+                self.scan_container_endpoints(
                     interface,
-                    subnet,
-                    &host_ip_to_host_ports,
                     &host_to_container_port_map,
+                    name.trim_start_matches("/"),
                     cancel.clone(),
                 )
-                .await?;
+                .await?
+            } else {
+                vec![]
+            };
 
             if !endpoint_responses.is_empty() {
                 tracing::debug!(
@@ -366,7 +359,7 @@ impl Discovery<DockerScanDiscovery> {
 
             if let Ok(Some((mut host, mut services))) = self
                 .process_host(
-                    ServiceDiscoveryBaselineParams {
+                    ServiceMatchBaselineParams {
                         subnet,
                         interface,
                         all_ports: container_ports_on_interface,
@@ -374,8 +367,11 @@ impl Discovery<DockerScanDiscovery> {
                         host_has_docker_client: &false,
                         virtualization: &Some(ServiceVirtualization::Docker(
                             DockerVirtualization {
-                                container_name: container_name.clone(),
-                                container_id: container_id.clone(),
+                                container_name: container
+                                    .name
+                                    .clone()
+                                    .map(|n| n.trim_start_matches("/").to_string()),
+                                container_id: container.id.clone(),
                             },
                         )),
                     },
@@ -552,7 +548,10 @@ impl Discovery<DockerScanDiscovery> {
                                 description: None,
                                 name: network_name.clone(),
                                 subnet_type: SubnetType::DockerBridge,
-                                source: EntitySource::Discovery(self.discovery_type(), daemon_id),
+                                source: EntitySource::Discovery(MatchMetadata::new(
+                                    self.discovery_type(),
+                                    daemon_id,
+                                )),
                             }));
                         }
                         None
@@ -594,128 +593,217 @@ impl Discovery<DockerScanDiscovery> {
             .collect())
     }
 
-    /// Scan endpoints for a container via the host IP with port mappings, translating back to container IP/ports
     async fn scan_container_endpoints(
         &self,
         interface: &Interface,
-        subnet: &Subnet,
-        host_ip_to_host_ports: &IpPortHashMap,
         host_to_container_port_map: &HashMap<(IpAddr, u16), u16>,
+        container_name: &str,
         cancel: CancellationToken,
     ) -> Result<Vec<EndpointResponse>, Error> {
-        // For Docker bridge networks, always scan via host IP if there are port mappings
-        let should_scan_via_host = subnet.base.subnet_type == SubnetType::DockerBridge
-            && !host_ip_to_host_ports.is_empty();
-
-        if !should_scan_via_host {
-            tracing::debug!(
-                "Container on {} has no port mappings to host, skipping endpoint scan",
-                interface.base.ip_address
-            );
-            return Ok(vec![]);
+        // Build inverse map: (container_port) -> Vec<(host_ip, host_port)>
+        let mut container_to_host_port_map: HashMap<u16, Vec<(IpAddr, u16)>> = HashMap::new();
+        for ((host_ip, host_port), container_port) in host_to_container_port_map {
+            container_to_host_port_map
+                .entry(*container_port)
+                .or_default()
+                .push((*host_ip, *host_port));
         }
-
-        // Scan via host IP and translate responses back to container IP/ports
-        let host_ip = self.as_ref().utils.get_own_ip_address()?;
 
         tracing::debug!(
-            "Scanning endpoints for container at {} via host IP {} with {} port mappings",
-            interface.base.ip_address,
-            host_ip,
-            host_to_container_port_map.len()
+            "Scanning {} endpoints for container {} at {} using docker exec",
+            Service::all_discovery_endpoints().len(),
+            container_name,
+            interface.base.ip_address
         );
 
-        // Scan endpoints on the host IP
-        let host_endpoint_responses = self
-            .as_ref()
-            .utils
-            .scan_endpoints(host_ip, cancel)
-            .await
-            .unwrap_or_else(|e| {
-                tracing::debug!("Failed to scan endpoints on host {}: {}", host_ip, e);
-                vec![]
-            });
+        let docker = self
+            .domain
+            .docker_client
+            .get()
+            .ok_or_else(|| anyhow!("Docker client unavailable"))?;
 
-        if !host_endpoint_responses.is_empty() {
-            tracing::debug!(
-                "Scanned host IP {} and found {} endpoint responses",
-                host_ip,
-                host_endpoint_responses.len()
+        let endpoints_to_scan = Service::all_discovery_endpoints();
+        let mut endpoint_responses = Vec::new();
+
+        for endpoint in endpoints_to_scan {
+            if cancel.is_cancelled() {
+                break;
+            }
+
+            let container_port = endpoint.port_base.number();
+
+            let url = format!(
+                "{}://127.0.0.1:{}{}",
+                match endpoint.protocol {
+                    ApplicationProtocol::Http => "http",
+                    ApplicationProtocol::Https => "https",
+                },
+                container_port,
+                endpoint.path
             );
-        }
 
-        // Translate endpoint responses from host IP/port to container IP/port
-        let container_endpoint_responses: Vec<EndpointResponse> = host_endpoint_responses
-            .into_iter()
-            .filter_map(|response| {
-                let host_port = response.endpoint.port_base.number();
-                let endpoint_host_ip = response.endpoint.ip?;
+            // Execute curl with -i to include headers, or wget with -S
+            let exec = docker
+                .create_exec(
+                    container_name,
+                    bollard::exec::CreateExecOptions {
+                        cmd: Some(vec![
+                            "sh",
+                            "-c",
+                            &format!(
+                                "curl -i -s -m 1 -L --max-redirs 2 {} 2>/dev/null || wget -S -q -O- -T 1 {} 2>&1 || echo ''",
+                                url, url
+                            ),
+                        ]),
+                        attach_stdout: Some(true),
+                        attach_stderr: Some(false),
+                        ..Default::default()
+                    },
+                )
+                .await;
 
-                // Look up the container port for this host port
-                // Check both the specific IP and unspecified IP (0.0.0.0 for IPv4, :: for IPv6)
-                let container_port = host_to_container_port_map
-                    .get(&(endpoint_host_ip, host_port))
-                    .or_else(|| {
-                        // Check if bound to all interfaces
-                        host_to_container_port_map.get(&(ALL_INTERFACES_IP, host_port))
-                    })
-                    .copied();
+            let Ok(exec_result) = exec else {
+                continue;
+            };
 
-                if let Some(container_port) = container_port {
-                    tracing::debug!(
-                        "Translating endpoint from {}:{} to {}:{}",
-                        endpoint_host_ip,
-                        host_port,
-                        interface.base.ip_address,
-                        container_port
-                    );
+            if let Ok(bollard::exec::StartExecResults::Attached { mut output, .. }) =
+                docker.start_exec(&exec_result.id, None).await
+            {
+                use futures::StreamExt;
+                let mut full_response = String::new();
 
-                    // Create the appropriate PortBase for the container port
-                    let container_port_base = if container_port == host_port {
-                        // Same port number, keep the same port type
-                        response.endpoint.port_base
-                    } else {
-                        // Different port, create a custom port with the container's port number
-                        // Preserve the protocol from the original port
-                        match response.endpoint.port_base.protocol() {
-                            crate::server::hosts::types::ports::TransportProtocol::Tcp => {
-                                PortBase::new_tcp(container_port)
-                            }
-                            crate::server::hosts::types::ports::TransportProtocol::Udp => {
-                                PortBase::new_udp(container_port)
+                while let Some(Ok(msg)) = output.next().await {
+                    match msg {
+                        bollard::container::LogOutput::StdOut { message } => {
+                            full_response.push_str(&String::from_utf8_lossy(&message));
+                        }
+                        bollard::container::LogOutput::StdErr { message } => {
+                            // wget outputs headers to stderr with -S flag
+                            full_response.push_str(&String::from_utf8_lossy(&message));
+                        }
+                        _ => {}
+                    }
+                }
+
+                let full_response = full_response.trim();
+
+                // Parse response to check status code and extract body
+                if let Some((status_code, response_body)) = Self::parse_http_response(full_response)
+                {
+                    // Only accept 2xx-3xx status codes
+                    if (199..400).contains(&status_code) {
+                        tracing::debug!(
+                            "Got successful response (status {}) from container {}:{}{} (length: {})",
+                            status_code,
+                            interface.base.ip_address,
+                            container_port,
+                            endpoint.path,
+                            response_body.len()
+                        );
+
+                        // Create response for container IP/port
+                        endpoint_responses.push(EndpointResponse {
+                            endpoint: Endpoint {
+                                protocol: endpoint.protocol,
+                                ip: Some(interface.base.ip_address),
+                                port_base: endpoint.port_base,
+                                path: endpoint.path.clone(),
+                            },
+                            response: response_body.to_string(),
+                        });
+
+                        // ALSO create responses for any exposed host ports
+                        if let Some(host_mappings) = container_to_host_port_map.get(&container_port)
+                        {
+                            for (host_ip, host_port) in host_mappings {
+                                // Determine the correct PortBase for the host port
+                                let host_port_base = if *host_port == container_port {
+                                    endpoint.port_base // Same port number, keep original type
+                                } else {
+                                    // Different port number, create custom port
+                                    match endpoint.port_base.protocol() {
+                                        crate::server::hosts::types::ports::TransportProtocol::Tcp => {
+                                            PortBase::new_tcp(*host_port)
+                                        }
+                                        crate::server::hosts::types::ports::TransportProtocol::Udp => {
+                                            PortBase::new_udp(*host_port)
+                                        }
+                                    }
+                                };
+
+                                endpoint_responses.push(EndpointResponse {
+                                    endpoint: Endpoint {
+                                        protocol: endpoint.protocol,
+                                        ip: Some(*host_ip),
+                                        port_base: host_port_base,
+                                        path: endpoint.path.clone(),
+                                    },
+                                    response: response_body.to_string(),
+                                });
+
+                                tracing::debug!(
+                                    "Also mapped to host {}:{}{} (from container port {})",
+                                    host_ip,
+                                    host_port,
+                                    endpoint.path,
+                                    container_port
+                                );
                             }
                         }
-                    };
-
-                    Some(EndpointResponse {
-                        endpoint: Endpoint {
-                            protocol: response.endpoint.protocol,
-                            ip: Some(interface.base.ip_address),
-                            port_base: container_port_base,
-                            path: response.endpoint.path.clone(),
-                        },
-                        response: response.response,
-                    })
-                } else {
-                    tracing::debug!(
-                        "No port mapping found for {}:{}, skipping translation",
-                        endpoint_host_ip,
-                        host_port
-                    );
-                    None
+                    } else {
+                        tracing::debug!(
+                            "Skipping non-2xx response (status {}) from container {}:{}{}",
+                            status_code,
+                            interface.base.ip_address,
+                            container_port,
+                            endpoint.path
+                        );
+                    }
                 }
-            })
-            .collect();
+            }
+        }
 
-        if !container_endpoint_responses.is_empty() {
+        if !endpoint_responses.is_empty() {
             tracing::debug!(
-                "Translated {} endpoint responses to container IP {}",
-                container_endpoint_responses.len(),
-                interface.base.ip_address
+                "Scanned container {} and found {} endpoint responses (including host mappings)",
+                container_name,
+                endpoint_responses.len()
             );
         }
 
-        Ok(container_endpoint_responses)
+        Ok(endpoint_responses)
+    }
+
+    /// Parse HTTP response to extract status code and body
+    /// Returns (status_code, body) if successful
+    fn parse_http_response(response: &str) -> Option<(u16, String)> {
+        if response.is_empty() {
+            return None;
+        }
+
+        let response_bytes = response.as_bytes();
+
+        let mut headers = [httparse::EMPTY_HEADER; 64];
+        let mut parsed_response = httparse::Response::new(&mut headers);
+
+        match parsed_response.parse(response_bytes) {
+            Ok(httparse::Status::Complete(headers_len)) => {
+                let status_code = parsed_response.code?;
+                let body = &response_bytes[headers_len..];
+                let body_str = String::from_utf8_lossy(body).to_string();
+
+                Some((status_code, body_str))
+            }
+            Ok(httparse::Status::Partial) => {
+                // Not enough data, might be incomplete response
+                tracing::debug!("Partial HTTP response received");
+                None
+            }
+            Err(e) => {
+                tracing::debug!("Failed to parse HTTP response: {}", e);
+                None
+            }
+        }
     }
 
     fn get_ports_from_container(

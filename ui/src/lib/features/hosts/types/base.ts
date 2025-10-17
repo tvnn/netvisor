@@ -1,4 +1,5 @@
 import type { Service } from '$lib/features/services/types/base';
+import type { EntitySource } from '$lib/shared/types';
 
 export interface HostWithServicesRequest {
 	host: Host;
@@ -18,8 +19,8 @@ export interface Host {
 	services: string[];
 	ports: Port[];
 	interfaces: Interface[];
-	source: string;
 	virtualization: HostVirtualization | null;
+	source: EntitySource;
 }
 
 export interface ProxmoxVirtualization {

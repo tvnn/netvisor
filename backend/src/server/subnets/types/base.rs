@@ -1,6 +1,6 @@
 use std::net::Ipv4Addr;
 
-use crate::server::discovery::types::base::{DiscoveryType, EntitySource};
+use crate::server::discovery::types::base::{DiscoveryType, EntitySource, MatchMetadata};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use chrono::{DateTime, Utc};
@@ -97,7 +97,7 @@ impl Subnet {
                     description: None,
                     name: cidr.to_string(),
                     subnet_type,
-                    source: EntitySource::Discovery(*discovery_type, daemon_id),
+                    source: EntitySource::Discovery(MatchMetadata::new(*discovery_type, daemon_id)),
                 }))
             }
         }

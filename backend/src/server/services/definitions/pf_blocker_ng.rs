@@ -20,8 +20,11 @@ impl ServiceDefinition for PfBlockerNg {
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
-            Pattern::AllPort(vec![PortBase::DnsTcp, PortBase::DnsUdp]),
-            Pattern::WebService("/pfblockerng", "pfBlockerNG"),
+            Pattern::AllOf(vec![
+                Pattern::Port(PortBase::DnsTcp),
+                Pattern::Port(PortBase::DnsUdp),
+            ]),
+            Pattern::Endpoint(PortBase::Http, "/pfblockerng", "pfblockerng"),
         ])
     }
 

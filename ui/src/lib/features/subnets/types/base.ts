@@ -1,3 +1,5 @@
+import type { EntitySource } from '$lib/shared/types';
+
 export interface Subnet {
 	id: string;
 	created_at: string;
@@ -6,5 +8,5 @@ export interface Subnet {
 	name: string;
 	description?: string;
 	subnet_type: string;
-	source: string;
+	source: EntitySource;
 }

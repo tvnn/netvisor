@@ -6,10 +6,14 @@ use std::{
 use crate::{
     daemon::discovery::manager::DaemonDiscoverySessionManager,
     server::{
-        discovery::types::{api::InitiateDiscoveryRequest, base::DiscoveryType},
+        discovery::types::{
+            api::InitiateDiscoveryRequest,
+            base::{DiscoveryType, MatchMetadata},
+        },
         groups::types::Group,
         services::types::base::{
-            ServiceDiscoveryBaselineParams, ServiceDiscoveryParams, ServiceDiscoveryStateParams,
+            DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams,
+            ServiceMatchServiceParams,
         },
     },
 };
@@ -311,15 +315,16 @@ pub trait DiscoversNetworkedEntities:
 
     async fn process_host<'a>(
         &self,
-        params: ServiceDiscoveryBaselineParams<'a>,
+        params: ServiceMatchBaselineParams<'a>,
         hostname: Option<String>,
     ) -> Result<Option<(Host, Vec<Service>)>, Error> {
-        let ServiceDiscoveryBaselineParams::<'a> { interface, .. } = params;
+        let ServiceMatchBaselineParams::<'a> { interface, .. } = params;
 
         let daemon_id = self.as_ref().config_store.get_id().await?;
 
         let session = self.as_ref().get_session().await?;
         let gateway_ips = session.gateway_ips.clone();
+        let discovery_type = self.discovery_type();
 
         let (name, target) = match hostname.clone() {
             Some(hostname) => (hostname, HostTarget::Hostname),
@@ -335,11 +340,17 @@ pub trait DiscoversNetworkedEntities:
             interfaces: vec![interface.clone()],
             services: Vec::new(),
             ports: Vec::new(),
-            source: EntitySource::Discovery(self.discovery_type(), daemon_id),
+            source: EntitySource::Discovery(MatchMetadata::new(discovery_type, daemon_id)),
             virtualization: None,
         });
 
-        let services = self.discover_services(&mut host, &params, &gateway_ips)?;
+        let services = self.discover_services(
+            &mut host,
+            &params,
+            &gateway_ips,
+            &daemon_id,
+            &discovery_type,
+        )?;
 
         tracing::info!("Processed host for ip {}", interface.base.ip_address);
         Ok(Some((host, services)))
@@ -348,10 +359,12 @@ pub trait DiscoversNetworkedEntities:
     fn discover_services(
         &self,
         host: &mut Host,
-        baseline_params: &ServiceDiscoveryBaselineParams,
+        baseline_params: &ServiceMatchBaselineParams,
         gateway_ips: &[IpAddr],
+        daemon_id: &Uuid,
+        discovery_type: &DiscoveryType,
     ) -> Result<Vec<Service>, Error> {
-        let ServiceDiscoveryBaselineParams { all_ports, .. } = baseline_params;
+        let ServiceMatchBaselineParams { all_ports, .. } = baseline_params;
 
         let mut services = Vec::new();
         let mut matched_services = Vec::new();
@@ -370,7 +383,8 @@ pub trait DiscoversNetworkedEntities:
         sorted_service_definitions.sort_unstable_by_key(|s| {
             if !s.is_generic() {
                 0 // Highest priority - non-generic services
-            } else if s.is_gateway() && s.id() != Gateway.id() {
+            } else if s.discovery_pattern().contains_gateway_ip_pattern() && s.id() != Gateway.id()
+            {
                 1 // Non-generic and subnet-typed gateways need to go before generic Gateway, otherwise will likely be classified as Gateway
             } else if s.is_infra_service() {
                 2 // Infra services
@@ -381,19 +395,22 @@ pub trait DiscoversNetworkedEntities:
 
         // Add services from detected ports
         for service_definition in sorted_service_definitions {
-            let discovery_state_params = ServiceDiscoveryStateParams {
+            let service_params = ServiceMatchServiceParams {
                 l3_interface_bound: &l3_interface_bound,
                 service_definition,
                 matched_services: &matched_services,
                 unbound_ports: &l4_unbound_ports,
             };
 
-            let params = ServiceDiscoveryParams {
-                discovery_state_params,
-                baseline_params,
-                gateway_ips,
-                host_id: &host.id,
-            };
+            let params: DiscoverySessionServiceMatchParams<'_> =
+                DiscoverySessionServiceMatchParams {
+                    service_params,
+                    baseline_params,
+                    daemon_id,
+                    discovery_type,
+                    gateway_ips,
+                    host_id: &host.id,
+                };
 
             if let (Some(service), mut bound_ports) = Service::from_discovery(params) {
                 if service.base.service_definition.layer() == BindingDiscriminants::Layer3 {

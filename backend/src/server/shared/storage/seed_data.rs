@@ -85,6 +85,7 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
         virtualization: None,
         vms: vec![],
         containers: vec![],
+        source: EntitySource::System,
     });
 
     host.base.target = HostTarget::ServiceBinding(binding_id);
@@ -122,6 +123,7 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
         virtualization: None,
         vms: vec![],
         containers: vec![],
+        source: EntitySource::System,
     });
 
     host.base.target = HostTarget::ServiceBinding(binding_id);
@@ -160,6 +162,7 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
         virtualization: None,
         vms: vec![],
         containers: vec![],
+        source: EntitySource::System,
     });
 
     host.base.target = HostTarget::ServiceBinding(binding_id);

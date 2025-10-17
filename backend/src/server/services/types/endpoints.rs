@@ -19,7 +19,7 @@ use strum_macros::{Display, EnumDiscriminants, EnumIter};
     EnumDiscriminants,
     EnumIter,
 )]
-#[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter))]
+#[strum_discriminants(derive(Display, Hash, Serialize, Deserialize, EnumIter, PartialOrd, Ord))]
 pub enum ApplicationProtocol {
     #[default]
     Http,
@@ -31,10 +31,10 @@ pub struct Endpoint {
     pub protocol: ApplicationProtocol,
     pub ip: Option<IpAddr>,
     pub port_base: PortBase,
-    pub path: Option<String>,
+    pub path: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct EndpointResponse {
     pub endpoint: Endpoint,
     pub response: String,
@@ -59,16 +59,7 @@ impl Endpoint {
             protocol: ApplicationProtocol::Http,
             port_base: PortBase::Http,
             ip,
-            path: Some(path.to_string()),
-        }
-    }
-
-    pub fn https(ip: Option<IpAddr>, path: &str) -> Self {
-        Endpoint {
-            protocol: ApplicationProtocol::Https,
-            port_base: PortBase::Https,
-            ip,
-            path: Some(path.to_string()),
+            path: path.to_string(),
         }
     }
 
@@ -77,30 +68,16 @@ impl Endpoint {
             protocol: ApplicationProtocol::Http,
             port_base: PortBase::HttpAlt,
             ip,
-            path: Some(path.to_string()),
+            path: path.to_string(),
         }
     }
 
-    pub fn https_alt(ip: Option<IpAddr>, path: &str) -> Self {
+    pub fn for_pattern(port_base: PortBase, path: &str) -> Self {
         Endpoint {
-            protocol: ApplicationProtocol::Https,
-            port_base: PortBase::HttpsAlt,
-            ip,
-            path: Some(path.to_string()),
-        }
-    }
-
-    pub fn from_refs(
-        ip: Option<IpAddr>,
-        protocol: &ApplicationProtocol,
-        port_base: &PortBase,
-        path: &Option<String>,
-    ) -> Self {
-        Endpoint {
-            protocol: *protocol,
-            ip,
-            port_base: *port_base,
-            path: path.clone(),
+            protocol: ApplicationProtocol::Http,
+            ip: None,
+            port_base,
+            path: path.to_owned(),
         }
     }
 }
@@ -115,10 +92,18 @@ impl Display for Endpoint {
                     self.protocol.discriminant().to_string().to_lowercase(),
                     ip,
                     self.port_base.number(),
-                    self.path.as_deref().unwrap_or("")
+                    self.path
                 )
             }
-            None => Err(std::fmt::Error),
+            None => {
+                write!(
+                    f,
+                    "{}://<unresolved>:{}{}",
+                    self.protocol.discriminant().to_string().to_lowercase(),
+                    self.port_base.number(),
+                    self.path
+                )
+            }
         }
     }
 }
@@ -126,7 +111,6 @@ impl Display for Endpoint {
 impl PartialEq for Endpoint {
     fn eq(&self, other: &Self) -> bool {
         self.protocol == other.protocol
-            && self.ip == other.ip
             && self.port_base.number() == other.port_base.number()
             && self.path == other.path
     }
@@ -135,7 +119,6 @@ impl PartialEq for Endpoint {
 impl Hash for Endpoint {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.protocol.hash(state);
-        self.ip.hash(state);
         self.port_base.hash(state);
         self.path.hash(state);
     }

@@ -20,8 +20,11 @@ impl ServiceDefinition for PiHole {
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
-            Pattern::AllPort(vec![PortBase::DnsUdp, PortBase::DnsTcp]),
-            Pattern::WebService("/admin", "Pi-hole"),
+            Pattern::AllOf(vec![
+                Pattern::Port(PortBase::DnsUdp),
+                Pattern::Port(PortBase::DnsTcp),
+            ]),
+            Pattern::Endpoint(PortBase::Http, "/admin", "pi-hole"),
         ])
     }
 

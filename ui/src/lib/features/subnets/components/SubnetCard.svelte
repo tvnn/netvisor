@@ -2,13 +2,23 @@
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
-	import { formatServiceAsHost } from '$lib/features/services/store';
+	import { formatServiceLabels } from '$lib/features/services/store';
 	import { getSubnetServices, isContainerSubnet } from '../store';
 	import type { Subnet } from '../types/base';
 
 	export let subnet: Subnet;
 	export let onEdit: (subnet: Subnet) => void = () => {};
 	export let onDelete: (subnet: Subnet) => void = () => {};
+
+	$: dnsServices = getSubnetServices(subnet, 'is_dns_resolver');
+	$: gatewayServices = getSubnetServices(subnet, 'is_gateway');
+	$: reverseProxyServices = getSubnetServices(subnet, 'is_reverse_proxy');
+	$: allServices = getSubnetServices(subnet);
+
+	$: dnsLabels = formatServiceLabels(dnsServices.map((s) => s.id));
+	$: gatewayLabels = formatServiceLabels(gatewayServices.map((s) => s.id));
+	$: reverseProxyLabels = formatServiceLabels(reverseProxyServices.map((s) => s.id));
+	$: serviceLabels = formatServiceLabels(allServices.map((s) => s.id));
 
 	// Build card data
 	$: cardData = {
@@ -40,39 +50,39 @@
 			},
 			{
 				label: 'DNS Resolvers',
-				items: getSubnetServices(subnet, 'is_dns_resolver').map((s) => ({
-					id: s.id,
-					label: formatServiceAsHost(s.id),
+				items: dnsLabels.map(({ id, label }) => ({
+					id,
+					label,
 					color: entities.getColorString('Dns')
 				})),
 				emptyText: 'No DNS resolvers'
 			},
 			{
 				label: 'Gateways',
-				items: getSubnetServices(subnet, 'is_gateway').map((s) => ({
-					id: s.id,
-					label: formatServiceAsHost(s.id),
+				items: gatewayLabels.map(({ id, label }) => ({
+					id,
+					label,
 					color: entities.getColorString('Gateway')
 				})),
 				emptyText: 'No gateways'
 			},
 			{
 				label: 'Reverse Proxies',
-				items: getSubnetServices(subnet, 'is_reverse_proxy').map((s) => ({
-					id: s.id,
-					label: formatServiceAsHost(s.id),
+				items: reverseProxyLabels.map(({ id, label }) => ({
+					id,
+					label,
 					color: entities.getColorString('ReverseProxy')
 				})),
 				emptyText: 'No reverse proxies'
 			},
 			{
 				label: 'Services',
-				items: getSubnetServices(subnet).map((s) => ({
-					id: s.id,
-					label: formatServiceAsHost(s.id),
+				items: serviceLabels.map(({ id, label }) => ({
+					id,
+					label,
 					color: entities.getColorString('Service')
 				})),
-				emptyText: 'No reverse services'
+				emptyText: 'No services'
 			}
 		],
 

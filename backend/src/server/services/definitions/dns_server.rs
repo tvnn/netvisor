@@ -19,7 +19,10 @@ impl ServiceDefinition for DnsServer {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::DnsTcp, PortBase::DnsUdp])
+        Pattern::AnyOf(vec![
+            Pattern::Port(PortBase::DnsTcp),
+            Pattern::Port(PortBase::DnsUdp),
+        ])
     }
 
     fn is_generic(&self) -> bool {

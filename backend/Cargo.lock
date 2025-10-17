@@ -2259,6 +2259,7 @@ dependencies = [
  "figment",
  "futures",
  "hostname",
+ "httparse",
  "if-addrs",
  "inventory",
  "ipgen",

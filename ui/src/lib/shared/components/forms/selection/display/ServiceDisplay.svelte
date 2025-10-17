@@ -23,6 +23,17 @@
 				tags.push(tag);
 			}
 
+			if (service.source.type == 'Discovery' && service.source.metadata.result_details) {
+				let confidence = service.source.metadata.result_details.confidence;
+
+				const tag: TagProps = {
+					label: confidence + ' Confidence',
+					color: confidence === 'High' ? 'green' : confidence === 'Medium' ? 'blue' : 'yellow'
+				};
+
+				tags.push(tag);
+			}
+
 			return tags;
 		},
 		getIsDisabled: () => false,

@@ -19,7 +19,10 @@ impl ServiceDefinition for Unbound {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AllPort(vec![PortBase::DnsUdp, PortBase::new_tcp(8953)])
+        Pattern::AllOf(vec![
+            Pattern::Port(PortBase::DnsUdp),
+            Pattern::Port(PortBase::new_tcp(8953)),
+        ])
     }
 
     fn icon(&self) -> &'static str {

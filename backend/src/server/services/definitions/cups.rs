@@ -20,8 +20,8 @@ impl ServiceDefinition for CUPS {
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
-            Pattern::AnyPort(vec![PortBase::Ipp]),
-            Pattern::WebService("/", "CUPS"),
+            Pattern::Port(PortBase::Ipp),
+            Pattern::Endpoint(PortBase::Http, "/", "CUPS"),
         ])
     }
 

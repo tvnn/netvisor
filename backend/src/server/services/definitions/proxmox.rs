@@ -19,7 +19,7 @@ impl ServiceDefinition for Proxmox {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::new_tcp(8006)])
+        Pattern::Port(PortBase::new_tcp(8006))
     }
 
     fn icon(&self) -> &'static str {

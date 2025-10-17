@@ -3,7 +3,7 @@
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import type { Group } from '../types/base';
 	import { entities, groupTypes } from '$lib/shared/stores/metadata';
-	import { formatServiceAsHost, getServicesForGroupReactive } from '$lib/features/services/store';
+	import { formatServiceLabels, getServicesForGroupReactive } from '$lib/features/services/store';
 
 	export let group: Group;
 	export let onEdit: (group: Group) => void = () => {};
@@ -11,6 +11,8 @@
 
 	$: groupServicesStore = getServicesForGroupReactive(group.id);
 	$: groupServices = $groupServicesStore;
+
+	$: groupServiceLabels = formatServiceLabels(groupServices.map((s) => s.id));
 
 	// Build card data
 	$: cardData = {
@@ -41,10 +43,10 @@
 			},
 			{
 				label: 'Services',
-				items: groupServices.map((s, i) => {
+				items: groupServiceLabels.map(({ id, label }, i) => {
 					return {
-						id: s.id + i,
-						label: formatServiceAsHost(s.id),
+						id: id + i,
+						label,
 						color: entities.getColorString('Service')
 					};
 				}),

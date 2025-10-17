@@ -19,7 +19,7 @@ impl ServiceDefinition for NetvisorServer {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::new_tcp(60072)])
+        Pattern::Endpoint(PortBase::new_tcp(60072), "/api/health", "netvisor")
     }
 }
 

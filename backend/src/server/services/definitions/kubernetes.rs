@@ -20,12 +20,12 @@ impl ServiceDefinition for Kubernetes {
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
-            Pattern::AllPort(vec![PortBase::new_tcp(6443)]),
-            Pattern::AnyPort(vec![
-                PortBase::new_tcp(10250),
-                PortBase::new_tcp(10259),
-                PortBase::new_tcp(10257),
-                PortBase::new_tcp(10256),
+            Pattern::Port(PortBase::new_tcp(6443)),
+            Pattern::AnyOf(vec![
+                Pattern::Port(PortBase::new_tcp(10250)),
+                Pattern::Port(PortBase::new_tcp(10259)),
+                Pattern::Port(PortBase::new_tcp(10257)),
+                Pattern::Port(PortBase::new_tcp(10256)),
             ]),
         ])
     }

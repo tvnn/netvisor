@@ -8,7 +8,7 @@ use crate::server::hosts::types::{
     interfaces::{Interface, InterfaceBase},
     ports::PortBase,
 };
-use crate::server::services::types::base::ServiceDiscoveryBaselineParams;
+use crate::server::services::types::base::ServiceMatchBaselineParams;
 use crate::{
     daemon::utils::base::DaemonUtils,
     server::{
@@ -135,7 +135,7 @@ impl Discovery<NetworkScanDiscovery> {
 
                     if let Ok(Some((host, services))) = self
                         .process_host(
-                            ServiceDiscoveryBaselineParams {
+                            ServiceMatchBaselineParams {
                                 subnet: &subnet,
                                 interface: &interface,
                                 all_ports: &all_ports,

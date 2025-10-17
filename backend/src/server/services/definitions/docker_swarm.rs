@@ -19,7 +19,10 @@ impl ServiceDefinition for DockerSwarm {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AllPort(vec![PortBase::new_tcp(2377), PortBase::new_tcp(7946)])
+        Pattern::AllOf(vec![
+            Pattern::Port(PortBase::new_tcp(2377)),
+            Pattern::Port(PortBase::new_tcp(7946)),
+        ])
     }
 
     fn icon(&self) -> &'static str {

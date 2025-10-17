@@ -121,6 +121,7 @@ regex = "1.11.3"
 tempfile = "3.23.0"
 net-route = "0.4.6"
 bollard = "0.19.3"
+httparse = "1.10.1"
 
 # === Platform-specific Dependencies ===
 [target.'cfg(target_os = "linux")'.dependencies]

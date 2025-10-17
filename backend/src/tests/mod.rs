@@ -78,6 +78,7 @@ pub fn service(host_id: &Uuid) -> Service {
         virtualization: None,
         vms: vec![],
         containers: vec![],
+        source: EntitySource::System,
     })
 }
 

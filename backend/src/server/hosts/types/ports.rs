@@ -11,7 +11,18 @@ use crate::server::shared::{
 };
 
 #[derive(
-    Copy, Debug, Clone, PartialOrd, Ord, Default, PartialEq, Eq, Hash, Serialize, Deserialize,
+    Copy,
+    Debug,
+    Clone,
+    PartialOrd,
+    Ord,
+    Default,
+    Display,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
 )]
 pub enum TransportProtocol {
     #[default]
@@ -74,6 +85,17 @@ impl PartialEq for PortBase {
     }
 }
 
+impl Display for PortBase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}/{}",
+            self.number(),
+            self.protocol().to_string().to_lowercase()
+        )
+    }
+}
+
 #[derive(Copy, Debug, Clone, Validate, Default, Eq, Serialize, Deserialize)]
 pub struct PortConfig {
     #[validate(range(min = 1, max = 65535))]
@@ -96,11 +118,7 @@ impl Hash for PortConfig {
 
 impl Display for Port {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let port_str = match self.base.protocol() {
-            TransportProtocol::Tcp => "/tcp",
-            TransportProtocol::Udp => "/udp",
-        };
-        write!(f, "{}{}", self.base.number(), port_str)
+        write!(f, "{} (ID: {})", self.base, self.id)
     }
 }
 
@@ -137,6 +155,10 @@ impl PortBase {
 
     pub fn number(&self) -> u16 {
         self.config().number
+    }
+
+    pub fn is_custom(&self) -> bool {
+        matches!(self, PortBase::Custom(_))
     }
 
     pub fn config(&self) -> PortConfig {

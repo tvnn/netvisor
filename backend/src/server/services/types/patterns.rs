@@ -1,29 +1,63 @@
 use std::net::IpAddr;
 
-use crate::server::services::types::{
-    base::{
-        Service, ServiceDiscoveryBaselineParams, ServiceDiscoveryParams,
-        ServiceDiscoveryStateParams,
+use crate::server::{
+    services::types::{
+        base::{
+            DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams,
+            ServiceMatchServiceParams,
+        },
+        virtualization::ServiceVirtualization,
     },
-    virtualization::ServiceVirtualization,
+    shared::types::metadata::TypeMetadataProvider,
 };
-use anyhow::Error;
+use anyhow::{anyhow, Error};
 use mac_oui::Oui;
+use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumDiscriminants, IntoStaticStr};
 
 use crate::server::{
     hosts::types::ports::{Port, PortBase},
-    services::types::endpoints::{Endpoint, EndpointResponse},
+    services::types::endpoints::Endpoint,
     subnets::types::base::SubnetType,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MatchResult {
+    pub reason: MatchReason,
+    pub confidence: MatchConfidence,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Display, Serialize, Deserialize)]
+#[serde(tag = "type", content = "data")]
+#[serde(rename_all = "lowercase")]
+pub enum MatchReason {
+    Reason(String),
+    #[serde(rename = "container")]
+    Container(String, Vec<MatchReason>),
+}
+
+#[derive(Debug, Clone, Hash, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum MatchConfidence {
+    Low = 1,
+    Medium = 2,
+    High = 3,
+    Certain = 4,
+}
+
+impl MatchConfidence {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MatchConfidence::Low => "Low",
+            MatchConfidence::Medium => "Medium",
+            MatchConfidence::High => "High",
+            MatchConfidence::Certain => "Certain",
+        }
+    }
+}
+
+#[derive(Debug, Clone, EnumDiscriminants)]
+#[strum_discriminants(derive(IntoStaticStr))]
 pub enum Pattern<'a> {
-    /// Whether or not a specific port is open on the host
-    Port(PortBase),
-
-    /// Whether or not an endpoint provided a specific response
-    Endpoint(EndpointResponse),
-
     /// Match any of the listed patterns
     AnyOf(Vec<Pattern<'a>>),
 
@@ -33,14 +67,14 @@ pub enum Pattern<'a> {
     /// Inverse of pattern
     Not(&'a Pattern<'a>),
 
-    /// Match if at least one port is open
-    AnyPort(Vec<PortBase>),
+    /// Whether or not a specific port is open on the host
+    Port(PortBase),
 
-    /// Match if ALL of these ports are open
-    AllPort(Vec<PortBase>),
-
-    /// path, response - match on a string response from a path on endpoints using standard HTTP/HTTPS ports
-    WebService(&'static str, &'static str),
+    /// Whether or not an endpoint provided a specific response
+    /// PortBase
+    /// path: &str - ie "/", "/admin", etc
+    /// expected response: &str - String to match on in response
+    Endpoint(PortBase, &'a str, &'a str),
 
     /// Whether the subnet that the host was found on matches a subnet type
     SubnetIsType(SubnetType),
@@ -51,51 +85,26 @@ pub enum Pattern<'a> {
     /// Whether the vendor derived from the mac address (https://gist.github.com/aallan/b4bb86db86079509e6159810ae9bd3e4) matches the provided str
     MacVendor(&'static str),
 
-    /// Whether any service has been previously matched
-    HasAnyMatchedService,
-
-    /// Whether any previously matched services meets a condition
-    AnyMatchedService(fn(&Service) -> bool),
-
-    /// Whether all previously matched services meet a condition
-    AllMatchedService(fn(&Service) -> bool),
-
     /// Custom evaluation of discovery match params
-    Custom(fn(&ServiceDiscoveryParams) -> bool),
+    /// fn - constraint function
+    /// &'a str - match reason (describe what it means if function evaluates true)
+    /// &'a str - no match reason (describe what it means if function evaluates false)
+    /// MatchConfdence - confidence level that match uniquely identifies service
+    Custom(
+        fn(&DiscoverySessionServiceMatchParams) -> bool,
+        &'a str,
+        &'a str,
+        MatchConfidence,
+    ),
 
     /// Whether the host is running Docker and a Docker client connection can be established
-    DockerClient,
+    Docker,
 
     /// Whether the host is a docker container
     DockerContainer,
 
     /// No match pattern (only added manually or by the system)
     None,
-}
-
-fn web_service_endpoint_responses(
-    ip: Option<IpAddr>,
-    path: &str,
-    resp: &str,
-) -> Vec<EndpointResponse> {
-    vec![
-        EndpointResponse {
-            endpoint: Endpoint::http(ip, path),
-            response: resp.to_string(),
-        },
-        EndpointResponse {
-            endpoint: Endpoint::https(ip, path),
-            response: resp.to_string(),
-        },
-        EndpointResponse {
-            endpoint: Endpoint::http_alt(ip, path),
-            response: resp.to_string(),
-        },
-        EndpointResponse {
-            endpoint: Endpoint::https_alt(ip, path),
-            response: resp.to_string(),
-        },
-    ]
 }
 
 // https://gist.github.com/aallan/b4bb86db86079509e6159810ae9bd3e4
@@ -106,20 +115,25 @@ impl Vendor {
     pub const EERO: &'static str = "eero Inc";
     pub const TPLINK: &'static str = "TP-LINK TECHNOLOGIES CO.,LTD";
     pub const UBIQUITI: &'static str = "Ubiquiti Networks Inc";
+    pub const GOOGLE: &'static str = "Google, Inc.";
 }
 
 impl Pattern<'_> {
-    pub fn matches(&self, params: &ServiceDiscoveryParams) -> Result<Vec<Option<Port>>, Error> {
+    pub fn matches(
+        &self,
+        params: &DiscoverySessionServiceMatchParams,
+    ) -> Result<(Vec<Port>, MatchResult), Error> {
         // Return ports that matched if any
 
-        let ServiceDiscoveryParams {
+        let DiscoverySessionServiceMatchParams {
             gateway_ips,
             baseline_params,
-            discovery_state_params,
+            service_params,
+            daemon_id,
             ..
         } = params;
 
-        let ServiceDiscoveryBaselineParams {
+        let ServiceMatchBaselineParams {
             subnet,
             interface,
             endpoint_responses,
@@ -128,42 +142,69 @@ impl Pattern<'_> {
             ..
         } = baseline_params;
 
-        let ServiceDiscoveryStateParams {
-            matched_services,
-            unbound_ports,
-            ..
-        } = discovery_state_params;
-
-        let no_match = Err(Error::msg("No match"));
+        let ServiceMatchServiceParams { unbound_ports, .. } = service_params;
 
         match self {
             Pattern::Port(port_base) => {
                 if let Some(matched_port) = unbound_ports.iter().find(|p| **p == *port_base) {
-                    Ok(vec![Some(Port::new(*matched_port))])
+                    Ok((
+                        vec![Port::new(*matched_port)],
+                        MatchResult {
+                            reason: MatchReason::Reason(format!("Port {} is open", port_base)),
+                            confidence: if port_base.is_custom() {
+                                MatchConfidence::Medium
+                            } else {
+                                MatchConfidence::Low
+                            },
+                        },
+                    ))
                 } else {
-                    no_match
+                    Err(anyhow!("Port {} is not open", port_base))
                 }
             }
 
-            Pattern::Endpoint(expected) => {
-                // At matching time, both endpoints are resolved
+            Pattern::Endpoint(port_base, path, expected_response) => {
+                let endpoint = Endpoint::for_pattern(*port_base, path);
+
                 if let Some(actual) = endpoint_responses.iter().find(|actual| {
-                    actual.endpoint == expected.endpoint
-                        && actual.response.contains(&expected.response)
+                    // Compare without IP since pattern endpoints don't have IPs
+                    actual.endpoint.protocol == endpoint.protocol
+                        && actual.endpoint.port_base.number() == endpoint.port_base.number()
+                        && actual.endpoint.path == endpoint.path
+                        && actual
+                            .response
+                            .to_lowercase()
+                            .contains(&expected_response.to_lowercase())
                 }) {
-                    Ok(vec![Some(Port::new(actual.endpoint.port_base))])
+                    Ok((
+                        vec![Port::new(actual.endpoint.port_base)],
+                        MatchResult {
+                            reason: MatchReason::Reason(format!(
+                                "Response from {} contained \"{}\"",
+                                actual.endpoint, expected_response
+                            )),
+                            confidence: MatchConfidence::High,
+                        },
+                    ))
                 } else {
-                    no_match
+                    Err(anyhow!(
+                        "Response from {} did not contain \"{}\"",
+                        endpoint,
+                        expected_response
+                    ))
                 }
             }
 
             Pattern::MacVendor(vendor_string) => {
                 if let Some(mac) = interface.base.mac_address {
                     let Ok(oui_db) = Oui::default() else {
-                        return no_match;
+                        return Err(anyhow!("Could not load Oui database"));
                     };
                     let Ok(Some(entry)) = Oui::lookup_by_mac(&oui_db, &mac.to_string()) else {
-                        return no_match;
+                        return Err(anyhow!(
+                            "Could find vendor for mac address {} in Oui database",
+                            mac
+                        ));
                     };
 
                     let normalize = |s: &str| -> String {
@@ -178,102 +219,103 @@ impl Pattern<'_> {
                     let entry_string = normalize(&entry.company_name);
 
                     if vendor_string == entry_string {
-                        Ok(vec![None])
+                        Ok((
+                            vec![],
+                            MatchResult {
+                                reason: MatchReason::Reason(format!(
+                                    "Mac address is from vendor {}",
+                                    vendor_string
+                                )),
+                                confidence: MatchConfidence::Medium,
+                            },
+                        ))
                     } else {
-                        no_match
+                        Err(anyhow!("Mac address is not from vendor {}", vendor_string))
                     }
                 } else {
-                    no_match
+                    Err(anyhow!(
+                        "Interface {} does not have a mac address",
+                        interface.base.ip_address
+                    ))
                 }
             }
+
+            Pattern::Not(pattern) => match pattern.matches(params) {
+                Ok((_, result)) => Err(anyhow!("{}", result.reason)),
+                Err(e) => Ok((
+                    vec![],
+                    MatchResult {
+                        reason: MatchReason::Reason(format!("{}", e)),
+                        confidence: MatchConfidence::Low,
+                    },
+                )),
+            },
 
             Pattern::AnyOf(patterns) => {
+                let mut ports = Vec::new();
                 let mut any_matched = false;
-                let results = patterns
-                    .iter()
-                    .filter_map(|p| match p.matches(params) {
-                        Ok(results) => {
-                            any_matched = true;
-                            Some(results)
+                let mut confidence = MatchConfidence::Low;
+                let mut reasons = Vec::new();
+                let mut no_match_errors = String::new();
+                patterns.iter().for_each(|p| match p.matches(params) {
+                    Ok((p, result)) => {
+                        any_matched = true;
+                        ports.extend(p);
+                        reasons.push(result.reason);
+
+                        if result.confidence > confidence {
+                            confidence = result.confidence;
                         }
-                        Err(_) => None,
-                    })
-                    .flatten()
-                    .collect();
+                    }
+                    Err(e) => {
+                        no_match_errors = no_match_errors.clone() + ", " + &e.to_string();
+                    }
+                });
 
                 if any_matched {
-                    Ok(results)
+                    Ok((
+                        ports,
+                        MatchResult {
+                            reason: MatchReason::Container("Any of".to_string(), reasons),
+                            confidence,
+                        },
+                    ))
                 } else {
-                    no_match
-                }
-            }
-
-            Pattern::Not(pattern) => {
-                let result = pattern.matches(params);
-
-                if result.is_ok() {
-                    no_match
-                } else {
-                    Ok(vec![None]) // ✓ Should return success when inner pattern fails
+                    Err(anyhow!(no_match_errors))
                 }
             }
 
             Pattern::AllOf(patterns) => {
                 let mut all_matched = true;
-                let results = patterns
-                    .iter()
-                    .filter_map(|p| match p.matches(params) {
-                        Ok(results) => Some(results),
-                        Err(_) => {
-                            all_matched = false;
-                            None
-                        }
-                    })
-                    .flatten()
-                    .collect();
+                let mut ports = Vec::new();
+                let mut matched_confidences = Vec::new();
+                let mut reasons = Vec::new();
+                let mut no_match_errors = String::new();
+                patterns.iter().for_each(|p| match p.matches(params) {
+                    Ok((p, result)) => {
+                        ports.extend(p);
+                        reasons.push(result.reason);
+                        matched_confidences.push(result.confidence);
+                    }
+                    Err(e) => {
+                        all_matched = false;
+                        no_match_errors = no_match_errors.clone() + ", " + &e.to_string();
+                    }
+                });
 
                 if all_matched {
-                    Ok(results)
+                    matched_confidences.sort();
+                    let median_key = usize::div_ceil(matched_confidences.len() - 1, 2);
+                    Ok((
+                        ports,
+                        MatchResult {
+                            reason: MatchReason::Container("All of".to_string(), reasons),
+                            confidence: matched_confidences[median_key],
+                        },
+                    ))
                 } else {
-                    no_match
+                    Err(anyhow!(no_match_errors))
                 }
-            }
-
-            Pattern::AnyPort(port_bases) => {
-                let matched_ports: Vec<Option<Port>> = unbound_ports
-                    .iter()
-                    .filter(|p| port_bases.contains(p))
-                    .map(|p| Some(Port::new(*p)))
-                    .collect();
-
-                if matched_ports.is_empty() {
-                    no_match
-                } else {
-                    Ok(matched_ports)
-                }
-            }
-
-            Pattern::AllPort(port_bases) => {
-                let matched_ports: Vec<Option<Port>> = unbound_ports
-                    .iter()
-                    .filter(|p| port_bases.contains(p))
-                    .map(|p| Some(Port::new(*p)))
-                    .collect();
-
-                if matched_ports.len() == port_bases.len() {
-                    Ok(matched_ports)
-                } else {
-                    no_match
-                }
-            }
-
-            Pattern::WebService(path, resp) => {
-                let endpoints =
-                    web_service_endpoint_responses(Some(interface.base.ip_address), path, resp)
-                        .into_iter()
-                        .map(Pattern::Endpoint)
-                        .collect();
-                Pattern::AnyOf(endpoints).matches(params)
             }
 
             Pattern::IsGateway => {
@@ -297,106 +339,122 @@ impl Pattern<'_> {
                     }
                 };
 
+                let mut reason = String::new();
+
                 let is_gateway = if host_ip_in_routing_table {
-                    // Definitely a gateway if in routing table
+                    reason = format!(
+                        "Host IP address is in routing table of daemon {}",
+                        daemon_id
+                    );
                     true
                 } else if last_octet_1_or_254 && count_gateways_in_subnet == 0 {
                     // Likely a gateway if common IP and no other gateways found
+                    reason = format!(
+                        "No other gateways in subnet {} and IP address ends in 1 or 254",
+                        subnet.base.cidr
+                    );
                     true
                 } else {
                     false
                 };
 
                 if is_gateway {
-                    Ok(vec![None])
+                    Ok((
+                        vec![],
+                        MatchResult {
+                            reason: MatchReason::Reason(reason),
+                            confidence: MatchConfidence::High,
+                        },
+                    ))
                 } else {
-                    no_match
+                    Err(anyhow!("IP address is not in routing table, and does not end in 1 or 254 with no other gateways identified in subnet"))
                 }
             }
 
             Pattern::SubnetIsType(subnet_type) => {
                 if &subnet.base.subnet_type == subnet_type {
-                    Ok(vec![None])
+                    Ok((
+                        vec![],
+                        MatchResult {
+                            reason: MatchReason::Reason(format!(
+                                "Subnet {} is type {}",
+                                subnet.base.cidr,
+                                subnet_type.name()
+                            )),
+                            confidence: MatchConfidence::Low,
+                        },
+                    ))
                 } else {
-                    no_match
+                    Err(anyhow!(
+                        "Subnet {} is not type {}",
+                        subnet.base.cidr,
+                        subnet_type.name()
+                    ))
                 }
             }
 
-            Pattern::HasAnyMatchedService => {
-                if matched_services.is_empty() {
-                    Ok(vec![None])
-                } else {
-                    no_match
-                }
-            }
-
-            Pattern::AnyMatchedService(constraint_function) => {
-                let any = matched_services.iter().any(constraint_function);
-                if any {
-                    Ok(vec![None])
-                } else {
-                    no_match
-                }
-            }
-
-            Pattern::AllMatchedService(constraint_function) => {
-                let any = matched_services.iter().all(constraint_function);
-                if any {
-                    Ok(vec![None])
-                } else {
-                    no_match
-                }
-            }
-
-            Pattern::Custom(constraint_function) => {
+            Pattern::Custom(constraint_function, reason, no_match_reason, confidence) => {
                 if constraint_function(params) {
-                    Ok(vec![None])
+                    Ok((
+                        vec![],
+                        MatchResult {
+                            reason: MatchReason::Reason(reason.to_string()),
+                            confidence: *confidence,
+                        },
+                    ))
                 } else {
-                    no_match
+                    let no_match_reason = no_match_reason.to_string();
+                    Err(anyhow!(no_match_reason))
                 }
             }
 
-            Pattern::DockerClient => {
+            Pattern::Docker => {
                 if **host_has_docker_client {
-                    Ok(vec![None])
+                    Ok((
+                        vec![],
+                        MatchResult {
+                            reason: MatchReason::Reason("Docker is running on host".to_string()),
+                            confidence: MatchConfidence::High,
+                        },
+                    ))
                 } else {
-                    no_match
+                    Err(anyhow!("Docker is not running on host"))
                 }
             }
 
             Pattern::DockerContainer => match virtualization {
-                Some(ServiceVirtualization::Docker(..)) => Ok(vec![None]),
-                _ => no_match,
+                Some(ServiceVirtualization::Docker(..)) => Ok((
+                    vec![],
+                    MatchResult {
+                        reason: MatchReason::Reason(
+                            "Service is running in docker container".to_string(),
+                        ),
+                        confidence: MatchConfidence::Low,
+                    },
+                )),
+                _ => Err(anyhow!("Service is not running in a docker container")),
             },
 
-            Pattern::None => no_match,
+            Pattern::None => Err(anyhow!("No match pattern provided")),
         }
     }
 
+    /// Get all ports which need to be scanned for a given service's match pattern
     pub fn ports(&self) -> Vec<PortBase> {
         match self {
             Pattern::Port(port) => vec![*port],
-            Pattern::Endpoint(response) => vec![response.endpoint.port_base],
-            Pattern::AnyPort(ports) => ports.clone(),
-            Pattern::AllPort(ports) => ports.clone(),
-            Pattern::AnyOf(patterns) => patterns.iter().flat_map(|p| p.ports().to_vec()).collect(),
-            Pattern::AllOf(patterns) => patterns.iter().flat_map(|p| p.ports().to_vec()).collect(),
+            Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => {
+                patterns.iter().flat_map(|p| p.ports().to_vec()).collect()
+            }
             _ => vec![],
         }
     }
 
+    /// Get all endpoints which need to be scanned for a given service's match pattern
     pub fn endpoints(&self) -> Vec<Endpoint> {
         match self {
-            Pattern::Endpoint(endpoint_response) => vec![endpoint_response.endpoint.clone()],
-            Pattern::WebService(path, resp) => web_service_endpoint_responses(None, path, resp)
-                .iter()
-                .map(|er| er.endpoint.clone())
-                .collect(),
-            Pattern::AnyOf(patterns) => patterns
-                .iter()
-                .flat_map(|p| p.endpoints().to_vec())
-                .collect(),
-            Pattern::AllOf(patterns) => patterns
+            Pattern::Endpoint(port_base, path, _) => vec![Endpoint::for_pattern(*port_base, path)],
+            Pattern::AnyOf(patterns) | Pattern::AllOf(patterns) => patterns
                 .iter()
                 .flat_map(|p| p.endpoints().to_vec())
                 .collect(),
@@ -404,21 +462,12 @@ impl Pattern<'_> {
         }
     }
 
+    /// Whether service uses IsGateway as a positive match signal -> service is_gateway = trues
     pub fn contains_gateway_ip_pattern(&self) -> bool {
         match self {
             Pattern::IsGateway => true,
             Pattern::AllOf(patterns) | Pattern::AnyOf(patterns) => {
                 patterns.iter().any(|p| p.contains_gateway_ip_pattern())
-            }
-            _ => false,
-        }
-    }
-
-    pub fn contains_web_service_pattern(&self) -> bool {
-        match self {
-            Pattern::WebService(_, _) => true,
-            Pattern::AllOf(patterns) | Pattern::AnyOf(patterns) => {
-                patterns.iter().any(|p| p.contains_web_service_pattern())
             }
             _ => false,
         }
@@ -429,8 +478,10 @@ impl Pattern<'_> {
 mod tests {
     use std::net::IpAddr;
 
-    use crate::server::services::types::{
-        patterns::Service, virtualization::ServiceVirtualization,
+    use crate::server::services::types::base::Service;
+    use crate::server::{
+        discovery::types::base::DiscoveryType,
+        services::types::virtualization::ServiceVirtualization,
     };
     use uuid::Uuid;
 
@@ -441,8 +492,8 @@ mod tests {
                 definitions::ServiceDefinitionRegistry,
                 types::{
                     base::{
-                        ServiceDiscoveryBaselineParams, ServiceDiscoveryParams,
-                        ServiceDiscoveryStateParams,
+                        DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams,
+                        ServiceMatchServiceParams,
                     },
                     definitions::ServiceDefinition,
                     endpoints::{Endpoint, EndpointResponse},
@@ -459,6 +510,8 @@ mod tests {
         interface: Interface,
         pi: Box<dyn ServiceDefinition>,
         host_id: Uuid,
+        daemon_id: Uuid,
+        discovery_type: DiscoveryType,
         gateway_ips: Vec<IpAddr>,
         endpoint_responses: Vec<EndpointResponse>,
         host_has_docker_client: bool,
@@ -484,6 +537,8 @@ mod tests {
                 interface,
                 pi,
                 host_id: Uuid::new_v4(),
+                daemon_id: Uuid::new_v4(),
+                discovery_type: DiscoveryType::Network,
                 gateway_ips: vec![],
                 endpoint_responses,
                 host_has_docker_client: false,
@@ -495,14 +550,16 @@ mod tests {
 
         fn create_params_with_ports<'a>(
             &'a self,
-            baseline_params: &'a ServiceDiscoveryBaselineParams<'a>,
+            baseline_params: &'a ServiceMatchBaselineParams<'a>,
             unbound_ports: &'a Vec<PortBase>,
-        ) -> ServiceDiscoveryParams<'a> {
-            ServiceDiscoveryParams {
+        ) -> DiscoverySessionServiceMatchParams<'a> {
+            DiscoverySessionServiceMatchParams {
                 host_id: &self.host_id,
                 gateway_ips: &self.gateway_ips,
+                daemon_id: &self.daemon_id,
+                discovery_type: &self.discovery_type,
                 baseline_params,
-                discovery_state_params: ServiceDiscoveryStateParams {
+                service_params: ServiceMatchServiceParams {
                     service_definition: self.pi.clone(),
                     l3_interface_bound: &self.l3_interface_bound,
                     matched_services: &self.matched_services,
@@ -514,8 +571,8 @@ mod tests {
         fn create_baseline_params<'a>(
             &'a self,
             all_ports: &'a Vec<PortBase>,
-        ) -> ServiceDiscoveryBaselineParams<'a> {
-            ServiceDiscoveryBaselineParams {
+        ) -> ServiceMatchBaselineParams<'a> {
+            ServiceMatchBaselineParams {
                 subnet: &self.subnet,
                 interface: &self.interface,
                 all_ports,
@@ -533,20 +590,22 @@ mod tests {
         let ports = vec![PortBase::DnsUdp, PortBase::DnsTcp];
         let baseline = ctx.create_baseline_params(&ports);
         let params = ctx.create_params_with_ports(&baseline, &ports);
-        let result = ctx.pi.discovery_pattern().matches(&params);
+        let pattern = ctx.pi.discovery_pattern();
+        let result = pattern.matches(&params);
 
         assert!(
             result.is_ok(),
-            "Pi-hole pattern should match port 53 and admin endpoint"
+            "Pi-hole pattern should match port 53 and endpoint"
         );
 
         // Test with wrong port - should not match
         let ports = vec![PortBase::new_tcp(80)];
         let baseline = ctx.create_baseline_params(&ports);
         let params = ctx.create_params_with_ports(&baseline, &ports);
-        let result = ctx.pi.discovery_pattern().matches(&params);
+        let pattern = ctx.pi.discovery_pattern();
+        let result = pattern.matches(&params);
 
-        assert!(result.is_err(), "SSH pattern should not match port 80");
+        assert!(result.is_err(), "Pi-hole pattern should not match port 80");
     }
 
     #[test]

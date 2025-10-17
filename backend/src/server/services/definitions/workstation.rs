@@ -19,7 +19,10 @@ impl ServiceDefinition for Workstation {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AllPort(vec![PortBase::Rdp, PortBase::Samba])
+        Pattern::AllOf(vec![
+            Pattern::Port(PortBase::Rdp),
+            Pattern::Port(PortBase::Samba),
+        ])
     }
 
     fn is_generic(&self) -> bool {

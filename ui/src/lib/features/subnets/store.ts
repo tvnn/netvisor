@@ -61,7 +61,9 @@ export function createEmptySubnetFormData(): Subnet {
 		cidr: '',
 		description: '',
 		subnet_type: 'Unknown',
-		source: 'Manual'
+		source: {
+			type: 'Manual'
+		}
 	};
 }
 
@@ -72,7 +74,7 @@ export function getSubnetFromId(id: string) {
 export function isContainerSubnet(id: string): Subnet | boolean {
 	const subnet = get(subnets).find((s) => s.id == id);
 	if (subnet) {
-		return subnet.cidr == '0.0.0.0/0' && subnet.source == 'System';
+		return subnet.cidr == '0.0.0.0/0' && subnet.source.type == 'System';
 	}
 	return false;
 }

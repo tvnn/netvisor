@@ -1,3 +1,4 @@
+use crate::server::discovery::types::base::{DiscoveryType, EntitySource, MatchMetadata};
 use crate::server::hosts::types::interfaces::Interface;
 use crate::server::hosts::types::ports::{Port, PortBase};
 use crate::server::services::definitions::ServiceDefinitionRegistry;
@@ -27,6 +28,7 @@ pub struct ServiceBase {
     pub vms: Vec<Uuid>,
     /// Service IDs that are VMs managed by service
     pub containers: Vec<Uuid>,
+    pub source: EntitySource,
 }
 
 impl Default for ServiceBase {
@@ -39,6 +41,7 @@ impl Default for ServiceBase {
             virtualization: None,
             vms: vec![],
             containers: vec![],
+            source: EntitySource::Unknown,
         }
     }
 }
@@ -54,15 +57,17 @@ pub struct Service {
 }
 
 #[derive(Debug, Clone)]
-pub struct ServiceDiscoveryParams<'a> {
+pub struct DiscoverySessionServiceMatchParams<'a> {
     pub host_id: &'a Uuid,
     pub gateway_ips: &'a [IpAddr],
-    pub baseline_params: &'a ServiceDiscoveryBaselineParams<'a>,
-    pub discovery_state_params: ServiceDiscoveryStateParams<'a>,
+    pub daemon_id: &'a Uuid,
+    pub discovery_type: &'a DiscoveryType,
+    pub baseline_params: &'a ServiceMatchBaselineParams<'a>,
+    pub service_params: ServiceMatchServiceParams<'a>,
 }
 
 #[derive(Debug, Clone)]
-pub struct ServiceDiscoveryBaselineParams<'a> {
+pub struct ServiceMatchBaselineParams<'a> {
     pub subnet: &'a Subnet,
     pub interface: &'a Interface,
     pub all_ports: &'a Vec<PortBase>,
@@ -72,7 +77,7 @@ pub struct ServiceDiscoveryBaselineParams<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct ServiceDiscoveryStateParams<'a> {
+pub struct ServiceMatchServiceParams<'a> {
     pub service_definition: Box<dyn ServiceDefinition>,
     pub l3_interface_bound: &'a bool,
     pub matched_services: &'a Vec<Service>,
@@ -151,7 +156,7 @@ impl Service {
     pub fn all_discovery_ports() -> Vec<PortBase> {
         let mut ports: Vec<PortBase> = ServiceDefinitionRegistry::all_service_definitions()
             .iter()
-            .flat_map(|s| s.discovery_ports())
+            .flat_map(|s| s.discovery_pattern().ports())
             .collect();
 
         ports.sort_by_key(|p| (p.number(), p.protocol()));
@@ -162,30 +167,26 @@ impl Service {
     pub fn all_discovery_endpoints() -> Vec<Endpoint> {
         let mut endpoints: Vec<Endpoint> = ServiceDefinitionRegistry::all_service_definitions()
             .iter()
-            .flat_map(|s| s.discovery_endpoints())
+            .flat_map(|s| s.discovery_pattern().endpoints())
             .collect();
 
-        endpoints.sort_by_key(|e| {
-            (
-                e.protocol.to_string(),
-                e.port_base.number(),
-                e.path.clone().unwrap_or("".to_string()),
-            )
-        });
+        endpoints.sort_by_key(|e| (e.protocol.to_string(), e.port_base.number(), e.path.clone()));
         endpoints.dedup();
         endpoints
     }
 
     /// Matches scanned data and returns service, vec of matched ports
-    pub fn from_discovery(params: ServiceDiscoveryParams) -> (Option<Self>, Vec<Port>) {
-        let ServiceDiscoveryParams {
+    pub fn from_discovery(params: DiscoverySessionServiceMatchParams) -> (Option<Self>, Vec<Port>) {
+        let DiscoverySessionServiceMatchParams {
             host_id,
             baseline_params,
-            discovery_state_params,
+            service_params,
+            daemon_id,
+            discovery_type,
             ..
         } = params.clone();
 
-        let ServiceDiscoveryBaselineParams {
+        let ServiceMatchBaselineParams {
             interface,
             all_ports,
             virtualization,
@@ -194,17 +195,17 @@ impl Service {
 
         let virtualization = *virtualization;
 
-        let ServiceDiscoveryStateParams {
+        let ServiceMatchServiceParams {
             service_definition,
             l3_interface_bound,
             ..
-        } = discovery_state_params;
+        } = service_params;
 
-        if let Ok(result) = service_definition.discovery_pattern().matches(&params) {
+        if let Ok((matched_ports, result)) = service_definition.discovery_pattern().matches(&params)
+        {
             let mut name = service_definition.name().to_string();
-            let matched_ports: Vec<Port> = result.into_iter().flatten().collect();
 
-            if service_definition.is_generic() {
+            let result_details = if service_definition.is_generic() {
                 if let Some(ServiceVirtualization::Docker(DockerVirtualization {
                     container_name: Some(c_name),
                     ..
@@ -212,7 +213,18 @@ impl Service {
                 {
                     name = c_name.clone()
                 }
-            }
+
+                // Don't show match details for generic services, confidence doesn't matter because they are fallbacks anyway
+                None
+            } else {
+                Some(result)
+            };
+
+            let discovery_metadata = MatchMetadata {
+                discovery_type: *discovery_type,
+                daemon_id: *daemon_id,
+                result_details,
+            };
 
             if service_definition.layer() == BindingDiscriminants::Layer3 && !l3_interface_bound {
                 tracing::debug!("Matched service with params {:?}", params);
@@ -231,6 +243,7 @@ impl Service {
                         virtualization: virtualization.clone(),
                         vms: vec![],
                         containers: vec![],
+                        source: EntitySource::Discovery(discovery_metadata),
                     })),
                     Vec::new(),
                 )
@@ -255,6 +268,7 @@ impl Service {
                             .collect(),
                         vms: vec![],
                         containers: vec![],
+                        source: EntitySource::Discovery(discovery_metadata),
                     })),
                     matched_ports,
                 )

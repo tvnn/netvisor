@@ -19,7 +19,7 @@ impl ServiceDefinition for HomeAssistant {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::new_tcp(8123)])
+        Pattern::Endpoint(PortBase::new_tcp(8123), "/auth/authorize", "home assistant")
     }
 
     fn icon(&self) -> &'static str {

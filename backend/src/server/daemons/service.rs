@@ -67,12 +67,12 @@ impl DaemonService {
             ip: Some(daemon.base.ip),
             port_base: PortBase::new_tcp(daemon.base.port),
             protocol: ApplicationProtocol::Http,
-            path: None,
+            path: "/api/discovery/initiate".to_string(),
         };
 
         let response = self
             .client
-            .post(format!("{}/api/discovery/initiate", endpoint))
+            .post(format!("{}", endpoint))
             .json(&request)
             .send()
             .await?;
@@ -111,12 +111,12 @@ impl DaemonService {
             ip: Some(daemon.base.ip),
             port_base: PortBase::new_tcp(daemon.base.port),
             protocol: ApplicationProtocol::Http,
-            path: None,
+            path: "/api/discovery/cancel".to_string(),
         };
 
         let response = self
             .client
-            .post(format!("{}/api/discovery/cancel", endpoint))
+            .post(format!("{}", endpoint))
             .json(&DaemonDiscoveryCancellationRequest { session_id })
             .send()
             .await?;

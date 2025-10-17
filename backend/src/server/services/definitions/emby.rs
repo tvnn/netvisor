@@ -19,7 +19,7 @@ impl ServiceDefinition for Emby {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::new_tcp(8920)])
+        Pattern::Port(PortBase::new_tcp(8920))
     }
 
     fn icon(&self) -> &'static str {

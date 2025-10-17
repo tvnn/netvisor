@@ -1,3 +1,5 @@
+import type { EntitySource } from '$lib/shared/types';
+
 export type ServiceVirtualization = { type: 'Docker'; details: DockerVirtualization };
 
 export interface Service<T extends Binding = Binding> {
@@ -13,6 +15,7 @@ export interface Service<T extends Binding = Binding> {
 	vms: string[];
 	// Service UUIDs
 	containers: string[];
+	source: EntitySource;
 }
 
 export type ServiceWithVMs = Omit<Service, 'vms'> & {

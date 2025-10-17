@@ -19,7 +19,7 @@ impl ServiceDefinition for Portainer {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::new_tcp(9000), PortBase::new_tcp(9443)])
+        Pattern::Endpoint(PortBase::new_tcp(9443), "/", "portainer")
     }
 
     fn icon(&self) -> &'static str {

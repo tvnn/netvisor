@@ -60,50 +60,55 @@
 
 		<!-- List sections -->
 		{#each lists as list (list.label)}
-			<div class="text-sm">
-				<div class="flex flex-wrap items-center gap-2">
-					<span class="text-gray-400">{list.label}:</span>
-					{#if list.items.length > 0}
-						{#each list.items as item (item.id)}
-							<div class="flex items-center justify-between">
-								<div class="flex items-center space-x-2">
-									<Tag
-										icon={item.icon}
-										disabled={item.disabled}
-										color={item.color}
-										badge={item.badge}
-										label={item.label}
-									/>
-								</div>
-
-								<!-- Item actions -->
-								{#if list.itemActions}
-									<div class="flex items-center space-x-1">
-										{#each list.itemActions(item) as action (action.label)}
-											<button
-												on:click={action.onClick}
-												disabled={action.disabled}
-												class="p-1 {action.color || 'text-gray-400'} hover:{action.hoverColor ||
-													'text-white'} {action.bgHover ||
-													'hover:bg-gray-700'} rounded transition-colors disabled:opacity-50"
-												title={action.label}
-											>
-												<svelte:component
-													this={action.icon}
-													size={16}
-													class={action.animation || ''}
-												/>
-											</button>
-										{/each}
+			{#if list.label || list.items}
+				<div class="text-sm">
+					<div class="flex flex-wrap items-center gap-2">
+						{#if list.label}
+							<span class="text-gray-400">{list.label}:</span>
+						{/if}
+						{#if list.items.length > 0}
+							{#each list.items as item (item.id)}
+								<div class="flex items-center justify-between">
+									<div class="flex items-center space-x-2">
+										<Tag
+											icon={item.icon}
+											disabled={item.disabled}
+											color={item.color}
+											badge={item.badge}
+											label={item.label}
+										/>
 									</div>
-								{/if}
-							</div>
-						{/each}
-					{:else}
-						<span class="text-gray-500">{list.emptyText || `No ${list.label.toLowerCase()}`}</span>
-					{/if}
+
+									<!-- Item actions -->
+									{#if list.itemActions}
+										<div class="flex items-center space-x-1">
+											{#each list.itemActions(item) as action (action.label)}
+												<button
+													on:click={action.onClick}
+													disabled={action.disabled}
+													class="p-1 {action.color || 'text-gray-400'} hover:{action.hoverColor ||
+														'text-white'} {action.bgHover ||
+														'hover:bg-gray-700'} rounded transition-colors disabled:opacity-50"
+													title={action.label}
+												>
+													<svelte:component
+														this={action.icon}
+														size={16}
+														class={action.animation || ''}
+													/>
+												</button>
+											{/each}
+										</div>
+									{/if}
+								</div>
+							{/each}
+						{:else if list.label}
+							<span class="text-gray-500">{list.emptyText || `No ${list.label.toLowerCase()}`}</span
+							>
+						{/if}
+					</div>
 				</div>
-			</div>
+			{/if}
 		{/each}
 	</div>
 

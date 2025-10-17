@@ -19,7 +19,11 @@ impl ServiceDefinition for PowerDNS {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AllPort(vec![PortBase::DnsUdp, PortBase::new_tcp(8081)])
+        Pattern::AllOf(vec![
+            Pattern::Port(PortBase::DnsUdp),
+            Pattern::Port(PortBase::DnsTcp),
+            Pattern::Port(PortBase::new_tcp(8081)),
+        ])
     }
 
     fn icon(&self) -> &'static str {

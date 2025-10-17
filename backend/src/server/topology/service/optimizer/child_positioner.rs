@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::server::topology::{
@@ -9,6 +9,18 @@ use crate::server::topology::{
         nodes::{Node, NodeType},
     },
 };
+
+enum HorizontalDirection {
+    Left,
+    Right,
+    Neutral,
+}
+
+enum VerticalDirection {
+    Up,
+    Down,
+    Neutral,
+}
 
 /// High-level optimizer that coordinates crossing reduction and subnet positioning
 pub struct ChildPositioner<'a> {
@@ -304,86 +316,169 @@ impl<'a> ChildPositioner<'a> {
         }
     }
 
-    /// Fix intra-subnet edge handles based on actual node positions
+    /// Fix intra-subnet edge handles based on actual node positions and existing edge handles
     pub fn fix_intra_subnet_handles(&self, edges: &[Edge], nodes: &[Node]) -> Vec<Edge> {
         // Build a map of node ID to position
-        let node_positions: HashMap<Uuid, (Ixy, Uuid)> = nodes
+        let node_positions: HashMap<Uuid, (&Node, Uuid)> = nodes
             .iter()
             .filter_map(|n| match &n.node_type {
-                NodeType::HostNode { subnet_id, .. } => Some((n.id, (n.position, *subnet_id))),
+                NodeType::HostNode { subnet_id, .. } => Some((n.id, (n, *subnet_id))),
                 _ => None,
             })
             .collect();
+
+        // Initialize handle tracking with existing edges
+        let mut source_handles_used: HashMap<Uuid, HashSet<EdgeHandle>> = HashMap::new();
+        let mut target_handles_used: HashMap<Uuid, HashSet<EdgeHandle>> = HashMap::new();
+
+        for edge in edges {
+            source_handles_used
+                .entry(edge.source)
+                .or_default()
+                .insert(edge.source_handle);
+            target_handles_used
+                .entry(edge.target)
+                .or_default()
+                .insert(edge.target_handle);
+        }
 
         edges
             .iter()
             .cloned()
             .map(|mut edge| {
+                // Remove the old handles from tracking before we reassign
+                if let Some(handles) = source_handles_used.get_mut(&edge.source) {
+                    handles.remove(&edge.source_handle);
+                }
+                if let Some(handles) = target_handles_used.get_mut(&edge.target) {
+                    handles.remove(&edge.target_handle);
+                }
+
                 // Check if this is an intra-subnet edge
-                if let (Some((src_pos, src_subnet)), Some((tgt_pos, tgt_subnet))) = (
+                if let (Some((src_node, src_subnet)), Some((tgt_node, tgt_subnet))) = (
                     node_positions.get(&edge.source),
                     node_positions.get(&edge.target),
                 ) {
                     if src_subnet == tgt_subnet {
-                        // This is an intra-subnet edge - adjust handles based on relative position
-                        let dx = tgt_pos.x - src_pos.x;
-                        let dy = tgt_pos.y - src_pos.y;
-                        let bound = 10;
+                        let dx = tgt_node.position.x - src_node.position.x;
+                        let dy = tgt_node.position.y - src_node.position.y;
 
-                        if dx > bound {
-                            // Target is to the right
+                        let (primary_src, alt_src, primary_tgt, alt_tgt) =
+                            Self::determine_handle_preferences(dx as f32, dy as f32);
 
-                            if dy > bound {
-                                // Target is below
-                                edge.source_handle = EdgeHandle::Bottom;
-                                edge.target_handle = EdgeHandle::Left;
-                            } else if dy < -bound {
-                                // Target is above
-                                edge.source_handle = EdgeHandle::Top;
-                                edge.target_handle = EdgeHandle::Left;
-                            } else {
-                                // Target is aligned vertically
-                                edge.source_handle = EdgeHandle::Right;
-                                edge.target_handle = EdgeHandle::Left;
-                            }
-                        } else if dx < -bound {
-                            // Target is to the left
-
-                            if dy > bound {
-                                // Target is below
-                                edge.source_handle = EdgeHandle::Left;
-                                edge.target_handle = EdgeHandle::Top;
-                            } else if dy < -bound {
-                                // Target is above
-                                edge.source_handle = EdgeHandle::Left;
-                                edge.target_handle = EdgeHandle::Bottom;
-                            } else {
-                                // Target is aligned vertically
-                                edge.source_handle = EdgeHandle::Left;
-                                edge.target_handle = EdgeHandle::Right;
-                            }
+                        // Choose source handle (prefer primary, fall back to alternative)
+                        let src_used = source_handles_used.entry(edge.source).or_default();
+                        edge.source_handle = if !src_used.contains(&primary_src) {
+                            primary_src
                         } else {
-                            // Target is aligned horizontally
+                            alt_src
+                        };
+                        src_used.insert(edge.source_handle);
 
-                            if dy > bound {
-                                // Target is below
-                                edge.source_handle = EdgeHandle::Bottom;
-                                edge.target_handle = EdgeHandle::Top;
-                            } else if dy < -bound {
-                                // Target is above
-                                edge.source_handle = EdgeHandle::Top;
-                                edge.target_handle = EdgeHandle::Bottom;
-                            } else {
-                                // Target is somehow overlapping?
-                                edge.source_handle = EdgeHandle::Top;
-                                edge.target_handle = EdgeHandle::Top;
-                            }
-                        }
+                        // Choose target handle (prefer primary, fall back to alternative)
+                        let tgt_used = target_handles_used.entry(edge.target).or_default();
+                        edge.target_handle = if !tgt_used.contains(&primary_tgt) {
+                            primary_tgt
+                        } else {
+                            alt_tgt
+                        };
+                        tgt_used.insert(edge.target_handle);
                     }
                 }
                 edge
             })
             .collect()
+    }
+
+    fn determine_handle_preferences(
+        dx: f32,
+        dy: f32,
+    ) -> (EdgeHandle, EdgeHandle, EdgeHandle, EdgeHandle) {
+        const BOUND: f32 = 10.0;
+
+        let horizontal = if dx > BOUND {
+            HorizontalDirection::Right
+        } else if dx < -BOUND {
+            HorizontalDirection::Left
+        } else {
+            HorizontalDirection::Neutral
+        };
+
+        let vertical = if dy > BOUND {
+            VerticalDirection::Down
+        } else if dy < -BOUND {
+            VerticalDirection::Up
+        } else {
+            VerticalDirection::Neutral
+        };
+
+        match (horizontal, vertical) {
+            // Target is to the right and down
+            (HorizontalDirection::Right, VerticalDirection::Down) => (
+                EdgeHandle::Bottom,
+                EdgeHandle::Right,
+                EdgeHandle::Left,
+                EdgeHandle::Bottom,
+            ),
+            // Target is to the right and up
+            (HorizontalDirection::Right, VerticalDirection::Up) => (
+                EdgeHandle::Top,
+                EdgeHandle::Right,
+                EdgeHandle::Left,
+                EdgeHandle::Top,
+            ),
+            // Target is to the right
+            (HorizontalDirection::Right, VerticalDirection::Neutral) => (
+                EdgeHandle::Right,
+                EdgeHandle::Top,
+                EdgeHandle::Left,
+                EdgeHandle::Bottom,
+            ),
+
+            // Target is to the left and down
+            (HorizontalDirection::Left, VerticalDirection::Down) => (
+                EdgeHandle::Left,
+                EdgeHandle::Bottom,
+                EdgeHandle::Top,
+                EdgeHandle::Right,
+            ),
+            // Target is to the left and up
+            (HorizontalDirection::Left, VerticalDirection::Up) => (
+                EdgeHandle::Left,
+                EdgeHandle::Top,
+                EdgeHandle::Bottom,
+                EdgeHandle::Right,
+            ),
+            // Target is to the left
+            (HorizontalDirection::Left, VerticalDirection::Neutral) => (
+                EdgeHandle::Left,
+                EdgeHandle::Top,
+                EdgeHandle::Right,
+                EdgeHandle::Bottom,
+            ),
+
+            // Target is directly below
+            (HorizontalDirection::Neutral, VerticalDirection::Down) => (
+                EdgeHandle::Bottom,
+                EdgeHandle::Right,
+                EdgeHandle::Top,
+                EdgeHandle::Left,
+            ),
+            // Target is directly above
+            (HorizontalDirection::Neutral, VerticalDirection::Up) => (
+                EdgeHandle::Top,
+                EdgeHandle::Right,
+                EdgeHandle::Bottom,
+                EdgeHandle::Left,
+            ),
+            // Target is overlapping
+            (HorizontalDirection::Neutral, VerticalDirection::Neutral) => (
+                EdgeHandle::Top,
+                EdgeHandle::Right,
+                EdgeHandle::Top,
+                EdgeHandle::Bottom,
+            ),
+        }
     }
 
     /// Optimize positions within a constrained set (same row or column)

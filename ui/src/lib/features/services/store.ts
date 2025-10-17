@@ -31,20 +31,36 @@ export function createDefaultService(
 		bindings: [],
 		virtualization: null,
 		vms: [],
-		containers: []
+		containers: [],
+		source: {
+			type: 'Manual'
+		}
 	};
 }
 
-export function formatServiceAsHost(service_id: string): string {
-	const service = getServiceById(service_id);
-	const host = getServiceHost(service_id);
-
+export function formatServiceLabel(service: Service | null, host: Host | null): string {
 	if (host && service) {
-		if (host.name == service.name) return host.name;
+		if (host.name === service.name) return host.name;
 		else return host.name + ': ' + service.name;
-	} else if (host && !service) return host.name + ': ' + 'Unknown Service';
-	else if (!host && service) return service.name + '(Unknown Host)';
-	else return 'Unknown Service';
+	} else if (host && !service) {
+		return host.name + ': Unknown Service';
+	} else if (!host && service) {
+		return service.name + '(Unknown Host)';
+	} else {
+		return 'Unknown Service';
+	}
+}
+
+export function formatServiceLabels(service_ids: string[]) {
+	return service_ids.map((service_id) => {
+		const service = get(services).find((s) => s.id === service_id);
+		const host = service ? get(hosts).find((h) => h.id === service.host_id) : null;
+
+		return {
+			id: service_id,
+			label: formatServiceLabel(service || null, host || null)
+		};
+	});
 }
 
 export function getServiceById(service_id: string): Service | null {

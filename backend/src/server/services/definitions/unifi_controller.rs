@@ -19,7 +19,7 @@ impl ServiceDefinition for UnifiController {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::new_tcp(2049)])
+        Pattern::Port(PortBase::new_tcp(2049))
     }
 
     fn icon(&self) -> &'static str {

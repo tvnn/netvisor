@@ -19,7 +19,7 @@ impl ServiceDefinition for Jellyfin {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::new_tcp(8096)])
+        Pattern::Port(PortBase::new_tcp(8096))
     }
 
     fn icon(&self) -> &'static str {

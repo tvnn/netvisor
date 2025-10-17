@@ -26,9 +26,6 @@
 	export let onConsolidate: (host: Host) => void = () => {};
 	export let discoveryIsRunning: boolean;
 
-	// Build connection info
-	$: connectionInfo = getHostTargetString(host);
-
 	$: hostIsRunningDiscovery =
 		discoveryIsRunning && daemon !== null
 			? getDaemonDiscoveryState(daemon.id, $sessions) !== null
@@ -46,10 +43,11 @@
 		.flatMap((sv) => sv.containers.map((s_id) => getServiceById(s_id)))
 		.filter((s) => s != undefined)
 		.map((s) => s.id);
+
 	// Build card data
 	$: cardData = {
 		title: host.name,
-		link: connectionInfo ? `http://${connectionInfo}` : undefined,
+		link: host.target.type != 'None' ? `http://${getHostTargetString(host)}` : undefined,
 		iconColor: entities.getColorHelper('Host').icon,
 		icon:
 			serviceDefinitions.getIconComponent(hostServices[0]?.service_definition) ||

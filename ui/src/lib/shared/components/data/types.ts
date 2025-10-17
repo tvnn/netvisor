@@ -38,7 +38,7 @@ export interface CardListItem {
 }
 
 export interface CardList {
-	label: string;
+	label?: string;
 	items: CardListItem[];
 	emptyText?: string;
 	itemActions?: (item: CardListItem) => CardAction[];

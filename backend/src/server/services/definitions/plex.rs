@@ -19,7 +19,7 @@ impl ServiceDefinition for Plex {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::new_tcp(32400)])
+        Pattern::Port(PortBase::new_tcp(32400))
     }
 
     fn icon(&self) -> &'static str {

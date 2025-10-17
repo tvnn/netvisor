@@ -1,3 +1,4 @@
+use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;
@@ -18,7 +19,7 @@ impl ServiceDefinition for QNAP {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::WebService("/", "QNAP")
+        Pattern::Endpoint(PortBase::Http, "/", "QNAP")
     }
 
     fn icon(&self) -> &'static str {

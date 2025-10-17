@@ -1,3 +1,4 @@
+use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;
@@ -18,7 +19,7 @@ impl ServiceDefinition for NginxProxyManager {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::WebService("/", "Nginx Proxy Manager")
+        Pattern::Endpoint(PortBase::Http, "/", "nginx proxy manager")
     }
 
     fn icon(&self) -> &'static str {

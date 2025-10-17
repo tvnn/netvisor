@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS services (
     virtualization TEXT,
     vms TEXT,
     containers TEXT,
+    source TEXT NOT NULL,
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
 );
 

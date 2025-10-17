@@ -19,7 +19,11 @@ impl ServiceDefinition for PrintServer {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyPort(vec![PortBase::Ipp, PortBase::LdpTcp, PortBase::LdpUdp])
+        Pattern::AnyOf(vec![
+            Pattern::Port(PortBase::Ipp),
+            Pattern::Port(PortBase::LdpTcp),
+            Pattern::Port(PortBase::LdpUdp),
+        ])
     }
 
     fn is_generic(&self) -> bool {

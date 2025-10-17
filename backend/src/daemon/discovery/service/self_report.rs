@@ -5,7 +5,7 @@ use crate::{
     },
     server::{
         daemons::types::api::DaemonDiscoveryRequest,
-        discovery::types::base::{DiscoveryType, EntitySource},
+        discovery::types::base::{DiscoveryType, EntitySource, MatchMetadata},
         hosts::types::{
             interfaces::{Interface, ALL_INTERFACES_IP},
             ports::{Port, PortBase},
@@ -152,6 +152,10 @@ impl Discovery<SelfReportDiscovery> {
             virtualization: None,
             vms: vec![],
             containers: vec![],
+            source: EntitySource::Discovery(MatchMetadata::new(
+                DiscoveryType::SelfReport,
+                daemon_id,
+            )),
         });
 
         services.push(daemon_service);

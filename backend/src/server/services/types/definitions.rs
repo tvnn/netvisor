@@ -1,11 +1,9 @@
-use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::custom_l3::CustomLayer3;
 use crate::server::services::definitions::docker_daemon::Docker;
 use crate::server::services::definitions::proxmox::Proxmox;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::types::bindings::BindingDiscriminants;
 use crate::server::services::types::categories::ServiceCategory;
-use crate::server::services::types::endpoints::Endpoint;
 use crate::server::services::types::patterns::Pattern;
 use crate::server::shared::types::metadata::TypeMetadataProvider;
 use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId};
@@ -42,16 +40,12 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
 
 // Helper methods to be used in rest of codebase, not overridable by definition implementations
 pub trait ServiceDefinitionExt {
-    fn discovery_ports(&self) -> Vec<PortBase>;
-    fn discovery_endpoints(&self) -> Vec<Endpoint>;
     fn can_be_manually_added(&self) -> bool;
     fn layer(&self) -> BindingDiscriminants;
     fn is_dns_resolver(&self) -> bool;
     fn is_reverse_proxy(&self) -> bool;
-    fn is_gateway(&self) -> bool;
     fn is_infra_service(&self) -> bool;
     fn manages_virtualization(&self) -> Option<&'static str>;
-    fn contains_web_service_pattern(&self) -> bool;
 }
 
 impl<T: ServiceDefinition> HasId for T
@@ -91,16 +85,10 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
 
 impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
     fn is_infra_service(&self) -> bool {
-        self.is_dns_resolver() || self.is_gateway() || self.is_reverse_proxy()
+        self.is_dns_resolver()
+            || self.discovery_pattern().contains_gateway_ip_pattern()
+            || self.is_reverse_proxy()
         // || self.is_docker_daemon()
-    }
-
-    fn discovery_ports(&self) -> Vec<PortBase> {
-        self.discovery_pattern().ports()
-    }
-
-    fn discovery_endpoints(&self) -> Vec<Endpoint> {
-        self.discovery_pattern().endpoints()
     }
 
     fn can_be_manually_added(&self) -> bool {
@@ -108,7 +96,8 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
     }
 
     fn layer(&self) -> BindingDiscriminants {
-        if self.is_gateway() || self.id() == CustomLayer3.id() {
+        if self.discovery_pattern().contains_gateway_ip_pattern() || self.id() == CustomLayer3.id()
+        {
             return BindingDiscriminants::Layer3;
         }
         BindingDiscriminants::Layer4
@@ -125,10 +114,6 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
         ServiceDefinition::category(self) == ServiceCategory::ReverseProxy
     }
 
-    fn is_gateway(&self) -> bool {
-        self.discovery_pattern().contains_gateway_ip_pattern()
-    }
-
     fn manages_virtualization(&self) -> Option<&'static str> {
         let id = self.id();
         match id {
@@ -136,10 +121,6 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
             _ if id == Docker.id() => Some("containers"),
             _ => None,
         }
-    }
-
-    fn contains_web_service_pattern(&self) -> bool {
-        self.discovery_pattern().contains_web_service_pattern()
     }
 }
 
@@ -170,7 +151,7 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
         let can_be_added = self.can_be_manually_added();
         let is_dns_resolver = self.is_dns_resolver();
         let is_reverse_proxy = self.is_reverse_proxy();
-        let is_gateway = self.is_gateway();
+        let is_gateway = self.discovery_pattern().contains_gateway_ip_pattern();
         let is_generic = self.is_generic();
         let layer: &str = self.layer().into();
         let manages_virtualization = self.manages_virtualization();

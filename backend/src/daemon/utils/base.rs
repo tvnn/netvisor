@@ -243,13 +243,15 @@ pub trait DaemonUtils: NetworkUtils {
 
             let url = endpoint.to_string();
 
-            // No need for additional timeout() wrapper since client has timeout configured
             if let Ok(response) = client.get(&url).send().await {
+                let status = response.status();
                 if let Ok(text) = response.text().await {
-                    responses.push(EndpointResponse {
-                        endpoint,
-                        response: text,
-                    });
+                    if status.is_success() {
+                        responses.push(EndpointResponse {
+                            endpoint,
+                            response: text,
+                        });
+                    }
                 }
             }
         }
