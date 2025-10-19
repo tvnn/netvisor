@@ -7,7 +7,7 @@ export type EntitySource =
 			metadata: {
 				discovery_type: DiscoveryType;
 				daemon_id: string;
-				result_details: MatchResult;
+				details: MatchResult;
 			};
 	  };
 
@@ -17,7 +17,7 @@ export type MatchReason =
 
 export interface MatchResult {
 	reason: MatchReason;
-	confidence: 'Low' | 'Medium' | 'High';
+	confidence: 'Low' | 'Medium' | 'High' | 'Certain';
 }
 
 export type DiscoveryType =

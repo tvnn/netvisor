@@ -52,8 +52,6 @@ use crate::{
     },
 };
 
-pub const CONCURRENT_SCANS: usize = 15;
-
 pub trait HasDiscoveryType {
     fn discovery_type(&self) -> DiscoveryType;
 }
@@ -340,7 +338,10 @@ pub trait DiscoversNetworkedEntities:
             interfaces: vec![interface.clone()],
             services: Vec::new(),
             ports: Vec::new(),
-            source: EntitySource::Discovery(MatchMetadata::new(discovery_type, daemon_id)),
+            source: EntitySource::Discovery(MatchMetadata::new_no_details(
+                discovery_type,
+                daemon_id,
+            )),
             virtualization: None,
         });
 
@@ -412,7 +413,7 @@ pub trait DiscoversNetworkedEntities:
                     host_id: &host.id,
                 };
 
-            if let (Some(service), mut bound_ports) = Service::from_discovery(params) {
+            if let Some((service, mut result)) = Service::from_discovery(params) {
                 if service.base.service_definition.layer() == BindingDiscriminants::Layer3 {
                     l3_interface_bound = true;
                 }
@@ -421,20 +422,17 @@ pub trait DiscoversNetworkedEntities:
                     host.base.name = service.base.service_definition.name().to_string();
                 }
 
-                // If there's an http or https port binding + host target is hostname or none, use a binding as the host target
+                // If there's a endpoint match + host target is hostname or none, use a binding as the host target
                 if let (Some(binding), true) = (
                     service.base.bindings.iter().find(|b| {
                         match b {
                             Binding::Layer3 { .. } => false,
                             Binding::Layer4 { port_id, .. } => {
                                 if let Some(port) = host.get_port(port_id) {
-                                    return [
-                                        PortBase::Http,
-                                        PortBase::HttpAlt,
-                                        PortBase::Https,
-                                        PortBase::HttpsAlt,
-                                    ]
-                                    .contains(&port.base);
+                                    return result
+                                        .endpoint
+                                        .iter()
+                                        .any(|e| e.port_base == port.base);
                                 }
                                 false
                             }
@@ -447,9 +445,9 @@ pub trait DiscoversNetworkedEntities:
                 }
 
                 // Add any bound ports to host ports array, remove from open ports
-                let bound_port_bases: Vec<PortBase> = bound_ports.iter().map(|p| p.base).collect();
+                let bound_port_bases: Vec<PortBase> = result.ports.iter().map(|p| p.base).collect();
 
-                host.base.ports.append(&mut bound_ports);
+                host.base.ports.append(&mut result.ports);
 
                 // Add new service
                 matched_services.push(service.clone());

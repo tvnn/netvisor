@@ -1,11 +1,12 @@
 use crate::server::discovery::types::base::{DiscoveryType, EntitySource, MatchMetadata};
 use crate::server::hosts::types::interfaces::Interface;
-use crate::server::hosts::types::ports::{Port, PortBase};
+use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::types::bindings::{Binding, BindingDiscriminants};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
+use crate::server::services::types::patterns::MatchResult;
 use crate::server::services::types::virtualization::{DockerVirtualization, ServiceVirtualization};
 use crate::server::subnets::types::base::Subnet;
 use chrono::{DateTime, Utc};
@@ -176,7 +177,9 @@ impl Service {
     }
 
     /// Matches scanned data and returns service, vec of matched ports
-    pub fn from_discovery(params: DiscoverySessionServiceMatchParams) -> (Option<Self>, Vec<Port>) {
+    pub fn from_discovery(
+        params: DiscoverySessionServiceMatchParams,
+    ) -> Option<(Self, MatchResult)> {
         let DiscoverySessionServiceMatchParams {
             host_id,
             baseline_params,
@@ -201,11 +204,10 @@ impl Service {
             ..
         } = service_params;
 
-        if let Ok((matched_ports, result)) = service_definition.discovery_pattern().matches(&params)
-        {
+        if let Ok(result) = service_definition.discovery_pattern().matches(&params) {
             let mut name = service_definition.name().to_string();
 
-            let result_details = if service_definition.is_generic() {
+            let details = if service_definition.is_generic() {
                 if let Some(ServiceVirtualization::Docker(DockerVirtualization {
                     container_name: Some(c_name),
                     ..
@@ -217,13 +219,13 @@ impl Service {
                 // Don't show match details for generic services, confidence doesn't matter because they are fallbacks anyway
                 None
             } else {
-                Some(result)
+                Some(result.details.clone())
             };
 
             let discovery_metadata = MatchMetadata {
                 discovery_type: *discovery_type,
                 daemon_id: *daemon_id,
-                result_details,
+                details,
             };
 
             if service_definition.layer() == BindingDiscriminants::Layer3 && !l3_interface_bound {
@@ -234,8 +236,8 @@ impl Service {
                     service_definition.name(),
                 );
 
-                (
-                    Some(Service::new(ServiceBase {
+                Some((
+                    Service::new(ServiceBase {
                         host_id: *host_id,
                         service_definition,
                         name,
@@ -244,34 +246,35 @@ impl Service {
                         vms: vec![],
                         containers: vec![],
                         source: EntitySource::Discovery(discovery_metadata),
-                    })),
-                    Vec::new(),
-                )
+                    }),
+                    result,
+                ))
             } else if service_definition.layer() == BindingDiscriminants::Layer4 {
                 tracing::debug!("Matched service with params {:?}", params);
                 tracing::info!(
                     "{}: L4 service {:?} matched with ports {:?}",
                     interface.base.ip_address,
                     service_definition,
-                    matched_ports
+                    result.ports
                 );
 
-                (
-                    Some(Service::new(ServiceBase {
+                Some((
+                    Service::new(ServiceBase {
                         host_id: *host_id,
                         service_definition,
                         name,
                         virtualization: virtualization.clone(),
-                        bindings: matched_ports
+                        bindings: result
+                            .ports
                             .iter()
                             .map(|p| Binding::new_l4(p.id, Some(interface.id)))
                             .collect(),
                         vms: vec![],
                         containers: vec![],
                         source: EntitySource::Discovery(discovery_metadata),
-                    })),
-                    matched_ports,
-                )
+                    }),
+                    result,
+                ))
             } else {
                 tracing::warn!(
                     "{}: No services matched. L3 interface already bound: {}, open ports on host: {:?}",
@@ -280,10 +283,10 @@ impl Service {
                     all_ports
                 );
 
-                (None, Vec::new())
+                None
             }
         } else {
-            (None, Vec::new())
+            None
         }
     }
 }

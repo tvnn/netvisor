@@ -20,6 +20,7 @@ pub struct CliArgs {
     pub bind_address: Option<String>,
     pub log_level: Option<String>,
     pub heartbeat_interval: Option<u64>,
+    pub concurrent_scans: Option<usize>,
 }
 
 /// Unified configuration struct that handles both startup and runtime config
@@ -36,6 +37,8 @@ pub struct AppConfig {
     pub heartbeat_interval: u64,
     #[serde(default)]
     pub bind_address: String,
+    #[serde(default)]
+    pub concurrent_scans: usize,
 
     // Runtime state (persisted)
     pub id: Uuid,
@@ -58,6 +61,7 @@ impl Default for AppConfig {
             id: Uuid::new_v4(),
             last_heartbeat: None,
             host_id: None,
+            concurrent_scans: 15,
         }
     }
 }
@@ -105,6 +109,9 @@ impl AppConfig {
         }
         if let Some(bind_address) = cli_args.bind_address {
             figment = figment.merge(("bind_address", bind_address));
+        }
+        if let Some(concurrent_scans) = cli_args.concurrent_scans {
+            figment = figment.merge(("concurrent_scans", concurrent_scans));
         }
 
         let config: AppConfig = figment
@@ -231,6 +238,11 @@ impl ConfigStore {
         } else {
             Err(Error::msg("No IP configured for server"))
         }
+    }
+
+    pub async fn get_concurrent_scans(&self) -> Result<usize> {
+        let config = self.config.read().await;
+        Ok(config.concurrent_scans)
     }
 
     pub async fn get_heartbeat_interval(&self) -> Result<u64> {

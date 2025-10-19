@@ -13,9 +13,7 @@ use std::sync::Arc;
 use std::{collections::HashMap, net::IpAddr, sync::OnceLock};
 use tokio_util::sync::CancellationToken;
 
-use crate::daemon::discovery::service::base::{
-    HasDiscoveryType, InitiatesOwnDiscovery, CONCURRENT_SCANS,
-};
+use crate::daemon::discovery::service::base::{HasDiscoveryType, InitiatesOwnDiscovery};
 use crate::daemon::discovery::types::base::DiscoverySessionUpdate;
 use crate::daemon::utils::base::DaemonUtils;
 use crate::server::discovery::types::base::{DiscoveryType, MatchMetadata};
@@ -217,16 +215,18 @@ impl Discovery<DockerScanDiscovery> {
             virtualization: None,
             vms: vec![],
             containers: services.iter().map(|s| s.id).collect(),
-            source: EntitySource::Discovery(MatchMetadata::new(
+            source: EntitySource::Discovery(MatchMetadata::new_certain(
                 DiscoveryType::SelfReport,
                 daemon_id,
+                "Docker daemon self-report",
             )),
         });
 
         let mut temp_docker_daemon_host = Host::new(HostBase::default());
         temp_docker_daemon_host.id = self.domain.host_id;
-        temp_docker_daemon_host.base.source =
-            EntitySource::Discovery(MatchMetadata::new(self.discovery_type(), daemon_id));
+        temp_docker_daemon_host.base.source = EntitySource::Discovery(
+            MatchMetadata::new_no_details(self.discovery_type(), daemon_id),
+        );
         temp_docker_daemon_host.base.services = vec![docker_service.id];
 
         self.create_host(temp_docker_daemon_host, vec![docker_service])
@@ -244,6 +244,8 @@ impl Discovery<DockerScanDiscovery> {
         let session = self.as_ref().get_session().await?;
         let scanned_count = session.scanned_count.clone();
         let discovered_count = session.discovered_count.clone();
+
+        let concurrent_scans = self.as_ref().config_store.get_concurrent_scans().await?;
 
         self.report_discovery_update(DiscoverySessionUpdate::scanning(0, 0))
             .await?;
@@ -267,7 +269,7 @@ impl Discovery<DockerScanDiscovery> {
                     .await
                 }
             })
-            .buffer_unordered(CONCURRENT_SCANS); // Use same concurrency as network discovery
+            .buffer_unordered(concurrent_scans);
 
         let mut stream_pin = Box::pin(results);
         let mut last_reported_scan_count: usize = 0;
@@ -548,7 +550,7 @@ impl Discovery<DockerScanDiscovery> {
                                 description: None,
                                 name: network_name.clone(),
                                 subnet_type: SubnetType::DockerBridge,
-                                source: EntitySource::Discovery(MatchMetadata::new(
+                                source: EntitySource::Discovery(MatchMetadata::new_no_details(
                                     self.discovery_type(),
                                     daemon_id,
                                 )),

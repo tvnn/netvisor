@@ -23,12 +23,17 @@
 				tags.push(tag);
 			}
 
-			if (service.source.type == 'Discovery' && service.source.metadata.result_details) {
-				let confidence = service.source.metadata.result_details.confidence;
+			if (service.source.type == 'Discovery' && service.source.metadata.details) {
+				let confidence = service.source.metadata.details.confidence;
 
 				const tag: TagProps = {
 					label: confidence + ' Confidence',
-					color: confidence === 'High' ? 'green' : confidence === 'Medium' ? 'blue' : 'yellow'
+					color: {
+						Certain: 'blue',
+						High: 'green',
+						Medium: 'yellow',
+						Low: 'red'
+					}[confidence]
 				};
 
 				tags.push(tag);

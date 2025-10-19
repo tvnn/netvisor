@@ -1,6 +1,5 @@
 use crate::daemon::discovery::service::base::{
     CreatesDiscoveredEntities, DiscoversNetworkedEntities, Discovery, HasDiscoveryType,
-    CONCURRENT_SCANS,
 };
 use crate::daemon::discovery::types::base::DiscoverySessionUpdate;
 use crate::server::discovery::types::base::DiscoveryType;
@@ -99,6 +98,8 @@ impl Discovery<NetworkScanDiscovery> {
             subnet.base.cidr
         );
 
+        let concurrent_scans = self.as_ref().config_store.get_concurrent_scans().await?;
+
         let session = self.as_ref().get_session().await?;
 
         let scanned_count = session.scanned_count.clone();
@@ -156,7 +157,7 @@ impl Discovery<NetworkScanDiscovery> {
                 }
                 Ok(None)
             })
-            .buffer_unordered(CONCURRENT_SCANS);
+            .buffer_unordered(concurrent_scans);
 
         // Consume the stream and report progress periodically
         tracing::info!(

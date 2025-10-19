@@ -187,8 +187,8 @@
 			{/key}
 		</div>
 
-		{#if service.source.type == 'Discovery' && service.source.metadata.result_details}
-			<MatchReason result={service.source.metadata.result_details} />
+		{#if service.source.type == 'Discovery' && service.source.metadata.details}
+			<MatchReason result={service.source.metadata.details} />
 		{/if}
 	</div>
 {/if}

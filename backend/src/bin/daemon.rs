@@ -53,6 +53,10 @@ struct Cli {
     /// Daemon bind address
     #[arg(long)]
     bind_address: Option<String>,
+
+    /// Concurrent scans for discovery
+    #[arg(long)]
+    concurrent_scans: Option<usize>,
 }
 
 impl From<Cli> for CliArgs {
@@ -65,6 +69,7 @@ impl From<Cli> for CliArgs {
             bind_address: cli.bind_address,
             log_level: cli.log_level,
             heartbeat_interval: cli.heartbeat_interval,
+            concurrent_scans: cli.concurrent_scans,
         }
     }
 }

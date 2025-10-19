@@ -21,8 +21,16 @@ use crate::server::{
     subnets::types::base::SubnetType,
 };
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct MatchResult {
+    pub ports: Vec<Port>,
+    pub endpoint: Option<Endpoint>,
+    pub mac_vendor: Option<String>,
+    pub details: MatchDetails,
+}
+
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MatchDetails {
     pub reason: MatchReason,
     pub confidence: MatchConfidence,
 }
@@ -122,8 +130,8 @@ impl Pattern<'_> {
     pub fn matches(
         &self,
         params: &DiscoverySessionServiceMatchParams,
-    ) -> Result<(Vec<Port>, MatchResult), Error> {
-        // Return ports that matched if any
+    ) -> Result<MatchResult, Error> {
+        // Return ports + endpoint that matched, if any
 
         let DiscoverySessionServiceMatchParams {
             gateway_ips,
@@ -147,9 +155,11 @@ impl Pattern<'_> {
         match self {
             Pattern::Port(port_base) => {
                 if let Some(matched_port) = unbound_ports.iter().find(|p| **p == *port_base) {
-                    Ok((
-                        vec![Port::new(*matched_port)],
-                        MatchResult {
+                    Ok(MatchResult {
+                        ports: vec![Port::new(*matched_port)],
+                        endpoint: None,
+                        mac_vendor: None,
+                        details: MatchDetails {
                             reason: MatchReason::Reason(format!("Port {} is open", port_base)),
                             confidence: if port_base.is_custom() {
                                 MatchConfidence::Medium
@@ -157,7 +167,7 @@ impl Pattern<'_> {
                                 MatchConfidence::Low
                             },
                         },
-                    ))
+                    })
                 } else {
                     Err(anyhow!("Port {} is not open", port_base))
                 }
@@ -176,16 +186,18 @@ impl Pattern<'_> {
                             .to_lowercase()
                             .contains(&expected_response.to_lowercase())
                 }) {
-                    Ok((
-                        vec![Port::new(actual.endpoint.port_base)],
-                        MatchResult {
+                    Ok(MatchResult {
+                        ports: vec![Port::new(actual.endpoint.port_base)],
+                        endpoint: Some(actual.endpoint.clone()),
+                        mac_vendor: None,
+                        details: MatchDetails {
                             reason: MatchReason::Reason(format!(
                                 "Response from {} contained \"{}\"",
                                 actual.endpoint, expected_response
                             )),
                             confidence: MatchConfidence::High,
                         },
-                    ))
+                    })
                 } else {
                     Err(anyhow!(
                         "Response from {} did not contain \"{}\"",
@@ -219,16 +231,18 @@ impl Pattern<'_> {
                     let entry_string = normalize(&entry.company_name);
 
                     if vendor_string == entry_string {
-                        Ok((
-                            vec![],
-                            MatchResult {
+                        Ok(MatchResult {
+                            ports: vec![],
+                            endpoint: None,
+                            mac_vendor: Some(entry.company_name.clone()),
+                            details: MatchDetails {
                                 reason: MatchReason::Reason(format!(
                                     "Mac address is from vendor {}",
                                     vendor_string
                                 )),
                                 confidence: MatchConfidence::Medium,
                             },
-                        ))
+                        })
                     } else {
                         Err(anyhow!("Mac address is not from vendor {}", vendor_string))
                     }
@@ -241,30 +255,42 @@ impl Pattern<'_> {
             }
 
             Pattern::Not(pattern) => match pattern.matches(params) {
-                Ok((_, result)) => Err(anyhow!("{}", result.reason)),
-                Err(e) => Ok((
-                    vec![],
-                    MatchResult {
+                Ok(result) => Err(anyhow!("{}", result.details.reason)),
+                Err(e) => Ok(MatchResult {
+                    ports: vec![],
+                    endpoint: None,
+                    mac_vendor: None,
+                    details: MatchDetails {
                         reason: MatchReason::Reason(format!("{}", e)),
                         confidence: MatchConfidence::Low,
                     },
-                )),
+                }),
             },
 
             Pattern::AnyOf(patterns) => {
                 let mut ports = Vec::new();
+                let mut endpoint = None;
+                let mut mac_vendor = None;
                 let mut any_matched = false;
                 let mut confidence = MatchConfidence::Low;
                 let mut reasons = Vec::new();
                 let mut no_match_errors = String::new();
                 patterns.iter().for_each(|p| match p.matches(params) {
-                    Ok((p, result)) => {
+                    Ok(result) => {
                         any_matched = true;
-                        ports.extend(p);
-                        reasons.push(result.reason);
+                        ports.extend(result.ports);
+                        reasons.push(result.details.reason);
 
-                        if result.confidence > confidence {
-                            confidence = result.confidence;
+                        if result.endpoint.is_some() && endpoint.is_none() {
+                            endpoint = result.endpoint;
+                        }
+
+                        if result.mac_vendor.is_some() && mac_vendor.is_none() {
+                            mac_vendor = result.mac_vendor;
+                        }
+
+                        if result.details.confidence > confidence {
+                            confidence = result.details.confidence;
                         }
                     }
                     Err(e) => {
@@ -273,13 +299,15 @@ impl Pattern<'_> {
                 });
 
                 if any_matched {
-                    Ok((
+                    Ok(MatchResult {
                         ports,
-                        MatchResult {
+                        endpoint: None,
+                        mac_vendor: None,
+                        details: MatchDetails {
                             reason: MatchReason::Container("Any of".to_string(), reasons),
                             confidence,
                         },
-                    ))
+                    })
                 } else {
                     Err(anyhow!(no_match_errors))
                 }
@@ -288,14 +316,24 @@ impl Pattern<'_> {
             Pattern::AllOf(patterns) => {
                 let mut all_matched = true;
                 let mut ports = Vec::new();
+                let mut endpoint = None;
+                let mut mac_vendor = None;
                 let mut matched_confidences = Vec::new();
                 let mut reasons = Vec::new();
                 let mut no_match_errors = String::new();
                 patterns.iter().for_each(|p| match p.matches(params) {
-                    Ok((p, result)) => {
-                        ports.extend(p);
-                        reasons.push(result.reason);
-                        matched_confidences.push(result.confidence);
+                    Ok(result) => {
+                        ports.extend(result.ports);
+                        reasons.push(result.details.reason);
+                        matched_confidences.push(result.details.confidence);
+
+                        if result.endpoint.is_some() && endpoint.is_none() {
+                            endpoint = result.endpoint;
+                        }
+
+                        if result.mac_vendor.is_some() && mac_vendor.is_none() {
+                            mac_vendor = result.mac_vendor;
+                        }
                     }
                     Err(e) => {
                         all_matched = false;
@@ -305,14 +343,34 @@ impl Pattern<'_> {
 
                 if all_matched {
                     matched_confidences.sort();
-                    let median_key = usize::div_ceil(matched_confidences.len() - 1, 2);
-                    Ok((
+
+                    let max_confidence =
+                        matched_confidences.last().unwrap_or(&MatchConfidence::Low);
+
+                    // Boost confidence if multiple lower-confidence patterns are matched
+                    let confidence = if matches!(
+                        max_confidence,
+                        MatchConfidence::Low | MatchConfidence::Medium
+                    ) && matched_confidences.len() > 3
+                    {
+                        match max_confidence {
+                            MatchConfidence::Low => MatchConfidence::Medium,
+                            MatchConfidence::Medium => MatchConfidence::High,
+                            _ => *max_confidence,
+                        }
+                    } else {
+                        *max_confidence
+                    };
+
+                    Ok(MatchResult {
                         ports,
-                        MatchResult {
+                        endpoint: None,
+                        mac_vendor: None,
+                        details: MatchDetails {
                             reason: MatchReason::Container("All of".to_string(), reasons),
-                            confidence: matched_confidences[median_key],
+                            confidence,
                         },
-                    ))
+                    })
                 } else {
                     Err(anyhow!(no_match_errors))
                 }
@@ -359,13 +417,15 @@ impl Pattern<'_> {
                 };
 
                 if is_gateway {
-                    Ok((
-                        vec![],
-                        MatchResult {
+                    Ok(MatchResult {
+                        ports: vec![],
+                        endpoint: None,
+                        mac_vendor: None,
+                        details: MatchDetails {
                             reason: MatchReason::Reason(reason),
                             confidence: MatchConfidence::High,
                         },
-                    ))
+                    })
                 } else {
                     Err(anyhow!("IP address is not in routing table, and does not end in 1 or 254 with no other gateways identified in subnet"))
                 }
@@ -373,9 +433,11 @@ impl Pattern<'_> {
 
             Pattern::SubnetIsType(subnet_type) => {
                 if &subnet.base.subnet_type == subnet_type {
-                    Ok((
-                        vec![],
-                        MatchResult {
+                    Ok(MatchResult {
+                        ports: vec![],
+                        endpoint: None,
+                        mac_vendor: None,
+                        details: MatchDetails {
                             reason: MatchReason::Reason(format!(
                                 "Subnet {} is type {}",
                                 subnet.base.cidr,
@@ -383,7 +445,7 @@ impl Pattern<'_> {
                             )),
                             confidence: MatchConfidence::Low,
                         },
-                    ))
+                    })
                 } else {
                     Err(anyhow!(
                         "Subnet {} is not type {}",
@@ -395,13 +457,15 @@ impl Pattern<'_> {
 
             Pattern::Custom(constraint_function, reason, no_match_reason, confidence) => {
                 if constraint_function(params) {
-                    Ok((
-                        vec![],
-                        MatchResult {
+                    Ok(MatchResult {
+                        ports: vec![],
+                        endpoint: None,
+                        mac_vendor: None,
+                        details: MatchDetails {
                             reason: MatchReason::Reason(reason.to_string()),
                             confidence: *confidence,
                         },
-                    ))
+                    })
                 } else {
                     let no_match_reason = no_match_reason.to_string();
                     Err(anyhow!(no_match_reason))
@@ -410,28 +474,32 @@ impl Pattern<'_> {
 
             Pattern::Docker => {
                 if **host_has_docker_client {
-                    Ok((
-                        vec![],
-                        MatchResult {
+                    Ok(MatchResult {
+                        ports: vec![],
+                        endpoint: None,
+                        mac_vendor: None,
+                        details: MatchDetails {
                             reason: MatchReason::Reason("Docker is running on host".to_string()),
                             confidence: MatchConfidence::High,
                         },
-                    ))
+                    })
                 } else {
                     Err(anyhow!("Docker is not running on host"))
                 }
             }
 
             Pattern::DockerContainer => match virtualization {
-                Some(ServiceVirtualization::Docker(..)) => Ok((
-                    vec![],
-                    MatchResult {
+                Some(ServiceVirtualization::Docker(..)) => Ok(MatchResult {
+                    ports: vec![],
+                    endpoint: None,
+                    mac_vendor: None,
+                    details: MatchDetails {
                         reason: MatchReason::Reason(
                             "Service is running in docker container".to_string(),
                         ),
                         confidence: MatchConfidence::Low,
                     },
-                )),
+                }),
                 _ => Err(anyhow!("Service is not running in a docker container")),
             },
 

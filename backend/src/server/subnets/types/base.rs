@@ -97,7 +97,10 @@ impl Subnet {
                     description: None,
                     name: cidr.to_string(),
                     subnet_type,
-                    source: EntitySource::Discovery(MatchMetadata::new(*discovery_type, daemon_id)),
+                    source: EntitySource::Discovery(MatchMetadata::new_no_details(
+                        *discovery_type,
+                        daemon_id,
+                    )),
                 }))
             }
         }

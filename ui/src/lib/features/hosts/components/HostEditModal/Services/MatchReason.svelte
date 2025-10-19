@@ -7,8 +7,12 @@
 
 	let isExpanded = $state(false);
 
-	const confidenceColor =
-		result.confidence === 'High' ? 'green' : result.confidence === 'Medium' ? 'blue' : 'yellow';
+	const confidenceColor = {
+		Certain: 'blue',
+		High: 'green',
+		Medium: 'yellow',
+		Low: 'red'
+	}[result.confidence];
 </script>
 
 {#snippet matchReasonNode(reason: MatchReason)}
