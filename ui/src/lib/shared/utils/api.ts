@@ -39,6 +39,16 @@ class ApiClient {
 		}
 	}
 
+	/**
+	 * request<TResponseData, TStoreData>
+	 * TResponseData: Type of data returned by the API
+	 * TStoreData: Type of data stored in the Svelte store (can be different)
+	 * @param endpoint - will be prefixd with {endpoint}/api
+	 * @param dataStore - store that will be updated with the response data
+	 * @param storeAction - function to update the store with new data. Takes response data and current store data (as defined in dataStore), returns updated store data
+	 * @param options - fetch options like method, body, headers
+	 * @returns 
+	 */
 	async request<TResponseData, TStoreData = TResponseData>(
 		endpoint: string,
 		dataStore: Writable<TStoreData> | null,

@@ -33,22 +33,29 @@ impl DaemonRuntimeService {
         let mut interval_timer = tokio::time::interval(interval);
         interval_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
+        let server_target = self.config_store.get_server_endpoint().await?;        
+
         loop {
             interval_timer.tick().await;
 
-            match self.send_heartbeat(&daemon_id).await {
-                Ok(()) => {
-                    // Update last heartbeat timestamp in config
-                    if let Err(e) = self.config_store.update_heartbeat().await {
-                        tracing::warn!("Failed to update heartbeat timestamp: {}", e);
-                    }
-                    tracing::trace!("💓 Heartbeat sent successfully");
-                }
-                Err(e) => {
-                    tracing::warn!("❤️‍🩹 Heartbeat failed: {}", e);
-                    // Continue trying - don't exit on heartbeat failures
-                }
+            let response = self
+                .client
+                .put(format!(
+                    "{}/api/daemons/{}/heartbeat",
+                    server_target, daemon_id
+                ))
+                .send()
+                .await?;
+
+            if !response.status().is_success() {
+                let text = response.text().await?;
+                tracing::warn!("❤️‍🩹 Heartbeat failed: {}", text);
             }
+
+            if let Err(e) = self.config_store.update_heartbeat().await {
+                tracing::warn!("Failed to update heartbeat timestamp: {}", e);
+            }
+            tracing::info!("💓 Heartbeat sent successfully");
         }
     }
 
@@ -136,27 +143,6 @@ impl DaemonRuntimeService {
             daemon_id
         );
 
-        Ok(())
-    }
-
-    /// Send heartbeat to server
-    pub async fn send_heartbeat(&self, daemon_id: &Uuid) -> Result<()> {
-        let server_target = self.config_store.get_server_endpoint().await?;
-
-        let response = self
-            .client
-            .put(format!(
-                "{}/api/daemons/{}/heartbeat",
-                server_target, daemon_id
-            ))
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Heartbeat failed: HTTP {}", response.status());
-        }
-
-        tracing::debug!("Heartbeat sent successfully");
         Ok(())
     }
 }

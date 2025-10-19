@@ -1,13 +1,12 @@
 use std::net::IpAddr;
 
 use crate::server::{
-    services::types::{
+    services::{definitions::ServiceDefinitionRegistry, types::{
         base::{
-            DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams,
-            ServiceMatchServiceParams,
+            DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams, ServiceMatchServiceParams
         },
         virtualization::ServiceVirtualization,
-    },
+    }},
     shared::types::metadata::TypeMetadataProvider,
 };
 use anyhow::{anyhow, Error};
@@ -150,22 +149,55 @@ impl Pattern<'_> {
             ..
         } = baseline_params;
 
-        let ServiceMatchServiceParams { unbound_ports, .. } = service_params;
+        let ServiceMatchServiceParams { unbound_ports, service_definition, .. } = service_params;
 
         match self {
             Pattern::Port(port_base) => {
+
                 if let Some(matched_port) = unbound_ports.iter().find(|p| **p == *port_base) {
+
+                    let mut all_other_services_ports: Vec<PortBase> = ServiceDefinitionRegistry::all_service_definitions()
+                        .iter()
+                        .filter(|s| s.id() != service_definition.id())
+                        .flat_map(|s| s.discovery_pattern().ports())
+                        .collect();
+
+                    all_other_services_ports.sort_by_key(|p| (p.number(), p.protocol()));
+                    all_other_services_ports.dedup();
+
+                    let is_unique_to_service = port_base.is_custom() && !all_other_services_ports.contains(port_base);
+
+                    let (reason, confidence) = if port_base.is_custom() && is_unique_to_service {
+                        (
+                            format!(
+                                "Port {} is open and is not used in other service match patterns {}",
+                                port_base,
+                                service_definition.name()
+                            ),
+                            MatchConfidence::Medium,
+                        )
+                    } else if port_base.is_custom() && !is_unique_to_service {
+                        (
+                            format!(
+                                "Port {} is open but is used in other service match patterns",
+                                port_base
+                            ),
+                            MatchConfidence::Low,
+                        )
+                    } else {
+                        (
+                            format!("Port {} is open", port_base),
+                            MatchConfidence::Low,
+                        )
+                    };
+
                     Ok(MatchResult {
                         ports: vec![Port::new(*matched_port)],
                         endpoint: None,
                         mac_vendor: None,
                         details: MatchDetails {
-                            reason: MatchReason::Reason(format!("Port {} is open", port_base)),
-                            confidence: if port_base.is_custom() {
-                                MatchConfidence::Medium
-                            } else {
-                                MatchConfidence::Low
-                            },
+                            reason: MatchReason::Reason(reason),
+                            confidence
                         },
                     })
                 } else {

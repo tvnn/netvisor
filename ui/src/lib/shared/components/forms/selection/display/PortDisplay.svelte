@@ -6,8 +6,8 @@
 	import type { Service } from '$lib/features/services/types/base';
 
 	export const PortDisplay: EntityDisplayComponent<Port> = {
-		getId: (port: Port) => `${port.number}-${port.protocol}`,
-		getLabel: (port: Port) => `Port ${port.number}`,
+		getId: (port: Port) => `${port.id}`,
+		getLabel: (port: Port) => `${port.number}/${port.protocol.toLowerCase()}`,
 		getDescription: (port: Port, context: { currentServices: Service[] }) => {
 			// Use context services if available, otherwise fall back to store
 			let services: Service[] = context.currentServices.filter((s) =>
@@ -39,12 +39,7 @@
 		},
 		getIcon: () => entities.getIconComponent('Port'),
 		getIconColor: () => entities.getColorHelper('Port').icon,
-		getTags: (port: Port) => [
-			{
-				label: port.protocol.toUpperCase(),
-				color: port.protocol === 'Tcp' ? 'blue' : 'purple'
-			}
-		],
+		getTags: () => [],
 		getIsDisabled: () => false,
 		getCategory: () => null,
 		supportsInlineEdit: true,

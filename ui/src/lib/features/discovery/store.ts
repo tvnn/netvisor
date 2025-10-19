@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { createPoller, Poller } from '../../shared/utils/polling';
 import type { DaemonDiscoveryUpdate, InitiateDiscoveryRequest } from './types/api';
@@ -9,6 +9,7 @@ import { getServices } from '../services/store';
 
 // daemon_id to latest update
 export const sessions = writable<Map<string, DaemonDiscoveryUpdate>>(new Map());
+export const cancelling = writable<Map<string, boolean>>(new Map());
 
 // Discovery status poller instance
 let discoveryPoller: Poller | null = null;
@@ -59,12 +60,23 @@ export async function initiateDiscovery(data: InitiateDiscoveryRequest) {
 }
 
 export async function cancelDiscovery(id: string) {
-	await api.request<void, Map<string, DaemonDiscoveryUpdate>>(
+
+	const map = new Map(get(cancelling));
+	map.set(id, true);
+	cancelling.set(map);
+
+	await api.request<void, Map<string, boolean>>(
 		`/discovery/${id}/cancel`,
-		null,
-		null,
+		cancelling,
+		(_, currentCancelling) => {
+			const updatedCancelling = new Map(currentCancelling);
+			updatedCancelling.set(id, false);
+			return updatedCancelling;
+		},
 		{ method: 'POST' }
 	);
+
+
 }
 
 export async function getActiveDiscoverySessions() {

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { X, Radar } from 'lucide-svelte';
-	import { cancelDiscovery, initiateDiscovery } from '$lib/features/discovery/store';
+	import { X, Radar, Loader2 } from 'lucide-svelte';
+	import { cancelDiscovery, cancelling, initiateDiscovery } from '$lib/features/discovery/store';
 	import type { DaemonDiscoveryUpdate } from '$lib/features/discovery/types/api';
 	import type { Daemon } from '../daemons/types/base';
 
@@ -9,6 +9,7 @@
 
 	$: isActive = discoveryData !== null;
 	$: hasError = discoveryData?.error !== undefined && discoveryData?.error !== null;
+	$: isCancelling = discoveryData?.session_id ? $cancelling.get(discoveryData.session_id) === true : false;
 
 	// Calculate progress across multiple subnets
 	$: progressPercent = (() => {
@@ -42,7 +43,7 @@
 	<div class="flex items-center justify-between gap-3">
 		<div class="flex-1 space-y-2">
 			<div class="flex items-center gap-3">
-				<span class="text-sm font-medium text-blue-400">{discoveryData.phase}</span>
+				<span class="text-sm font-medium text-blue-400">{isCancelling ? 'Cancelling' : discoveryData.phase}</span>
 				<span class="text-sm font-medium text-green-400"
 					>{discoveryData.discovered_count} hosts found</span
 				>
@@ -71,8 +72,12 @@
 			class="rounded p-1 text-red-400 transition-colors hover:bg-gray-700 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
 			on:click={handleCancelDiscovery}
 			title="Cancel Discovery"
-		>
-			<X class="h-4 w-4" />
+		>	
+			{#if isCancelling}
+				<Loader2 class="h-4 w-4 animate-spin" />
+			{:else}
+				<X class="h-4 w-4" />
+			{/if}
 		</button>
 	</div>
 {:else}

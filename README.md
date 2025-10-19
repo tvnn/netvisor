@@ -30,6 +30,7 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 - [Configuration](#configuration)
   - [Daemon Configuration](#daemon-configuration)
   - [Server Configuration](#server-configuration)
+- [Troubleshooting](#troubleshooting)
 - [Uninstall Daemon](#uninstall-daemon)
 - [FAQ](#faq)
   - [Where does NetVisor store my data?](#where-does-netvisor-store-my-data)
@@ -48,6 +49,8 @@ NetVisor consists of two components:
 The server-daemon architecture allows you to scan networks from multiple vantage points, essential for mapping VLANs and complex network topologies.
 
 ## Installation
+
+Refer to [configuration](#configuration) for more setup options.
 
 ### 0. Install Requirements
 
@@ -236,6 +239,10 @@ The server supports the following configuration options:
 | Log Level | `--log-level` | `NETVISOR_LOG_LEVEL` | `info` | Logging verbosity (`trace`, `debug`, `info`, `warn`, `error`) |
 | Database Path | `--database-path` | `NETVISOR_DATABASE_PATH` | `./netvisor.db` | Path to the SQLite database file |
 | Web Assets Path | `--web-external-path` | `NETVISOR_WEB_EXTERNAL_PATH` | `None` | Path to static web UI assets (used in Docker builds) |
+
+## Troubleshooting
+
+###
 
 ## Uninstall Daemon
 

@@ -261,7 +261,52 @@ impl EntityMetadataProvider for PortBase {
 
 impl TypeMetadataProvider for PortBase {
     fn name(&self) -> &'static str {
-        self.id()
+        match self {
+            PortBase::Ssh => "SSH",
+            PortBase::Telnet => "Telnet",
+            PortBase::DnsUdp => "DNS (UDP)",
+            PortBase::DnsTcp => "DNS (TCP)",
+            PortBase::Samba => "Samba",
+            PortBase::Nfs => "NFS",
+            PortBase::Ftp => "FTP",
+            PortBase::Ipp => "IPP",
+            PortBase::LdpTcp => "LDP (TCP)",
+            PortBase::LdpUdp => "LDP (UDP)",
+            PortBase::Snmp => "SNMP",
+            PortBase::Rdp => "RDP",
+            PortBase::Ntp => "NTP",
+            PortBase::Rtsp => "RTSP",
+            PortBase::Dhcp => "DHCP",
+            PortBase::Http => "HTTP",
+            PortBase::HttpAlt => "HTTP Alt",
+            PortBase::Https => "HTTPS",
+            PortBase::HttpsAlt => "HTTPS Alt",
+            PortBase::Custom(_) => "Custom",
+        }
+    }
+    fn description(&self) -> &'static str {
+        match self {
+            PortBase::Ssh => "Secure Shell",
+            PortBase::Telnet => "Telnet Protocol",
+            PortBase::DnsUdp => "Domain Name System (UDP)",
+            PortBase::DnsTcp => "Domain Name System (TCP)",
+            PortBase::Samba => "Samba File Sharing",
+            PortBase::Nfs => "Network File System",
+            PortBase::Ftp => "File Transfer Protocol",
+            PortBase::Ipp => "Internet Printing Protocol",
+            PortBase::LdpTcp => "Line Printer Daemon (TCP)",
+            PortBase::LdpUdp => "Line Printer Daemon (UDP)",
+            PortBase::Snmp => "Simple Network Management Protocol",
+            PortBase::Rdp => "Remote Desktop Protocol",
+            PortBase::Ntp => "Network Time Protocol",
+            PortBase::Rtsp => "Real-Time Streaming Protocol",
+            PortBase::Dhcp => "Dynamic Host Configuration Protocol",
+            PortBase::Http => "Hypertext Transfer Protocol",
+            PortBase::HttpAlt => "Alternative HTTP Port",
+            PortBase::Https => "Hypertext Transfer Protocol Secure",
+            PortBase::HttpsAlt => "Alternative HTTPS Port",
+            PortBase::Custom(_) => "Custom Port Configuration",
+        }
     }
     fn metadata(&self) -> serde_json::Value {
         let is_management = matches!(
@@ -283,8 +328,11 @@ impl TypeMetadataProvider for PortBase {
 
         let can_be_added = !matches!(self, PortBase::Custom(_));
 
+        let is_custom = self.is_custom();
+
         serde_json::json!({
             "is_management": is_management,
+            "is_custom": is_custom,
             "is_dns": is_dns,
             "can_be_added": can_be_added,
             "number": number,
