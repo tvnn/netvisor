@@ -91,19 +91,3 @@ export function dismissToast(id: string) {
 export function clearAllToasts() {
 	toastStore.set([]);
 }
-
-// Legacy support
-export function clearError(message: string) {
-	toastStore.update((toasts) =>
-		toasts.filter((t) => !(t.type === 'error' && t.message === message))
-	);
-}
-
-// Keep errorStore for backward compatibility
-export const errorStore = writable<string[]>([]);
-
-// Sync errorStore with error toasts for backward compatibility
-toastStore.subscribe((toasts) => {
-	const errorMessages = toasts.filter((t) => t.type === 'error').map((t) => t.message);
-	errorStore.set(errorMessages);
-});

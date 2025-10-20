@@ -1,7 +1,7 @@
 import { derived, get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { Daemon } from './types/base';
-import type { DaemonDiscoveryUpdate } from '../discovery/types/api';
+import type { DiscoveryUpdatePayload } from '../discovery/types/api';
 import { hosts } from '../hosts/store';
 import type { Host } from '../hosts/types/base';
 
@@ -11,10 +11,20 @@ export async function getDaemons() {
 	return await api.request<Daemon[]>('/daemons', daemons, (daemons) => daemons, { method: 'GET' });
 }
 
-export function getDaemonDiscoveryState(
+export function getDaemonIsRunningDiscovery(
 	daemon_id: string | null,
-	sessionsMap: Map<string, DaemonDiscoveryUpdate>
-): DaemonDiscoveryUpdate | null {
+	sessionsMap: Map<string, DiscoveryUpdatePayload>
+): boolean {
+	if (!daemon_id) return false;
+	let session = sessionsMap.get(daemon_id);
+	if (!session) return false;
+	return session.phase == 'Initiated' || session.phase == 'Started' || session.phase == 'Scanning'
+}
+
+export function getDaemonDiscoveryData(
+	daemon_id: string | null,
+	sessionsMap: Map<string, DiscoveryUpdatePayload>
+): DiscoveryUpdatePayload | null {
 	if (!daemon_id) return null;
 	return sessionsMap.get(daemon_id) || null;
 }

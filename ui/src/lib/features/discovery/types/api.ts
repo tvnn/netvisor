@@ -6,10 +6,10 @@ export interface DiscoverySessionRequest {
 	session_id: string;
 }
 
-export interface DaemonDiscoveryUpdate {
+export interface DiscoveryUpdatePayload {
 	session_id: string;
 	daemon_id: string;
-	phase?: string;
+	phase: 'Initiated' | 'Started' | 'Scanning' | 'Complete' | 'Failed' | 'Cancelled';
 	completed?: number;
 	total?: number;
 	discovered_count?: number;

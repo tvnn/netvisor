@@ -73,7 +73,7 @@ impl DiscoverySessionManager {
 
             if matches!(
                 session.phase,
-                DiscoveryPhase::Cancelled | DiscoveryPhase::Complete | DiscoveryPhase::Finished
+                DiscoveryPhase::Cancelled | DiscoveryPhase::Complete | DiscoveryPhase::Failed
             ) {
                 // Remove from daemon sessions mapping
                 match &session.error {
@@ -132,15 +132,26 @@ impl DiscoverySessionManager {
 
     /// Get active session count for monitoring
     pub async fn get_active_sessions(&self) -> Vec<DiscoveryUpdatePayload> {
+        let now = Utc::now();
+
         self.sessions
             .read()
             .await
             .values()
             .filter(|session| {
-                !matches!(
-                    session.phase,
-                    DiscoveryPhase::Cancelled | DiscoveryPhase::Complete | DiscoveryPhase::Finished
-                )
+                match session.phase {
+                    // Always show active phases
+                    DiscoveryPhase::Initiated | DiscoveryPhase::Started | DiscoveryPhase::Scanning => true,
+                    
+                    // Show terminal phases for a short time so UI can poll and see them
+                    DiscoveryPhase::Complete | DiscoveryPhase::Cancelled | DiscoveryPhase::Failed => {
+                        if let Some(finished_at) = session.finished_at {
+                            (now - finished_at).num_seconds() < 30 // Keep for 30 seconds
+                        } else {
+                            true // If no finished_at yet, keep showing it
+                        }
+                    }
+                }
             })
             .cloned()
             .collect()

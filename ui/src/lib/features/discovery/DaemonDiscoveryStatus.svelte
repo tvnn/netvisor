@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { X, Radar, Loader2 } from 'lucide-svelte';
-	import { cancelDiscovery, cancelling, initiateDiscovery } from '$lib/features/discovery/store';
-	import type { DaemonDiscoveryUpdate } from '$lib/features/discovery/types/api';
+	import { cancelDiscovery, cancelling, initiateDiscovery, sessions } from '$lib/features/discovery/store';
+	import type { DiscoveryUpdatePayload } from '$lib/features/discovery/types/api';
 	import type { Daemon } from '../daemons/types/base';
+	import { getDaemonIsRunningDiscovery } from '../daemons/store';
 
 	export let daemon: Daemon;
-	export let discoveryData: DaemonDiscoveryUpdate | null = null;
+	export let discoveryData: DiscoveryUpdatePayload | null = null;
 
-	$: isActive = discoveryData !== null;
-	$: hasError = discoveryData?.error !== undefined && discoveryData?.error !== null;
+	$: isActive = getDaemonIsRunningDiscovery(daemon.id, $sessions);
 	$: isCancelling = discoveryData?.session_id ? $cancelling.get(discoveryData.session_id) === true : false;
 
 	// Calculate progress across multiple subnets
@@ -62,12 +62,6 @@
 			{/if}
 		</div>
 
-		{#if hasError}
-			<div class="mt-1">
-				<span class="text-sm text-red-600">{discoveryData.error}</span>
-			</div>
-		{/if}
-
 		<button
 			class="rounded p-1 text-red-400 transition-colors hover:bg-gray-700 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
 			on:click={handleCancelDiscovery}
@@ -78,17 +72,6 @@
 			{:else}
 				<X class="h-4 w-4" />
 			{/if}
-		</button>
-	</div>
-{:else}
-	<!-- Inactive - Start Discovery CTA -->
-	<div class="flex justify-center">
-		<button
-			class="flex items-center justify-center gap-2 rounded bg-blue-600 px-3 py-1 text-sm text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-			on:click={handleStartDiscovery}
-		>
-			<Radar class="h-4 w-4" />
-			<span>Discover Hosts</span>
 		</button>
 	</div>
 {/if}

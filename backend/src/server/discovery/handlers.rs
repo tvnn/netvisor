@@ -1,6 +1,6 @@
 use crate::server::{
     config::AppState,
-    daemons::types::api::{DaemonDiscoveryRequest, DiscoveryUpdatePayload},
+    daemons::types::{api::{DaemonDiscoveryRequest, DiscoveryUpdatePayload}, base::Daemon},
     discovery::types::{api::InitiateDiscoveryRequest, base::DiscoveryType},
     shared::types::api::{ApiError, ApiResponse, ApiResult},
 };
@@ -15,7 +15,7 @@ use uuid::Uuid;
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/initiate", post(initiate_discovery))
+        .route("/initiate", post(user_initiate_discovery))
         .route("/daemon-initiate", post(daemon_initiate_discovery))
         .route("/:session_id/status", get(get_discovery_status))
         .route("/:session_id/cancel", post(cancel_discovery))
@@ -40,32 +40,7 @@ async fn daemon_initiate_discovery(
 ) -> ApiResult<Json<ApiResponse<Uuid>>> {
     tracing::info!("daemon_initiate_discovery handler called");
 
-    let daemon_service = &state.services.daemon_service;
-
-    // Get the specified daemon
-    let daemon = match daemon_service.get_daemon(&request.daemon_id).await? {
-        Some(daemon) => daemon,
-        None => {
-            return Err(ApiError::not_found(&format!(
-                "Daemon '{}' not found",
-                &request.daemon_id
-            )))
-        }
-    };
-
-    // Check if daemon is already running discovery
-    if let Some(existing_session_id) = state
-        .discovery_manager
-        .is_daemon_discovering(&daemon.id)
-        .await
-    {
-        return Err(ApiError::conflict(&format!(
-            "Daemon '{}' is already running discovery session '{}'",
-            daemon.id, existing_session_id
-        )));
-    }
-
-    let session_id = Uuid::new_v4();
+    let (daemon, session_id) = initiate_discovery(state.clone(), request).await?;
 
     // Create discovery session
     state
@@ -80,10 +55,37 @@ async fn daemon_initiate_discovery(
 }
 
 /// Endpoint for users to initiate discovery on a specific daemon
-async fn initiate_discovery(
+async fn user_initiate_discovery(
     State(state): State<Arc<AppState>>,
     Json(request): Json<InitiateDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<DiscoveryUpdatePayload>>> {
+    
+    let (daemon, session_id) = initiate_discovery(state.clone(), request).await?;
+
+    // Send discovery request to daemon
+    state.services.daemon_service
+        .send_discovery_request(
+            &daemon,
+            DaemonDiscoveryRequest {
+                discovery_type: DiscoveryType::Network,
+                session_id,
+            },
+        )
+        .await?;
+
+    // Create discovery session
+    let update = state
+        .discovery_manager
+        .create_session(session_id, request.daemon_id)
+        .await
+        .map_err(|e| {
+            ApiError::internal_error(&format!("Failed to create discovery session: {}", e))
+        })?;
+
+    Ok(Json(ApiResponse::success(update)))
+}
+
+async fn initiate_discovery(state: Arc<AppState>, request: InitiateDiscoveryRequest) -> Result<(Daemon, Uuid), ApiError>{
     let daemon_service = &state.services.daemon_service;
 
     // Get the specified daemon
@@ -109,29 +111,7 @@ async fn initiate_discovery(
         )));
     }
 
-    let session_id = Uuid::new_v4();
-
-    // Send discovery request to daemon
-    daemon_service
-        .send_discovery_request(
-            &daemon,
-            DaemonDiscoveryRequest {
-                discovery_type: DiscoveryType::Network,
-                session_id,
-            },
-        )
-        .await?;
-
-    // Create discovery session
-    let update = state
-        .discovery_manager
-        .create_session(session_id, daemon.id)
-        .await
-        .map_err(|e| {
-            ApiError::internal_error(&format!("Failed to create discovery session: {}", e))
-        })?;
-
-    Ok(Json(ApiResponse::success(update)))
+    Ok((daemon, Uuid::new_v4()))
 }
 
 // Get all active discovery sessions

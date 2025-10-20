@@ -73,7 +73,6 @@ pub struct ServiceMatchBaselineParams<'a> {
     pub interface: &'a Interface,
     pub all_ports: &'a Vec<PortBase>,
     pub endpoint_responses: &'a Vec<EndpointResponse>,
-    pub host_has_docker_client: &'a bool,
     pub virtualization: &'a Option<ServiceVirtualization>,
 }
 

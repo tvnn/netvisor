@@ -366,7 +366,6 @@ impl Discovery<DockerScanDiscovery> {
                         interface,
                         all_ports: container_ports_on_interface,
                         endpoint_responses: &endpoint_responses,
-                        host_has_docker_client: &false,
                         virtualization: &Some(ServiceVirtualization::Docker(
                             DockerVirtualization {
                                 container_name: container

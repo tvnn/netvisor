@@ -104,9 +104,6 @@ pub enum Pattern<'a> {
         MatchConfidence,
     ),
 
-    /// Whether the host is running Docker and a Docker client connection can be established
-    Docker,
-
     /// Whether the host is a docker container
     DockerContainer,
 
@@ -144,7 +141,6 @@ impl Pattern<'_> {
             subnet,
             interface,
             endpoint_responses,
-            host_has_docker_client,
             virtualization,
             ..
         } = baseline_params;
@@ -504,22 +500,6 @@ impl Pattern<'_> {
                 }
             }
 
-            Pattern::Docker => {
-                if **host_has_docker_client {
-                    Ok(MatchResult {
-                        ports: vec![],
-                        endpoint: None,
-                        mac_vendor: None,
-                        details: MatchDetails {
-                            reason: MatchReason::Reason("Docker is running on host".to_string()),
-                            confidence: MatchConfidence::High,
-                        },
-                    })
-                } else {
-                    Err(anyhow!("Docker is not running on host"))
-                }
-            }
-
             Pattern::DockerContainer => match virtualization {
                 Some(ServiceVirtualization::Docker(..)) => Ok(MatchResult {
                     ports: vec![],
@@ -614,7 +594,6 @@ mod tests {
         discovery_type: DiscoveryType,
         gateway_ips: Vec<IpAddr>,
         endpoint_responses: Vec<EndpointResponse>,
-        host_has_docker_client: bool,
         virtualization: Option<ServiceVirtualization>,
         l3_interface_bound: bool,
         matched_services: Vec<Service>,
@@ -641,7 +620,6 @@ mod tests {
                 discovery_type: DiscoveryType::Network,
                 gateway_ips: vec![],
                 endpoint_responses,
-                host_has_docker_client: false,
                 virtualization: None,
                 l3_interface_bound: false,
                 matched_services: vec![],
@@ -677,7 +655,6 @@ mod tests {
                 interface: &self.interface,
                 all_ports,
                 endpoint_responses: &self.endpoint_responses,
-                host_has_docker_client: &self.host_has_docker_client,
                 virtualization: &self.virtualization,
             }
         }

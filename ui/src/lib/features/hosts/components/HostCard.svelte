@@ -10,7 +10,7 @@
 	import type { Host } from '../types/base';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
-	import { getDaemonDiscoveryState } from '$lib/features/daemons/store';
+	import { getDaemonIsRunningDiscovery, getDaemonDiscoveryData } from '$lib/features/daemons/store';
 	import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
 	import { sessions } from '$lib/features/discovery/store';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
@@ -27,11 +27,11 @@
 	export let discoveryIsRunning: boolean;
 
 	$: hostIsRunningDiscovery =
-		discoveryIsRunning && daemon !== null
-			? getDaemonDiscoveryState(daemon.id, $sessions) !== null
+		(discoveryIsRunning && daemon !== null)
+			? getDaemonIsRunningDiscovery(daemon.id, $sessions)
 			: false;
 	$: discoveryData =
-		hostIsRunningDiscovery && daemon ? getDaemonDiscoveryState(daemon.id, $sessions) : null;
+		hostIsRunningDiscovery && daemon ? getDaemonDiscoveryData(daemon.id, $sessions) : null;
 
 	$: hostServicesStore = getServicesForHostReactive(host.id);
 	$: hostServices = $hostServicesStore;

@@ -1,14 +1,14 @@
 import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { createPoller, Poller } from '../../shared/utils/polling';
-import type { DaemonDiscoveryUpdate, InitiateDiscoveryRequest } from './types/api';
+import type { DiscoveryUpdatePayload, InitiateDiscoveryRequest } from './types/api';
 import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 import { getHosts } from '../hosts/store';
 import { getSubnets } from '../subnets/store';
 import { getServices } from '../services/store';
 
 // daemon_id to latest update
-export const sessions = writable<Map<string, DaemonDiscoveryUpdate>>(new Map());
+export const sessions = writable<Map<string, DiscoveryUpdatePayload>>(new Map());
 export const cancelling = writable<Map<string, boolean>>(new Map());
 
 // Discovery status poller instance
@@ -43,7 +43,7 @@ export async function stopDiscoveryPolling() {
 }
 
 export async function initiateDiscovery(data: InitiateDiscoveryRequest) {
-	const result = await api.request<DaemonDiscoveryUpdate, Map<string, DaemonDiscoveryUpdate>>(
+	const result = await api.request<DiscoveryUpdatePayload, Map<string, DiscoveryUpdatePayload>>(
 		'/discovery/initiate',
 		sessions,
 		(update, currentSessions) => {
@@ -65,14 +65,10 @@ export async function cancelDiscovery(id: string) {
 	map.set(id, true);
 	cancelling.set(map);
 
-	await api.request<void, Map<string, boolean>>(
+	await api.request<void, void>(
 		`/discovery/${id}/cancel`,
-		cancelling,
-		(_, currentCancelling) => {
-			const updatedCancelling = new Map(currentCancelling);
-			updatedCancelling.set(id, false);
-			return updatedCancelling;
-		},
+		null,
+		null,
 		{ method: 'POST' }
 	);
 
@@ -80,7 +76,7 @@ export async function cancelDiscovery(id: string) {
 }
 
 export async function getActiveDiscoverySessions() {
-	const result = await api.request<DaemonDiscoveryUpdate[], Map<string, DaemonDiscoveryUpdate>>(
+	const result = await api.request<DiscoveryUpdatePayload[], Map<string, DiscoveryUpdatePayload>>(
 		'/discovery/active',
 		sessions,
 		(actives, current) => {
@@ -88,7 +84,7 @@ export async function getActiveDiscoverySessions() {
 			const newMap = actives.reduce((map, session) => {
 				map.set(session.daemon_id, session);
 				return map;
-			}, new Map<string, DaemonDiscoveryUpdate>());
+			}, new Map<string, DiscoveryUpdatePayload>());
 
 			// Compare with current state - only return new map if different
 			if (current.size !== newMap.size) {
@@ -106,10 +102,15 @@ export async function getActiveDiscoverySessions() {
 					currentSession.error !== session.error
 				) {
 					if (session.phase == 'Complete')
-						pushSuccess(`"Discovery completed with ${session.discovered_count} hosts found`);
-					if (session.phase == 'Warn')
-						pushWarning(`"Discovery cancelled with ${session.discovered_count} hosts found`);
-					if (session.error) pushError(`"Discovery error: ${session.error}`);
+						pushSuccess(`Discovery completed with ${session.discovered_count} hosts found`);
+					if (session.phase == 'Cancelled')
+						pushWarning(`Discovery cancelled with ${session.discovered_count} hosts found`);
+						const updatedCancelling = new Map(get(cancelling));
+						updatedCancelling.set(session.session_id, false);
+						cancelling.set(updatedCancelling);
+					if (session.error) {
+						pushError(`Discovery error: ${session.error}`, -1)
+					};
 
 					return newMap;
 				}

@@ -1,10 +1,10 @@
 use std::{
     net::IpAddr,
-    sync::{atomic::AtomicUsize, Arc},
+    sync::{atomic::AtomicUsize, Arc}, time::Duration,
 };
 
 use crate::{
-    daemon::discovery::manager::DaemonDiscoverySessionManager,
+    daemon::discovery::{manager::DaemonDiscoverySessionManager, types::base::DiscoveryCriticalError},
     server::{
         discovery::types::{
             api::InitiateDiscoveryRequest,
@@ -51,6 +51,8 @@ use crate::{
         subnets::types::base::Subnet,
     },
 };
+
+pub const SCAN_TIMEOUT: Duration = Duration::from_millis(800);
 
 pub trait HasDiscoveryType {
     fn discovery_type(&self) -> DiscoveryType;
@@ -284,14 +286,18 @@ pub trait DiscoversNetworkedEntities:
             }
             Err(e) => {
                 tracing::error!("Discovery session {} failed: {}", session_id, e);
+
+                let error = DiscoveryCriticalError::from_error_string(e.to_string()).map(|e| e.to_string()).unwrap_or(format!("Critical error: {}", e.to_string()));
+                
                 self.report_discovery_update(DiscoverySessionUpdate {
                     phase: DiscoveryPhase::Failed,
                     completed: final_scanned_count,
-                    error: Some(e.to_string()),
+                    error: Some(error),
                     discovered_count: final_discovered_count,
                     finished_at: Some(Utc::now()),
                 })
                 .await?;
+                cancel.cancel();
             }
         }
 

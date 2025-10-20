@@ -48,8 +48,14 @@ impl DaemonRuntimeService {
                 .await?;
 
             if !response.status().is_success() {
-                let text = response.text().await?;
-                tracing::warn!("❤️‍🩹 Heartbeat failed: {}", text);
+                let api_response: ApiResponse<()> = response.json().await?;
+
+                if !api_response.success {
+                    let error_msg = api_response
+                        .error
+                        .unwrap_or_else(|| "Unknown error".to_string());
+                    tracing::warn!("❤️‍🩹 Heartbeat failed: {}", error_msg);
+                }
             }
 
             if let Err(e) = self.config_store.update_heartbeat().await {
