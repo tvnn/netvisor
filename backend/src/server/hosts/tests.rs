@@ -1,6 +1,6 @@
 use crate::{
     server::{
-        discovery::types::base::{EntitySource, MatchMetadata},
+        discovery::types::base::{EntitySource, DiscoveryMetadata},
         services::types::bindings::Binding,
     },
     tests::*,
@@ -14,7 +14,7 @@ async fn test_host_deduplication_on_create() {
 
     // Create first host
     let mut host1 = host();
-    host1.base.source = EntitySource::Discovery(MatchMetadata::default());
+    host1.base.source = EntitySource::Discovery(vec!(DiscoveryMetadata::default()));
     let (created1, _) = services
         .host_service
         .create_host_with_services(host1.clone(), vec![])
@@ -23,7 +23,7 @@ async fn test_host_deduplication_on_create() {
 
     // Try to create duplicate (same interfaces)
     let mut host2 = host();
-    host2.base.source = EntitySource::Discovery(MatchMetadata::default());
+    host2.base.source = EntitySource::Discovery(vec!(DiscoveryMetadata::default()));
     let (created2, _) = services
         .host_service
         .create_host_with_services(host2.clone(), vec![])
@@ -44,7 +44,7 @@ async fn test_host_upsert_merges_new_data() {
 
     // Create host with one interface
     let mut host1 = host();
-    host1.base.source = EntitySource::Discovery(MatchMetadata::default());
+    host1.base.source = EntitySource::Discovery(vec!(DiscoveryMetadata::default()));
     let subnet1 = subnet();
     services
         .subnet_service
@@ -61,7 +61,7 @@ async fn test_host_upsert_merges_new_data() {
 
     // Create "duplicate" with additional interface
     let mut host2 = host();
-    host2.base.source = EntitySource::Discovery(MatchMetadata::default());
+    host2.base.source = EntitySource::Discovery(vec!(DiscoveryMetadata::default()));
     let subnet2 = subnet();
     services
         .subnet_service

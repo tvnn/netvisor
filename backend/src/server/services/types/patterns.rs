@@ -34,6 +34,15 @@ pub struct MatchDetails {
     pub confidence: MatchConfidence,
 }
 
+impl MatchDetails {
+    pub fn new_certain(reason_str: &str) -> Self {
+        Self {
+            reason: MatchReason::Reason(reason_str.to_string()),
+            confidence: MatchConfidence::Certain,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Display, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 #[serde(rename_all = "lowercase")]
@@ -45,6 +54,7 @@ pub enum MatchReason {
 
 #[derive(Debug, Clone, Hash, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum MatchConfidence {
+    NotApplicable = 0,
     Low = 1,
     Medium = 2,
     High = 3,
@@ -54,6 +64,7 @@ pub enum MatchConfidence {
 impl MatchConfidence {
     pub fn as_str(&self) -> &'static str {
         match self {
+            MatchConfidence::NotApplicable => "Not Applicable",
             MatchConfidence::Low => "Low",
             MatchConfidence::Medium => "Medium",
             MatchConfidence::High => "High",

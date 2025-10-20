@@ -5,14 +5,14 @@ use crate::{
     },
     server::{
         daemons::types::api::DaemonDiscoveryRequest,
-        discovery::types::base::{DiscoveryType, EntitySource, MatchMetadata},
+        discovery::types::base::{DiscoveryMetadata, DiscoveryType, EntitySource},
         hosts::types::{
             interfaces::{Interface, ALL_INTERFACES_IP},
             ports::{Port, PortBase},
         },
         services::{
             definitions::netvisor_daemon::NetvisorDaemon,
-            types::{base::ServiceBase, bindings::Binding, definitions::ServiceDefinition},
+            types::{base::ServiceBase, bindings::Binding, definitions::ServiceDefinition, patterns::MatchDetails},
         },
         utils::base::NetworkUtils,
     },
@@ -152,11 +152,13 @@ impl Discovery<SelfReportDiscovery> {
             virtualization: None,
             vms: vec![],
             containers: vec![],
-            source: EntitySource::Discovery(MatchMetadata::new_certain(
-                DiscoveryType::SelfReport,
-                daemon_id,
-                "NetVisor Daemon self-report",
-            )),
+            source: EntitySource::DiscoveryWithMatch(
+                vec!(DiscoveryMetadata::new(
+                    DiscoveryType::SelfReport,
+                    daemon_id,
+                )),
+                MatchDetails::new_certain("NetVisor Daemon self-report")
+            ),
         });
 
         services.push(daemon_service);

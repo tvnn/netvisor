@@ -17,7 +17,18 @@ export type MatchReason =
 
 export interface MatchResult {
 	reason: MatchReason;
-	confidence: 'Low' | 'Medium' | 'High' | 'Certain';
+	confidence: 'NotApplicable' | 'Low' | 'Medium' | 'High' | 'Certain';
+}
+
+export function matchConfidenceColor(confidence: MatchResult['confidence']): string {
+	const confidenceColor: Record<MatchResult['confidence'], string> = {
+		NotApplicable: 'gray',
+		Low: 'red',
+		Medium: 'yellow',
+		High: 'green',
+		Certain: 'blue'
+	};
+	return confidenceColor[confidence];
 }
 
 export type DiscoveryType =

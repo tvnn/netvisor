@@ -1,14 +1,13 @@
 use crate::server::{
-    groups::service::GroupService,
-    hosts::{
+    discovery::types::base::{EntitySource, EntitySourceDiscriminants}, groups::service::GroupService, hosts::{
         service::HostService,
         types::{base::Host, interfaces::Interface},
-    },
-    services::{
+    }, services::{
         storage::ServiceStorage,
-        types::{base::Service, bindings::Binding},
-    },
+        types::{base::Service, bindings::Binding, patterns::{MatchDetails, MatchReason}},
+    }
 };
+use strum::IntoDiscriminant;
 use anyhow::anyhow;
 use anyhow::{Error, Result};
 use futures::{future::try_join_all, lock::Mutex};
@@ -59,7 +58,7 @@ impl ServiceService {
             .into_iter()
             .find(|existing: &Service| *existing == service)
         {
-            Some(existing_service) => {
+            Some(existing_service) if existing_service.base.source.discriminant() == EntitySourceDiscriminants::Discovery => {
                 tracing::warn!(
                     "Duplicate service for {} found, {} - upserting discovery data...",
                     service,
@@ -67,7 +66,7 @@ impl ServiceService {
                 );
                 self.upsert_service(existing_service, service).await?
             }
-            None => {
+            _ => {
                 self.storage.create(&service).await?;
                 tracing::info!(
                     "Created service {} for host {}",
@@ -105,6 +104,38 @@ impl ServiceService {
             }
         }
 
+        existing_service.base.source = match (existing_service.base.source, new_service_data.base.source.clone()) {
+
+            // Add latest discovery metadata to vec, update details to summarize what was discovered + highest confidence
+            (EntitySource::DiscoveryWithMatch(existing_service_metadata, existing_service_details), EntitySource::DiscoveryWithMatch(new_service_metadata, new_service_details)) => {
+                let new_metadata = [new_service_metadata.clone(), existing_service_metadata.clone()].concat();
+
+                let confidence = existing_service_details.confidence.max(new_service_details.confidence);
+
+                let reason_str = format!("Updated match data on {}", new_service_metadata.first().map(|m| m.date).unwrap_or_default());
+
+                let reason = match existing_service_details.reason {
+                    // If data has already been upserted, just append to avoid a continuously nested structure
+                    MatchReason::Container(_, reasons) if existing_service_metadata.len() > 1 => MatchReason::Container(reason_str, [vec!(new_service_details.reason), reasons].concat()),
+                    // Otherwise create a container
+                    _ => MatchReason::Container(reason_str, vec!(new_service_details.reason, existing_service_details.reason))
+                };
+
+                EntitySource::DiscoveryWithMatch(new_metadata, MatchDetails {
+                    confidence,
+                    reason
+                })
+            },
+
+            // Less-likely scenario: new service data is upserted to a manually or system-created record
+            (_, EntitySource::DiscoveryWithMatch(new_service_metadata, new_service_details)) => {
+                EntitySource::DiscoveryWithMatch(new_service_metadata, new_service_details)
+            },
+
+            // The following case shouldn't be possible since upsert only happens from discovered services, but cover with something reasonable just in case
+            (existing_source, _) => existing_source
+        };
+
         self.storage.update(&existing_service).await?;
 
         let mut data = Vec::new();
@@ -120,12 +151,13 @@ impl ServiceService {
                 data.join(", ")
             );
             tracing::debug!("Result {:?}", existing_service);
+        } else {
+            tracing::info!(
+                "No new information to upsert from service {} to service {}",
+                new_service_data,
+                existing_service,
+            );
         }
-        tracing::info!(
-            "No new information to upsert from service {} to service {}",
-            new_service_data,
-            existing_service,
-        );
 
         Ok(existing_service)
     }

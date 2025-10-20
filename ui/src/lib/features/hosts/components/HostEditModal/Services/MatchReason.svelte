@@ -1,18 +1,12 @@
 <script lang="ts">
-	import type { MatchReason, MatchResult } from '$lib/shared/types';
+	import { matchConfidenceColor, type MatchReason, type MatchResult } from '$lib/shared/types';
 	import { ChevronDown, ChevronRight } from 'lucide-svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 
 	let { result }: { result: MatchResult } = $props();
 
 	let isExpanded = $state(false);
-
-	const confidenceColor = {
-		Certain: 'blue',
-		High: 'green',
-		Medium: 'yellow',
-		Low: 'red'
-	}[result.confidence];
+	let confidenceColor = $derived(matchConfidenceColor(result.confidence));
 </script>
 
 {#snippet matchReasonNode(reason: MatchReason)}

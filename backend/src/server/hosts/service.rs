@@ -1,6 +1,6 @@
 use crate::server::{
     daemons::service::DaemonService,
-    discovery::types::base::EntitySourceDiscriminants,
+    discovery::types::base::{EntitySource, EntitySourceDiscriminants},
     hosts::{storage::HostStorage, types::base::Host},
     services::{
         service::ServiceService,
@@ -101,7 +101,7 @@ impl HostService {
 
         let host_from_storage = match all_hosts.into_iter().find(|h| host.eq(h)) {
             Some(existing_host)
-                if host.base.source.discriminant() == EntitySourceDiscriminants::Discovery =>
+                if host.base.source.discriminant() == EntitySourceDiscriminants::DiscoveryWithMatch =>
             {
                 tracing::warn!(
                     "Duplicate host for {}: {} found, {}: {} - upserting discovery data...",
@@ -194,6 +194,16 @@ impl HostService {
             existing_host.base.description = new_host_data.base.description;
         }
 
+        // Update entity source for new discovery session data
+        existing_host.base.source = match (existing_host.base.source, new_host_data.base.source) {
+            (EntitySource::Discovery(existing_metadata), EntitySource::Discovery(new_metadata)) => {
+                EntitySource::Discovery([new_metadata, existing_metadata].concat())
+            },
+            (_, EntitySource::Discovery(new_metadata)) => EntitySource::Discovery(new_metadata),
+            (EntitySource::Discovery(existing_metadata), _) => EntitySource::Discovery(existing_metadata),
+            (existing_source, _) => existing_source
+        };
+
         existing_host.updated_at = chrono::Utc::now();
 
         // Update the existing host
@@ -267,7 +277,7 @@ impl HostService {
             .get_services_for_host(&other_host.id)
             .await?;
 
-        // Add bindings and interfaces from old host to new
+        // Add bindings, interfaces, sources from old host to new
         let updated_host = self
             .upsert_host(destination_host.clone(), other_host.clone())
             .await?;

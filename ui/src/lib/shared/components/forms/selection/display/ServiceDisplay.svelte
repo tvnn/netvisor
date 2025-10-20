@@ -5,8 +5,19 @@
 		getId: (service: Service) => service.id,
 		getLabel: (service: Service) => service.name,
 		getDescription: (service: Service) => {
+			let descriptionItems = []
 			let binding_count = service.bindings.length;
-			return binding_count + ' binding' + (binding_count == 1 ? '' : 's');
+			descriptionItems.push(binding_count + ' binding' + (binding_count == 1 ? '' : 's'))
+
+			if (service.source.type == 'Discovery' && service.source.metadata.details) {
+				let confidence = service.source.metadata.details.confidence;
+
+				if (confidence != 'Certain' && confidence != 'NotApplicable') {
+					descriptionItems.push('Match Confidence: ' + confidence);
+				}
+			}
+
+			return descriptionItems.join(' · ');
 		},
 		getIcon: (service: Service) => serviceDefinitions.getIconComponent(service.service_definition),
 		getIconColor: (service: Service) =>
@@ -18,22 +29,6 @@
 				const tag: TagProps = {
 					label: service.virtualization.type,
 					color: entities.getColorHelper('Virtualization').string
-				};
-
-				tags.push(tag);
-			}
-
-			if (service.source.type == 'Discovery' && service.source.metadata.details) {
-				let confidence = service.source.metadata.details.confidence;
-
-				const tag: TagProps = {
-					label: confidence + ' Confidence',
-					color: {
-						Certain: 'blue',
-						High: 'green',
-						Medium: 'yellow',
-						Low: 'red'
-					}[confidence]
 				};
 
 				tags.push(tag);
@@ -51,6 +46,7 @@
 	import type { EntityDisplayComponent } from '../types';
 	import type { Service } from '$lib/features/services/types/base';
 	import type { TagProps } from '$lib/shared/components/data/types';
+	import { matchConfidenceColor } from '$lib/shared/types';
 
 	export let item: Service;
 </script>

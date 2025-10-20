@@ -1,6 +1,6 @@
-use crate::server::services::types::patterns::MatchConfidence;
 use crate::server::services::types::patterns::MatchDetails;
-use crate::server::services::types::patterns::MatchReason;
+use chrono::DateTime;
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use strum_macros::Display;
 use strum_macros::EnumDiscriminants;
@@ -12,45 +12,37 @@ use uuid::Uuid;
 pub enum EntitySource {
     Manual,
     System,
-    Discovery(MatchMetadata),
+    // Used with hosts and subnets
+    Discovery(Vec<DiscoveryMetadata>),
+    // Only used with services
+    DiscoveryWithMatch(Vec<DiscoveryMetadata>, MatchDetails),
     Unknown,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
-pub struct MatchMetadata {
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Copy, Hash)]
+pub struct DiscoveryMetadata {
     #[serde(flatten)]
     pub discovery_type: DiscoveryType,
     pub daemon_id: Uuid,
-    pub details: Option<MatchDetails>,
+    pub date: DateTime<Utc>
 }
 
-impl MatchMetadata {
-    pub fn new_certain(discovery_type: DiscoveryType, daemon_id: Uuid, reason: &str) -> Self {
+impl DiscoveryMetadata {
+    pub fn new(discovery_type: DiscoveryType, daemon_id: Uuid) -> Self {
         Self {
             discovery_type,
             daemon_id,
-            details: Some(MatchDetails {
-                reason: MatchReason::Reason(reason.to_string()),
-                confidence: MatchConfidence::Certain,
-            }),
-        }
-    }
-
-    pub fn new_no_details(discovery_type: DiscoveryType, daemon_id: Uuid) -> Self {
-        Self {
-            discovery_type,
-            daemon_id,
-            details: None,
+            date: Utc::now()
         }
     }
 }
 
-impl Default for MatchMetadata {
+impl Default for DiscoveryMetadata {
     fn default() -> Self {
         Self {
             discovery_type: DiscoveryType::Network,
             daemon_id: Uuid::new_v4(),
-            details: None,
+            date: Utc::now(),
         }
     }
 }

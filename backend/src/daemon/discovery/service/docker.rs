@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 use crate::daemon::discovery::service::base::{HasDiscoveryType, InitiatesOwnDiscovery};
 use crate::daemon::discovery::types::base::DiscoverySessionUpdate;
 use crate::daemon::utils::base::DaemonUtils;
-use crate::server::discovery::types::base::{DiscoveryType, MatchMetadata};
+use crate::server::discovery::types::base::{DiscoveryType, DiscoveryMetadata};
 use crate::server::hosts::types::base::HostBase;
 use crate::server::hosts::types::interfaces::ALL_INTERFACES_IP;
 use crate::server::hosts::types::ports::Port;
@@ -24,6 +24,7 @@ use crate::server::services::types::base::{Service, ServiceBase, ServiceMatchBas
 use crate::server::services::types::bindings::Binding;
 use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::endpoints::{ApplicationProtocol, Endpoint, EndpointResponse};
+use crate::server::services::types::patterns::MatchDetails;
 use crate::server::services::types::virtualization::{DockerVirtualization, ServiceVirtualization};
 use crate::server::subnets::types::base::{Subnet, SubnetBase, SubnetType};
 use crate::{
@@ -215,17 +216,19 @@ impl Discovery<DockerScanDiscovery> {
             virtualization: None,
             vms: vec![],
             containers: services.iter().map(|s| s.id).collect(),
-            source: EntitySource::Discovery(MatchMetadata::new_certain(
-                DiscoveryType::SelfReport,
-                daemon_id,
-                "Docker daemon self-report",
-            )),
+            source: EntitySource::DiscoveryWithMatch(
+                vec!(DiscoveryMetadata::new(
+                    DiscoveryType::SelfReport,
+                    daemon_id,
+                )),
+                MatchDetails::new_certain("Docker daemon self-report")
+            ),
         });
 
         let mut temp_docker_daemon_host = Host::new(HostBase::default());
         temp_docker_daemon_host.id = self.domain.host_id;
         temp_docker_daemon_host.base.source = EntitySource::Discovery(
-            MatchMetadata::new_no_details(self.discovery_type(), daemon_id),
+            vec!(DiscoveryMetadata::new(self.discovery_type(), daemon_id)),
         );
         temp_docker_daemon_host.base.services = vec![docker_service.id];
 
@@ -549,10 +552,12 @@ impl Discovery<DockerScanDiscovery> {
                                 description: None,
                                 name: network_name.clone(),
                                 subnet_type: SubnetType::DockerBridge,
-                                source: EntitySource::Discovery(MatchMetadata::new_no_details(
-                                    self.discovery_type(),
-                                    daemon_id,
-                                )),
+                                source: EntitySource::Discovery(
+                                    vec!(DiscoveryMetadata::new(
+                                        self.discovery_type(),
+                                        daemon_id,
+                                    )),
+                                ),
                             }));
                         }
                         None

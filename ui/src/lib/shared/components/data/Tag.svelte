@@ -2,23 +2,29 @@
 	import { createColorHelper } from '$lib/shared/utils/styling';
 	import type { Component } from 'svelte';
 
-	export let icon: Component | null = null;
+	let {
+		icon = null,
+		color = 'gray',
+		disabled = false,
+		label,
+		badge = ''
+	}: {
+		icon?: Component | null;
+		color?: string;
+		disabled?: boolean;
+		label: string;
+		badge?: string;
+	} = $props();
 
-	export let color: string = 'gray';
-	const colorHelper = createColorHelper(color);
-
-	export let bgColor: string = colorHelper.bg;
-	export let textColor: string = colorHelper.text;
-
-	export let disabled = false;
-	export let label: string;
-
-	export let badge: string = '';
+	// Make colorHelper reactive to color changes
+	let colorHelper = $derived(createColorHelper(color));
+	let bgColor = $derived(colorHelper.bg);
+	let textColor = $derived(colorHelper.text);
 </script>
 
 <div class="items-center space-x-2">
 	{#if icon}
-		<svelte:component this={icon} size={16} class={textColor} />
+		<icon size={16} class={textColor}></icon>
 	{/if}
 
 	<!-- Main content -->

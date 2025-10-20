@@ -1,4 +1,4 @@
-use crate::server::discovery::types::base::{DiscoveryType, EntitySource, MatchMetadata};
+use crate::server::discovery::types::base::{DiscoveryType, EntitySource, DiscoveryMetadata};
 use crate::server::hosts::types::interfaces::Interface;
 use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
@@ -6,7 +6,7 @@ use crate::server::services::types::bindings::{Binding, BindingDiscriminants};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::patterns::MatchResult;
+use crate::server::services::types::patterns::{MatchConfidence, MatchReason, MatchResult};
 use crate::server::services::types::virtualization::{DockerVirtualization, ServiceVirtualization};
 use crate::server::subnets::types::base::Subnet;
 use chrono::{DateTime, Utc};
@@ -203,10 +203,10 @@ impl Service {
             ..
         } = service_params;
 
-        if let Ok(result) = service_definition.discovery_pattern().matches(&params) {
+        if let Ok(mut result) = service_definition.discovery_pattern().matches(&params) {
             let mut name = service_definition.name().to_string();
 
-            let details = if service_definition.is_generic() {
+            if service_definition.is_generic() {
                 if let Some(ServiceVirtualization::Docker(DockerVirtualization {
                     container_name: Some(c_name),
                     ..
@@ -215,17 +215,12 @@ impl Service {
                     name = c_name.clone()
                 }
 
-                // Don't show match details for generic services, confidence doesn't matter because they are fallbacks anyway
-                None
-            } else {
-                Some(result.details.clone())
+                // Confidence not applicable for generic services
+                result.details.confidence = MatchConfidence::NotApplicable;
+                result.details.reason = MatchReason::Container("Match confidence for generic services is N/A".to_string(), vec!(result.details.reason))
             };
 
-            let discovery_metadata = MatchMetadata {
-                discovery_type: *discovery_type,
-                daemon_id: *daemon_id,
-                details,
-            };
+            let discovery_metadata = DiscoveryMetadata::new(*discovery_type, *daemon_id);
 
             if service_definition.layer() == BindingDiscriminants::Layer3 && !l3_interface_bound {
                 tracing::debug!("Matched service with params {:?}", params);
@@ -244,7 +239,10 @@ impl Service {
                         virtualization: virtualization.clone(),
                         vms: vec![],
                         containers: vec![],
-                        source: EntitySource::Discovery(discovery_metadata),
+                        source: EntitySource::DiscoveryWithMatch(
+                            vec!(discovery_metadata),
+                            result.details.clone()
+                        ),
                     }),
                     result,
                 ))
@@ -270,7 +268,10 @@ impl Service {
                             .collect(),
                         vms: vec![],
                         containers: vec![],
-                        source: EntitySource::Discovery(discovery_metadata),
+                        source: EntitySource::DiscoveryWithMatch(
+                            vec!(discovery_metadata),
+                            result.details.clone()
+                        ),
                     }),
                     result,
                 ))

@@ -8,13 +8,13 @@ use crate::{
     server::{
         discovery::types::{
             api::InitiateDiscoveryRequest,
-            base::{DiscoveryType, MatchMetadata},
+            base::{DiscoveryMetadata, DiscoveryType},
         },
         groups::types::Group,
-        services::types::base::{
+        services::types::{base::{
             DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams,
             ServiceMatchServiceParams,
-        },
+        }},
     },
 };
 use anyhow::{anyhow, Error};
@@ -344,10 +344,12 @@ pub trait DiscoversNetworkedEntities:
             interfaces: vec![interface.clone()],
             services: Vec::new(),
             ports: Vec::new(),
-            source: EntitySource::Discovery(MatchMetadata::new_no_details(
-                discovery_type,
-                daemon_id,
-            )),
+            source: EntitySource::Discovery(
+                vec!(DiscoveryMetadata::new(
+                    discovery_type,
+                    daemon_id,
+                ))
+            ),
             virtualization: None,
         });
 
