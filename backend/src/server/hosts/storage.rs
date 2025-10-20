@@ -10,7 +10,7 @@ use crate::server::{
 };
 use anyhow::{Error, Result};
 use async_trait::async_trait;
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, PgPool};
 use uuid::Uuid;
 
 #[async_trait]
@@ -22,25 +22,25 @@ pub trait HostStorage: Send + Sync {
     async fn delete(&self, id: &Uuid) -> Result<()>;
 }
 
-pub struct SqliteHostStorage {
-    pool: SqlitePool,
+pub struct PostgresHostStorage {
+    pool: PgPool,
 }
 
-impl SqliteHostStorage {
-    pub fn new(pool: SqlitePool) -> Self {
+impl PostgresHostStorage {
+    pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait]
-impl HostStorage for SqliteHostStorage {
+impl HostStorage for PostgresHostStorage {
     async fn create(&self, host: &Host) -> Result<()> {
-        let services_str = serde_json::to_string(&host.base.services)?;
-        let interfaces_str = serde_json::to_string(&host.base.interfaces)?;
-        let target_str = serde_json::to_string(&host.base.target)?;
-        let ports_str = serde_json::to_string(&host.base.ports)?;
-        let source_str = serde_json::to_string(&host.base.source)?;
-        let virtualization_str = serde_json::to_string(&host.base.virtualization)?;
+        let services_str = serde_json::to_value(&host.base.services)?;
+        let interfaces_str = serde_json::to_value(&host.base.interfaces)?;
+        let target_str = serde_json::to_value(&host.base.target)?;
+        let ports_str = serde_json::to_value(&host.base.ports)?;
+        let source_str = serde_json::to_value(&host.base.source)?;
+        let virtualization_str = serde_json::to_value(&host.base.virtualization)?;
 
         sqlx::query(
             r#"
@@ -48,10 +48,10 @@ impl HostStorage for SqliteHostStorage {
                 id, name, hostname, target, description,
                 services, interfaces, ports, source, virtualization,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             "#,
         )
-        .bind(blob_uuid::to_blob(&host.id))
+        .bind(&host.id)
         .bind(&host.base.name)
         .bind(&host.base.hostname)
         .bind(target_str)
@@ -61,8 +61,8 @@ impl HostStorage for SqliteHostStorage {
         .bind(ports_str)
         .bind(source_str)
         .bind(virtualization_str)
-        .bind(host.created_at.to_rfc3339())
-        .bind(host.updated_at.to_rfc3339())
+        .bind(host.created_at)
+        .bind(host.updated_at)
         .execute(&self.pool)
         .await?;
 
@@ -70,8 +70,8 @@ impl HostStorage for SqliteHostStorage {
     }
 
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Host>> {
-        let row = sqlx::query("SELECT * FROM hosts WHERE id = ?")
-            .bind(blob_uuid::to_blob(id))
+        let row = sqlx::query("SELECT * FROM hosts WHERE id = $1")
+            .bind(id)
             .fetch_optional(&self.pool)
             .await?;
 
@@ -95,22 +95,23 @@ impl HostStorage for SqliteHostStorage {
     }
 
     async fn update(&self, host: &Host) -> Result<()> {
-        let services_str = serde_json::to_string(&host.base.services)?;
-        let interfaces_str = serde_json::to_string(&host.base.interfaces)?;
-        let target_str = serde_json::to_string(&host.base.target)?;
-        let ports_str = serde_json::to_string(&host.base.ports)?;
-        let source_str = serde_json::to_string(&host.base.source)?;
-        let virtualization_str = serde_json::to_string(&host.base.virtualization)?;
+        let services_str = serde_json::to_value(&host.base.services)?;
+        let interfaces_str = serde_json::to_value(&host.base.interfaces)?;
+        let target_str = serde_json::to_value(&host.base.target)?;
+        let ports_str = serde_json::to_value(&host.base.ports)?;
+        let source_str = serde_json::to_value(&host.base.source)?;
+        let virtualization_str = serde_json::to_value(&host.base.virtualization)?;
 
         sqlx::query(
             r#"
             UPDATE hosts SET 
-                name = ?, hostname = ?, description = ?,
-                target = ?, interfaces = ?, ports = ?, source = ?, services = ?, virtualization = ?,
-                updated_at = ?
-            WHERE id = ?
+                name = $2, hostname = $3, description = $4,
+                target = $5, interfaces = $6, ports = $7, source = $8, services = $9, virtualization = $10,
+                updated_at = $11
+            WHERE id = $1
             "#,
         )
+        .bind(&host.id)
         .bind(&host.base.name)
         .bind(&host.base.hostname)
         .bind(&host.base.description)
@@ -121,7 +122,6 @@ impl HostStorage for SqliteHostStorage {
         .bind(services_str)
         .bind(virtualization_str)
         .bind(host.updated_at)
-        .bind(blob_uuid::to_blob(&host.id))
         .execute(&self.pool)
         .await?;
 
@@ -129,8 +129,8 @@ impl HostStorage for SqliteHostStorage {
     }
 
     async fn delete(&self, id: &Uuid) -> Result<()> {
-        sqlx::query("DELETE FROM hosts WHERE id = ?")
-            .bind(blob_uuid::to_blob(id))
+        sqlx::query("DELETE FROM hosts WHERE id = $1")
+            .bind(id)
             .execute(&self.pool)
             .await?;
 
@@ -138,31 +138,26 @@ impl HostStorage for SqliteHostStorage {
     }
 }
 
-fn row_to_host(row: sqlx::sqlite::SqliteRow) -> Result<Host, Error> {
+fn row_to_host(row: sqlx::postgres::PgRow) -> Result<Host, Error> {
     // Parse JSON fields safely
-    let services: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("services"))
+    let services: Vec<Uuid> = serde_json::from_value(row.get::<serde_json::Value, _>("services"))
         .or(Err(Error::msg("Failed to deserialize services")))?;
-    let interfaces: Vec<Interface> = serde_json::from_str(&row.get::<String, _>("interfaces"))
+    let interfaces: Vec<Interface> = serde_json::from_value(row.get::<serde_json::Value, _>("interfaces"))
         .or(Err(Error::msg("Failed to deserialize interfaces")))?;
-    let target: HostTarget = serde_json::from_str(&row.get::<String, _>("target"))
+    let target: HostTarget = serde_json::from_value(row.get::<serde_json::Value, _>("target"))
         .or(Err(Error::msg("Failed to deserialize target")))?;
-    let ports: Vec<Port> = serde_json::from_str(&row.get::<String, _>("ports"))
+    let ports: Vec<Port> = serde_json::from_value(row.get::<serde_json::Value, _>("ports"))
         .or(Err(Error::msg("Failed to deserialize ports")))?;
-    let source: EntitySource = serde_json::from_str(&row.get::<String, _>("source"))
+    let source: EntitySource = serde_json::from_value(row.get::<serde_json::Value, _>("source"))
         .or(Err(Error::msg("Failed to deserialize source")))?;
     let virtualization: Option<HostVirtualization> =
-        serde_json::from_str(&row.get::<String, _>("virtualization"))
+        serde_json::from_value(row.get::<serde_json::Value, _>("virtualization"))
             .or(Err(Error::msg("Failed to deserialize virtualization")))?;
 
-    let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
-        .with_timezone(&chrono::Utc);
-    let updated_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("updated_at"))?
-        .with_timezone(&chrono::Utc);
-
     Ok(Host {
-        id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize ID")))?,
-        created_at,
-        updated_at,
+        id: row.get("id"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
         base: HostBase {
             name: row.get("name"),
             target,

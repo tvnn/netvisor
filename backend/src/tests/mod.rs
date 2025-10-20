@@ -21,7 +21,7 @@ use axum::Router;
 use cidr::IpCidr;
 use cidr::Ipv4Cidr;
 use mac_address::MacAddress;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
@@ -31,7 +31,26 @@ use uuid::Uuid;
 pub mod database;
 
 pub const DAEMON_CONFIG_FIXTURE: &str = "src/tests/daemon_config.json";
-pub const SERVER_DB_FIXTURE: &str = "src/tests/netvisor.db";
+pub const SERVER_DB_FIXTURE: &str = "src/tests/netvisor.sql";
+
+pub async fn setup_test_db() -> PgPool {
+    let docker = Cli::default();
+    let postgres_image = GenericImage::new("postgres", "16-alpine")
+        .with_env_var("POSTGRES_PASSWORD", "password")
+        .with_env_var("POSTGRES_DB", "netvisor_test")
+        .with_wait_for(WaitFor::message_on_stderr("database system is ready to accept connections"));
+    
+    let node = docker.run(postgres_image);
+    let port = node.get_host_port_ipv4(5432);
+    
+    let database_url = format!("postgresql://postgres:password@localhost:{}/netvisor_test", port);
+    let pool = PgPool::connect(&database_url).await.unwrap();
+    
+    sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+    
+    pool
+}
+
 
 pub fn host() -> Host {
     Host::new(HostBase {
@@ -103,18 +122,12 @@ pub fn daemon(host_id: &Uuid) -> Daemon {
     )
 }
 
-pub async fn setup_test_db() -> SqlitePool {
-    let pool = SqlitePool::connect(":memory:").await.unwrap();
-    crate::server::shared::storage::DatabaseMigrations::initialize(&pool)
-        .await
-        .unwrap();
-    pool
-}
-
 pub async fn test_storage() -> StorageFactory {
-    StorageFactory::new_sqlite(":memory:").await.unwrap()
+    let pool = setup_test_db().await;
+    StorageFactory::new(&format!("postgresql://postgres:password@localhost:5432/netvisor_test"))
+        .await
+        .unwrap()
 }
-
 pub async fn test_services() -> (StorageFactory, ServiceFactory) {
     let storage = test_storage().await;
     let services = ServiceFactory::new(&storage).await.unwrap();

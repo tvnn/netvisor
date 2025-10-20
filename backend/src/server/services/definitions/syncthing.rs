@@ -19,7 +19,7 @@ impl ServiceDefinition for Syncthing {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Port(PortBase::new_tcp(8384))
+        Pattern::Endpoint(PortBase::Http, "/", "Syncthing")
     }
 
     fn dashboard_icons_path(&self) -> &'static str {

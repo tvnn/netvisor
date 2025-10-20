@@ -1,6 +1,6 @@
 use anyhow::{Error, Result};
 use async_trait::async_trait;
-use sqlx::{Row, SqlitePool};
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 use crate::server::{
@@ -23,44 +23,44 @@ pub trait ServiceStorage: Send + Sync {
     async fn delete(&self, id: &Uuid) -> Result<()>;
 }
 
-pub struct SqliteServiceStorage {
-    pool: SqlitePool,
+pub struct PostgresServiceStorage {
+    pool: PgPool,
 }
 
-impl SqliteServiceStorage {
-    pub fn new(pool: SqlitePool) -> Self {
+impl PostgresServiceStorage {
+    pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait]
-impl ServiceStorage for SqliteServiceStorage {
+impl ServiceStorage for PostgresServiceStorage {
     async fn create(&self, service: &Service) -> Result<()> {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
-        let bindings_str = serde_json::to_string(&service.base.bindings)?;
-        let virtualization_str = serde_json::to_string(&service.base.virtualization)?;
-        let vms_str = serde_json::to_string(&service.base.vms)?;
-        let containers_str = serde_json::to_string(&service.base.containers)?;
-        let source_str = serde_json::to_string(&service.base.source)?;
+        let bindings_str = serde_json::to_value(&service.base.bindings)?;
+        let virtualization_str = serde_json::to_value(&service.base.virtualization)?;
+        let vms_str = serde_json::to_value(&service.base.vms)?;
+        let containers_str = serde_json::to_value(&service.base.containers)?;
+        let source_str = serde_json::to_value(&service.base.source)?;
 
         sqlx::query(
             r#"
             INSERT INTO services (
                 id, name, host_id, service_definition, bindings, virtualization, vms, containers, source, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
             "#,
         )
-        .bind(blob_uuid::to_blob(&service.id))
+        .bind(&service.id)
         .bind(&service.base.name)
-        .bind(blob_uuid::to_blob(&service.base.host_id))
+        .bind(&service.base.host_id)
         .bind(service_def_str)
         .bind(bindings_str)
         .bind(virtualization_str)
         .bind(vms_str)
         .bind(containers_str)
         .bind(source_str)
-        .bind(service.created_at.to_rfc3339())
-        .bind(service.updated_at.to_rfc3339())
+        .bind(service.created_at)
+        .bind(service.updated_at)
         .execute(&self.pool)
         .await?;
 
@@ -68,8 +68,8 @@ impl ServiceStorage for SqliteServiceStorage {
     }
 
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Service>> {
-        let row = sqlx::query("SELECT * FROM services WHERE id = ?")
-            .bind(blob_uuid::to_blob(id))
+        let row = sqlx::query("SELECT * FROM services WHERE id = $1")
+            .bind(id)
             .fetch_optional(&self.pool)
             .await?;
 
@@ -93,8 +93,8 @@ impl ServiceStorage for SqliteServiceStorage {
     }
 
     async fn get_services_for_host(&self, host_id: &Uuid) -> Result<Vec<Service>> {
-        let rows = sqlx::query("SELECT * FROM services WHERE host_id = ? ORDER BY created_at")
-            .bind(blob_uuid::to_blob(host_id))
+        let rows = sqlx::query("SELECT * FROM services WHERE host_id = $1 ORDER BY created_at")
+            .bind(host_id)
             .fetch_all(&self.pool)
             .await?;
 
@@ -108,29 +108,29 @@ impl ServiceStorage for SqliteServiceStorage {
 
     async fn update(&self, service: &Service) -> Result<()> {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
-        let bindings_str = serde_json::to_string(&service.base.bindings)?;
-        let virtualization_str = serde_json::to_string(&service.base.virtualization)?;
-        let vms_str = serde_json::to_string(&service.base.vms)?;
-        let containers_str = serde_json::to_string(&service.base.containers)?;
-        let source_str = serde_json::to_string(&service.base.source)?;
+        let bindings_str = serde_json::to_value(&service.base.bindings)?;
+        let virtualization_str = serde_json::to_value(&service.base.virtualization)?;
+        let vms_str = serde_json::to_value(&service.base.vms)?;
+        let containers_str = serde_json::to_value(&service.base.containers)?;
+        let source_str = serde_json::to_value(&service.base.source)?;
 
         sqlx::query(
             r#"
             UPDATE services SET 
-                name = ?, host_id = ?, service_definition = ?, bindings = ?, virtualization = ?, vms = ?, containers = ?, source = ?, updated_at = ?
-            WHERE id = ?
+                name = $2, host_id = $3, service_definition = $4, bindings = $5, virtualization = $6, vms = $7, containers = $8, source = $9, updated_at = $10
+            WHERE id = $1
             "#,
         )
+        .bind(&service.id)
         .bind(&service.base.name)
-        .bind(blob_uuid::to_blob(&service.base.host_id))
+        .bind(&service.base.host_id)
         .bind(service_def_str)
         .bind(bindings_str)
         .bind(virtualization_str)
         .bind(vms_str)
         .bind(containers_str)
         .bind(source_str)
-        .bind(service.updated_at.to_rfc3339())
-        .bind(blob_uuid::to_blob(&service.id))
+        .bind(service.updated_at)
         .execute(&self.pool)
         .await?;
 
@@ -138,8 +138,8 @@ impl ServiceStorage for SqliteServiceStorage {
     }
 
     async fn delete(&self, id: &Uuid) -> Result<()> {
-        sqlx::query("DELETE FROM services WHERE id = ?")
-            .bind(blob_uuid::to_blob(id))
+        sqlx::query("DELETE FROM services WHERE id = $1")
+            .bind(id)
             .execute(&self.pool)
             .await?;
 
@@ -147,36 +147,30 @@ impl ServiceStorage for SqliteServiceStorage {
     }
 }
 
-fn row_to_service(row: sqlx::sqlite::SqliteRow) -> Result<Service, Error> {
+fn row_to_service(row: sqlx::postgres::PgRow) -> Result<Service, Error> {
     // Parse JSON fields safely
     let service_definition: Box<dyn ServiceDefinition> =
         serde_json::from_str(&row.get::<String, _>("service_definition"))
             .or(Err(Error::msg("Failed to deserialize service_definition")))?;
-    let bindings: Vec<Binding> = serde_json::from_str(&row.get::<String, _>("bindings"))
+    let bindings: Vec<Binding> = serde_json::from_value(row.get::<serde_json::Value, _>("bindings"))
         .or(Err(Error::msg("Failed to deserialize bindings")))?;
     let virtualization: Option<ServiceVirtualization> =
-        serde_json::from_str(&row.get::<String, _>("virtualization"))
+        serde_json::from_value(row.get::<serde_json::Value, _>("virtualization"))
             .or(Err(Error::msg("Failed to deserialize virtualization")))?;
-    let vms: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("vms"))
+    let vms: Vec<Uuid> = serde_json::from_value(row.get::<serde_json::Value, _>("vms"))
         .or(Err(Error::msg("Failed to deserialize vms")))?;
-    let containers: Vec<Uuid> = serde_json::from_str(&row.get::<String, _>("containers"))
+    let containers: Vec<Uuid> = serde_json::from_value(row.get::<serde_json::Value, _>("containers"))
         .or(Err(Error::msg("Failed to deserialize containers")))?;
-    let source: EntitySource = serde_json::from_str(&row.get::<String, _>("source"))
+    let source: EntitySource = serde_json::from_value(row.get::<serde_json::Value, _>("source"))
         .or(Err(Error::msg("Failed to deserialize source")))?;
 
-    let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
-        .with_timezone(&chrono::Utc);
-    let updated_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("updated_at"))?
-        .with_timezone(&chrono::Utc);
-
     Ok(Service {
-        id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize id")))?,
-        created_at,
-        updated_at,
+        id: row.get("id"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
         base: ServiceBase {
             name: row.get("name"),
-            host_id: blob_uuid::to_uuid(row.get("host_id"))
-                .or(Err(Error::msg("Failed to deserialize host_id")))?,
+            host_id: row.get("host_id"),
             service_definition,
             virtualization,
             vms,

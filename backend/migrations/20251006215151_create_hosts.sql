@@ -1,14 +1,14 @@
 CREATE TABLE IF NOT EXISTS hosts (
-    id BLOB PRIMARY KEY,
+    id UUID PRIMARY KEY,
     name TEXT NOT NULL,
     hostname TEXT,
     description TEXT,
-    target TEXT NOT NULL,
-    interfaces TEXT,
-    services TEXT,
-    ports TEXT,
-    source TEXT NOT NULL,
-    virtualization TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    target JSONB NOT NULL,
+    interfaces JSONB,
+    services JSONB,
+    ports JSONB,
+    source JSONB NOT NULL,
+    virtualization JSONB,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL
 );

@@ -5,7 +5,7 @@ use crate::server::{
 use anyhow::{Error, Result};
 use async_trait::async_trait;
 use cidr::IpCidr;
-use sqlx::{Row, SqlitePool};
+use sqlx::{Row, PgPool};
 use uuid::Uuid;
 
 #[async_trait]
@@ -18,39 +18,39 @@ pub trait SubnetStorage: Send + Sync {
     async fn delete(&self, id: &Uuid) -> Result<()>;
 }
 
-pub struct SqliteSubnetStorage {
-    pool: SqlitePool,
+pub struct PostgresSubnetStorage {
+    pool: PgPool,
 }
 
-impl SqliteSubnetStorage {
-    pub fn new(pool: SqlitePool) -> Self {
+impl PostgresSubnetStorage {
+    pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }
 
 #[async_trait]
-impl SubnetStorage for SqliteSubnetStorage {
+impl SubnetStorage for PostgresSubnetStorage {
     async fn create(&self, subnet: &Subnet) -> Result<()> {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
-        let subnet_source_str = serde_json::to_string(&subnet.base.source)?;
+        let subnet_source_str = serde_json::to_value(&subnet.base.source)?;
 
         sqlx::query(
             r#"
             INSERT INTO subnets (
                 id, name, description, cidr, 
                 subnet_type, source, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             "#,
         )
-        .bind(blob_uuid::to_blob(&subnet.id))
+        .bind(&subnet.id)
         .bind(&subnet.base.name)
         .bind(&subnet.base.description)
         .bind(&cidr_str)
         .bind(subnet_type_str)
         .bind(subnet_source_str)
-        .bind(subnet.created_at.to_rfc3339())
-        .bind(subnet.updated_at.to_rfc3339())
+        .bind(subnet.created_at)
+        .bind(subnet.updated_at)
         .execute(&self.pool)
         .await?;
 
@@ -58,8 +58,8 @@ impl SubnetStorage for SqliteSubnetStorage {
     }
 
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Subnet>> {
-        let row = sqlx::query("SELECT * FROM subnets WHERE id = ?")
-            .bind(blob_uuid::to_blob(id))
+        let row = sqlx::query("SELECT * FROM subnets WHERE id = $1")
+            .bind(id)
             .fetch_optional(&self.pool)
             .await?;
 
@@ -74,12 +74,12 @@ impl SubnetStorage for SqliteSubnetStorage {
             return Ok(vec![]);
         }
 
-        let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let placeholders = ids.iter().enumerate().map(|(i,_)| format!("${}",i+1)).collect::<Vec<_>>().join(",");
         let query = format!("SELECT * FROM subnets WHERE id IN ({})", placeholders);
 
         let mut query_builder = sqlx::query(&query);
         for id in ids {
-            query_builder = query_builder.bind(blob_uuid::to_blob(id));
+            query_builder = query_builder.bind(id);
         }
 
         let rows = query_builder.fetch_all(&self.pool).await?;
@@ -105,23 +105,23 @@ impl SubnetStorage for SqliteSubnetStorage {
     async fn update(&self, subnet: &Subnet) -> Result<()> {
         let cidr_str = serde_json::to_string(&subnet.base.cidr)?;
         let subnet_type_str = serde_json::to_string(&subnet.base.subnet_type)?;
-        let subnet_source_str = serde_json::to_string(&subnet.base.source)?;
+        let subnet_source_str = serde_json::to_value(&subnet.base.source)?;
 
         sqlx::query(
             r#"
             UPDATE subnets SET 
-                name = ?, description = ?, cidr = ?,
-                subnet_type = ?, source = ?, updated_at = ?
-            WHERE id = ?
+                name = $2, description = $3, cidr = $4,
+                subnet_type = $5, source = $6, updated_at = $7
+            WHERE id = $1
             "#,
         )
+        .bind(&subnet.id)
         .bind(&subnet.base.name)
         .bind(&subnet.base.description)
         .bind(cidr_str)
         .bind(subnet_type_str)
         .bind(subnet_source_str)
-        .bind(subnet.updated_at.to_rfc3339())
-        .bind(blob_uuid::to_blob(&subnet.id))
+        .bind(subnet.updated_at)
         .execute(&self.pool)
         .await?;
 
@@ -129,8 +129,8 @@ impl SubnetStorage for SqliteSubnetStorage {
     }
 
     async fn delete(&self, id: &Uuid) -> Result<()> {
-        sqlx::query("DELETE FROM subnets WHERE id = ?")
-            .bind(blob_uuid::to_blob(id))
+        sqlx::query("DELETE FROM subnets WHERE id = $1")
+            .bind(id)
             .execute(&self.pool)
             .await?;
 
@@ -138,24 +138,19 @@ impl SubnetStorage for SqliteSubnetStorage {
     }
 }
 
-fn row_to_subnet(row: sqlx::sqlite::SqliteRow) -> Result<Subnet, Error> {
+fn row_to_subnet(row: sqlx::postgres::PgRow) -> Result<Subnet, Error> {
     // Parse JSON fields safely
     let cidr: IpCidr = serde_json::from_str(&row.get::<String, _>("cidr"))
         .or(Err(Error::msg("Failed to deserialize cidr")))?;
     let subnet_type: SubnetType = serde_json::from_str(&row.get::<String, _>("subnet_type"))
         .or(Err(Error::msg("Failed to deserialize subnet_type")))?;
-    let source: EntitySource = serde_json::from_str(&row.get::<String, _>("source"))
+    let source: EntitySource = serde_json::from_value(row.get::<serde_json::Value, _>("source"))
         .or(Err(Error::msg("Failed to deserialize source")))?;
 
-    let created_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("created_at"))?
-        .with_timezone(&chrono::Utc);
-    let updated_at = chrono::DateTime::parse_from_rfc3339(&row.get::<String, _>("updated_at"))?
-        .with_timezone(&chrono::Utc);
-
     Ok(Subnet {
-        id: blob_uuid::to_uuid(row.get("id")).or(Err(Error::msg("Failed to deserialize id")))?,
-        created_at,
-        updated_at,
+        id: row.get("id"),
+        created_at: row.get("created_at"),
+        updated_at: row.get("updated_at"),
         base: SubnetBase {
             name: row.get("name"),
             description: row.get("description"),

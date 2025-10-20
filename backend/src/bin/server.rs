@@ -20,7 +20,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 struct Cli {
     /// Override server port
     #[arg(long)]
-    port: Option<u16>,
+    server_port: Option<u16>,
 
     /// Override log level
     #[arg(long)]
@@ -32,7 +32,7 @@ struct Cli {
 
     /// Override database path
     #[arg(long)]
-    database_path: Option<String>,
+    database_url: Option<String>,
 
     /// Override web external path
     #[arg(long)]
@@ -42,10 +42,10 @@ struct Cli {
 impl From<Cli> for CliArgs {
     fn from(cli: Cli) -> Self {
         Self {
-            port: cli.port,
+            server_port: cli.server_port,
             log_level: cli.log_level,
             rust_log: cli.rust_log,
-            database_path: cli.database_path,
+            database_url: cli.database_url,
             web_external_path: cli.web_external_path,
         }
     }
@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Load configuration using figment
     let config = ServerConfig::load(cli_args)?;
-    let listen_addr = format!("0.0.0.0:{}", &config.port);
+    let listen_addr = format!("0.0.0.0:{}", &config.server_port);
 
     // Initialize tracing
     tracing_subscriber::registry()
@@ -104,7 +104,7 @@ async fn main() -> anyhow::Result<()> {
             .merge(create_router())
             .with_state(state)
     } else {
-        tracing::warn!("Could not load web assets due to no web_external_path");
+        tracing::info!("Server is not serving web assets due to no web_external_path");
         create_router().with_state(state)
     };
 

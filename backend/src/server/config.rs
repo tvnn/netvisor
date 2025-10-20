@@ -6,17 +6,17 @@ use figment::{
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
 
-use crate::server::shared::services::ServiceFactory;
+use crate::server::shared::{services::ServiceFactory, storage::seed_data::{create_internet_connectivity_host, create_public_dns_host, create_remote_host, create_remote_subnet, create_wan_subnet}};
 use crate::server::shared::types::storage::StorageFactory;
 use crate::server::{discovery::manager::DiscoverySessionManager, utils::base::ServerNetworkUtils};
 
 /// CLI arguments structure (for figment integration)
 #[derive(Debug)]
 pub struct CliArgs {
-    pub port: Option<u16>,
+    pub server_port: Option<u16>,
     pub log_level: Option<String>,
     pub rust_log: Option<String>,
-    pub database_path: Option<String>,
+    pub database_url: Option<String>,
     pub web_external_path: Option<String>,
 }
 
@@ -25,7 +25,7 @@ pub struct CliArgs {
 pub struct ServerConfig {
     // Server settings
     /// What port the server should listen on
-    pub port: u16,
+    pub server_port: u16,
 
     /// Level of logs to show
     pub log_level: String,
@@ -34,7 +34,7 @@ pub struct ServerConfig {
     pub rust_log: String,
 
     /// Where database should be located
-    pub database_path: PathBuf,
+    pub database_url: String,
 
     /// Where static web assets are located for serving
     pub web_external_path: Option<PathBuf>,
@@ -43,10 +43,10 @@ pub struct ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            port: 60072,
+            server_port: 60072,
             log_level: "info".to_string(),
             rust_log: "".to_string(),
-            database_path: PathBuf::from("./netvisor.db"),
+            database_url: "postgresql://postgres:password@localhost:5432/netvisor".to_string(),
             web_external_path: None,
         }
     }
@@ -61,8 +61,8 @@ impl ServerConfig {
         figment = figment.merge(Env::prefixed("NETVISOR_"));
 
         // Add CLI overrides (highest priority) - only if explicitly provided
-        if let Some(port) = cli_args.port {
-            figment = figment.merge(("port", port));
+        if let Some(server_port) = cli_args.server_port {
+            figment = figment.merge(("server_port", server_port));
         }
         if let Some(log_level) = cli_args.log_level {
             figment = figment.merge(("log_level", log_level));
@@ -70,8 +70,8 @@ impl ServerConfig {
         if let Some(rust_log) = cli_args.rust_log {
             figment = figment.merge(("rust_log", rust_log));
         }
-        if let Some(database_path) = cli_args.database_path {
-            figment = figment.merge(("database_path", database_path));
+        if let Some(database_url) = cli_args.database_url {
+            figment = figment.merge(("database_url", database_url));
         }
         if let Some(web_external_path) = cli_args.web_external_path {
             figment = figment.merge(("web_external_path", web_external_path));
@@ -81,20 +81,11 @@ impl ServerConfig {
             .extract()
             .map_err(|e| Error::msg(format!("Configuration error: {}", e)))?;
 
-        // Ensure database directory exists
-        if let Some(parent) = config.database_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-
-        if !config.database_path.exists() {
-            std::fs::File::create(&config.database_path)?;
-        }
-
         Ok(config)
     }
 
     pub fn database_url(&self) -> String {
-        format!("sqlite:{}", self.database_path.display())
+        format!("{}", self.database_url)
     }
 }
 
@@ -112,8 +103,26 @@ impl AppState {
         discovery_manager: DiscoverySessionManager,
         utils: ServerNetworkUtils,
     ) -> Result<Arc<Self>, Error> {
-        let storage = StorageFactory::new_sqlite(&config.database_url()).await?;
+        let storage = StorageFactory::new(&config.database_url()).await?;
         let services = ServiceFactory::new(&storage).await?;
+
+        if services.host_service.get_all_hosts().await?.len() == 0 {
+            tracing::info!("Seeding default data...");
+
+            let wan_subnet = create_wan_subnet();
+            let remote_subnet = create_remote_subnet();
+            let (dns_host, dns_service) = create_public_dns_host(&wan_subnet);
+            let (web_host, web_service) = create_internet_connectivity_host(&wan_subnet);
+            let (remote_host, client_service) = create_remote_host(&remote_subnet);
+
+            services.subnet_service.create_subnet(wan_subnet).await?;
+            services.subnet_service.create_subnet(remote_subnet).await?;
+            services.host_service.create_host_with_services(dns_host, vec!(dns_service)).await?;
+            services.host_service.create_host_with_services(web_host, vec!(web_service)).await?;
+            services.host_service.create_host_with_services(remote_host, vec!(client_service)).await?;
+
+            tracing::info!("Default data seeded successfully");
+        }
 
         Ok(Arc::new(Self {
             config,

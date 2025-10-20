@@ -1,14 +1,14 @@
 use anyhow::Result;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use std::sync::Arc;
 
 use crate::server::{
-    daemons::storage::{DaemonStorage, SqliteDaemonStorage},
-    groups::storage::{GroupStorage, SqliteGroupStorage},
-    hosts::storage::{HostStorage, SqliteHostStorage},
-    services::storage::{ServiceStorage, SqliteServiceStorage},
+    daemons::storage::{DaemonStorage, PostgresDaemonStorage},
+    groups::storage::{GroupStorage, PostgresGroupStorage},
+    hosts::storage::{HostStorage, PostgresHostStorage},
+    services::storage::{ServiceStorage, PostgresServiceStorage},
     shared::storage::DatabaseMigrations,
-    subnets::storage::{SqliteSubnetStorage, SubnetStorage},
+    subnets::storage::{PostgresSubnetStorage, SubnetStorage},
 };
 
 pub struct StorageFactory {
@@ -20,18 +20,19 @@ pub struct StorageFactory {
 }
 
 impl StorageFactory {
-    pub async fn new_sqlite(database_url: &str) -> Result<Self> {
-        let pool = SqlitePool::connect(database_url).await?;
+    pub async fn new(database_url: &str) -> Result<Self> {
+        
+        let pool = PgPool::connect(database_url).await?;
 
         // Initialize database schema
         DatabaseMigrations::initialize(&pool).await?;
 
         Ok(Self {
-            hosts: Arc::new(SqliteHostStorage::new(pool.clone())),
-            host_groups: Arc::new(SqliteGroupStorage::new(pool.clone())),
-            daemons: Arc::new(SqliteDaemonStorage::new(pool.clone())),
-            subnets: Arc::new(SqliteSubnetStorage::new(pool.clone())),
-            services: Arc::new(SqliteServiceStorage::new(pool.clone())),
+            hosts: Arc::new(PostgresHostStorage::new(pool.clone())),
+            host_groups: Arc::new(PostgresGroupStorage::new(pool.clone())),
+            daemons: Arc::new(PostgresDaemonStorage::new(pool.clone())),
+            subnets: Arc::new(PostgresSubnetStorage::new(pool.clone())),
+            services: Arc::new(PostgresServiceStorage::new(pool.clone())),
         })
     }
 }

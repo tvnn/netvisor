@@ -19,7 +19,7 @@ impl ServiceDefinition for Duplicati {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Port(PortBase::new_tcp(8200))
+        Pattern::Endpoint(PortBase::Http, "/", "Duplicati")
     }
 
     fn dashboard_icons_path(&self) -> &'static str {

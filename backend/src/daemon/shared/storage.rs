@@ -15,7 +15,7 @@ use uuid::Uuid;
 pub struct CliArgs {
     pub server_target: Option<String>,
     pub server_port: Option<u16>,
-    pub port: Option<u16>,
+    pub daemon_port: Option<u16>,
     pub name: Option<String>,
     pub bind_address: Option<String>,
     pub log_level: Option<String>,
@@ -31,7 +31,7 @@ pub struct AppConfig {
     pub server_port: u16,
 
     // Daemon settings (CLI/startup config)
-    pub port: u16,
+    pub daemon_port: u16,
     pub name: String,
     pub log_level: String,
     pub heartbeat_interval: u64,
@@ -53,7 +53,7 @@ impl Default for AppConfig {
         Self {
             server_target: None,
             server_port: 60072,
-            port: 60073,
+            daemon_port: 60073,
             bind_address: "0.0.0.0".to_string(),
             name: "netvisor-daemon".to_string(),
             log_level: "info".to_string(),
@@ -95,8 +95,8 @@ impl AppConfig {
         if let Some(server_port) = cli_args.server_port {
             figment = figment.merge(("server_port", server_port));
         }
-        if let Some(port) = cli_args.port {
-            figment = figment.merge(("port", port));
+        if let Some(daemon_port) = cli_args.daemon_port {
+            figment = figment.merge(("daemon_port", daemon_port));
         }
         if let Some(name) = cli_args.name {
             figment = figment.merge(("name", name));
@@ -211,12 +211,12 @@ impl ConfigStore {
 
     pub async fn get_port(&self) -> Result<u16> {
         let config = self.config.read().await;
-        Ok(config.port)
+        Ok(config.daemon_port)
     }
 
     pub async fn set_port(&self, port: u16) -> Result<()> {
         let mut config = self.config.write().await;
-        config.port = port;
+        config.daemon_port = port;
         self.save(&config.clone()).await
     }
 
@@ -290,7 +290,7 @@ mod tests {
 
             // Verify required fields exist
             assert!(!config.name.is_empty(), "Config name is empty");
-            assert!(config.port > 0, "Config port is invalid");
+            assert!(config.daemon_port > 0, "Config port is invalid");
 
             println!("✅ Successfully loaded daemon config from latest release");
         } else {

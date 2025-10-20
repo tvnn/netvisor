@@ -186,6 +186,12 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
           echo "Waiting for services to be ready..."
           sleep 30
+
+      - name: Wait for PostgreSQL
+        run: |
+          until docker exec netvisor-postgres pg_isready -U postgres; do
+            sleep 2
+          done
       
       - name: Wait for server health
         run: |
@@ -224,7 +230,7 @@ jobs:
           mkdir -p backend/src/tests
           
           # Copy database from server container
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml cp server:/data/netvisor.db ./backend/src/tests/netvisor.db
+          docker exec netvisor-postgres pg_dump -U postgres netvisor > backend/src/tests/netvisor.sql
           echo "✓ Copied netvisor.db from server container"
           
           # Copy daemon config from bind mount (no need to copy from container)
@@ -247,7 +253,7 @@ jobs:
           git checkout main
           
           # Copy the fixtures we extracted
-          git add backend/src/tests/netvisor.db backend/src/tests/daemon_config.json
+          git add backend/src/tests/netvisor.sql backend/src/tests/daemon_config.json
           
           if git diff --staged --quiet; then
             echo "No changes to commit"

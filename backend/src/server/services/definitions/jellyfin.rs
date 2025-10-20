@@ -19,7 +19,7 @@ impl ServiceDefinition for Jellyfin {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Port(PortBase::new_tcp(8096))
+        Pattern::Endpoint(PortBase::Http, "/System/Info/Public", "Jellyfin")
     }
 
     fn dashboard_icons_path(&self) -> &'static str {

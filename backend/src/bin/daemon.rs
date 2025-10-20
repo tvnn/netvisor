@@ -32,7 +32,7 @@ struct Cli {
 
     /// Daemon listen port
     #[arg(short, long)]
-    port: Option<u16>,
+    daemon_port: Option<u16>,
 
     /// Daemon listen host
     #[arg(long)]
@@ -64,7 +64,7 @@ impl From<Cli> for CliArgs {
         Self {
             server_target: cli.server_target,
             server_port: cli.server_port,
-            port: cli.port,
+            daemon_port: cli.daemon_port,
             name: cli.name,
             bind_address: cli.bind_address,
             log_level: cli.log_level,
@@ -166,10 +166,9 @@ async fn main() -> anyhow::Result<()> {
             ),
     );
 
-    let bind_addr = format!("{}:{}", config.bind_address, config.port);
+    let bind_addr = format!("{}:{}", config.bind_address, config.daemon_port);
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
 
-    tracing::info!("🔍 Discovery endpoint: http://{}/discover", own_addr);
     tracing::info!("🌐 Listening on: {}", bind_addr);
     tracing::info!("📁 Config file: {:?}", path_str);
 

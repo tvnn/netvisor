@@ -41,7 +41,6 @@ async fn daemon_initiate_discovery(
     State(state): State<Arc<AppState>>,
     Json(request): Json<InitiateDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<Uuid>>> {
-    tracing::info!("daemon_initiate_discovery handler called");
 
     let (daemon, session_id) = initiate_discovery(state.clone(), request).await?;
 

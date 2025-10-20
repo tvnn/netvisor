@@ -29,4 +29,4 @@ EXPOSE 60072
 HEALTHCHECK --interval=10s --timeout=5s --retries=5 \
     CMD curl -f http://localhost:60072/api/health || exit 1
 
-CMD ["sh", "-c", "mkdir -p /data && touch /data/netvisor.db && server"]
+CMD ["sh", "-c", "server"]

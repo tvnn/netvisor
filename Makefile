@@ -3,6 +3,9 @@
 help:
 	@echo "NetVisor Development Commands"
 	@echo ""
+	@echo "  make setup-db       - Set up database"
+	@echo "  make clean-db       - Clean up database"
+	@echo "  make dev-server     - Start server dev environment"
 	@echo "  make dev-server     - Start server dev environment"
 	@echo "  make dev-ui         - Start ui"
 	@echo "  make dev-daemon     - Start daemon dev environment"
@@ -17,7 +20,24 @@ help:
 	@echo "  make clean          - Clean build artifacts and containers"
 	@echo "  make install-dev    - Install local development dependencies"
 
+setup-db:
+	@echo "Setting up PostgreSQL..."
+	@docker run -d \
+		--name netvisor-postgres \
+		-e POSTGRES_USER=postgres \
+		-e POSTGRES_PASSWORD=password \
+		-e POSTGRES_DB=netvisor \
+		-p 5432:5432 \
+		postgres:17-alpine || echo "Already running"
+	@sleep 3
+	@echo "PostgreSQL ready at localhost:5432"
+
+clean-db:
+	docker stop netvisor-postgres || true
+	docker rm netvisor-postgres || true
+
 dev-server:
+	@export DATABASE_URL="postgresql://postgres:password@localhost:5432/netvisor" && \
 	cd backend && cargo run --bin server -- --log-level debug
 
 dev-daemon:
@@ -47,9 +67,9 @@ build:
 	@echo "✓ Daemon image built: mayanayza/netvisor-daemon:latest"
 
 test:
-	@echo "Cleaning data directory..."
-	@rm -rf ./data/*
-	@echo "Running tests with output..."
+	clean-db
+	setup-db
+	@export DATABASE_URL="postgresql://postgres:password@localhost:5432/netvisor_test" && \
 	cd backend && cargo test -- --nocapture --test-threads=1
 
 format:
@@ -80,4 +100,9 @@ install-dev:
 	cd ui && npm install
 	@echo "Installing cargo-watch for hot reload..."
 	cargo install cargo-watch
+	@echo "Installing postgresql..."
+	brew install postgresql@17
+	echo 'export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"' >> ~/.zshrc
+	brew services start postgresql@17
+	source ~/.zshrc
 	@echo "Development dependencies installed!"

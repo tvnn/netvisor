@@ -1,5 +1,4 @@
-use crate::server::shared::storage::DatabaseMigrations;
-use sqlx::SqlitePool;
+use crate::{server::shared::storage::DatabaseMigrations, tests::setup_test_db};
 use std::path::Path;
 
 use crate::tests::SERVER_DB_FIXTURE;
@@ -11,11 +10,12 @@ async fn test_database_schema_backward_compatibility() {
     if db_path.exists() {
         println!("Testing backward compatibility with database from latest release");
 
-        // Connect to the fixture database
-        let db_url = format!("sqlite:{}", db_path.display());
-        let pool = SqlitePool::connect(&db_url)
-            .await
-            .expect("Failed to connect to fixture database");
+        // Start test database
+        let pool = setup_test_db().await;
+        
+        // Load fixture
+        let sql = std::fs::read_to_string(db_path).unwrap();
+        sqlx::raw_sql(&sql).execute(&pool).await.unwrap();
 
         // Try to read from all tables with current code
         let hosts_result = sqlx::query("SELECT * FROM hosts").fetch_all(&pool).await;

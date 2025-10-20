@@ -1,15 +1,15 @@
 CREATE TABLE IF NOT EXISTS services (
-    id BLOB PRIMARY KEY,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
+    id UUID PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
     name TEXT NOT NULL,
-    host_id BLOB NOT NULL,
-    bindings TEXT,
+    host_id UUID NOT NULL,
+    bindings JSONB,
     service_definition TEXT NOT NULL,
-    virtualization TEXT,
-    vms TEXT,
-    containers TEXT,
-    source TEXT NOT NULL,
+    virtualization JSONB,
+    vms JSONB,
+    containers JSONB,
+    source JSONB NOT NULL,
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
 );
 
