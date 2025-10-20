@@ -1,13 +1,19 @@
 use crate::server::{
-    discovery::types::base::{EntitySource, EntitySourceDiscriminants}, groups::service::GroupService, hosts::{
+    discovery::types::base::{EntitySource, EntitySourceDiscriminants},
+    groups::service::GroupService,
+    hosts::{
         service::HostService,
         types::{base::Host, interfaces::Interface},
-    }, services::{
+    },
+    services::{
         storage::ServiceStorage,
-        types::{base::Service, bindings::Binding, patterns::{MatchDetails, MatchReason}},
-    }
+        types::{
+            base::Service,
+            bindings::Binding,
+            patterns::{MatchDetails, MatchReason},
+        },
+    },
 };
-use strum::IntoDiscriminant;
 use anyhow::anyhow;
 use anyhow::{Error, Result};
 use futures::{future::try_join_all, lock::Mutex};
@@ -15,6 +21,7 @@ use std::{
     collections::HashMap,
     sync::{Arc, OnceLock},
 };
+use strum::IntoDiscriminant;
 use uuid::Uuid;
 
 pub struct ServiceService {
@@ -58,7 +65,14 @@ impl ServiceService {
             .into_iter()
             .find(|existing: &Service| *existing == service)
         {
-            Some(existing_service) if existing_service.base.source.discriminant() == EntitySourceDiscriminants::Discovery => {
+            // If both are from discovery, or if they have the same ID but for some reason the create route is being used, upsert data
+            Some(existing_service)
+                if (service.base.source.discriminant()
+                    == EntitySourceDiscriminants::DiscoveryWithMatch
+                    && existing_service.base.source.discriminant()
+                        == EntitySourceDiscriminants::DiscoveryWithMatch)
+                    || service.id == existing_service.id =>
+            {
                 tracing::warn!(
                     "Duplicate service for {} found, {} - upserting discovery data...",
                     service,
@@ -104,36 +118,61 @@ impl ServiceService {
             }
         }
 
-        existing_service.base.source = match (existing_service.base.source, new_service_data.base.source.clone()) {
-
+        existing_service.base.source = match (
+            existing_service.base.source,
+            new_service_data.base.source.clone(),
+        ) {
             // Add latest discovery metadata to vec, update details to summarize what was discovered + highest confidence
-            (EntitySource::DiscoveryWithMatch(existing_service_metadata, existing_service_details), EntitySource::DiscoveryWithMatch(new_service_metadata, new_service_details)) => {
-                let new_metadata = [new_service_metadata.clone(), existing_service_metadata.clone()].concat();
+            (
+                EntitySource::DiscoveryWithMatch(
+                    existing_service_metadata,
+                    existing_service_details,
+                ),
+                EntitySource::DiscoveryWithMatch(new_service_metadata, new_service_details),
+            ) => {
+                let new_metadata = [
+                    new_service_metadata.clone(),
+                    existing_service_metadata.clone(),
+                ]
+                .concat();
 
-                let confidence = existing_service_details.confidence.max(new_service_details.confidence);
+                let confidence = existing_service_details
+                    .confidence
+                    .max(new_service_details.confidence);
 
-                let reason_str = format!("Updated match data on {}", new_service_metadata.first().map(|m| m.date).unwrap_or_default());
+                let reason_str = format!(
+                    "Updated match data on {}",
+                    new_service_metadata
+                        .first()
+                        .map(|m| m.date)
+                        .unwrap_or_default()
+                );
 
                 let reason = match existing_service_details.reason {
                     // If data has already been upserted, just append to avoid a continuously nested structure
-                    MatchReason::Container(_, reasons) if existing_service_metadata.len() > 1 => MatchReason::Container(reason_str, [vec!(new_service_details.reason), reasons].concat()),
+                    MatchReason::Container(_, reasons) if existing_service_metadata.len() > 1 => {
+                        MatchReason::Container(
+                            reason_str,
+                            [vec![new_service_details.reason], reasons].concat(),
+                        )
+                    }
                     // Otherwise create a container
-                    _ => MatchReason::Container(reason_str, vec!(new_service_details.reason, existing_service_details.reason))
+                    _ => MatchReason::Container(
+                        reason_str,
+                        vec![new_service_details.reason, existing_service_details.reason],
+                    ),
                 };
 
-                EntitySource::DiscoveryWithMatch(new_metadata, MatchDetails {
-                    confidence,
-                    reason
-                })
-            },
+                EntitySource::DiscoveryWithMatch(new_metadata, MatchDetails { confidence, reason })
+            }
 
             // Less-likely scenario: new service data is upserted to a manually or system-created record
             (_, EntitySource::DiscoveryWithMatch(new_service_metadata, new_service_details)) => {
                 EntitySource::DiscoveryWithMatch(new_service_metadata, new_service_details)
-            },
+            }
 
             // The following case shouldn't be possible since upsert only happens from discovered services, but cover with something reasonable just in case
-            (existing_source, _) => existing_source
+            (existing_source, _) => existing_source,
         };
 
         self.storage.update(&existing_service).await?;

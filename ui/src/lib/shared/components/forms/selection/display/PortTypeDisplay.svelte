@@ -1,7 +1,8 @@
 <script lang="ts" context="module">
 	export const PortTypeDisplay: EntityDisplayComponent<TypeMetadata<PortTypeMetadata>> = {
 		getId: (portType: TypeMetadata<PortTypeMetadata>) => portType.id,
-		getLabel: (portType: TypeMetadata<PortTypeMetadata>) => `${portType.metadata.number}/${portType.metadata.protocol.toLowerCase()} - ${portType.name}`,
+		getLabel: (portType: TypeMetadata<PortTypeMetadata>) =>
+			`${portType.metadata.number}/${portType.metadata.protocol.toLowerCase()} - ${portType.name}`,
 		getDescription: (portType: TypeMetadata<PortTypeMetadata>) => portType.description,
 		getIcon: (portType: TypeMetadata<PortTypeMetadata>) => createIconComponent(portType.icon),
 		getIconColor: () => entities.getColorHelper('Port').icon,

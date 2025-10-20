@@ -16,7 +16,7 @@ use tokio_util::sync::CancellationToken;
 use crate::daemon::discovery::service::base::{HasDiscoveryType, InitiatesOwnDiscovery};
 use crate::daemon::discovery::types::base::DiscoverySessionUpdate;
 use crate::daemon::utils::base::DaemonUtils;
-use crate::server::discovery::types::base::{DiscoveryType, DiscoveryMetadata};
+use crate::server::discovery::types::base::{DiscoveryMetadata, DiscoveryType};
 use crate::server::hosts::types::base::HostBase;
 use crate::server::hosts::types::interfaces::ALL_INTERFACES_IP;
 use crate::server::hosts::types::ports::Port;
@@ -217,19 +217,18 @@ impl Discovery<DockerScanDiscovery> {
             vms: vec![],
             containers: services.iter().map(|s| s.id).collect(),
             source: EntitySource::DiscoveryWithMatch(
-                vec!(DiscoveryMetadata::new(
-                    DiscoveryType::SelfReport,
-                    daemon_id,
-                )),
-                MatchDetails::new_certain("Docker daemon self-report")
+                vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],
+                MatchDetails::new_certain("Docker daemon self-report"),
             ),
         });
 
         let mut temp_docker_daemon_host = Host::new(HostBase::default());
         temp_docker_daemon_host.id = self.domain.host_id;
-        temp_docker_daemon_host.base.source = EntitySource::Discovery(
-            vec!(DiscoveryMetadata::new(self.discovery_type(), daemon_id)),
-        );
+        temp_docker_daemon_host.base.source =
+            EntitySource::Discovery(vec![DiscoveryMetadata::new(
+                self.discovery_type(),
+                daemon_id,
+            )]);
         temp_docker_daemon_host.base.services = vec![docker_service.id];
 
         self.create_host(temp_docker_daemon_host, vec![docker_service])
@@ -552,12 +551,10 @@ impl Discovery<DockerScanDiscovery> {
                                 description: None,
                                 name: network_name.clone(),
                                 subnet_type: SubnetType::DockerBridge,
-                                source: EntitySource::Discovery(
-                                    vec!(DiscoveryMetadata::new(
-                                        self.discovery_type(),
-                                        daemon_id,
-                                    )),
-                                ),
+                                source: EntitySource::Discovery(vec![DiscoveryMetadata::new(
+                                    self.discovery_type(),
+                                    daemon_id,
+                                )]),
                             }));
                         }
                         None

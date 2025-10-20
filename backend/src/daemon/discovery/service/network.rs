@@ -1,16 +1,16 @@
 use crate::daemon::discovery::service::base::{
-    CreatesDiscoveredEntities, DiscoversNetworkedEntities, Discovery, HasDiscoveryType, SCAN_TIMEOUT,
+    CreatesDiscoveredEntities, DiscoversNetworkedEntities, Discovery, HasDiscoveryType,
+    SCAN_TIMEOUT,
 };
 use crate::daemon::discovery::types::base::{DiscoveryCriticalError, DiscoverySessionUpdate};
 use crate::server::discovery::types::base::DiscoveryType;
 use crate::server::hosts::types::ports::TransportProtocol;
-use crate::server::services::types::endpoints::Endpoint;
-use anyhow::anyhow;
 use crate::server::hosts::types::{
     interfaces::{Interface, InterfaceBase},
     ports::PortBase,
 };
 use crate::server::services::types::base::{Service, ServiceMatchBaselineParams};
+use crate::server::services::types::endpoints::Endpoint;
 use crate::{
     daemon::utils::base::DaemonUtils,
     server::{
@@ -20,24 +20,25 @@ use crate::{
         subnets::types::base::{Subnet, SubnetType},
     },
 };
+use anyhow::anyhow;
 use anyhow::{Error, Result};
 use axum::async_trait;
 use cidr::IpCidr;
+use dhcproto::v4::{self, Decodable, Encodable, Encoder, Message, MessageType};
 use futures::{
     future::try_join_all,
     stream::{self, StreamExt},
 };
-use std::result::Result::Ok;
-use std::{net::IpAddr, sync::Arc};
-use tokio_util::sync::CancellationToken;
-use dhcproto::v4::{self, Decodable, Encodable, Encoder, Message, MessageType};
 use rand::{Rng, SeedableRng};
 use rsntp::AsyncSntpClient;
 use snmp2::{AsyncSession, Oid};
-use std::net::{SocketAddr};
+use std::net::SocketAddr;
+use std::result::Result::Ok;
 use std::time::Duration;
+use std::{net::IpAddr, sync::Arc};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::timeout;
+use tokio_util::sync::CancellationToken;
 use trust_dns_resolver::config::{NameServerConfig, Protocol, ResolverConfig, ResolverOpts};
 use trust_dns_resolver::TokioAsyncResolver;
 
@@ -170,7 +171,6 @@ impl Discovery<NetworkScanDiscovery> {
                         }
                         Ok(None)
                     }
-
                 }
             })
             .buffer_unordered(concurrent_scans);
@@ -226,8 +226,7 @@ impl Discovery<NetworkScanDiscovery> {
         }
 
         // Scan ports and endpoints
-        let scan_result = tokio::spawn(Self::
-            scan_ports_and_endpoints(ip, cancel.clone()))
+        let scan_result = tokio::spawn(Self::scan_ports_and_endpoints(ip, cancel.clone()))
             .await
             .map_err(|e| anyhow!("Scan task panicked: {}", e))?;
 
@@ -239,9 +238,7 @@ impl Discovery<NetworkScanDiscovery> {
 
         match scan_result {
             Ok((open_ports, endpoint_responses)) => {
-                if !open_ports.is_empty()
-                    || !endpoint_responses.is_empty()
-                {
+                if !open_ports.is_empty() || !endpoint_responses.is_empty() {
                     tracing::info!(
                         "Processing host {} with {} open ports and {} endpoint responses",
                         ip,
@@ -255,10 +252,7 @@ impl Discovery<NetworkScanDiscovery> {
                         return Err(Error::msg("Discovery was cancelled"));
                     }
 
-                    Ok(Some((
-                        open_ports,
-                        endpoint_responses,
-                    )))
+                    Ok(Some((open_ports, endpoint_responses)))
                 } else {
                     tracing::debug!("No open ports found on {}", ip);
                     scanned_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -267,9 +261,9 @@ impl Discovery<NetworkScanDiscovery> {
             }
             Err(e) => {
                 tracing::debug!("Error scanning host {}: {}", ip, e);
-                
+
                 if DiscoveryCriticalError::is_critical_error(e.to_string()) {
-                    return Err(e);
+                    Err(e)
                 } else {
                     scanned_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     Ok(None)
@@ -288,7 +282,6 @@ impl Discovery<NetworkScanDiscovery> {
             _ => Ok(None),
         }
     }
-
 
     async fn scan_ports_and_endpoints(
         ip: IpAddr,
@@ -331,10 +324,7 @@ impl Discovery<NetworkScanDiscovery> {
         Ok((open_ports, endpoint_responses))
     }
 
-    async fn scan_tcp_ports(
-        ip: IpAddr,
-        cancel: CancellationToken,
-    ) -> Result<Vec<PortBase>, Error> {
+    async fn scan_tcp_ports(ip: IpAddr, cancel: CancellationToken) -> Result<Vec<PortBase>, Error> {
         let discovery_ports = Service::all_discovery_ports();
         let ports: Vec<u16> = discovery_ports
             .iter()
@@ -397,13 +387,13 @@ impl Discovery<NetworkScanDiscovery> {
                 Ok(Some(detected_port)) => {
                     open_ports.push(PortBase::new_udp(detected_port));
                     tracing::debug!("Found open UDP port {}:{}", ip, detected_port);
-                },
+                }
                 Ok(None) => {
                     // Port closed or no response
-                },
+                }
                 Err(e) => {
                     if DiscoveryCriticalError::is_critical_error(e.to_string()) {
-                        return Err(e.into());
+                        return Err(e);
                     }
                 }
             }
@@ -453,7 +443,6 @@ impl Discovery<NetworkScanDiscovery> {
 
         Ok(responses)
     }
-
 
     /// Figure out what order to scan IPs in given allocation patterns
     fn determine_scan_order(&self, subnet: &IpCidr) -> impl Iterator<Item = IpAddr> {

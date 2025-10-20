@@ -100,8 +100,12 @@ impl HostService {
         let all_hosts = self.storage.get_all().await?;
 
         let host_from_storage = match all_hosts.into_iter().find(|h| host.eq(h)) {
+            // If both are from discovery, or if they have the same ID but for some reason the create route is being used, upsert data
             Some(existing_host)
-                if host.base.source.discriminant() == EntitySourceDiscriminants::DiscoveryWithMatch =>
+                if (host.base.source.discriminant() == EntitySourceDiscriminants::Discovery
+                    && existing_host.base.source.discriminant()
+                        == EntitySourceDiscriminants::Discovery)
+                    || host.id == existing_host.id =>
             {
                 tracing::warn!(
                     "Duplicate host for {}: {} found, {}: {} - upserting discovery data...",
@@ -198,10 +202,12 @@ impl HostService {
         existing_host.base.source = match (existing_host.base.source, new_host_data.base.source) {
             (EntitySource::Discovery(existing_metadata), EntitySource::Discovery(new_metadata)) => {
                 EntitySource::Discovery([new_metadata, existing_metadata].concat())
-            },
+            }
             (_, EntitySource::Discovery(new_metadata)) => EntitySource::Discovery(new_metadata),
-            (EntitySource::Discovery(existing_metadata), _) => EntitySource::Discovery(existing_metadata),
-            (existing_source, _) => existing_source
+            (EntitySource::Discovery(existing_metadata), _) => {
+                EntitySource::Discovery(existing_metadata)
+            }
+            (existing_source, _) => existing_source,
         };
 
         existing_host.updated_at = chrono::Utc::now();

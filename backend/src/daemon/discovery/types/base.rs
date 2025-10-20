@@ -57,11 +57,10 @@ impl std::fmt::Display for DiscoveryPhase {
 }
 
 pub enum DiscoveryCriticalError {
-    ResourceExhaustion
+    ResourceExhaustion,
 }
 
 impl DiscoveryCriticalError {
-
     pub fn is_critical_error(error_str: String) -> bool {
         Self::from_error_string(error_str).is_some()
     }
@@ -92,4 +91,3 @@ impl Display for DiscoveryCriticalError {
         }
     }
 }
-

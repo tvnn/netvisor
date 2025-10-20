@@ -39,11 +39,12 @@ export interface ServicedDefinitionMetadata {
 	is_gateway: boolean;
 	is_reverse_proxy: boolean;
 	is_generic: boolean;
-	manages_virtualization: boolean;
+	manages_virtualization: 'vms' | 'containers';
 	has_homarr_icon: boolean;
-	layer: 'Layer3' | 'Layer4'
+	layer: 'Layer3' | 'Layer4';
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface SubnetTypeMetadata {}
 
 export interface EdgeTypeMetadata {
@@ -53,6 +54,7 @@ export interface EdgeTypeMetadata {
 	style_label_like_nodes: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface GroupTypeMetadata {}
 
 export interface PortTypeMetadata {
@@ -114,14 +116,13 @@ type TypeMetadataKeys = {
 }[keyof MetadataRegistry];
 
 type EntityMetadataKeys = {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	[K in keyof MetadataRegistry]: MetadataRegistry[K][number] extends EntityMetadata ? K : never;
 }[keyof MetadataRegistry];
 
 // Full TypeMetadata helpers (includes color methods + other methods)
 function createTypeMetadataHelpers<T extends TypeMetadataKeys>(category: T) {
 	const sharedHelpers = createSharedHelpers(category);
-	
+
 	// Extract metadata type from the registry
 	type MetadataType = MetadataRegistry[T][number] extends TypeMetadata<infer M> ? M : never;
 
@@ -130,10 +131,17 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys>(category: T) {
 
 		getIconComponent: (id: string | null) => {
 			const $registry = get(metadata);
-			const item = ($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id);
+			const item = ($registry?.[category] as TypeMetadata<MetadataType>[])?.find(
+				(item) => item.id === id
+			);
 			const iconName = item?.icon || null;
 
-			if (item?.metadata && (item.metadata as any).has_homarr_icon) {
+			if (
+				item?.metadata &&
+				typeof item.metadata === 'object' &&
+				'has_homarr_icon' in item.metadata &&
+				item.metadata.has_homarr_icon
+			) {
 				return createHomarrIconComponent(iconName);
 			} else {
 				return createIconComponent(iconName);
@@ -147,27 +155,44 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys>(category: T) {
 
 		getItem: (id: string | null) => {
 			const $registry = get(metadata);
-			return ($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id) || null;
+			return (
+				($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id) ||
+				null
+			);
 		},
 
 		getName: (id: string | null) => {
 			const $registry = get(metadata);
-			return ($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id)?.name || id || '';
+			return (
+				($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id)
+					?.name ||
+				id ||
+				''
+			);
 		},
 
 		getDescription: (id: string | null) => {
 			const $registry = get(metadata);
-			return ($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id)?.description || '';
+			return (
+				($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id)
+					?.description || ''
+			);
 		},
 
 		getCategory: (id: string | null) => {
 			const $registry = get(metadata);
-			return ($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id)?.category || '';
+			return (
+				($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id)
+					?.category || ''
+			);
 		},
 
 		getMetadata: (id: string | null): MetadataType => {
 			const $registry = get(metadata);
-			return ($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id)?.metadata || {} as MetadataType;
+			return (
+				($registry?.[category] as TypeMetadata<MetadataType>[])?.find((item) => item.id === id)
+					?.metadata || ({} as MetadataType)
+			);
 		}
 	};
 

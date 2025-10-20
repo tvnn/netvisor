@@ -1,4 +1,10 @@
-use crate::{server::services::types::bindings::Binding, tests::*};
+use crate::{
+    server::{
+        discovery::types::base::EntitySource,
+        services::types::{bindings::Binding, patterns::MatchDetails},
+    },
+    tests::*,
+};
 
 #[tokio::test]
 async fn test_service_deduplication_on_create() {
@@ -21,6 +27,8 @@ async fn test_service_deduplication_on_create() {
         host_obj.base.ports[0].id,
         Some(host_obj.base.interfaces[0].id),
     )];
+    // Set source to discovery so upsert route is used
+    svc1.base.source = EntitySource::DiscoveryWithMatch(vec![], MatchDetails::new_certain("Test"));
 
     let (created_host, created1) = services
         .host_service
@@ -36,6 +44,7 @@ async fn test_service_deduplication_on_create() {
         created_host.base.ports[0].id,
         Some(created_host.base.interfaces[0].id),
     )];
+    svc2.base.source = EntitySource::DiscoveryWithMatch(vec![], MatchDetails::new_certain("Test"));
 
     let created2 = services
         .service_service

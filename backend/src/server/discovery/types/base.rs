@@ -24,7 +24,7 @@ pub struct DiscoveryMetadata {
     #[serde(flatten)]
     pub discovery_type: DiscoveryType,
     pub daemon_id: Uuid,
-    pub date: DateTime<Utc>
+    pub date: DateTime<Utc>,
 }
 
 impl DiscoveryMetadata {
@@ -32,7 +32,7 @@ impl DiscoveryMetadata {
         Self {
             discovery_type,
             daemon_id,
-            date: Utc::now()
+            date: Utc::now(),
         }
     }
 }

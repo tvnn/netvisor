@@ -1,12 +1,16 @@
 use std::net::IpAddr;
 
 use crate::server::{
-    services::{definitions::ServiceDefinitionRegistry, types::{
-        base::{
-            DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams, ServiceMatchServiceParams
+    services::{
+        definitions::ServiceDefinitionRegistry,
+        types::{
+            base::{
+                DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams,
+                ServiceMatchServiceParams,
+            },
+            virtualization::ServiceVirtualization,
         },
-        virtualization::ServiceVirtualization,
-    }},
+    },
     shared::types::metadata::TypeMetadataProvider,
 };
 use anyhow::{anyhow, Error};
@@ -156,23 +160,27 @@ impl Pattern<'_> {
             ..
         } = baseline_params;
 
-        let ServiceMatchServiceParams { unbound_ports, service_definition, .. } = service_params;
+        let ServiceMatchServiceParams {
+            unbound_ports,
+            service_definition,
+            ..
+        } = service_params;
 
         match self {
             Pattern::Port(port_base) => {
-
                 if let Some(matched_port) = unbound_ports.iter().find(|p| **p == *port_base) {
-
-                    let mut all_other_services_ports: Vec<PortBase> = ServiceDefinitionRegistry::all_service_definitions()
-                        .iter()
-                        .filter(|s| s.id() != service_definition.id())
-                        .flat_map(|s| s.discovery_pattern().ports())
-                        .collect();
+                    let mut all_other_services_ports: Vec<PortBase> =
+                        ServiceDefinitionRegistry::all_service_definitions()
+                            .iter()
+                            .filter(|s| s.id() != service_definition.id())
+                            .flat_map(|s| s.discovery_pattern().ports())
+                            .collect();
 
                     all_other_services_ports.sort_by_key(|p| (p.number(), p.protocol()));
                     all_other_services_ports.dedup();
 
-                    let is_unique_to_service = port_base.is_custom() && !all_other_services_ports.contains(port_base);
+                    let is_unique_to_service =
+                        port_base.is_custom() && !all_other_services_ports.contains(port_base);
 
                     let (reason, confidence) = if port_base.is_custom() && is_unique_to_service {
                         (
@@ -192,10 +200,7 @@ impl Pattern<'_> {
                             MatchConfidence::Low,
                         )
                     } else {
-                        (
-                            format!("Port {} is open", port_base),
-                            MatchConfidence::Low,
-                        )
+                        (format!("Port {} is open", port_base), MatchConfidence::Low)
                     };
 
                     Ok(MatchResult {
@@ -204,7 +209,7 @@ impl Pattern<'_> {
                         mac_vendor: None,
                         details: MatchDetails {
                             reason: MatchReason::Reason(reason),
-                            confidence
+                            confidence,
                         },
                     })
                 } else {

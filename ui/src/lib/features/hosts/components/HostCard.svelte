@@ -27,7 +27,7 @@
 	export let discoveryIsRunning: boolean;
 
 	$: hostIsRunningDiscovery =
-		(discoveryIsRunning && daemon !== null)
+		discoveryIsRunning && daemon !== null
 			? getDaemonIsRunningDiscovery(daemon.id, $sessions)
 			: false;
 	$: discoveryData =

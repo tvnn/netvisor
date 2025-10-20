@@ -5,9 +5,9 @@
 		getId: (service: Service) => service.id,
 		getLabel: (service: Service) => service.name,
 		getDescription: (service: Service) => {
-			let descriptionItems = []
+			let descriptionItems = [];
 			let binding_count = service.bindings.length;
-			descriptionItems.push(binding_count + ' binding' + (binding_count == 1 ? '' : 's'))
+			descriptionItems.push(binding_count + ' binding' + (binding_count == 1 ? '' : 's'));
 
 			if (service.source.type == 'Discovery' && service.source.metadata.details) {
 				let confidence = service.source.metadata.details.confidence;
@@ -46,7 +46,6 @@
 	import type { EntityDisplayComponent } from '../types';
 	import type { Service } from '$lib/features/services/types/base';
 	import type { TagProps } from '$lib/shared/components/data/types';
-	import { matchConfidenceColor } from '$lib/shared/types';
 
 	export let item: Service;
 </script>

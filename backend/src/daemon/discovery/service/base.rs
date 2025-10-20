@@ -1,20 +1,23 @@
 use std::{
     net::IpAddr,
-    sync::{atomic::AtomicUsize, Arc}, time::Duration,
+    sync::{atomic::AtomicUsize, Arc},
+    time::Duration,
 };
 
 use crate::{
-    daemon::discovery::{manager::DaemonDiscoverySessionManager, types::base::DiscoveryCriticalError},
+    daemon::discovery::{
+        manager::DaemonDiscoverySessionManager, types::base::DiscoveryCriticalError,
+    },
     server::{
         discovery::types::{
             api::InitiateDiscoveryRequest,
             base::{DiscoveryMetadata, DiscoveryType},
         },
         groups::types::Group,
-        services::types::{base::{
+        services::types::base::{
             DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams,
             ServiceMatchServiceParams,
-        }},
+        },
     },
 };
 use anyhow::{anyhow, Error};
@@ -287,8 +290,10 @@ pub trait DiscoversNetworkedEntities:
             Err(e) => {
                 tracing::error!("Discovery session {} failed: {}", session_id, e);
 
-                let error = DiscoveryCriticalError::from_error_string(e.to_string()).map(|e| e.to_string()).unwrap_or(format!("Critical error: {}", e.to_string()));
-                
+                let error = DiscoveryCriticalError::from_error_string(e.to_string())
+                    .map(|e| e.to_string())
+                    .unwrap_or(format!("Critical error: {}", e));
+
                 self.report_discovery_update(DiscoverySessionUpdate {
                     phase: DiscoveryPhase::Failed,
                     completed: final_scanned_count,
@@ -344,12 +349,10 @@ pub trait DiscoversNetworkedEntities:
             interfaces: vec![interface.clone()],
             services: Vec::new(),
             ports: Vec::new(),
-            source: EntitySource::Discovery(
-                vec!(DiscoveryMetadata::new(
-                    discovery_type,
-                    daemon_id,
-                ))
-            ),
+            source: EntitySource::Discovery(vec![DiscoveryMetadata::new(
+                discovery_type,
+                daemon_id,
+            )]),
             virtualization: None,
         });
 

@@ -1,4 +1,4 @@
-use crate::server::discovery::types::base::{DiscoveryType, EntitySource, DiscoveryMetadata};
+use crate::server::discovery::types::base::{DiscoveryMetadata, DiscoveryType, EntitySource};
 use crate::server::hosts::types::interfaces::Interface;
 use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
@@ -85,6 +85,7 @@ pub struct ServiceMatchServiceParams<'a> {
 }
 
 impl PartialEq for Service {
+    // Primarily applies to
     fn eq(&self, other: &Self) -> bool {
         let host_match = self.base.host_id == other.base.host_id;
         let definition_match =
@@ -217,7 +218,10 @@ impl Service {
 
                 // Confidence not applicable for generic services
                 result.details.confidence = MatchConfidence::NotApplicable;
-                result.details.reason = MatchReason::Container("Match confidence for generic services is N/A".to_string(), vec!(result.details.reason))
+                result.details.reason = MatchReason::Container(
+                    "Match confidence for generic services is N/A".to_string(),
+                    vec![result.details.reason],
+                )
             };
 
             let discovery_metadata = DiscoveryMetadata::new(*discovery_type, *daemon_id);
@@ -240,8 +244,8 @@ impl Service {
                         vms: vec![],
                         containers: vec![],
                         source: EntitySource::DiscoveryWithMatch(
-                            vec!(discovery_metadata),
-                            result.details.clone()
+                            vec![discovery_metadata],
+                            result.details.clone(),
                         ),
                     }),
                     result,
@@ -269,8 +273,8 @@ impl Service {
                         vms: vec![],
                         containers: vec![],
                         source: EntitySource::DiscoveryWithMatch(
-                            vec!(discovery_metadata),
-                            result.details.clone()
+                            vec![discovery_metadata],
+                            result.details.clone(),
                         ),
                     }),
                     result,

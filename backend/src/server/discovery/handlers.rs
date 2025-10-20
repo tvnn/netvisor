@@ -1,6 +1,9 @@
 use crate::server::{
     config::AppState,
-    daemons::types::{api::{DaemonDiscoveryRequest, DiscoveryUpdatePayload}, base::Daemon},
+    daemons::types::{
+        api::{DaemonDiscoveryRequest, DiscoveryUpdatePayload},
+        base::Daemon,
+    },
     discovery::types::{api::InitiateDiscoveryRequest, base::DiscoveryType},
     shared::types::api::{ApiError, ApiResponse, ApiResult},
 };
@@ -59,11 +62,12 @@ async fn user_initiate_discovery(
     State(state): State<Arc<AppState>>,
     Json(request): Json<InitiateDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<DiscoveryUpdatePayload>>> {
-    
     let (daemon, session_id) = initiate_discovery(state.clone(), request).await?;
 
     // Send discovery request to daemon
-    state.services.daemon_service
+    state
+        .services
+        .daemon_service
         .send_discovery_request(
             &daemon,
             DaemonDiscoveryRequest {
@@ -85,7 +89,10 @@ async fn user_initiate_discovery(
     Ok(Json(ApiResponse::success(update)))
 }
 
-async fn initiate_discovery(state: Arc<AppState>, request: InitiateDiscoveryRequest) -> Result<(Daemon, Uuid), ApiError>{
+async fn initiate_discovery(
+    state: Arc<AppState>,
+    request: InitiateDiscoveryRequest,
+) -> Result<(Daemon, Uuid), ApiError> {
     let daemon_service = &state.services.daemon_service;
 
     // Get the specified daemon

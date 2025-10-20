@@ -12,7 +12,10 @@ use crate::{
         },
         services::{
             definitions::netvisor_daemon::NetvisorDaemon,
-            types::{base::ServiceBase, bindings::Binding, definitions::ServiceDefinition, patterns::MatchDetails},
+            types::{
+                base::ServiceBase, bindings::Binding, definitions::ServiceDefinition,
+                patterns::MatchDetails,
+            },
         },
         utils::base::NetworkUtils,
     },
@@ -153,11 +156,8 @@ impl Discovery<SelfReportDiscovery> {
             vms: vec![],
             containers: vec![],
             source: EntitySource::DiscoveryWithMatch(
-                vec!(DiscoveryMetadata::new(
-                    DiscoveryType::SelfReport,
-                    daemon_id,
-                )),
-                MatchDetails::new_certain("NetVisor Daemon self-report")
+                vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],
+                MatchDetails::new_certain("NetVisor Daemon self-report"),
             ),
         });
 

@@ -60,19 +60,11 @@ export async function initiateDiscovery(data: InitiateDiscoveryRequest) {
 }
 
 export async function cancelDiscovery(id: string) {
-
 	const map = new Map(get(cancelling));
 	map.set(id, true);
 	cancelling.set(map);
 
-	await api.request<void, void>(
-		`/discovery/${id}/cancel`,
-		null,
-		null,
-		{ method: 'POST' }
-	);
-
-
+	await api.request<void, void>(`/discovery/${id}/cancel`, null, null, { method: 'POST' });
 }
 
 export async function getActiveDiscoverySessions() {
@@ -105,12 +97,12 @@ export async function getActiveDiscoverySessions() {
 						pushSuccess(`Discovery completed with ${session.discovered_count} hosts found`);
 					if (session.phase == 'Cancelled')
 						pushWarning(`Discovery cancelled with ${session.discovered_count} hosts found`);
-						const updatedCancelling = new Map(get(cancelling));
-						updatedCancelling.set(session.session_id, false);
-						cancelling.set(updatedCancelling);
+					const updatedCancelling = new Map(get(cancelling));
+					updatedCancelling.set(session.session_id, false);
+					cancelling.set(updatedCancelling);
 					if (session.error) {
-						pushError(`Discovery error: ${session.error}`, -1)
-					};
+						pushError(`Discovery error: ${session.error}`, -1);
+					}
 
 					return newMap;
 				}

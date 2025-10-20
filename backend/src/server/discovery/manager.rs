@@ -141,10 +141,14 @@ impl DiscoverySessionManager {
             .filter(|session| {
                 match session.phase {
                     // Always show active phases
-                    DiscoveryPhase::Initiated | DiscoveryPhase::Started | DiscoveryPhase::Scanning => true,
-                    
+                    DiscoveryPhase::Initiated
+                    | DiscoveryPhase::Started
+                    | DiscoveryPhase::Scanning => true,
+
                     // Show terminal phases for a short time so UI can poll and see them
-                    DiscoveryPhase::Complete | DiscoveryPhase::Cancelled | DiscoveryPhase::Failed => {
+                    DiscoveryPhase::Complete
+                    | DiscoveryPhase::Cancelled
+                    | DiscoveryPhase::Failed => {
                         if let Some(finished_at) = session.finished_at {
                             (now - finished_at).num_seconds() < 30 // Keep for 30 seconds
                         } else {

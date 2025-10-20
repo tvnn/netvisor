@@ -47,7 +47,7 @@ class ApiClient {
 	 * @param dataStore - store that will be updated with the response data
 	 * @param storeAction - function to update the store with new data. Takes response data and current store data (as defined in dataStore), returns updated store data
 	 * @param options - fetch options like method, body, headers
-	 * @returns 
+	 * @returns
 	 */
 	async request<TResponseData, TStoreData = TResponseData>(
 		endpoint: string,

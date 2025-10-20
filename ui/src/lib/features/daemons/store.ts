@@ -16,9 +16,9 @@ export function getDaemonIsRunningDiscovery(
 	sessionsMap: Map<string, DiscoveryUpdatePayload>
 ): boolean {
 	if (!daemon_id) return false;
-	let session = sessionsMap.get(daemon_id);
+	const session = sessionsMap.get(daemon_id);
 	if (!session) return false;
-	return session.phase == 'Initiated' || session.phase == 'Started' || session.phase == 'Scanning'
+	return session.phase == 'Initiated' || session.phase == 'Started' || session.phase == 'Scanning';
 }
 
 export function getDaemonDiscoveryData(

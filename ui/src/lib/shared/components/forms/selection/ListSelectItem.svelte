@@ -31,12 +31,7 @@
 			{#if tags.length > 0}
 				<div class="flex gap-1">
 					{#each tags as tag, i (`${tag.label}-${i}`)}
-						<Tag
-							label={tag.label}
-							color={tag.color}
-							textColor={tag.textColor}
-							bgColor={tag.bgColor}
-						/>
+						<Tag label={tag.label} color={tag.color} />
 					{/each}
 				</div>
 			{/if}

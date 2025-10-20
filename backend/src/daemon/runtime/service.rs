@@ -33,7 +33,7 @@ impl DaemonRuntimeService {
         let mut interval_timer = tokio::time::interval(interval);
         interval_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
-        let server_target = self.config_store.get_server_endpoint().await?;        
+        let server_target = self.config_store.get_server_endpoint().await?;
 
         loop {
             interval_timer.tick().await;
