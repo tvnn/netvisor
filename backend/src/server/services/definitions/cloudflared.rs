@@ -22,7 +22,7 @@ impl ServiceDefinition for Cloudflared {
         Pattern::Endpoint(PortBase::Http, "/metrics", "cloudflared")
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "cloudflare"
     }
 }

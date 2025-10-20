@@ -124,11 +124,14 @@ impl ServiceService {
         ) {
             // Add latest discovery metadata to vec, update details to summarize what was discovered + highest confidence
             (
-                EntitySource::DiscoveryWithMatch(
-                    existing_service_metadata,
-                    existing_service_details,
-                ),
-                EntitySource::DiscoveryWithMatch(new_service_metadata, new_service_details),
+                EntitySource::DiscoveryWithMatch {
+                    metadata: existing_service_metadata,
+                    details: existing_service_details,
+                },
+                EntitySource::DiscoveryWithMatch {
+                    metadata: new_service_metadata,
+                    details: new_service_details,
+                },
             ) => {
                 let new_metadata = [
                     new_service_metadata.clone(),
@@ -163,13 +166,23 @@ impl ServiceService {
                     ),
                 };
 
-                EntitySource::DiscoveryWithMatch(new_metadata, MatchDetails { confidence, reason })
+                EntitySource::DiscoveryWithMatch {
+                    metadata: new_metadata,
+                    details: MatchDetails { confidence, reason },
+                }
             }
 
             // Less-likely scenario: new service data is upserted to a manually or system-created record
-            (_, EntitySource::DiscoveryWithMatch(new_service_metadata, new_service_details)) => {
-                EntitySource::DiscoveryWithMatch(new_service_metadata, new_service_details)
-            }
+            (
+                _,
+                EntitySource::DiscoveryWithMatch {
+                    metadata: new_service_metadata,
+                    details: new_service_details,
+                },
+            ) => EntitySource::DiscoveryWithMatch {
+                metadata: new_service_metadata,
+                details: new_service_details,
+            },
 
             // The following case shouldn't be possible since upsert only happens from discovered services, but cover with something reasonable just in case
             (existing_source, _) => existing_source,

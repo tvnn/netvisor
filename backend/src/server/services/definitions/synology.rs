@@ -22,7 +22,7 @@ impl ServiceDefinition for Synology {
         Pattern::Endpoint(PortBase::Http, "/", "synology")
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "synology"
     }
 }

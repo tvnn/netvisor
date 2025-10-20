@@ -8,14 +8,19 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash, EnumDiscriminants)]
 #[strum_discriminants(derive(Hash, Serialize, Deserialize))]
-#[serde(tag = "type", content = "metadata")]
+#[serde(tag = "type")]
 pub enum EntitySource {
     Manual,
     System,
     // Used with hosts and subnets
-    Discovery(Vec<DiscoveryMetadata>),
+    Discovery {
+        metadata: Vec<DiscoveryMetadata>,
+    },
     // Only used with services
-    DiscoveryWithMatch(Vec<DiscoveryMetadata>, MatchDetails),
+    DiscoveryWithMatch {
+        metadata: Vec<DiscoveryMetadata>,
+        details: MatchDetails,
+    },
     Unknown,
 }
 

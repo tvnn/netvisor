@@ -22,7 +22,7 @@ impl ServiceDefinition for HomeAssistant {
         Pattern::Endpoint(PortBase::new_tcp(8123), "/auth/authorize", "home assistant")
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "home-assistant"
     }
 }

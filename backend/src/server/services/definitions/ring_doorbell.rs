@@ -5,33 +5,38 @@ use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::patterns::{Pattern, Vendor};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
-pub struct HpPrinter;
+pub struct RingDoorbell;
 
-impl ServiceDefinition for HpPrinter {
+impl ServiceDefinition for RingDoorbell {
     fn name(&self) -> &'static str {
-        "Hp Printer"
+        "Ring Doorbell"
     }
+
     fn description(&self) -> &'static str {
-        "An HP Printer"
+        "Ring video doorbell or security camera"
     }
+
     fn category(&self) -> ServiceCategory {
-        ServiceCategory::Printer
+        ServiceCategory::IoT
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
-            Pattern::MacVendor(Vendor::HP),
+            Pattern::MacVendor(Vendor::AMAZON),
             Pattern::AnyOf(vec![
-                Pattern::Port(PortBase::Ipp),
-                Pattern::Port(PortBase::LdpTcp),
-                Pattern::Port(PortBase::LdpUdp),
+                Pattern::Port(PortBase::new_tcp(8557)),
+                Pattern::Port(PortBase::new_tcp(9998)),
+                Pattern::Port(PortBase::new_tcp(19302)),
+                Pattern::Port(PortBase::new_tcp(9999)),
             ]),
         ])
     }
 
-    fn dashboard_icons_path(&self) -> &'static str {
-        "hp"
+    fn simple_icons_path(&self) -> &'static str {
+        "ring"
     }
 }
 
-inventory::submit!(ServiceDefinitionFactory::new(create_service::<HpPrinter>));
+inventory::submit!(ServiceDefinitionFactory::new(
+    create_service::<RingDoorbell>
+));

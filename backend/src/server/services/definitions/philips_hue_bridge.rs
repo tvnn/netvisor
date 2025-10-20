@@ -24,6 +24,10 @@ impl ServiceDefinition for PhilipsHueBridge {
             Pattern::Endpoint(PortBase::Http, "/", "hue"),
         ])
     }
+
+    fn simple_icons_path(&self) -> &'static str {
+        "philipshue"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(

@@ -13,7 +13,7 @@
 	import { v4 as uuidv4 } from 'uuid';
 	import { getServicesForPort } from '$lib/features/services/store';
 	import { Layer4BindingDisplay } from '$lib/shared/components/forms/selection/display/Layer4BindingDisplay.svelte';
-	import MatchReason from './MatchReason.svelte';
+	import MatchDetails from './MatchDetails.svelte';
 
 	export let formApi: FormApi;
 	export let formData: Host;
@@ -187,8 +187,8 @@
 			{/key}
 		</div>
 
-		{#if service.source.type == 'Discovery' && service.source.metadata.details}
-			<MatchReason result={service.source.metadata.details} />
+		{#if service.source.type == 'DiscoveryWithMatch'}
+			<MatchDetails details={service.source.details} />
 		{/if}
 	</div>
 {/if}

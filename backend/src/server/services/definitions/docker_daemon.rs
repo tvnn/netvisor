@@ -21,7 +21,7 @@ impl ServiceDefinition for Docker {
         Pattern::None
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "docker"
     }
 }

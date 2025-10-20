@@ -28,7 +28,10 @@ async fn test_service_deduplication_on_create() {
         Some(host_obj.base.interfaces[0].id),
     )];
     // Set source to discovery so upsert route is used
-    svc1.base.source = EntitySource::DiscoveryWithMatch(vec![], MatchDetails::new_certain("Test"));
+    svc1.base.source = EntitySource::DiscoveryWithMatch {
+        metadata: vec![],
+        details: MatchDetails::new_certain("Test"),
+    };
 
     let (created_host, created1) = services
         .host_service
@@ -44,7 +47,10 @@ async fn test_service_deduplication_on_create() {
         created_host.base.ports[0].id,
         Some(created_host.base.interfaces[0].id),
     )];
-    svc2.base.source = EntitySource::DiscoveryWithMatch(vec![], MatchDetails::new_certain("Test"));
+    svc2.base.source = EntitySource::DiscoveryWithMatch {
+        metadata: vec![],
+        details: MatchDetails::new_certain("Test"),
+    };
 
     let created2 = services
         .service_service

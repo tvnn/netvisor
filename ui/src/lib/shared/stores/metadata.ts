@@ -2,8 +2,9 @@ import { writable, get } from 'svelte/store';
 import { api } from '../utils/api';
 import {
 	createColorHelper,
-	createHomarrIconComponent,
+	createDashboardIconComponent,
 	createIconComponent,
+	createSimpleiconComponent,
 	createStyle,
 	type ColorStyle
 } from '../utils/styling';
@@ -40,7 +41,8 @@ export interface ServicedDefinitionMetadata {
 	is_reverse_proxy: boolean;
 	is_generic: boolean;
 	manages_virtualization: 'vms' | 'containers';
-	has_homarr_icon: boolean;
+	has_dashboard_icon: boolean;
+	has_simple_icon: boolean;
 	layer: 'Layer3' | 'Layer4';
 }
 
@@ -136,16 +138,14 @@ function createTypeMetadataHelpers<T extends TypeMetadataKeys>(category: T) {
 			);
 			const iconName = item?.icon || null;
 
-			if (
-				item?.metadata &&
-				typeof item.metadata === 'object' &&
-				'has_homarr_icon' in item.metadata &&
-				item.metadata.has_homarr_icon
-			) {
-				return createHomarrIconComponent(iconName);
-			} else {
-				return createIconComponent(iconName);
+			if (item?.metadata && typeof item.metadata === 'object') {
+				if ('has_dashboard_icon' in item.metadata && item.metadata.has_dashboard_icon)
+					return createDashboardIconComponent(iconName);
+				else if ('has_simple_icon' in item.metadata && item.metadata.has_simple_icon)
+					return createSimpleiconComponent(iconName);
 			}
+
+			return createIconComponent(iconName);
 		},
 
 		getItems: () => {

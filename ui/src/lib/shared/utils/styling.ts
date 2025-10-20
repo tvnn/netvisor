@@ -1,7 +1,8 @@
 import * as LucideIcons from 'lucide-svelte';
-import HomarrIcon from '$lib/shared/components/data/HomarrIcon.svelte';
 import type { IconComponent } from './types';
 import colors from 'tailwindcss/colors';
+import DashboardIcon from '$lib/shared/components/data/DashboardIcon.svelte';
+import SimpleIcon from '../components/data/SimpleIcon.svelte';
 
 export interface ColorStyle {
 	text: string;
@@ -170,17 +171,30 @@ export function createIconComponent(iconName: string | null): IconComponent {
 	return (LucideIcons as any)[componentName] || LucideIcons.HelpCircle;
 }
 
-// Icon helper that turns a string into an SVG from homarr icons: https://dashboardicons.com/
-export function createHomarrIconComponent(iconName: string | null): IconComponent {
+// Icon helper that turns a string into an SVG from dashboard icons: https://dashboardicons.com/
+export function createDashboardIconComponent(iconName: string | null): IconComponent {
 	if (!iconName || iconName == null) return LucideIcons.HelpCircle;
 
 	// Create a wrapper component that pre-binds the iconName
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const BoundHomarrIcon = ($$payload: any, $$props: Omit<any, 'iconName'>) => {
-		return HomarrIcon($$payload, { iconName, ...$$props });
+	const BoundDashboardIcon = ($$payload: any, $$props: Omit<any, 'iconName'>) => {
+		return DashboardIcon($$payload, { iconName, ...$$props });
 	};
 
-	return BoundHomarrIcon;
+	return BoundDashboardIcon;
+}
+
+// Icon helper that turns a string into an SVG from simple icons: https://simpleicons.org/
+export function createSimpleiconComponent(iconName: string | null): IconComponent {
+	if (!iconName || iconName == null) return LucideIcons.HelpCircle;
+
+	// Create a wrapper component that pre-binds the iconName
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const BoundSimpleIcon = ($$payload: any, $$props: Omit<any, 'iconName'>) => {
+		return SimpleIcon($$payload, { iconName, ...$$props });
+	};
+
+	return BoundSimpleIcon;
 }
 
 // Convenience wrapper that returns both color and icon

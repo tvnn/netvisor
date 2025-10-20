@@ -219,6 +219,8 @@ The daemon supports the following configuration options:
 | Daemon Name | `--name` | `NETVISOR_NAME` | `name` | `netvisor-daemon` | Human-readable name for this daemon instance |
 | Log Level | `--log-level` | `NETVISOR_LOG_LEVEL` | `log_level` | `info` | Logging verbosity (`trace`, `debug`, `info`, `warn`, `error`) |
 | Heartbeat Interval | `--heartbeat-interval` | `NETVISOR_HEARTBEAT_INTERVAL` | `heartbeat_interval` | `30` | Seconds between heartbeat updates to the server |
+| Concurrent Scans | `--concurrent-scans` | `NETVISOR_CONCURRENT_SCANS` | `concurrent_scans` | `15` | How many hosts the daemon will attempt to scan in parallel |
+
 
 #### Configuration File Location
 
@@ -242,7 +244,15 @@ The server supports the following configuration options:
 
 ## Troubleshooting
 
-###
+### CONCURRENT_SCANS is too high for this system
+This env var controls concurrent network scan operations. If too high, the system running the daemon will run out of memory.
+
+You can control this using the environment variable `NETVISOR_CONCURRENT_SCANS`.
+
+- **Recommended ranges**:
+  - Low-resource systems (Raspberry Pi): 5-10
+  - Developer laptops: 15-20
+  - Servers: 25+
 
 ## Uninstall Daemon
 

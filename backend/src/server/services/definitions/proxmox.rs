@@ -22,7 +22,7 @@ impl ServiceDefinition for Proxmox {
         Pattern::Port(PortBase::new_tcp(8006))
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "proxmox"
     }
 }

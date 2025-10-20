@@ -22,7 +22,7 @@ impl ServiceDefinition for UptimeKuma {
         Pattern::Endpoint(PortBase::Http, "/", "Uptime Kuma")
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "uptime-kuma"
     }
 }

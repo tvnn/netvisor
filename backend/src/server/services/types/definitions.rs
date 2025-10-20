@@ -33,7 +33,12 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
     }
 
     /// Path of service on https://dashboardicons.com/. For example, Home Assistant -> https://dashboardicons.com/icons/home-assistant. MUST SUPPORT SVG ICON FORMAT. If SVG is not supported, a fallback icon will be used instead.
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
+        ""
+    }
+
+    /// Path of service on https://simpleicons.org/. For example, Home Assistant -> https://simpleicons.org/icons/homeassistant.svg. MUST SUPPORT SVG ICON FORMAT. If SVG is not supported, a fallback icon will be used instead.
+    fn simple_icons_path(&self) -> &'static str {
         ""
     }
 }
@@ -66,8 +71,12 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
         ServiceDefinition::description(&**self)
     }
 
-    fn icon(&self) -> &'static str {
-        ServiceDefinition::icon(&**self)
+    fn dashboard_icons_path(&self) -> &'static str {
+        ServiceDefinition::dashboard_icons_path(&**self)
+    }
+
+    fn simple_icons_path(&self) -> &'static str {
+        ServiceDefinition::simple_icons_path(&**self)
     }
 
     fn category(&self) -> ServiceCategory {
@@ -129,9 +138,12 @@ impl EntityMetadataProvider for Box<dyn ServiceDefinition> {
         ServiceDefinition::category(self).color()
     }
     fn icon(&self) -> &'static str {
-        let logo_icon = ServiceDefinition::icon(self);
-        if !logo_icon.is_empty() {
-            return logo_icon;
+        let dashboard_icon = ServiceDefinition::dashboard_icons_path(self);
+        let simple_icon = ServiceDefinition::simple_icons_path(self);
+        if !dashboard_icon.is_empty() {
+            return dashboard_icon;
+        } else if !simple_icon.is_empty() {
+            return simple_icon;
         }
         ServiceDefinition::category(self).icon()
     }
@@ -155,7 +167,8 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
         let is_generic = self.is_generic();
         let layer: &str = self.layer().into();
         let manages_virtualization = self.manages_virtualization();
-        let has_homarr_icon = !ServiceDefinition::icon(self).is_empty();
+        let has_dashboard_icon = !ServiceDefinition::dashboard_icons_path(self).is_empty();
+        let has_simple_icon = !ServiceDefinition::simple_icons_path(self).is_empty();
         serde_json::json!({
             "can_be_added": can_be_added,
             "is_dns_resolver": is_dns_resolver,
@@ -163,7 +176,8 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
             "is_reverse_proxy": is_reverse_proxy,
             "is_generic": is_generic,
             "manages_virtualization": manages_virtualization,
-            "has_homarr_icon": has_homarr_icon,
+            "has_dashboard_icon": has_dashboard_icon,
+            "has_simple_icon": has_simple_icon,
             "layer": layer,
         })
     }

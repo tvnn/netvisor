@@ -25,7 +25,7 @@ impl ServiceDefinition for TpLinkEap {
         ])
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "tp-link"
     }
 }

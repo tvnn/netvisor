@@ -2,35 +2,40 @@ use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;
-use crate::server::services::types::patterns::Pattern;
+use crate::server::services::types::patterns::{Pattern, Vendor};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
-pub struct PiHole;
+pub struct GoogleHome;
 
-impl ServiceDefinition for PiHole {
+impl ServiceDefinition for GoogleHome {
     fn name(&self) -> &'static str {
-        "Pi-Hole"
+        "Google Home"
     }
+
     fn description(&self) -> &'static str {
-        "Network-wide ad blocking DNS service"
+        "Google Home smart speaker or display"
     }
+
     fn category(&self) -> ServiceCategory {
-        ServiceCategory::AdBlock
+        ServiceCategory::IoT
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
-            Pattern::AllOf(vec![
-                Pattern::Port(PortBase::DnsUdp),
-                Pattern::Port(PortBase::DnsTcp),
+            Pattern::AnyOf(vec![
+                Pattern::MacVendor(Vendor::NEST),
+                Pattern::MacVendor(Vendor::GOOGLE),
             ]),
-            Pattern::Endpoint(PortBase::Http, "/admin", "pi-hole"),
+            Pattern::AllOf(vec![
+                Pattern::Port(PortBase::new_tcp(8008)),
+                Pattern::Port(PortBase::new_tcp(8009)),
+            ]),
         ])
     }
 
     fn dashboard_icons_path(&self) -> &'static str {
-        "pi-hole"
+        "google-home"
     }
 }
 
-inventory::submit!(ServiceDefinitionFactory::new(create_service::<PiHole>));
+inventory::submit!(ServiceDefinitionFactory::new(create_service::<GoogleHome>));

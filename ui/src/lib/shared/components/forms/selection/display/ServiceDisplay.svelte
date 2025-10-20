@@ -9,8 +9,8 @@
 			let binding_count = service.bindings.length;
 			descriptionItems.push(binding_count + ' binding' + (binding_count == 1 ? '' : 's'));
 
-			if (service.source.type == 'Discovery' && service.source.metadata.details) {
-				let confidence = service.source.metadata.details.confidence;
+			if (service.source.type == 'DiscoveryWithMatch') {
+				let confidence = service.source.details.confidence;
 
 				if (confidence != 'Certain' && confidence != 'NotApplicable') {
 					descriptionItems.push('Match Confidence: ' + confidence);

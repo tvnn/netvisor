@@ -54,6 +54,10 @@ impl ServiceDefinition for DockerContainer {
     fn is_generic(&self) -> bool {
         true
     }
+
+    fn dashboard_icons_path(&self) -> &'static str {
+        "docker"
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(

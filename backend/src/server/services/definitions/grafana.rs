@@ -22,7 +22,7 @@ impl ServiceDefinition for Grafana {
         Pattern::Endpoint(PortBase::Http, "/", "grafana")
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "grafana"
     }
 }

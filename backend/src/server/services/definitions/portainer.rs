@@ -22,7 +22,7 @@ impl ServiceDefinition for Portainer {
         Pattern::Endpoint(PortBase::new_tcp(9443), "/", "portainer")
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "portainer"
     }
 }

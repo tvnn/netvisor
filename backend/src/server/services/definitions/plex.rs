@@ -22,7 +22,7 @@ impl ServiceDefinition for Plex {
         Pattern::Port(PortBase::new_tcp(32400))
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "plex"
     }
 }

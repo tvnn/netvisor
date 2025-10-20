@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { matchConfidenceColor, type MatchReason, type MatchResult } from '$lib/shared/types';
+	import { matchConfidenceColor, type MatchReason, type MatchDetails } from '$lib/shared/types';
 	import { ChevronDown, ChevronRight } from 'lucide-svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 
-	let { result }: { result: MatchResult } = $props();
+	let { details }: { details: MatchDetails } = $props();
 
 	let isExpanded = $state(false);
-	let confidenceColor = $derived(matchConfidenceColor(result.confidence));
+	let confidenceColor = $derived(matchConfidenceColor(details.confidence));
 </script>
 
 {#snippet matchReasonNode(reason: MatchReason)}
@@ -50,12 +50,12 @@
 			{/if}
 			<h3 class="text-sm font-semibold text-gray-300">Match Details</h3>
 		</div>
-		<Tag label={result.confidence + ' Confidence'} color={confidenceColor} />
+		<Tag label={details.confidence + ' Confidence'} color={confidenceColor} />
 	</button>
 
 	{#if isExpanded}
 		<div class="pl-1">
-			{@render matchReasonNode(result.reason)}
+			{@render matchReasonNode(details.reason)}
 		</div>
 	{/if}
 </div>

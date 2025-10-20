@@ -243,10 +243,10 @@ impl Service {
                         virtualization: virtualization.clone(),
                         vms: vec![],
                         containers: vec![],
-                        source: EntitySource::DiscoveryWithMatch(
-                            vec![discovery_metadata],
-                            result.details.clone(),
-                        ),
+                        source: EntitySource::DiscoveryWithMatch {
+                            metadata: vec![discovery_metadata],
+                            details: result.details.clone(),
+                        },
                     }),
                     result,
                 ))
@@ -272,10 +272,10 @@ impl Service {
                             .collect(),
                         vms: vec![],
                         containers: vec![],
-                        source: EntitySource::DiscoveryWithMatch(
-                            vec![discovery_metadata],
-                            result.details.clone(),
-                        ),
+                        source: EntitySource::DiscoveryWithMatch {
+                            metadata: vec![discovery_metadata],
+                            details: result.details.clone(),
+                        },
                     }),
                     result,
                 ))

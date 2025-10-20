@@ -216,19 +216,17 @@ impl Discovery<DockerScanDiscovery> {
             virtualization: None,
             vms: vec![],
             containers: services.iter().map(|s| s.id).collect(),
-            source: EntitySource::DiscoveryWithMatch(
-                vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],
-                MatchDetails::new_certain("Docker daemon self-report"),
-            ),
+            source: EntitySource::DiscoveryWithMatch {
+                metadata: vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],
+                details: MatchDetails::new_certain("Docker daemon self-report"),
+            },
         });
 
         let mut temp_docker_daemon_host = Host::new(HostBase::default());
         temp_docker_daemon_host.id = self.domain.host_id;
-        temp_docker_daemon_host.base.source =
-            EntitySource::Discovery(vec![DiscoveryMetadata::new(
-                self.discovery_type(),
-                daemon_id,
-            )]);
+        temp_docker_daemon_host.base.source = EntitySource::Discovery {
+            metadata: vec![DiscoveryMetadata::new(self.discovery_type(), daemon_id)],
+        };
         temp_docker_daemon_host.base.services = vec![docker_service.id];
 
         self.create_host(temp_docker_daemon_host, vec![docker_service])
@@ -551,10 +549,12 @@ impl Discovery<DockerScanDiscovery> {
                                 description: None,
                                 name: network_name.clone(),
                                 subnet_type: SubnetType::DockerBridge,
-                                source: EntitySource::Discovery(vec![DiscoveryMetadata::new(
-                                    self.discovery_type(),
-                                    daemon_id,
-                                )]),
+                                source: EntitySource::Discovery {
+                                    metadata: vec![DiscoveryMetadata::new(
+                                        self.discovery_type(),
+                                        daemon_id,
+                                    )],
+                                },
                             }));
                         }
                         None
@@ -802,10 +802,7 @@ impl Discovery<DockerScanDiscovery> {
                 tracing::debug!("Partial HTTP response received");
                 None
             }
-            Err(e) => {
-                tracing::debug!("Failed to parse HTTP response: {}", e);
-                None
-            }
+            Err(_) => None,
         }
     }
 

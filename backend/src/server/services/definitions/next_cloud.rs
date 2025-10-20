@@ -22,7 +22,7 @@ impl ServiceDefinition for NextCloud {
         Pattern::Endpoint(PortBase::Http, "/", "nextcloud")
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "nextcloud"
     }
 }

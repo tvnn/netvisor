@@ -2,34 +2,39 @@ use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;
-use crate::server::services::types::patterns::Pattern;
+use crate::server::services::types::patterns::{Pattern, Vendor};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
-pub struct OpenMediaVault;
+pub struct NestThermostat;
 
-impl ServiceDefinition for OpenMediaVault {
+impl ServiceDefinition for NestThermostat {
     fn name(&self) -> &'static str {
-        "OpenMediaVault"
+        "Nest Thermostat"
     }
+
     fn description(&self) -> &'static str {
-        "Debian-based NAS solution"
+        "Google Nest smart thermostat"
     }
+
     fn category(&self) -> ServiceCategory {
-        ServiceCategory::Storage
+        ServiceCategory::IoT
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
-            Pattern::Port(PortBase::Samba),
-            Pattern::Endpoint(PortBase::Http, "/", "openmediavault"),
+            Pattern::AnyOf(vec![
+                Pattern::MacVendor(Vendor::NEST),
+                Pattern::MacVendor(Vendor::GOOGLE),
+            ]),
+            Pattern::Port(PortBase::new_tcp(9543)),
         ])
     }
 
     fn dashboard_icons_path(&self) -> &'static str {
-        "openmediavault"
+        "google-home"
     }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(
-    create_service::<OpenMediaVault>
+    create_service::<NestThermostat>
 ));

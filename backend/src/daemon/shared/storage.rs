@@ -61,7 +61,7 @@ impl Default for AppConfig {
             id: Uuid::new_v4(),
             last_heartbeat: None,
             host_id: None,
-            concurrent_scans: 2000,
+            concurrent_scans: 15,
         }
     }
 }

@@ -155,10 +155,10 @@ impl Discovery<SelfReportDiscovery> {
             virtualization: None,
             vms: vec![],
             containers: vec![],
-            source: EntitySource::DiscoveryWithMatch(
-                vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],
-                MatchDetails::new_certain("NetVisor Daemon self-report"),
-            ),
+            source: EntitySource::DiscoveryWithMatch {
+                metadata: vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],
+                details: MatchDetails::new_certain("NetVisor Daemon self-report"),
+            },
         });
 
         services.push(daemon_service);

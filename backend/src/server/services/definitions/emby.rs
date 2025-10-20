@@ -22,7 +22,7 @@ impl ServiceDefinition for Emby {
         Pattern::Port(PortBase::new_tcp(8920))
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "emby"
     }
 }

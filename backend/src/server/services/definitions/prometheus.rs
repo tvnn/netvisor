@@ -22,7 +22,7 @@ impl ServiceDefinition for Prometheus {
         Pattern::Port(PortBase::new_tcp(9090))
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "prometheus"
     }
 }

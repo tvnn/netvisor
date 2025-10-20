@@ -200,13 +200,32 @@ impl HostService {
 
         // Update entity source for new discovery session data
         existing_host.base.source = match (existing_host.base.source, new_host_data.base.source) {
-            (EntitySource::Discovery(existing_metadata), EntitySource::Discovery(new_metadata)) => {
-                EntitySource::Discovery([new_metadata, existing_metadata].concat())
-            }
-            (_, EntitySource::Discovery(new_metadata)) => EntitySource::Discovery(new_metadata),
-            (EntitySource::Discovery(existing_metadata), _) => {
-                EntitySource::Discovery(existing_metadata)
-            }
+            (
+                EntitySource::Discovery {
+                    metadata: existing_metadata,
+                },
+                EntitySource::Discovery {
+                    metadata: new_metadata,
+                },
+            ) => EntitySource::Discovery {
+                metadata: [new_metadata, existing_metadata].concat(),
+            },
+            (
+                _,
+                EntitySource::Discovery {
+                    metadata: new_metadata,
+                },
+            ) => EntitySource::Discovery {
+                metadata: new_metadata,
+            },
+            (
+                EntitySource::Discovery {
+                    metadata: existing_metadata,
+                },
+                _,
+            ) => EntitySource::Discovery {
+                metadata: existing_metadata,
+            },
             (existing_source, _) => existing_source,
         };
 

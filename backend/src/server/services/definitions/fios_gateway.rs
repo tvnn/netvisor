@@ -25,7 +25,7 @@ impl ServiceDefinition for FiosGateway {
         ])
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "fios"
     }
 }

@@ -22,7 +22,7 @@ impl ServiceDefinition for Syncthing {
         Pattern::Port(PortBase::new_tcp(8384))
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "syncthing"
     }
 }

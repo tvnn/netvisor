@@ -14,7 +14,9 @@ async fn test_host_deduplication_on_create() {
 
     // Create first host
     let mut host1 = host();
-    host1.base.source = EntitySource::Discovery(vec![DiscoveryMetadata::default()]);
+    host1.base.source = EntitySource::Discovery {
+        metadata: vec![DiscoveryMetadata::default()],
+    };
     let (created1, _) = services
         .host_service
         .create_host_with_services(host1.clone(), vec![])
@@ -23,7 +25,9 @@ async fn test_host_deduplication_on_create() {
 
     // Try to create duplicate (same interfaces)
     let mut host2 = host();
-    host2.base.source = EntitySource::Discovery(vec![DiscoveryMetadata::default()]);
+    host2.base.source = EntitySource::Discovery {
+        metadata: vec![DiscoveryMetadata::default()],
+    };
     let (created2, _) = services
         .host_service
         .create_host_with_services(host2.clone(), vec![])
@@ -44,7 +48,9 @@ async fn test_host_upsert_merges_new_data() {
 
     // Create host with one interface
     let mut host1 = host();
-    host1.base.source = EntitySource::Discovery(vec![DiscoveryMetadata::default()]);
+    host1.base.source = EntitySource::Discovery {
+        metadata: vec![DiscoveryMetadata::default()],
+    };
     let subnet1 = subnet();
     services
         .subnet_service
@@ -61,7 +67,9 @@ async fn test_host_upsert_merges_new_data() {
 
     // Create "duplicate" with additional interface
     let mut host2 = host();
-    host2.base.source = EntitySource::Discovery(vec![DiscoveryMetadata::default()]);
+    host2.base.source = EntitySource::Discovery {
+        metadata: vec![DiscoveryMetadata::default()],
+    };
     let subnet2 = subnet();
     services
         .subnet_service
@@ -79,7 +87,7 @@ async fn test_host_upsert_merges_new_data() {
     // Should have merged interfaces + discovery data
     assert_eq!(upserted.id, created.id);
     assert_eq!(upserted.base.interfaces.len(), 2);
-    if let EntitySource::Discovery(metadata) = upserted.base.source {
+    if let EntitySource::Discovery { metadata } = upserted.base.source {
         assert_eq!(metadata.len(), 2)
     } else {
         panic!("Got a different type of source after upserting")

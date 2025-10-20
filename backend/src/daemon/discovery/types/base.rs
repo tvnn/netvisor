@@ -86,7 +86,7 @@ impl Display for DiscoveryCriticalError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DiscoveryCriticalError::ResourceExhaustion => {
-                write!(f, "Resource exhaustion during scan: too many open files - CONCURRENT_SCANS is likely too high for this system.")
+                write!(f, "Resource exhaustion during scan: too many open files - CONCURRENT_SCANS is likely too high for this system. Check README.md for troubleshooting.")
             }
         }
     }

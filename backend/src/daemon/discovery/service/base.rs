@@ -14,9 +14,12 @@ use crate::{
             base::{DiscoveryMetadata, DiscoveryType},
         },
         groups::types::Group,
-        services::types::base::{
-            DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams,
-            ServiceMatchServiceParams,
+        services::types::{
+            base::{
+                DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams,
+                ServiceMatchServiceParams,
+            },
+            patterns::MatchConfidence,
         },
     },
 };
@@ -349,10 +352,9 @@ pub trait DiscoversNetworkedEntities:
             interfaces: vec![interface.clone()],
             services: Vec::new(),
             ports: Vec::new(),
-            source: EntitySource::Discovery(vec![DiscoveryMetadata::new(
-                discovery_type,
-                daemon_id,
-            )]),
+            source: EntitySource::Discovery {
+                metadata: vec![DiscoveryMetadata::new(discovery_type, daemon_id)],
+            },
             virtualization: None,
         });
 
@@ -379,7 +381,6 @@ pub trait DiscoversNetworkedEntities:
         let ServiceMatchBaselineParams { all_ports, .. } = baseline_params;
 
         let mut services = Vec::new();
-        let mut matched_services = Vec::new();
 
         // Only one interface, so only one L3 binding possible
         let mut l3_interface_bound = false;
@@ -392,7 +393,7 @@ pub trait DiscoversNetworkedEntities:
                 .into_iter()
                 .collect();
 
-        sorted_service_definitions.sort_unstable_by_key(|s| {
+        sorted_service_definitions.sort_by_key(|s| {
             if !s.is_generic() {
                 0 // Highest priority - non-generic services
             } else if s.discovery_pattern().contains_gateway_ip_pattern() && s.id() != Gateway.id()
@@ -410,7 +411,7 @@ pub trait DiscoversNetworkedEntities:
             let service_params = ServiceMatchServiceParams {
                 l3_interface_bound: &l3_interface_bound,
                 service_definition,
-                matched_services: &matched_services,
+                matched_services: &services,
                 unbound_ports: &l4_unbound_ports,
             };
 
@@ -427,10 +428,6 @@ pub trait DiscoversNetworkedEntities:
             if let Some((service, mut result)) = Service::from_discovery(params) {
                 if service.base.service_definition.layer() == BindingDiscriminants::Layer3 {
                     l3_interface_bound = true;
-                }
-
-                if !service.base.service_definition.is_generic() {
-                    host.base.name = service.base.service_definition.name().to_string();
                 }
 
                 // If there's a endpoint match + host target is hostname or none, use a binding as the host target
@@ -461,12 +458,26 @@ pub trait DiscoversNetworkedEntities:
                 host.base.ports.append(&mut result.ports);
 
                 // Add new service
-                matched_services.push(service.clone());
-                host.add_service(service.id);
                 l4_unbound_ports.retain(|p| !bound_port_bases.contains(p));
                 services.push(service);
             }
         }
+
+        services.sort_by_key(|a| {
+            std::cmp::Reverse(match &a.base.source {
+                EntitySource::DiscoveryWithMatch { details, .. } => details.confidence,
+                _ => MatchConfidence::NotApplicable,
+            })
+        });
+
+        if let Some(service) = services
+            .iter()
+            .find(|s| !s.base.service_definition.is_generic())
+        {
+            host.base.name = service.base.service_definition.name().to_string();
+        }
+
+        services.iter().for_each(|s| host.add_service(s.id));
 
         host.base
             .ports

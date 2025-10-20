@@ -135,6 +135,11 @@ impl Vendor {
     pub const TPLINK: &'static str = "TP-LINK TECHNOLOGIES CO.,LTD";
     pub const UBIQUITI: &'static str = "Ubiquiti Networks Inc";
     pub const GOOGLE: &'static str = "Google, Inc.";
+    pub const NEST: &'static str = "Nest Labs Inc.";
+    pub const AMAZON: &'static str = "Amazon Technologies Inc.";
+    pub const SONOS: &'static str = "Sonos, Inc.";
+    pub const ECOBEE: &'static str = "ecobee inc";
+    pub const ROKU: &'static str = "Roku, Inc";
 }
 
 impl Pattern<'_> {
@@ -185,13 +190,12 @@ impl Pattern<'_> {
                     let (reason, confidence) = if port_base.is_custom() && is_unique_to_service {
                         (
                             format!(
-                                "Port {} is open and is not used in other service match patterns {}",
+                                "Port {} is open and is not used in other service match patterns",
                                 port_base,
-                                service_definition.name()
                             ),
                             MatchConfidence::Medium,
                         )
-                    } else if port_base.is_custom() && !is_unique_to_service {
+                    } else {
                         (
                             format!(
                                 "Port {} is open but is used in other service match patterns",
@@ -199,8 +203,6 @@ impl Pattern<'_> {
                             ),
                             MatchConfidence::Low,
                         )
-                    } else {
-                        (format!("Port {} is open", port_base), MatchConfidence::Low)
                     };
 
                     Ok(MatchResult {
@@ -282,7 +284,7 @@ impl Pattern<'_> {
                             details: MatchDetails {
                                 reason: MatchReason::Reason(format!(
                                     "Mac address is from vendor {}",
-                                    vendor_string
+                                    entry.company_name
                                 )),
                                 confidence: MatchConfidence::Medium,
                             },

@@ -97,10 +97,9 @@ impl Subnet {
                     description: None,
                     name: cidr.to_string(),
                     subnet_type,
-                    source: EntitySource::Discovery(vec![DiscoveryMetadata::new(
-                        *discovery_type,
-                        daemon_id,
-                    )]),
+                    source: EntitySource::Discovery {
+                        metadata: vec![DiscoveryMetadata::new(*discovery_type, daemon_id)],
+                    },
                 }))
             }
         }

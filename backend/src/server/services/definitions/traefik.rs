@@ -22,7 +22,7 @@ impl ServiceDefinition for Traefik {
         Pattern::Endpoint(PortBase::Http, "/dashboard", "traefik")
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "traefik"
     }
 }

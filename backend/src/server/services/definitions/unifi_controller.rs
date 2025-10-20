@@ -22,7 +22,7 @@ impl ServiceDefinition for UnifiController {
         Pattern::Port(PortBase::new_tcp(2049))
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "unifi"
     }
 }

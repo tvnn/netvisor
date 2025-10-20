@@ -7,21 +7,28 @@ export type EntitySource =
 			metadata: {
 				discovery_type: DiscoveryType;
 				daemon_id: string;
-				details: MatchResult;
-			};
+			}[];
+	  }
+	| {
+			type: 'DiscoveryWithMatch';
+			metadata: {
+				discovery_type: DiscoveryType;
+				daemon_id: string;
+			}[];
+			details: MatchDetails;
 	  };
 
 export type MatchReason =
 	| { type: 'reason'; data: string }
 	| { type: 'container'; data: [string, MatchReason[]] };
 
-export interface MatchResult {
+export interface MatchDetails {
 	reason: MatchReason;
 	confidence: 'NotApplicable' | 'Low' | 'Medium' | 'High' | 'Certain';
 }
 
-export function matchConfidenceColor(confidence: MatchResult['confidence']): string {
-	const confidenceColor: Record<MatchResult['confidence'], string> = {
+export function matchConfidenceColor(confidence: MatchDetails['confidence']): string {
+	const confidenceColor: Record<MatchDetails['confidence'], string> = {
 		NotApplicable: 'gray',
 		Low: 'red',
 		Medium: 'yellow',

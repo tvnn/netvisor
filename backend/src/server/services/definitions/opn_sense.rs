@@ -22,7 +22,7 @@ impl ServiceDefinition for OpnSense {
         Pattern::Endpoint(PortBase::Http, "/", "opnsense")
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "opnsense"
     }
 }

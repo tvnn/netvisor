@@ -1,13 +1,20 @@
 <script lang="ts" context="module">
 	import { ALL_INTERFACES, type Port } from '$lib/features/hosts/types/base';
 	import type { EntityDisplayComponent } from '../types';
-	import { entities } from '$lib/shared/stores/metadata';
+	import { entities, ports } from '$lib/shared/stores/metadata';
 	import PortInlineEditor from './PortInlineEditor.svelte';
 	import type { Service } from '$lib/features/services/types/base';
 
 	export const PortDisplay: EntityDisplayComponent<Port> = {
 		getId: (port: Port) => `${port.id}`,
-		getLabel: (port: Port) => `${port.number}/${port.protocol.toLowerCase()}`,
+		getLabel: (port: Port) => {
+			let metadata = ports.getMetadata(port.type);
+			let name = ports.getName(port.type);
+			if (metadata && !metadata.is_custom && name) {
+				return name + ` (${port.number}/${port.protocol.toLowerCase()})`;
+			}
+			return `${port.number}/${port.protocol.toLowerCase()}`;
+		},
 		getDescription: (port: Port, context: { currentServices: Service[] }) => {
 			// Use context services if available, otherwise fall back to store
 			let services: Service[] = context.currentServices.filter((s) =>

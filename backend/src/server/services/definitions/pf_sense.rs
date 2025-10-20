@@ -22,7 +22,7 @@ impl ServiceDefinition for PfSense {
         Pattern::Endpoint(PortBase::Http, "/", "pfsense")
     }
 
-    fn icon(&self) -> &'static str {
+    fn dashboard_icons_path(&self) -> &'static str {
         "pfsense"
     }
 }
