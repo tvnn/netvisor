@@ -1,7 +1,5 @@
 #[cfg(target_os = "macos")]
 use crate::daemon::utils::base::DaemonUtils;
-#[cfg(target_os = "macos")]
-use crate::server::utils::base::NetworkUtils;
 
 #[cfg(target_os = "macos")]
 #[derive(Clone)]
@@ -32,26 +30,16 @@ impl MacOsDaemonUtils {
 }
 
 #[cfg(target_os = "macos")]
-impl Default for MacOsDaemonUtils {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(target_os = "macos")]
-impl NetworkUtils for MacOsDaemonUtils {
-    fn new() -> Self {
-        Self
-    }
-}
-
-#[cfg(target_os = "macos")]
 use async_trait::async_trait;
 #[cfg(target_os = "macos")]
 use std::net::IpAddr;
 #[cfg(target_os = "macos")]
 #[async_trait]
 impl DaemonUtils for MacOsDaemonUtils {
+    fn new() -> Self {
+        Self {}
+    }
+
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>, Error> {
         use tokio::process::Command;
 

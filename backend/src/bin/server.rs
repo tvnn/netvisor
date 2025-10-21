@@ -4,7 +4,6 @@ use netvisor::server::{
     config::{AppState, CliArgs, ServerConfig},
     discovery::manager::DiscoverySessionManager,
     shared::handlers::create_router,
-    utils::base::{NetworkUtils, ServerNetworkUtils},
 };
 use tower::ServiceBuilder;
 use tower_http::{
@@ -72,12 +71,7 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     // Create app state
-    let state = AppState::new(
-        config,
-        DiscoverySessionManager::new(),
-        ServerNetworkUtils::new(),
-    )
-    .await?;
+    let state = AppState::new(config, DiscoverySessionManager::new()).await?;
 
     // Create discovery cleanup task
     let cleanup_state = state.clone();

@@ -16,29 +16,12 @@ use std::net::{IpAddr, Ipv4Addr};
 pub struct WindowsDaemonUtils;
 
 #[cfg(target_family = "windows")]
-impl WindowsDaemonUtils {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-#[cfg(target_os = "windows")]
-impl Default for WindowsDaemonUtils {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(target_family = "windows")]
-impl NetworkUtils for WindowsDaemonUtils {
-    fn new() -> Self {
-        Self
-    }
-}
-
-#[cfg(target_family = "windows")]
 #[async_trait]
 impl DaemonUtils for WindowsDaemonUtils {
+    fn new() -> Self {
+        Self {}
+    }
+
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>> {
         use windows::Win32::NetworkManagement::IpHelper::{GetIpNetTable, MIB_IPNETTABLE};
 

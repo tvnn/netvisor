@@ -7,27 +7,6 @@ use crate::server::utils::base::NetworkUtils;
 pub struct LinuxDaemonUtils;
 
 #[cfg(target_os = "linux")]
-impl LinuxDaemonUtils {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-#[cfg(target_os = "linux")]
-impl Default for LinuxDaemonUtils {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(target_os = "linux")]
-impl NetworkUtils for LinuxDaemonUtils {
-    fn new() -> Self {
-        Self
-    }
-}
-
-#[cfg(target_os = "linux")]
 use anyhow::{anyhow, Error, Result};
 #[cfg(target_os = "linux")]
 use async_trait::async_trait;
@@ -38,6 +17,10 @@ use std::net::IpAddr;
 #[cfg(target_os = "linux")]
 #[async_trait]
 impl DaemonUtils for LinuxDaemonUtils {
+    fn new() -> Self {
+        Self {}
+    }
+
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>, Error> {
         use procfs::net;
 

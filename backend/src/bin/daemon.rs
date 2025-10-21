@@ -9,7 +9,6 @@ use netvisor::daemon::{
     },
     utils::base::{DaemonUtils, PlatformDaemonUtils},
 };
-use netvisor::server::utils::base::NetworkUtils;
 use std::sync::Arc;
 use tower::ServiceBuilder;
 use tower_http::{

@@ -6,7 +6,7 @@ use figment::{
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
 
-use crate::server::{discovery::manager::DiscoverySessionManager, utils::base::ServerNetworkUtils};
+use crate::server::discovery::manager::DiscoverySessionManager;
 use crate::server::{
     shared::{services::ServiceFactory, types::storage::StorageFactory},
     users::types::{User, UserBase},
@@ -100,14 +100,12 @@ pub struct AppState {
     pub storage: StorageFactory,
     pub services: ServiceFactory,
     pub discovery_manager: DiscoverySessionManager,
-    pub utils: ServerNetworkUtils,
 }
 
 impl AppState {
     pub async fn new(
         config: ServerConfig,
         discovery_manager: DiscoverySessionManager,
-        utils: ServerNetworkUtils,
     ) -> Result<Arc<Self>, Error> {
         let storage = StorageFactory::new(&config.database_url()).await?;
         let services = ServiceFactory::new(&storage).await?;
@@ -124,7 +122,6 @@ impl AppState {
             storage,
             services,
             discovery_manager,
-            utils,
         }))
     }
 }

@@ -9,4 +9,3 @@ pub mod shared;
 pub mod subnets;
 pub mod topology;
 pub mod users;
-pub mod utils;

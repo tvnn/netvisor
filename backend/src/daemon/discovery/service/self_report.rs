@@ -17,7 +17,6 @@ use crate::{
                 patterns::MatchDetails,
             },
         },
-        utils::base::NetworkUtils,
     },
 };
 use crate::{

@@ -17,7 +17,6 @@ use crate::server::{
     shared::{services::ServiceFactory, types::storage::StorageFactory},
     subnets::types::base::{Subnet, SubnetBase, SubnetType},
     users::types::{User, UserBase},
-    utils::base::{NetworkUtils, ServerNetworkUtils},
 };
 use axum::Router;
 use cidr::IpCidr;
@@ -162,11 +161,8 @@ pub async fn test_services() -> (StorageFactory, ServiceFactory) {
 pub async fn setup_test_app() -> Router<Arc<AppState>> {
     let config = ServerConfig::default();
     let discovery_manager = DiscoverySessionManager::new();
-    let utils = ServerNetworkUtils::new();
 
-    let state = AppState::new(config, discovery_manager, utils)
-        .await
-        .unwrap();
+    let state = AppState::new(config, discovery_manager).await.unwrap();
 
     crate::server::shared::handlers::create_router().with_state(state)
 }

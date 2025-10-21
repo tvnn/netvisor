@@ -1,13 +1,13 @@
 use crate::server::discovery::types::base::DiscoveryType;
 use crate::server::hosts::types::interfaces::{Interface, InterfaceBase};
 use crate::server::subnets::types::base::Subnet;
-use crate::server::utils::base::NetworkUtils;
 use anyhow::anyhow;
 use anyhow::Error;
 use anyhow::Result;
 use async_trait::async_trait;
 use bollard::Docker;
 use cidr::IpCidr;
+use local_ip_address::local_ip;
 use mac_address::MacAddress;
 use net_route::Handle;
 use pnet::ipnetwork::IpNetwork;
@@ -17,9 +17,15 @@ use uuid::Uuid;
 
 /// Cross-platform system utilities trait
 #[async_trait]
-pub trait DaemonUtils: NetworkUtils {
+pub trait DaemonUtils {
+    fn new() -> Self;
+
     /// Get MAC address for an IP from ARP table
     async fn get_mac_address_for_ip(&self, ip: IpAddr) -> Result<Option<MacAddress>, Error>;
+
+    fn get_own_ip_address(&self) -> Result<IpAddr, Error> {
+        local_ip().map_err(|e| anyhow!("Failed to get local IP address: {}", e))
+    }
 
     fn get_own_mac_address(&self) -> Result<Option<MacAddress>, Error> {
         mac_address::get_mac_address().map_err(|e| anyhow!("Failed to get own MAC address: {}", e))
