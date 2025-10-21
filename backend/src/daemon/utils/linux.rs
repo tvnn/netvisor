@@ -1,7 +1,5 @@
 #[cfg(target_os = "linux")]
 use crate::daemon::utils::base::DaemonUtils;
-#[cfg(target_os = "linux")]
-use crate::server::utils::base::NetworkUtils;
 
 #[cfg(target_os = "linux")]
 pub struct LinuxDaemonUtils;
