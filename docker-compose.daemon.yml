@@ -1,4 +1,3 @@
-# This is meant to be used on Linux hosts where --network host actually works
 services:
   daemon:
     image: mayanayza/netvisor-daemon:latest
@@ -18,7 +17,6 @@ services:
       - NETVISOR_LOG_LEVEL=${NETVISOR_LOG_LEVEL:-info}
       - NETVISOR_HEARTBEAT_INTERVAL=${NETVISOR_HEARTBEAT_INTERVAL:-30}
     volumes:
-      # Persist daemon configuration and ID
       - daemon-config:/root/.config/netvisor/daemon
 
 volumes:

@@ -18,16 +18,12 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-    networks:
-      netvisor-dev:
-        ipv4_address: 172.25.0.6
 
   server:
     image: mayanayza/netvisor-server:latest
     ports:
       - "${NETVISOR_SERVER_PORT:-60072}:60072"
     environment:
-      # Server configuration
       - NETVISOR_SERVER_PORT=${NETVISOR_SERVER_PORT:-60072}
       - NETVISOR_LOG_LEVEL=${NETVISOR_LOG_LEVEL:-info}
       - NETVISOR_DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/netvisor
