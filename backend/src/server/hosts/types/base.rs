@@ -27,6 +27,7 @@ static INVALID_MACS_BYTES: &[[u8; 6]; 2] = &[
 pub struct HostBase {
     #[validate(length(min = 0, max = 100))]
     pub name: String,
+    pub network_id: Uuid,
     #[validate(regex(path = *HOSTNAME_REGEX))]
     pub hostname: Option<String>,
     #[validate(length(min = 0, max = 100))]
@@ -44,6 +45,7 @@ impl Default for HostBase {
     fn default() -> Self {
         Self {
             name: String::new(),
+            network_id: Uuid::nil(),
             hostname: None,
             description: None,
             target: HostTarget::None,
@@ -95,6 +97,7 @@ impl Hash for Host {
 
 impl PartialEq for Host {
     fn eq(&self, other: &Self) -> bool {
+        let network_match = self.base.network_id == other.base.network_id;
         let invalid_macs = INVALID_MACS_BYTES.map(MacAddress::new);
         let macs_a: Vec<Option<MacAddress>> = self
             .base
@@ -123,7 +126,7 @@ impl PartialEq for Host {
             })
         });
 
-        self.id == other.id || mac_match || subnet_ip_match
+        self.id == other.id || (network_match && mac_match) || (network_match && subnet_ip_match)
     }
 }
 

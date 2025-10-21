@@ -21,6 +21,7 @@ export interface Host {
 	interfaces: Interface[];
 	virtualization: HostVirtualization | null;
 	source: EntitySource;
+	network_id: string;
 }
 
 export interface ProxmoxVirtualization {

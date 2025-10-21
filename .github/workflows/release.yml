@@ -230,7 +230,11 @@ jobs:
           mkdir -p backend/src/tests
           
           # Copy database from server container
-          docker exec netvisor-postgres pg_dump -U postgres netvisor > backend/src/tests/netvisor.sql
+          docker exec -t netvisor-postgres pg_dump -U postgres \
+            --inserts \
+            --no-owner \
+            --no-acl \
+            netvisor > backend/src/tests/netvisor.sql
           echo "✓ Copied netvisor.db from server container"
           
           # Copy daemon config from bind mount (no need to copy from container)

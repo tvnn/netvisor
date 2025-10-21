@@ -4,14 +4,14 @@ use crate::server::{
 };
 use anyhow::{Error, Result};
 use async_trait::async_trait;
-use sqlx::{Row, PgPool};
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 #[async_trait]
 pub trait GroupStorage: Send + Sync {
     async fn create(&self, group: &Group) -> Result<()>;
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Group>>;
-    async fn get_all(&self) -> Result<Vec<Group>>;
+    async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Group>>;
     async fn update(&self, group: &Group) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
 }
@@ -37,11 +37,11 @@ impl GroupStorage for PostgresGroupStorage {
             r#"
             INSERT INTO groups (
                 id, name, description, service_bindings, group_type, source,
-                created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                created_at, updated_at, network_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             "#,
         )
-        .bind(&group.id)
+        .bind(group.id)
         .bind(&group.base.name)
         .bind(&group.base.description)
         .bind(services_json)
@@ -49,6 +49,7 @@ impl GroupStorage for PostgresGroupStorage {
         .bind(source_json)
         .bind(chrono::Utc::now())
         .bind(chrono::Utc::now())
+        .bind(group.base.network_id)
         .execute(&self.pool)
         .await?;
 
@@ -67,8 +68,9 @@ impl GroupStorage for PostgresGroupStorage {
         }
     }
 
-    async fn get_all(&self) -> Result<Vec<Group>> {
-        let rows = sqlx::query("SELECT * FROM groups ORDER BY name")
+    async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Group>> {
+        let rows = sqlx::query("SELECT * FROM groups WHERE network_id = $1 ORDER BY name ")
+            .bind(network_id)
             .fetch_all(&self.pool)
             .await?;
 
@@ -93,7 +95,7 @@ impl GroupStorage for PostgresGroupStorage {
             WHERE id = $1
             "#,
         )
-        .bind(&group.id)
+        .bind(group.id)
         .bind(&group.base.name)
         .bind(&group.base.description)
         .bind(services_json)
@@ -133,6 +135,7 @@ fn row_to_group(row: sqlx::postgres::PgRow) -> Result<Group, Error> {
         base: GroupBase {
             name: row.get("name"),
             description: row.get("description"),
+            network_id: row.get("network_id"),
             service_bindings,
             source,
             group_type,

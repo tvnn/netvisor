@@ -20,6 +20,7 @@ use validator::Validate;
 #[derive(Debug, Clone, Serialize, Validate, Deserialize, PartialEq, Eq, Hash)]
 pub struct ServiceBase {
     pub host_id: Uuid,
+    pub network_id: Uuid,
     pub service_definition: Box<dyn ServiceDefinition>,
     #[validate(length(min = 0, max = 100))]
     pub name: String,
@@ -36,6 +37,7 @@ impl Default for ServiceBase {
     fn default() -> Self {
         Self {
             host_id: Uuid::nil(),
+            network_id: Uuid::nil(),
             service_definition: Box::new(DefaultServiceDefinition),
             name: String::new(),
             bindings: Vec::new(),
@@ -62,6 +64,7 @@ pub struct DiscoverySessionServiceMatchParams<'a> {
     pub host_id: &'a Uuid,
     pub gateway_ips: &'a [IpAddr],
     pub daemon_id: &'a Uuid,
+    pub network_id: &'a Uuid,
     pub discovery_type: &'a DiscoveryType,
     pub baseline_params: &'a ServiceMatchBaselineParams<'a>,
     pub service_params: ServiceMatchServiceParams<'a>,
@@ -88,12 +91,13 @@ impl PartialEq for Service {
     // Primarily applies to
     fn eq(&self, other: &Self) -> bool {
         let host_match = self.base.host_id == other.base.host_id;
+        let network_match = self.base.network_id == other.base.network_id;
         let definition_match =
             self.base.service_definition.id() == other.base.service_definition.id();
         let name_match = self.base.name == other.base.name;
         let id_match = self.id == other.id;
 
-        (host_match && definition_match && name_match) || id_match
+        (host_match && definition_match && name_match && network_match) || id_match
     }
 }
 
@@ -182,6 +186,7 @@ impl Service {
     ) -> Option<(Self, MatchResult)> {
         let DiscoverySessionServiceMatchParams {
             host_id,
+            network_id,
             baseline_params,
             service_params,
             daemon_id,
@@ -237,6 +242,7 @@ impl Service {
                 Some((
                     Service::new(ServiceBase {
                         host_id: *host_id,
+                        network_id: *network_id,
                         service_definition,
                         name,
                         bindings: vec![Binding::new_l3(interface.id)],
@@ -262,6 +268,7 @@ impl Service {
                 Some((
                     Service::new(ServiceBase {
                         host_id: *host_id,
+                        network_id: *network_id,
                         service_definition,
                         name,
                         virtualization: virtualization.clone(),

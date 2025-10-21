@@ -36,8 +36,9 @@ services:
       - "60072:60072"
     environment:
       - RUST_LOG=debug,sqlx=off,tower_http=off
-      - DATABASE_URL=postgresql://postgres:password@postgres:5432/netvisor
+      - NETVISOR_DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/netvisor
       - NETVISOR_WEB_EXTERNAL_PATH=/app/static
+      - NETVISOR_SEED_TEST_USER=true
     volumes:
       - ./backend:/app
       - data-volume:/data
@@ -46,7 +47,6 @@ services:
       - cargo-git:/usr/local/cargo/git
       - target-cache:/app/target
     depends_on:
-      ui:
       postgres:
         condition: service_healthy
     healthcheck:
@@ -54,7 +54,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-      start_period: 60s
+      start_period: 120s
     networks:
       netvisor-dev:
         ipv4_address: 172.25.0.3
@@ -91,7 +91,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 15
-      start_period: 60s
+      start_period: 120s
     networks:
       netvisor-dev:
         ipv4_address: 172.25.0.4
@@ -119,6 +119,7 @@ volumes:
   target-cache:
   data-volume:
   daemon-config-volume:
+  postgres_data:
   homeassistant-config:
 
 networks:

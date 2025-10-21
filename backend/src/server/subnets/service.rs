@@ -22,7 +22,7 @@ impl SubnetService {
 
     /// Create a new subnet
     pub async fn create_subnet(&self, subnet: Subnet) -> Result<Subnet> {
-        let all_subnets = self.storage.get_all().await?;
+        let all_subnets = self.storage.get_all(&subnet.base.network_id).await?;
 
         let subnet_from_storage = match all_subnets.iter().find(|s| subnet.eq(s)) {
             Some(existing_subnet) => {
@@ -52,8 +52,8 @@ impl SubnetService {
         self.storage.get_by_ids(ids).await
     }
 
-    pub async fn get_all_subnets(&self) -> Result<Vec<Subnet>> {
-        self.storage.get_all().await
+    pub async fn get_all_subnets(&self, network_id: &Uuid) -> Result<Vec<Subnet>> {
+        self.storage.get_all(network_id).await
     }
 
     pub async fn update_subnet(&self, mut subnet: Subnet) -> Result<Subnet> {
@@ -69,7 +69,10 @@ impl SubnetService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Subnet not found"))?;
 
-        let hosts = self.host_service.get_all_hosts().await?;
+        let hosts = self
+            .host_service
+            .get_all_hosts(&subnet.base.network_id)
+            .await?;
         let update_futures = hosts.into_iter().filter_map(|mut host| {
             let has_subnet = host.base.interfaces.iter().any(|i| &i.base.subnet_id == id);
             if has_subnet {

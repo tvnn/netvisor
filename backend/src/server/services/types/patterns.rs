@@ -581,6 +581,8 @@ mod tests {
         discovery::types::base::DiscoveryType,
         services::types::virtualization::ServiceVirtualization,
     };
+    use crate::tests::{network, user};
+    use serial_test::serial;
     use uuid::Uuid;
 
     use crate::{
@@ -609,6 +611,7 @@ mod tests {
         pi: Box<dyn ServiceDefinition>,
         host_id: Uuid,
         daemon_id: Uuid,
+        network_id: Uuid,
         discovery_type: DiscoveryType,
         gateway_ips: Vec<IpAddr>,
         endpoint_responses: Vec<EndpointResponse>,
@@ -619,7 +622,9 @@ mod tests {
 
     impl TestContext {
         fn new() -> Self {
-            let subnet = subnet();
+            let user = user();
+            let network = network(&user.id);
+            let subnet = subnet(&network.id);
             let interface = interface(&subnet.id);
             let pi = ServiceDefinitionRegistry::find_by_id("Pi-Hole")
                 .expect("Pi-hole service not found");
@@ -634,6 +639,7 @@ mod tests {
                 interface,
                 pi,
                 host_id: Uuid::new_v4(),
+                network_id: Uuid::new_v4(),
                 daemon_id: Uuid::new_v4(),
                 discovery_type: DiscoveryType::Network,
                 gateway_ips: vec![],
@@ -653,6 +659,7 @@ mod tests {
                 host_id: &self.host_id,
                 gateway_ips: &self.gateway_ips,
                 daemon_id: &self.daemon_id,
+                network_id: &self.network_id,
                 discovery_type: &self.discovery_type,
                 baseline_params,
                 service_params: ServiceMatchServiceParams {
@@ -679,6 +686,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[serial]
     async fn test_pattern_port_matching() {
         let ctx = TestContext::new();
 
@@ -704,6 +712,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_pattern_and_logic() {
         let ctx = TestContext::new();
 
@@ -746,6 +755,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_pattern_or_logic() {
         let ctx = TestContext::new();
 

@@ -5,7 +5,7 @@ use crate::server::{
 use anyhow::{Error, Result};
 use async_trait::async_trait;
 use cidr::IpCidr;
-use sqlx::{Row, PgPool};
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 #[async_trait]
@@ -13,7 +13,7 @@ pub trait SubnetStorage: Send + Sync {
     async fn create(&self, subnet: &Subnet) -> Result<()>;
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Subnet>>;
     async fn get_by_ids(&self, ids: &[Uuid]) -> Result<Vec<Subnet>>;
-    async fn get_all(&self) -> Result<Vec<Subnet>>;
+    async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Subnet>>;
     async fn update(&self, subnet: &Subnet) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
 }
@@ -39,11 +39,11 @@ impl SubnetStorage for PostgresSubnetStorage {
             r#"
             INSERT INTO subnets (
                 id, name, description, cidr, 
-                subnet_type, source, created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                subnet_type, source, created_at, updated_at, network_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             "#,
         )
-        .bind(&subnet.id)
+        .bind(subnet.id)
         .bind(&subnet.base.name)
         .bind(&subnet.base.description)
         .bind(&cidr_str)
@@ -51,6 +51,7 @@ impl SubnetStorage for PostgresSubnetStorage {
         .bind(subnet_source_str)
         .bind(subnet.created_at)
         .bind(subnet.updated_at)
+        .bind(subnet.base.network_id)
         .execute(&self.pool)
         .await?;
 
@@ -74,7 +75,12 @@ impl SubnetStorage for PostgresSubnetStorage {
             return Ok(vec![]);
         }
 
-        let placeholders = ids.iter().enumerate().map(|(i,_)| format!("${}",i+1)).collect::<Vec<_>>().join(",");
+        let placeholders = ids
+            .iter()
+            .enumerate()
+            .map(|(i, _)| format!("${}", i + 1))
+            .collect::<Vec<_>>()
+            .join(",");
         let query = format!("SELECT * FROM subnets WHERE id IN ({})", placeholders);
 
         let mut query_builder = sqlx::query(&query);
@@ -89,10 +95,12 @@ impl SubnetStorage for PostgresSubnetStorage {
             .collect::<Result<Vec<_>, _>>()
     }
 
-    async fn get_all(&self) -> Result<Vec<Subnet>> {
-        let rows = sqlx::query("SELECT * FROM subnets ORDER BY created_at DESC")
-            .fetch_all(&self.pool)
-            .await?;
+    async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Subnet>> {
+        let rows =
+            sqlx::query("SELECT * FROM subnets WHERE network_id = $1 ORDER BY created_at DESC")
+                .bind(network_id)
+                .fetch_all(&self.pool)
+                .await?;
 
         let mut subnets = Vec::new();
         for row in rows {
@@ -115,7 +123,7 @@ impl SubnetStorage for PostgresSubnetStorage {
             WHERE id = $1
             "#,
         )
-        .bind(&subnet.id)
+        .bind(subnet.id)
         .bind(&subnet.base.name)
         .bind(&subnet.base.description)
         .bind(cidr_str)
@@ -154,6 +162,7 @@ fn row_to_subnet(row: sqlx::postgres::PgRow) -> Result<Subnet, Error> {
         base: SubnetBase {
             name: row.get("name"),
             description: row.get("description"),
+            network_id: row.get("network_id"),
             source,
             cidr,
             subnet_type,

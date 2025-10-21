@@ -1,13 +1,19 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { Group } from '$lib/features/groups/types/base';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { getServices } from '../services/store';
+import { currentNetwork } from '../networks/store';
 
 export const groups = writable<Group[]>([]);
 
 export async function getGroups() {
-	return await api.request<Group[]>('/groups', groups, (groups) => groups, { method: 'GET' });
+	return await api.request<Group[]>(
+		`/groups?network_id=${get(currentNetwork).id}`,
+		groups,
+		(groups) => groups,
+		{ method: 'GET' }
+	);
 }
 
 export async function createGroup(data: Group) {
@@ -64,6 +70,9 @@ export function createEmptyGroupFormData(): Group {
 		created_at: utcTimeZoneSentinel,
 		updated_at: utcTimeZoneSentinel,
 		group_type: 'NetworkPath',
-		source: 'Manual'
+		source: {
+			type: 'Manual'
+		},
+		network_id: get(currentNetwork).id
 	};
 }

@@ -111,6 +111,16 @@ impl<'a> SubnetPositioner<'a> {
                     }
                 }
             }
+
+            for (_, row_subnets) in &subnets_by_row {
+                if row_subnets.len() == 1 {
+                    // Single subnet in row - optimize without constraints
+                    let subnet_id = row_subnets[0];
+                    if self.optimize_single_subnet(nodes, subnet_id, edges) {
+                        improved = true;
+                    }
+                }
+            }
         }
     }
 
@@ -307,6 +317,35 @@ impl<'a> SubnetPositioner<'a> {
                 false
             }
         } else {
+            false
+        }
+    }
+
+    fn optimize_single_subnet(&self, nodes: &mut [Node], subnet_id: Uuid, edges: &[Edge]) -> bool {
+        let current_length = self.calculate_total_edge_length(nodes, edges);
+        let original_pos = match nodes.iter().find(|n| n.id == subnet_id).map(|n| n.position) {
+            Some(pos) => pos,
+            None => return false,
+        };
+
+        let optimal_x = self.calculate_optimal_subnet_x(nodes, subnet_id, edges);
+
+        if optimal_x == original_pos.x {
+            return false;
+        }
+
+        let new_pos = Ixy {
+            x: optimal_x,
+            y: original_pos.y,
+        };
+        self.move_subnet(nodes, subnet_id, new_pos);
+
+        let new_length = self.calculate_total_edge_length(nodes, edges);
+
+        if new_length < current_length {
+            true
+        } else {
+            self.move_subnet(nodes, subnet_id, original_pos);
             false
         }
     }

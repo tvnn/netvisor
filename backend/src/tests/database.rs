@@ -1,5 +1,6 @@
 use crate::{server::shared::storage::DatabaseMigrations, tests::setup_test_db};
 use std::path::Path;
+use std::process::Command;
 
 use crate::tests::SERVER_DB_FIXTURE;
 
@@ -10,61 +11,51 @@ async fn test_database_schema_backward_compatibility() {
     if db_path.exists() {
         println!("Testing backward compatibility with database from latest release");
 
-        // Start test database
-        let pool = setup_test_db().await;
+        let (pool, database_url) = setup_test_db().await;
         
-        // Load fixture
-        let sql = std::fs::read_to_string(db_path).unwrap();
-        sqlx::raw_sql(&sql).execute(&pool).await.unwrap();
+        // Parse connection details
+        let url = url::Url::parse(&database_url).unwrap();
+        let host = url.host_str().unwrap();
+        let port = url.port().unwrap();
+        let database = url.path().trim_start_matches('/');
+        
+        pool.close().await;
 
-        // Try to read from all tables with current code
-        let hosts_result = sqlx::query("SELECT * FROM hosts").fetch_all(&pool).await;
+        // Use psql which understands all pg_dump output including meta-commands
+        let output = Command::new("psql")
+            .arg("-h").arg(host)
+            .arg("-p").arg(port.to_string())
+            .arg("-U").arg("postgres")
+            .arg("-d").arg(database)
+            .arg("-f").arg(db_path)
+            .env("PGPASSWORD", "password")
+            .output()
+            .expect("Failed to execute psql - ensure it's installed");
+
         assert!(
-            hosts_result.is_ok(),
-            "Failed to read hosts table: {:?}",
-            hosts_result.err()
+            output.status.success(),
+            "Failed to restore database:\n{}",
+            String::from_utf8_lossy(&output.stderr)
         );
 
-        let services_result = sqlx::query("SELECT * FROM services").fetch_all(&pool).await;
-        assert!(
-            services_result.is_ok(),
-            "Failed to read services table: {:?}",
-            services_result.err()
-        );
+        println!("Successfully restored database from fixture");
 
-        let subnets_result = sqlx::query("SELECT * FROM subnets").fetch_all(&pool).await;
-        assert!(
-            subnets_result.is_ok(),
-            "Failed to read subnets table: {:?}",
-            subnets_result.err()
-        );
+        let pool = sqlx::PgPool::connect(&database_url).await.unwrap();
 
-        let groups_result = sqlx::query("SELECT * FROM groups").fetch_all(&pool).await;
-        assert!(
-            groups_result.is_ok(),
-            "Failed to read groups table: {:?}",
-            groups_result.err()
-        );
+        // Verify tables
+        assert!(sqlx::query("SELECT * FROM hosts").fetch_all(&pool).await.is_ok());
+        assert!(sqlx::query("SELECT * FROM services").fetch_all(&pool).await.is_ok());
+        assert!(sqlx::query("SELECT * FROM subnets").fetch_all(&pool).await.is_ok());
+        assert!(sqlx::query("SELECT * FROM groups").fetch_all(&pool).await.is_ok());
+        assert!(sqlx::query("SELECT * FROM daemons").fetch_all(&pool).await.is_ok());
 
-        let daemons_result = sqlx::query("SELECT * FROM daemons").fetch_all(&pool).await;
-        assert!(
-            daemons_result.is_ok(),
-            "Failed to read daemons table: {:?}",
-            daemons_result.err()
-        );
+        println!("Successfully read all tables from latest release database");
 
-        println!("✅ Successfully read all tables from latest release database");
-
-        // Test that we can apply current schema to the old database
-        DatabaseMigrations::initialize(&pool)
-            .await
+        DatabaseMigrations::initialize(&pool).await
             .expect("Failed to apply current schema to old database");
 
-        println!("✅ Successfully applied current schema to old database");
+        println!("Successfully applied current schema to old database");
     } else {
-        println!("⚠️  No database fixture found at {}", SERVER_DB_FIXTURE);
-        println!("   Run release workflow to generate fixtures");
-
-        assert!(false, "Failed to load database fixture");
+        panic!("No database fixture found at {}", SERVER_DB_FIXTURE);
     }
 }

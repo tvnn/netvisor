@@ -7,6 +7,7 @@ export interface Subnet {
 	cidr: string;
 	name: string;
 	description?: string;
+	network_id: string;
 	subnet_type: string;
 	source: EntitySource;
 }

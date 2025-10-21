@@ -42,7 +42,7 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 
 NetVisor consists of two components:
 
-**Server**: Central hub that stores network data, generates topology visualizations, and serves the web UI. Runs as a Docker container with a SQLite database.
+**Server**: Central hub that stores network data, generates topology visualizations, and serves the web UI. Runs as a Docker container with a PostgreSql database.
 
 **Daemon**: Lightweight agent that performs network scanning and reports back to the server. Can run on one or multiple hosts to map different network segments.
 

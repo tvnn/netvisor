@@ -1,3 +1,5 @@
+use serial_test::serial;
+
 use crate::{
     server::{
         discovery::types::base::{DiscoveryMetadata, EntitySource},
@@ -7,13 +9,17 @@ use crate::{
 };
 
 #[tokio::test]
+#[serial]
 async fn test_host_deduplication_on_create() {
     let (storage, services) = test_services().await;
 
-    let start_host_count = storage.hosts.get_all().await.unwrap().len();
+    let user = services.user_service.create_user(user()).await.unwrap();
+    let network = services.network_service.create_network(network(&user.id)).await.unwrap();
+
+    let start_host_count = storage.hosts.get_all(&network.id).await.unwrap().len();
 
     // Create first host
-    let mut host1 = host();
+    let mut host1 = host(&network.id);
     host1.base.source = EntitySource::Discovery {
         metadata: vec![DiscoveryMetadata::default()],
     };
@@ -24,7 +30,7 @@ async fn test_host_deduplication_on_create() {
         .unwrap();
 
     // Try to create duplicate (same interfaces)
-    let mut host2 = host();
+    let mut host2 = host(&network.id);
     host2.base.source = EntitySource::Discovery {
         metadata: vec![DiscoveryMetadata::default()],
     };
@@ -38,20 +44,24 @@ async fn test_host_deduplication_on_create() {
     assert_eq!(created1.id, created2.id);
 
     // Verify only one host in DB
-    let end_host_count = storage.hosts.get_all().await.unwrap().len();
+    let end_host_count = storage.hosts.get_all(&network.id).await.unwrap().len();
     assert_eq!(start_host_count + 1, end_host_count);
 }
 
 #[tokio::test]
+#[serial]
 async fn test_host_upsert_merges_new_data() {
     let (_, services) = test_services().await;
 
+    let user = services.user_service.create_user(user()).await.unwrap();
+    let network = services.network_service.create_network(network(&user.id)).await.unwrap();
+
     // Create host with one interface
-    let mut host1 = host();
+    let mut host1 = host(&network.id);
     host1.base.source = EntitySource::Discovery {
         metadata: vec![DiscoveryMetadata::default()],
     };
-    let subnet1 = subnet();
+    let subnet1 = subnet(&network.id);
     services
         .subnet_service
         .create_subnet(subnet1.clone())
@@ -66,11 +76,11 @@ async fn test_host_upsert_merges_new_data() {
         .unwrap();
 
     // Create "duplicate" with additional interface
-    let mut host2 = host();
+    let mut host2 = host(&network.id);
     host2.base.source = EntitySource::Discovery {
         metadata: vec![DiscoveryMetadata::default()],
     };
-    let subnet2 = subnet();
+    let subnet2 = subnet(&network.id);
     services
         .subnet_service
         .create_subnet(subnet2.clone())
@@ -95,17 +105,21 @@ async fn test_host_upsert_merges_new_data() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_host_consolidation() {
     let (_, services) = test_services().await;
 
-    let subnet_obj = subnet();
+    let user = services.user_service.create_user(user()).await.unwrap();
+    let network = services.network_service.create_network(network(&user.id)).await.unwrap();
+
+    let subnet_obj = subnet(&network.id);
     services
         .subnet_service
         .create_subnet(subnet_obj.clone())
         .await
         .unwrap();
 
-    let mut host1 = host();
+    let mut host1 = host(&network.id);
     host1.base.interfaces = Vec::new();
 
     let (created1, _) = services
@@ -114,10 +128,10 @@ async fn test_host_consolidation() {
         .await
         .unwrap();
 
-    let mut host2 = host();
+    let mut host2 = host(&network.id);
     host2.base.interfaces = vec![interface(&subnet_obj.id)];
 
-    let mut svc = service(&host2.id);
+    let mut svc = service(&network.id, &host2.id);
     svc.base.bindings = vec![Binding::new_l4(
         host2.base.ports[0].id,
         Some(host2.base.interfaces[0].id),

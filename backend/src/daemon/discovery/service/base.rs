@@ -333,6 +333,12 @@ pub trait DiscoversNetworkedEntities:
         let ServiceMatchBaselineParams::<'a> { interface, .. } = params;
 
         let daemon_id = self.as_ref().config_store.get_id().await?;
+        let network_id = self
+            .as_ref()
+            .config_store
+            .get_network_id()
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Network ID not set"))?;
 
         let session = self.as_ref().get_session().await?;
         let gateway_ips = session.gateway_ips.clone();
@@ -348,6 +354,7 @@ pub trait DiscoversNetworkedEntities:
             name,
             hostname,
             target,
+            network_id,
             description: Some("Discovered host".to_owned()),
             interfaces: vec![interface.clone()],
             services: Vec::new(),
@@ -363,6 +370,7 @@ pub trait DiscoversNetworkedEntities:
             &params,
             &gateway_ips,
             &daemon_id,
+            &network_id,
             &discovery_type,
         )?;
 
@@ -376,6 +384,7 @@ pub trait DiscoversNetworkedEntities:
         baseline_params: &ServiceMatchBaselineParams,
         gateway_ips: &[IpAddr],
         daemon_id: &Uuid,
+        network_id: &Uuid,
         discovery_type: &DiscoveryType,
     ) -> Result<Vec<Service>, Error> {
         let ServiceMatchBaselineParams { all_ports, .. } = baseline_params;
@@ -421,6 +430,7 @@ pub trait DiscoversNetworkedEntities:
                     baseline_params,
                     daemon_id,
                     discovery_type,
+                    network_id,
                     gateway_ips,
                     host_id: &host.id,
                 };

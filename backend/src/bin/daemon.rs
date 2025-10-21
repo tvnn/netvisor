@@ -95,11 +95,6 @@ async fn main() -> anyhow::Result<()> {
 
     let daemon_id = config_store.get_id().await?;
     let has_docker_client = utils.scan_docker_socket().await?;
-    let own_addr = format!(
-        "{}:{}",
-        &utils.get_own_ip_address()?,
-        &config_store.get_port().await?
-    );
     let server_addr = &config_store.get_server_endpoint().await?;
 
     let state = DaemonAppState::new(config_store, utils).await?;
@@ -108,19 +103,33 @@ async fn main() -> anyhow::Result<()> {
     // Initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(format!(
-            "RUST_LOG=none,netvisor={}",
+            "netvisor={}",
             config.log_level
         )))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    tracing::info!("🔗 Server at {}", server_addr);
+    tracing::info!("Server at {}", server_addr);
 
     // Get or register daemon ID
     if let Some(existing_id) = runtime_service.config_store.get_host_id().await? {
-        tracing::info!("📋 Existing host ID, already registered: {}", existing_id);
+        tracing::info!("Existing host ID, already registered: {}", existing_id);
     } else {
-        tracing::info!("📝 Registering with server...");
+        tracing::info!("Registering with server...");
+
+        let network_id = match runtime_service.config_store.get_network_id().await? {
+            Some(network_id) => network_id,
+            None => {
+                tracing::info!("No network ID provided, getting default network ID from server...");
+                let network_id = runtime_service.get_default_network().await?.id;
+                let _ = runtime_service
+                    .config_store
+                    .set_network_id(network_id)
+                    .await;
+                network_id
+            }
+        };
+
         // Create self as host, register with server, and save daemon ID
         let discovery = Discovery::new(
             state.services.discovery_service.clone(),
@@ -136,7 +145,7 @@ async fn main() -> anyhow::Result<()> {
             .ok_or_else(|| anyhow::anyhow!("Host ID not set after self-report"))?;
 
         runtime_service
-            .register_with_server(host_id, daemon_id)
+            .register_with_server(host_id, daemon_id, network_id)
             .await?;
 
         if has_docker_client {

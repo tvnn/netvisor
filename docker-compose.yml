@@ -18,6 +18,9 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      netvisor-dev:
+        ipv4_address: 172.25.0.6
 
   server:
     image: mayanayza/netvisor-server:latest
@@ -27,13 +30,14 @@ services:
       # Server configuration
       - NETVISOR_SERVER_PORT=${NETVISOR_SERVER_PORT:-60072}
       - NETVISOR_LOG_LEVEL=${NETVISOR_LOG_LEVEL:-info}
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/netvisor
+      - NETVISOR_DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/netvisor
       - NETVISOR_WEB_EXTERNAL_PATH=${NETVISOR_WEB_EXTERNAL_PATH:-/app/static}
     volumes:
       - ./data:/data
       - ui-build:/app/static:ro
     depends_on:
       ui:
+        condition: service_started
       postgres:
         condition: service_healthy
     restart: unless-stopped

@@ -83,11 +83,18 @@ impl Discovery<SelfReportDiscovery> {
         let utils = &self.as_ref().utils;
 
         let daemon_id = config_store.get_id().await?;
+        let network_id = self
+            .as_ref()
+            .config_store
+            .get_network_id()
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Network ID not set"))?;
+
         let binding_address = config_store.get_bind_address().await?;
         let binding_ip = IpAddr::V4(binding_address.parse::<Ipv4Addr>()?);
 
         let (mut interfaces, subnets) = utils
-            .scan_interfaces(self.discovery_type(), daemon_id)
+            .scan_interfaces(self.discovery_type(), daemon_id, network_id)
             .await?;
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
@@ -125,6 +132,7 @@ impl Discovery<SelfReportDiscovery> {
                 .clone()
                 .unwrap_or(format!("Netvisor-Daemon-{}", local_ip)),
             hostname,
+            network_id,
             description: Some("NetVisor daemon".to_string()),
             target: HostTarget::Hostname,
             services: Vec::new(),
@@ -147,6 +155,7 @@ impl Discovery<SelfReportDiscovery> {
         let daemon_service = Service::new(ServiceBase {
             name: ServiceDefinition::name(&daemon_service_definition).to_string(),
             service_definition: Box::new(daemon_service_definition),
+            network_id,
             bindings: daemon_service_bound_interfaces
                 .iter()
                 .map(|i| Binding::new_l4(own_port_id, Some(i.id)))

@@ -1,9 +1,10 @@
-import { writable } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { type Node } from '@xyflow/svelte';
 import { EdgeHandle, type TopologyResponse } from './types/base';
 import { pushError } from '$lib/shared/stores/feedback';
 import { toPng } from 'html-to-image';
+import { currentNetwork } from '../networks/store';
 
 export const topology = writable<TopologyResponse>();
 
@@ -11,7 +12,8 @@ export async function getTopology() {
 	return await api.request<TopologyResponse>('/topology', topology, (topology) => topology, {
 		method: 'POST',
 		body: JSON.stringify({
-			group_docker_bridges_by_host: true
+			group_docker_bridges_by_host: true,
+			network_id: get(currentNetwork).id
 		})
 	});
 }

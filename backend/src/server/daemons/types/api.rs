@@ -20,6 +20,7 @@ pub struct DaemonResponse {
 pub struct DaemonRegistrationRequest {
     pub host_id: Uuid,
     pub daemon_id: Uuid,
+    pub network_id: Uuid,
     pub daemon_ip: IpAddr,
     pub daemon_port: u16,
 }

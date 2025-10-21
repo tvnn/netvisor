@@ -88,10 +88,17 @@ impl DiscoversNetworkedEntities for Discovery<NetworkScanDiscovery> {
 
     async fn discover_create_subnets(&self) -> Result<Vec<Subnet>, Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
+        let network_id = self
+            .as_ref()
+            .config_store
+            .get_network_id()
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Network ID not set"))?;
+
         let (_, subnets) = self
             .as_ref()
             .utils
-            .scan_interfaces(self.discovery_type(), daemon_id)
+            .scan_interfaces(self.discovery_type(), daemon_id, network_id)
             .await?;
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
         let subnets = try_join_all(subnet_futures).await?;
@@ -406,33 +413,44 @@ impl Discovery<NetworkScanDiscovery> {
         ip: IpAddr,
         cancel: CancellationToken,
     ) -> Result<Vec<EndpointResponse>, Error> {
-        let endpoints: Vec<Endpoint> = Service::all_discovery_endpoints()
-            .iter()
-            .map(|e| e.use_ip(ip))
-            .collect();
-        let mut responses = Vec::new();
+        use std::collections::HashMap;
 
         let client = reqwest::Client::builder()
-            .timeout(SCAN_TIMEOUT) // Total request timeout
-            .connect_timeout(Duration::from_millis(SCAN_TIMEOUT.as_millis() as u64 / 2)) // Half for connection
-            .build()?;
+            .timeout(SCAN_TIMEOUT)
+            .build()
+            .unwrap();
 
-        for endpoint in endpoints {
+        let all_endpoints = Service::all_discovery_endpoints();
+
+        // Group endpoints by (port, path) to avoid duplicate requests
+        let mut unique_endpoints: HashMap<(u16, String), Endpoint> = HashMap::new();
+        for endpoint in all_endpoints {
+            let key = (endpoint.port_base.number(), endpoint.path.clone());
+            unique_endpoints.entry(key).or_insert(endpoint);
+        }
+
+        let mut responses = Vec::new();
+
+        // Only make one request per unique (port, path) combination
+        for ((_, _), endpoint) in unique_endpoints {
             if cancel.is_cancelled() {
                 break;
             }
 
-            let url = endpoint.to_string();
+            let endpoint_with_ip = endpoint.use_ip(ip);
+            let url = endpoint_with_ip.to_string();
 
             match client.get(&url).send().await {
-                Ok(response) => {
+                Ok(response) if response.status().is_success() => {
                     if let Ok(text) = response.text().await {
+                        // Return single response that can be checked by all patterns
                         responses.push(EndpointResponse {
-                            endpoint,
+                            endpoint: endpoint_with_ip,
                             response: text,
                         });
                     }
                 }
+                Ok(_) => (),
                 Err(e) => {
                     if DiscoveryCriticalError::is_critical_error(e.to_string()) {
                         return Err(e.into());

@@ -39,12 +39,4 @@
 			{/each}
 		</ul>
 	</nav>
-
-	<!-- Footer -->
-	<div class="border-t border-gray-700 p-4">
-		<div class="flex items-center gap-2 text-xs text-gray-400">
-			<div class="h-2 w-2 rounded-full bg-green-500"></div>
-			<span>Server Running</span>
-		</div>
-	</div>
 </div>

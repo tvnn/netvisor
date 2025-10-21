@@ -7,12 +7,12 @@ use crate::server::{
     shared::types::api::{ApiError, ApiResponse, ApiResult},
 };
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     response::Json,
     routing::{get, post, put},
     Router,
 };
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tracing::info;
 use uuid::Uuid;
 
@@ -35,6 +35,7 @@ async fn register_daemon(
         request.daemon_id,
         DaemonBase {
             host_id: request.host_id,
+            network_id: request.network_id,
             ip: request.daemon_ip,
             port: request.daemon_port,
         },
@@ -74,10 +75,16 @@ async fn receive_heartbeat(
 /// Get all registered daemons
 async fn get_all_daemons(
     State(state): State<Arc<AppState>>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<ApiResponse<Vec<Daemon>>>> {
+    let network_id = params
+        .get("network_id")
+        .and_then(|id| Uuid::parse_str(id).ok())
+        .ok_or_else(|| ApiError::bad_request("network_id query parameter required"))?;
+
     let service = &state.services.daemon_service;
 
-    let daemons = service.get_all_daemons().await.map_err(|e| {
+    let daemons = service.get_all_daemons(&network_id).await.map_err(|e| {
         info!("Error getting daemons: {}", e);
         ApiError::internal_error(&format!("Failed to get daemons: {}", e))
     })?;

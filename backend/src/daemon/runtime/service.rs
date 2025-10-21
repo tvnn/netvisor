@@ -1,4 +1,5 @@
 use crate::daemon::utils::base::{create_system_utils, PlatformDaemonUtils};
+use crate::server::networks::types::Network;
 use crate::server::utils::base::NetworkUtils;
 use crate::{
     daemon::shared::storage::ConfigStore,
@@ -7,6 +8,7 @@ use crate::{
         shared::types::api::ApiResponse,
     },
 };
+use anyhow::anyhow;
 use anyhow::Result;
 use std::{sync::Arc, time::Duration};
 use uuid::Uuid;
@@ -100,8 +102,49 @@ impl DaemonRuntimeService {
     //     Ok(())
     // }
 
+    /// Get default network from server
+    pub async fn get_default_network(&self) -> Result<Network> {
+        let server_target = self.config_store.get_server_endpoint().await?;
+
+        tracing::info!("Getting default network from {}", server_target);
+
+        let response = self
+            .client
+            .get(format!("{}/api/networks/default", server_target))
+            .send()
+            .await?;
+
+        let status = response.status();
+        let api_response: ApiResponse<Network> = response.json().await?;
+
+        if !status.is_success() {
+            anyhow::bail!(
+                "Get default network failed: {}",
+                api_response.error.unwrap_or("Unknown Error".to_string())
+            );
+        }
+
+        if !api_response.success {
+            let error_msg = api_response
+                .error
+                .unwrap_or_else(|| "Unknown error".to_string());
+            anyhow::bail!("Failed to get default network: {}", error_msg);
+        }
+
+        let network = api_response
+            .data
+            .ok_or_else(|| anyhow!("No network in response"))?;
+
+        Ok(network)
+    }
+
     /// Register daemon with server and return assigned ID
-    pub async fn register_with_server(&self, host_id: Uuid, daemon_id: Uuid) -> Result<()> {
+    pub async fn register_with_server(
+        &self,
+        host_id: Uuid,
+        daemon_id: Uuid,
+        network_id: Uuid,
+    ) -> Result<()> {
         let daemon_ip = self.utils.get_own_ip_address()?;
         let daemon_port = self.config_store.get_port().await?;
         tracing::info!(
@@ -112,6 +155,7 @@ impl DaemonRuntimeService {
         let registration_request = DaemonRegistrationRequest {
             daemon_id,
             host_id,
+            network_id,
             daemon_ip,
             daemon_port,
         };
@@ -125,11 +169,15 @@ impl DaemonRuntimeService {
             .send()
             .await?;
 
-        if !response.status().is_success() {
-            anyhow::bail!("Registration failed: HTTP {}", response.status());
-        }
-
+        let status = response.status();
         let api_response: ApiResponse<DaemonRegistrationResponse> = response.json().await?;
+
+        if !status.is_success() {
+            anyhow::bail!(
+                "Registration failed: {}",
+                api_response.error.unwrap_or("Unknown Error".to_string())
+            );
+        }
 
         if !api_response.success {
             let error_msg = api_response

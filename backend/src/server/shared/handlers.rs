@@ -10,10 +10,12 @@ use crate::server::{
     discovery::handlers as discovery_handlers,
     groups::handlers as group_handlers,
     hosts::handlers as host_handlers,
+    networks::handlers as network_handlers,
     services::handlers as service_handlers,
     shared::types::api::ApiResponse,
     subnets::{handlers as subnet_handlers, types::base::SubnetType},
     topology::handlers as topology_handlers,
+    users::handlers as user_handlers,
 };
 use axum::{routing::get, Json, Router};
 use std::sync::Arc;
@@ -29,6 +31,8 @@ pub fn create_router() -> Router<Arc<AppState>> {
         .nest("/api/subnets", subnet_handlers::create_router())
         .nest("/api/topology", topology_handlers::create_router())
         .nest("/api/services", service_handlers::create_router())
+        .nest("/api/networks", network_handlers::create_router())
+        .nest("/api/users", user_handlers::create_router())
         .route("/api/health", get(get_health))
 }
 

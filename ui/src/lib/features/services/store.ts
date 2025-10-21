@@ -5,14 +5,20 @@ import { formatPort, utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/uti
 import { formatInterface, getInterfaceFromId, getPortFromId, hosts } from '../hosts/store';
 import { ALL_INTERFACES, type Host } from '../hosts/types/base';
 import { groups } from '../groups/store';
+import { currentNetwork } from '../networks/store';
 
 export const services = writable<Service[]>([]);
 
 // Get all services
 export async function getServices() {
-	return await api.request<Service[]>('/services', services, (services) => services, {
-		method: 'GET'
-	});
+	return await api.request<Service[]>(
+		`/services?network_id=${get(currentNetwork).id}`,
+		services,
+		(services) => services,
+		{
+			method: 'GET'
+		}
+	);
 }
 
 // Helper functions for working with services and the MetadataRegistry
@@ -25,6 +31,7 @@ export function createDefaultService(
 		id: uuidv4Sentinel,
 		created_at: utcTimeZoneSentinel,
 		updated_at: utcTimeZoneSentinel,
+		network_id: get(currentNetwork).id,
 		host_id,
 		service_definition: serviceType,
 		name: serviceName || serviceType,

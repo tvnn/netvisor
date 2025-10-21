@@ -10,14 +10,14 @@ use crate::server::{
 };
 use anyhow::{Error, Result};
 use async_trait::async_trait;
-use sqlx::{Row, PgPool};
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 #[async_trait]
 pub trait HostStorage: Send + Sync {
     async fn create(&self, host: &Host) -> Result<()>;
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Host>>;
-    async fn get_all(&self) -> Result<Vec<Host>>;
+    async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Host>>;
     async fn update(&self, host: &Host) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
 }
@@ -37,7 +37,7 @@ impl HostStorage for PostgresHostStorage {
     async fn create(&self, host: &Host) -> Result<()> {
         let services_str = serde_json::to_value(&host.base.services)?;
         let interfaces_str = serde_json::to_value(&host.base.interfaces)?;
-        let target_str = serde_json::to_value(&host.base.target)?;
+        let target_str = serde_json::to_value(host.base.target)?;
         let ports_str = serde_json::to_value(&host.base.ports)?;
         let source_str = serde_json::to_value(&host.base.source)?;
         let virtualization_str = serde_json::to_value(&host.base.virtualization)?;
@@ -47,11 +47,11 @@ impl HostStorage for PostgresHostStorage {
             INSERT INTO hosts (
                 id, name, hostname, target, description,
                 services, interfaces, ports, source, virtualization,
-                created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                created_at, updated_at, network_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             "#,
         )
-        .bind(&host.id)
+        .bind(host.id)
         .bind(&host.base.name)
         .bind(&host.base.hostname)
         .bind(target_str)
@@ -63,6 +63,7 @@ impl HostStorage for PostgresHostStorage {
         .bind(virtualization_str)
         .bind(host.created_at)
         .bind(host.updated_at)
+        .bind(host.base.network_id)
         .execute(&self.pool)
         .await?;
 
@@ -81,10 +82,12 @@ impl HostStorage for PostgresHostStorage {
         }
     }
 
-    async fn get_all(&self) -> Result<Vec<Host>> {
-        let rows = sqlx::query("SELECT * FROM hosts ORDER BY created_at DESC")
-            .fetch_all(&self.pool)
-            .await?;
+    async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Host>> {
+        let rows =
+            sqlx::query("SELECT * FROM hosts WHERE network_id = $1 ORDER BY created_at DESC")
+                .bind(network_id)
+                .fetch_all(&self.pool)
+                .await?;
 
         let mut hosts = Vec::new();
         for row in rows {
@@ -97,7 +100,7 @@ impl HostStorage for PostgresHostStorage {
     async fn update(&self, host: &Host) -> Result<()> {
         let services_str = serde_json::to_value(&host.base.services)?;
         let interfaces_str = serde_json::to_value(&host.base.interfaces)?;
-        let target_str = serde_json::to_value(&host.base.target)?;
+        let target_str = serde_json::to_value(host.base.target)?;
         let ports_str = serde_json::to_value(&host.base.ports)?;
         let source_str = serde_json::to_value(&host.base.source)?;
         let virtualization_str = serde_json::to_value(&host.base.virtualization)?;
@@ -111,7 +114,7 @@ impl HostStorage for PostgresHostStorage {
             WHERE id = $1
             "#,
         )
-        .bind(&host.id)
+        .bind(host.id)
         .bind(&host.base.name)
         .bind(&host.base.hostname)
         .bind(&host.base.description)
@@ -142,8 +145,9 @@ fn row_to_host(row: sqlx::postgres::PgRow) -> Result<Host, Error> {
     // Parse JSON fields safely
     let services: Vec<Uuid> = serde_json::from_value(row.get::<serde_json::Value, _>("services"))
         .or(Err(Error::msg("Failed to deserialize services")))?;
-    let interfaces: Vec<Interface> = serde_json::from_value(row.get::<serde_json::Value, _>("interfaces"))
-        .or(Err(Error::msg("Failed to deserialize interfaces")))?;
+    let interfaces: Vec<Interface> =
+        serde_json::from_value(row.get::<serde_json::Value, _>("interfaces"))
+            .or(Err(Error::msg("Failed to deserialize interfaces")))?;
     let target: HostTarget = serde_json::from_value(row.get::<serde_json::Value, _>("target"))
         .or(Err(Error::msg("Failed to deserialize target")))?;
     let ports: Vec<Port> = serde_json::from_value(row.get::<serde_json::Value, _>("ports"))
@@ -160,6 +164,7 @@ fn row_to_host(row: sqlx::postgres::PgRow) -> Result<Host, Error> {
         updated_at: row.get("updated_at"),
         base: HostBase {
             name: row.get("name"),
+            network_id: row.get("network_id"),
             target,
             hostname: row.get("hostname"),
             description: row.get("description"),

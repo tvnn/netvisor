@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { startDiscoveryPolling, stopDiscoveryPolling } from '$lib/features/discovery/store';
 	import GroupTab from '$lib/features/groups/components/GroupTab.svelte';
 	import { groups } from '$lib/features/groups/store';
 	import HostTab from '$lib/features/hosts/components/HostTab.svelte';
@@ -14,6 +13,10 @@
 	import { onDestroy, onMount } from 'svelte';
 	import { getServices, services } from '$lib/features/services/store';
 	import { watchStores } from '$lib/shared/utils/storeWatcher';
+	import { loadUser } from '$lib/features/users/store';
+	import { pushError } from '$lib/shared/stores/feedback';
+	import { getNetworks } from '$lib/features/networks/store';
+	import { startDiscoverySSE } from '$lib/features/discovery/store';
 
 	let activeTab = 'hosts';
 	let appInitialized = false;
@@ -62,6 +65,14 @@
 			window.addEventListener('hashchange', handleHashChange);
 		}
 
+		const user = await loadUser();
+		if (!user) {
+			pushError('Failed to load user');
+			return;
+		}
+
+		await getNetworks();
+
 		// Load initial data
 		storeWatcherUnsubs = [
 			watchStores([hosts], () => {
@@ -74,13 +85,13 @@
 				getServices();
 			})
 		].flatMap((w) => w);
+
+		startDiscoverySSE();
+
 		await getMetadata().then(() => (appInitialized = true));
-		startDiscoveryPolling();
 	});
 
 	onDestroy(() => {
-		stopDiscoveryPolling();
-
 		storeWatcherUnsubs.forEach((unsub) => {
 			unsub();
 		});

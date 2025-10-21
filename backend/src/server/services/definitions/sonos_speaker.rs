@@ -41,6 +41,10 @@ impl ServiceDefinition for SonosSpeaker {
     fn simple_icons_path(&self) -> &'static str {
         "sonos"
     }
+
+    fn logo_needs_white_background(&self) -> bool {
+        true
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(

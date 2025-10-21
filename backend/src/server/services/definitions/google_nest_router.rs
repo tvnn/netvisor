@@ -9,7 +9,7 @@ pub struct GoogleHome;
 
 impl ServiceDefinition for GoogleHome {
     fn name(&self) -> &'static str {
-        "Google Nest Wifi"
+        "Google Nest router"
     }
 
     fn description(&self) -> &'static str {

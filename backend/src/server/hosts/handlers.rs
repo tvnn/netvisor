@@ -5,14 +5,14 @@ use crate::server::{
     shared::types::api::{ApiError, ApiResponse, ApiResult},
 };
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     response::Json,
     routing::{delete, get, post, put},
     Router,
 };
 use futures::future::try_join_all;
 use itertools::{Either, Itertools};
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
 pub fn create_router() -> Router<Arc<AppState>> {
@@ -45,9 +45,15 @@ async fn create_host(
 
 async fn get_all_hosts(
     State(state): State<Arc<AppState>>,
+    Query(params): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<ApiResponse<Vec<Host>>>> {
+    let network_id = params
+        .get("network_id")
+        .and_then(|id| Uuid::parse_str(id).ok())
+        .ok_or_else(|| ApiError::bad_request("network_id query parameter required"))?;
+
     let service = &state.services.host_service;
-    let hosts = service.get_all_hosts().await?;
+    let hosts = service.get_all_hosts(&network_id).await?;
 
     Ok(Json(ApiResponse::success(hosts)))
 }

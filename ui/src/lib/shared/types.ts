@@ -1,3 +1,7 @@
+export interface GetAllEntitiesRequest {
+	network_id: string;
+}
+
 export type EntitySource =
 	| { type: 'Manual' }
 	| { type: 'System' }

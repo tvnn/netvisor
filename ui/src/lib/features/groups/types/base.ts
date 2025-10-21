@@ -1,3 +1,5 @@
+import type { EntitySource } from '$lib/shared/types';
+
 export interface Group {
 	id: string;
 	created_at: string;
@@ -7,5 +9,6 @@ export interface Group {
 	// Binding IDs
 	service_bindings: string[];
 	group_type: string;
-	source: string;
+	source: EntitySource;
+	network_id: string;
 }

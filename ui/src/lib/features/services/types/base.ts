@@ -16,6 +16,7 @@ export interface Service<T extends Binding = Binding> {
 	// Service UUIDs
 	containers: string[];
 	source: EntitySource;
+	network_id: string;
 }
 
 export type ServiceWithVMs = Omit<Service, 'vms'> & {

@@ -6,12 +6,18 @@ import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formattin
 import { isContainerSubnet } from '../subnets/store';
 import { getBindingFromId, getLayerBindingDisplayName, services } from '../services/store';
 import type { Service } from '../services/types/base';
+import { currentNetwork } from '../networks/store';
 
 export const hosts = writable<Host[]>([]);
 export const polling = writable(false);
 
 export async function getHosts() {
-	return await api.request<Host[]>('/hosts', hosts, (hosts) => hosts, { method: 'GET' });
+	return await api.request<Host[]>(
+		`/hosts?network_id=${get(currentNetwork).id}`,
+		hosts,
+		(hosts) => hosts,
+		{ method: 'GET' }
+	);
 }
 
 export async function createHost(data: HostWithServicesRequest) {
@@ -77,7 +83,8 @@ export function createEmptyHostFormData(): Host {
 		source: {
 			type: 'Manual'
 		},
-		virtualization: null
+		virtualization: null,
+		network_id: get(currentNetwork).id
 	};
 }
 

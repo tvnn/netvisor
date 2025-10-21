@@ -19,10 +19,10 @@ impl ServiceDefinition for Prometheus {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::AnyOf(vec!(
+        Pattern::AnyOf(vec![
             Pattern::Endpoint(PortBase::Http, "/metrics", "Prometheus"),
-            Pattern::Endpoint(PortBase::Http, "/graph", "Prometheus")
-        ))
+            Pattern::Endpoint(PortBase::Http, "/graph", "Prometheus"),
+        ])
     }
 
     fn dashboard_icons_path(&self) -> &'static str {

@@ -41,6 +41,16 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
     fn simple_icons_path(&self) -> &'static str {
         ""
     }
+
+    /// Path of service on https://www.vectorlogo.zone. For example, Akamai -> https://www.vectorlogo.zone/logos/akamai/akamai-icon.svg. MUST SUPPORT SVG ICON FORMAT. If SVG is not supported, a fallback icon will be used instead.
+    fn vector_logo_zone_icons_path(&self) -> &'static str {
+        ""
+    }
+
+    /// Use this if available logo only has dark variant / if generally it would be more legible with a white background
+    fn logo_needs_white_background(&self) -> bool {
+        false
+    }
 }
 
 // Helper methods to be used in rest of codebase, not overridable by definition implementations
@@ -77,6 +87,14 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
 
     fn simple_icons_path(&self) -> &'static str {
         ServiceDefinition::simple_icons_path(&**self)
+    }
+
+    fn vector_logo_zone_icons_path(&self) -> &'static str {
+        ServiceDefinition::vector_logo_zone_icons_path(&**self)
+    }
+
+    fn logo_needs_white_background(&self) -> bool {
+        ServiceDefinition::logo_needs_white_background(&**self)
     }
 
     fn category(&self) -> ServiceCategory {
@@ -140,10 +158,13 @@ impl EntityMetadataProvider for Box<dyn ServiceDefinition> {
     fn icon(&self) -> &'static str {
         let dashboard_icon = ServiceDefinition::dashboard_icons_path(self);
         let simple_icon = ServiceDefinition::simple_icons_path(self);
+        let vector_zone_icon = ServiceDefinition::vector_logo_zone_icons_path(self);
         if !dashboard_icon.is_empty() {
             return dashboard_icon;
         } else if !simple_icon.is_empty() {
             return simple_icon;
+        } else if !vector_zone_icon.is_empty() {
+            return vector_zone_icon;
         }
         ServiceDefinition::category(self).icon()
     }
@@ -167,8 +188,17 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
         let is_generic = self.is_generic();
         let layer: &str = self.layer().into();
         let manages_virtualization = self.manages_virtualization();
-        let has_dashboard_icon = !ServiceDefinition::dashboard_icons_path(self).is_empty();
-        let has_simple_icon = !ServiceDefinition::simple_icons_path(self).is_empty();
+        let logo_source = match self.icon() {
+            _ if self.icon() == ServiceDefinition::dashboard_icons_path(self) => {
+                Some("dashboard_icons")
+            }
+            _ if self.icon() == ServiceDefinition::simple_icons_path(self) => Some("simple_icons"),
+            _ if self.icon() == ServiceDefinition::vector_logo_zone_icons_path(self) => {
+                Some("vector_zone_icons")
+            }
+            _ => None,
+        };
+        let logo_needs_white_background = self.logo_needs_white_background();
         serde_json::json!({
             "can_be_added": can_be_added,
             "is_dns_resolver": is_dns_resolver,
@@ -176,8 +206,8 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
             "is_reverse_proxy": is_reverse_proxy,
             "is_generic": is_generic,
             "manages_virtualization": manages_virtualization,
-            "has_dashboard_icon": has_dashboard_icon,
-            "has_simple_icon": has_simple_icon,
+            "logo_source": logo_source,
+            "logo_needs_white_background": logo_needs_white_background,
             "layer": layer,
         })
     }
@@ -247,12 +277,15 @@ impl ServiceDefinition for DefaultServiceDefinition {
 #[cfg(test)]
 mod tests {
 
+    use serial_test::serial;
+
     use crate::server::services::{
         definitions::ServiceDefinitionRegistry, types::definitions::ServiceDefinition,
     };
     use std::collections::HashSet;
 
     #[test]
+    #[serial]
     fn test_all_service_definitions_register() {
         // Get all registered services using inventory
         let registry = ServiceDefinitionRegistry::all_service_definitions();
@@ -279,6 +312,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_service_definition_has_required_fields() {
         let registry = ServiceDefinitionRegistry::all_service_definitions();
 
@@ -310,6 +344,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_service_definition_serialization() {
         let registry = ServiceDefinitionRegistry::all_service_definitions();
 

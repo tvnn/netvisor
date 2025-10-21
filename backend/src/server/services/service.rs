@@ -218,8 +218,8 @@ impl ServiceService {
         self.storage.get_by_id(id).await
     }
 
-    pub async fn get_all_services(&self) -> Result<Vec<Service>> {
-        self.storage.get_all().await
+    pub async fn get_all_services(&self, network_id: &Uuid) -> Result<Vec<Service>> {
+        self.storage.get_all(network_id).await
     }
 
     pub async fn get_services_for_host(&self, host_id: &Uuid) -> Result<Vec<Service>> {
@@ -263,7 +263,10 @@ impl ServiceService {
             updates
         );
 
-        let groups = self.group_service.get_all_groups().await?;
+        let groups = self
+            .group_service
+            .get_all_groups(&current_service.base.network_id)
+            .await?;
 
         let _guard = self.group_update_lock.lock().await;
 
@@ -411,7 +414,7 @@ impl ServiceService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Service {} not found", id))?;
 
-        let mut all_services = self.get_all_services().await?;
+        let mut all_services = self.get_all_services(&service.base.network_id).await?;
 
         let lock = self.get_service_lock(&service.id).await;
         let _guard = lock.lock().await;

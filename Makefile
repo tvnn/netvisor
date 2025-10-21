@@ -67,8 +67,6 @@ build:
 	@echo "✓ Daemon image built: mayanayza/netvisor-daemon:latest"
 
 test:
-	clean-db
-	setup-db
 	@export DATABASE_URL="postgresql://postgres:password@localhost:5432/netvisor_test" && \
 	cd backend && cargo test -- --nocapture --test-threads=1
 

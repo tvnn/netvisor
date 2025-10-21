@@ -23,6 +23,7 @@
 		type CustomNodeData
 	} from '../types/base';
 	import { twColorToRgba } from '$lib/shared/utils/styling';
+	import { onMount } from 'svelte';
 
 	// Define node types
 	const nodeTypes = {
@@ -35,11 +36,15 @@
 	let edges = writable<Edge[]>([]);
 	// let selectedNodeId: string | null = null;
 
-	$: if ($topology?.nodes && $topology?.edges) {
-		loadTopologyData();
+	onMount(async () => {
+		await loadTopologyData();
+	});
+
+	$: if ($topology?.edges || $topology?.nodes) {
+		void loadTopologyData();
 	}
 
-	function loadTopologyData() {
+	async function loadTopologyData() {
 		try {
 			if ($topology?.nodes && $topology?.edges) {
 				const flowNodes: Node[] = $topology.nodes.map((node): Node => {
@@ -123,10 +128,8 @@
 					}
 				);
 
-				setTimeout(() => {
-					nodes.set(flowNodes);
-					edges.set(flowEdges);
-				}, 50);
+				nodes.set(flowNodes);
+				edges.set(flowEdges);
 			}
 		} catch (err) {
 			pushError(`Failed to parse topology data ${err}`);
@@ -199,7 +202,7 @@
 		{nodeTypes}
 		onedgeclick={onEdgeClick}
 		fitView
-		snapGrid={[25, 25]}
+		snapGrid={[5, 5]}
 		nodesDraggable={true}
 		nodesConnectable={false}
 		elementsSelectable={true}

@@ -5,8 +5,11 @@
 	import { loadData } from '$lib/shared/utils/dataLoader';
 	import { exportToPNG, getTopology } from '../store';
 	import { Download, RefreshCcw } from 'lucide-svelte';
+	import { getHosts } from '$lib/features/hosts/store';
+	import { getServices } from '$lib/features/services/store';
+	import { getSubnets } from '$lib/features/subnets/store';
 
-	const loading = loadData([getTopology]);
+	const loading = loadData([getHosts, getServices, getSubnets, getTopology]);
 </script>
 
 <div class="space-y-6">

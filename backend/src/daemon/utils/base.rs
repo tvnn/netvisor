@@ -35,6 +35,7 @@ pub trait DaemonUtils: NetworkUtils {
         &self,
         discovery_type: DiscoveryType,
         daemon_id: Uuid,
+        network_id: Uuid,
     ) -> Result<(Vec<Interface>, Vec<Subnet>)> {
         let interfaces = pnet::datalink::interfaces();
 
@@ -61,9 +62,13 @@ pub trait DaemonUtils: NetworkUtils {
         let mut subnet_map: HashMap<IpCidr, Subnet> = HashMap::new();
 
         for (interface_name, ip_network) in potential_subnets {
-            if let Some(subnet) =
-                Subnet::from_discovery(interface_name, &ip_network, daemon_id, &discovery_type)
-            {
+            if let Some(subnet) = Subnet::from_discovery(
+                interface_name,
+                &ip_network,
+                daemon_id,
+                &discovery_type,
+                network_id,
+            ) {
                 subnet_map.entry(subnet.base.cidr).or_insert(subnet);
             }
         }

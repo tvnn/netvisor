@@ -4,11 +4,17 @@ import type { Daemon } from './types/base';
 import type { DiscoveryUpdatePayload } from '../discovery/types/api';
 import { hosts } from '../hosts/store';
 import type { Host } from '../hosts/types/base';
+import { currentNetwork } from '../networks/store';
 
 export const daemons = writable<Daemon[]>([]);
 
 export async function getDaemons() {
-	return await api.request<Daemon[]>('/daemons', daemons, (daemons) => daemons, { method: 'GET' });
+	return await api.request<Daemon[]>(
+		`/daemons?network_id=${get(currentNetwork).id}`,
+		daemons,
+		(daemons) => daemons,
+		{ method: 'GET' }
+	);
 }
 
 export function getDaemonIsRunningDiscovery(
@@ -16,17 +22,33 @@ export function getDaemonIsRunningDiscovery(
 	sessionsMap: Map<string, DiscoveryUpdatePayload>
 ): boolean {
 	if (!daemon_id) return false;
-	const session = sessionsMap.get(daemon_id);
-	if (!session) return false;
-	return session.phase == 'Initiated' || session.phase == 'Started' || session.phase == 'Scanning';
+
+	// Find any active session for this daemon
+	for (const session of sessionsMap.values()) {
+		if (
+			session.daemon_id === daemon_id &&
+			(session.phase === 'Initiated' || session.phase === 'Started' || session.phase === 'Scanning')
+		) {
+			return true;
+		}
+	}
+	return false;
 }
 
 export function getDaemonDiscoveryData(
-	daemon_id: string | null,
-	sessionsMap: Map<string, DiscoveryUpdatePayload>
+	daemonId: string,
+	sessions: Map<string, DiscoveryUpdatePayload>
 ): DiscoveryUpdatePayload | null {
-	if (!daemon_id) return null;
-	return sessionsMap.get(daemon_id) || null;
+	// Find the active session for this daemon
+	for (const session of sessions.values()) {
+		if (
+			session.daemon_id === daemonId &&
+			(session.phase === 'Initiated' || session.phase === 'Started' || session.phase === 'Scanning')
+		) {
+			return session;
+		}
+	}
+	return null;
 }
 
 export function getDaemonHost(daemon_id: string): Host | null {

@@ -1,3 +1,5 @@
+use serial_test::serial;
+
 use crate::{
     server::{
         discovery::types::base::EntitySource,
@@ -7,10 +9,14 @@ use crate::{
 };
 
 #[tokio::test]
+#[serial]
 async fn test_service_deduplication_on_create() {
     let (_, services) = test_services().await;
 
-    let subnet_obj = subnet();
+    let user = services.user_service.create_user(user()).await.unwrap();
+    let network = services.network_service.create_network(network(&user.id)).await.unwrap();
+
+    let subnet_obj = subnet(&network.id);
     services
         .subnet_service
         .create_subnet(subnet_obj.clone())
@@ -18,10 +24,10 @@ async fn test_service_deduplication_on_create() {
         .unwrap();
 
     // Create first service + host
-    let mut host_obj = host();
+    let mut host_obj = host(&network.id);
     host_obj.base.interfaces = vec![interface(&subnet_obj.id)];
 
-    let mut svc1 = service(&host_obj.id);
+    let mut svc1 = service(&network.id, &host_obj.id);
     // Add bindings so the deduplication logic can match them
     svc1.base.bindings = vec![Binding::new_l4(
         host_obj.base.ports[0].id,
@@ -41,7 +47,7 @@ async fn test_service_deduplication_on_create() {
 
     // Try to create duplicate (same definition + matching bindings)
     // Must use created_host's IDs since host deduplication may have changed them
-    let mut svc2 = service(&created_host.id);
+    let mut svc2 = service(&network.id, &created_host.id);
     svc2.base.service_definition = svc1.base.service_definition.clone();
     svc2.base.bindings = vec![Binding::new_l4(
         created_host.base.ports[0].id,
@@ -71,28 +77,32 @@ async fn test_service_deduplication_on_create() {
 }
 
 #[tokio::test]
+#[serial]
 async fn test_service_deletion_cleans_up_relationships() {
     let (_, services) = test_services().await;
 
-    let subnet_obj = subnet();
+    let user = services.user_service.create_user(user()).await.unwrap();
+    let network = services.network_service.create_network(network(&user.id)).await.unwrap();
+
+    let subnet_obj = subnet(&network.id);
     let created_subnet = services
         .subnet_service
         .create_subnet(subnet_obj.clone())
         .await
         .unwrap();
 
-    let mut host_obj = host();
+    let mut host_obj = host(&network.id);
     host_obj.base.interfaces = vec![interface(&created_subnet.id)];
 
     // Create service in a group
-    let mut svc = service(&host_obj.id);
+    let mut svc = service(&network.id, &host_obj.id);
     let binding = Binding::new_l4(
         host_obj.base.ports[0].id,
         Some(host_obj.base.interfaces[0].id),
     );
     svc.base.bindings = vec![binding];
 
-    let mut svc_with_containers = service(&host_obj.id);
+    let mut svc_with_containers = service(&network.id, &host_obj.id);
     svc_with_containers.base.containers = vec![svc.id];
     svc_with_containers.base.name = "Service with Containers".to_string();
 
@@ -118,7 +128,7 @@ async fn test_service_deletion_cleans_up_relationships() {
         .unwrap()
         .unwrap();
 
-    let mut group_obj = group();
+    let mut group_obj = group(&network.id);
     group_obj.base.service_bindings = vec![created_svc.base.bindings[0].id()];
     let created_group = services
         .group_service

@@ -6,8 +6,7 @@ use figment::{
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
 
-use crate::server::shared::{services::ServiceFactory, storage::seed_data::{create_internet_connectivity_host, create_public_dns_host, create_remote_host, create_remote_subnet, create_wan_subnet}};
-use crate::server::shared::types::storage::StorageFactory;
+use crate::server::{shared::{services::ServiceFactory, types::storage::StorageFactory}, users::types::{User, UserBase}};
 use crate::server::{discovery::manager::DiscoverySessionManager, utils::base::ServerNetworkUtils};
 
 /// CLI arguments structure (for figment integration)
@@ -38,6 +37,9 @@ pub struct ServerConfig {
 
     /// Where static web assets are located for serving
     pub web_external_path: Option<PathBuf>,
+
+    /// Whether to seed a test user, used for headless integration testing
+    pub seed_test_user: bool
 }
 
 impl Default for ServerConfig {
@@ -48,6 +50,7 @@ impl Default for ServerConfig {
             rust_log: "".to_string(),
             database_url: "postgresql://postgres:password@localhost:5432/netvisor".to_string(),
             web_external_path: None,
+            seed_test_user: false,
         }
     }
 }
@@ -85,7 +88,7 @@ impl ServerConfig {
     }
 
     pub fn database_url(&self) -> String {
-        format!("{}", self.database_url)
+        self.database_url.to_string()
     }
 }
 
@@ -106,22 +109,8 @@ impl AppState {
         let storage = StorageFactory::new(&config.database_url()).await?;
         let services = ServiceFactory::new(&storage).await?;
 
-        if services.host_service.get_all_hosts().await?.len() == 0 {
-            tracing::info!("Seeding default data...");
-
-            let wan_subnet = create_wan_subnet();
-            let remote_subnet = create_remote_subnet();
-            let (dns_host, dns_service) = create_public_dns_host(&wan_subnet);
-            let (web_host, web_service) = create_internet_connectivity_host(&wan_subnet);
-            let (remote_host, client_service) = create_remote_host(&remote_subnet);
-
-            services.subnet_service.create_subnet(wan_subnet).await?;
-            services.subnet_service.create_subnet(remote_subnet).await?;
-            services.host_service.create_host_with_services(dns_host, vec!(dns_service)).await?;
-            services.host_service.create_host_with_services(web_host, vec!(web_service)).await?;
-            services.host_service.create_host_with_services(remote_host, vec!(client_service)).await?;
-
-            tracing::info!("Default data seeded successfully");
+        if config.seed_test_user {
+            services.user_service.create_user(User::new(UserBase::default())).await?;
         }
 
         Ok(Arc::new(Self {

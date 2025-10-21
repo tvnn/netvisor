@@ -19,7 +19,10 @@ impl ServiceDefinition for Portainer {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::Endpoint(PortBase::new_tcp(9443), "/", "portainer")
+        Pattern::AnyOf(vec![
+            Pattern::Endpoint(PortBase::new_tcp(9443), "/", "portainer"),
+            Pattern::Port(PortBase::new_tcp(9443)),
+        ])
     }
 
     fn dashboard_icons_path(&self) -> &'static str {

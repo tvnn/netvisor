@@ -32,6 +32,7 @@ pub enum GroupType {
 pub struct GroupBase {
     #[validate(length(min = 0, max = 100))]
     pub name: String,
+    pub network_id: Uuid,
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     #[validate(length(min = 0, max = 500))]
     pub description: Option<String>,

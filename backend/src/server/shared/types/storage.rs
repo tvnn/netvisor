@@ -6,12 +6,16 @@ use crate::server::{
     daemons::storage::{DaemonStorage, PostgresDaemonStorage},
     groups::storage::{GroupStorage, PostgresGroupStorage},
     hosts::storage::{HostStorage, PostgresHostStorage},
-    services::storage::{ServiceStorage, PostgresServiceStorage},
+    networks::storage::{NetworkStorage, PostgresNetworkStorage},
+    services::storage::{PostgresServiceStorage, ServiceStorage},
     shared::storage::DatabaseMigrations,
     subnets::storage::{PostgresSubnetStorage, SubnetStorage},
+    users::storage::{PostgresUserStorage, UserStorage},
 };
 
 pub struct StorageFactory {
+    pub users: Arc<dyn UserStorage>,
+    pub networks: Arc<dyn NetworkStorage>,
     pub hosts: Arc<dyn HostStorage>,
     pub host_groups: Arc<dyn GroupStorage>,
     pub daemons: Arc<dyn DaemonStorage>,
@@ -21,13 +25,14 @@ pub struct StorageFactory {
 
 impl StorageFactory {
     pub async fn new(database_url: &str) -> Result<Self> {
-        
         let pool = PgPool::connect(database_url).await?;
 
         // Initialize database schema
         DatabaseMigrations::initialize(&pool).await?;
 
         Ok(Self {
+            users: Arc::new(PostgresUserStorage::new(pool.clone())),
+            networks: Arc::new(PostgresNetworkStorage::new(pool.clone())),
             hosts: Arc::new(PostgresHostStorage::new(pool.clone())),
             host_groups: Arc::new(PostgresGroupStorage::new(pool.clone())),
             daemons: Arc::new(PostgresDaemonStorage::new(pool.clone())),

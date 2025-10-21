@@ -2,9 +2,12 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::server::topology::{
-    service::{context::TopologyContext, optimizer::utils::OptimizerUtils},
+    service::{
+        context::TopologyContext, optimizer::utils::OptimizerUtils,
+        subnet_layout_planner::NODE_PADDING,
+    },
     types::{
-        base::Ixy,
+        base::{Ixy, NodeBounds},
         edges::{Edge, EdgeHandle},
         nodes::{Node, NodeType},
     },
@@ -184,6 +187,141 @@ impl<'a> ChildPositioner<'a> {
         }
     }
 
+    pub fn resolve_overlaps_in_subnet(&self, nodes: &mut [Node], subnet_id: Uuid, is_infra: bool) {
+        let mut subnet_nodes: Vec<&mut Node> = nodes
+            .iter_mut()
+            .filter(|n| match n.node_type {
+                NodeType::HostNode {
+                    subnet_id: sid,
+                    is_infra: infra,
+                    ..
+                } => sid == subnet_id && infra == is_infra,
+                _ => false,
+            })
+            .collect();
+
+        println!(
+            "Resolving overlaps for subnet {:?}, infra: {}, node count: {}",
+            subnet_id,
+            is_infra,
+            subnet_nodes.len()
+        );
+
+        if subnet_nodes.len() < 2 {
+            return;
+        }
+
+        const MAX_RESOLUTION_ITERATIONS: usize = 50;
+        let mut iteration = 0;
+
+        while iteration < MAX_RESOLUTION_ITERATIONS {
+            let mut had_overlap = false;
+
+            let mut node_bounds: Vec<(Uuid, NodeBounds)> = subnet_nodes
+                .iter()
+                .map(|n| (n.id, NodeBounds::new(n.position, n.size)))
+                .collect();
+
+            for i in 0..node_bounds.len() {
+                for j in (i + 1)..node_bounds.len() {
+                    let (id_a, bounds_a) = node_bounds[i];
+                    let (id_b, bounds_b) = node_bounds[j];
+
+                    if bounds_a.overlaps(&bounds_b) {
+                        had_overlap = true;
+
+                        let (dx, dy) = bounds_a.resolve_overlap(&bounds_b);
+
+                        // Determine which node has more room to move
+                        // Get subnet bounds from the first node in the group
+                        let _subnet_bounds = if let Some(_first_node) = subnet_nodes.first() {
+                            // Assuming subnet starts at a reasonable origin, calculate available space
+                            // For vertical movement, check distance from top/bottom edges
+                            let space_above_a = bounds_a.y;
+                            let space_above_b = bounds_b.y;
+
+                            // Move the node that has more space in the direction we need to move
+                            if dy != 0 {
+                                // If dy is negative (move up), prefer moving the node with more space above
+                                // If dy is positive (move down), prefer moving the node with more space below
+                                if dy < 0 {
+                                    // Need to move up - move the node with more space above
+                                    if space_above_a > space_above_b {
+                                        if let Some(node_a) =
+                                            subnet_nodes.iter_mut().find(|n| n.id == id_a)
+                                        {
+                                            node_a.position.y += dy;
+                                        }
+                                    } else if let Some(node_b) =
+                                        subnet_nodes.iter_mut().find(|n| n.id == id_b)
+                                    {
+                                        node_b.position.y -= dy; // Opposite direction
+                                    }
+                                } else {
+                                    // Need to move down - for now just move node_b
+                                    if let Some(node_b) =
+                                        subnet_nodes.iter_mut().find(|n| n.id == id_b)
+                                    {
+                                        node_b.position.y += dy;
+                                    }
+                                }
+                            }
+
+                            if dx != 0 {
+                                // Similar logic for horizontal
+                                let space_left_a = bounds_a.x;
+                                let space_left_b = bounds_b.x;
+
+                                if dx < 0 {
+                                    if space_left_a > space_left_b {
+                                        if let Some(node_a) =
+                                            subnet_nodes.iter_mut().find(|n| n.id == id_a)
+                                        {
+                                            node_a.position.x += dx;
+                                        }
+                                    } else if let Some(node_b) =
+                                        subnet_nodes.iter_mut().find(|n| n.id == id_b)
+                                    {
+                                        node_b.position.x -= dx;
+                                    }
+                                } else if let Some(node_b) =
+                                    subnet_nodes.iter_mut().find(|n| n.id == id_b)
+                                {
+                                    node_b.position.x += dx;
+                                }
+                            }
+
+                            true
+                        } else {
+                            false
+                        };
+
+                        // Update bounds
+                        node_bounds[i].1 = NodeBounds::new(
+                            subnet_nodes.iter().find(|n| n.id == id_a).unwrap().position,
+                            subnet_nodes.iter().find(|n| n.id == id_a).unwrap().size,
+                        );
+                        node_bounds[j].1 = NodeBounds::new(
+                            subnet_nodes.iter().find(|n| n.id == id_b).unwrap().position,
+                            subnet_nodes.iter().find(|n| n.id == id_b).unwrap().size,
+                        );
+                    }
+                }
+            }
+
+            if !had_overlap {
+                println!("  No more overlaps found after {} iterations", iteration);
+                break;
+            }
+
+            iteration += 1;
+        }
+
+        if iteration >= MAX_RESOLUTION_ITERATIONS {
+            println!("  WARNING: Hit max iterations!");
+        }
+    }
+
     /// Optimize node positions within subnets to reduce edge lengths
     /// Only swap nodes that are in the same row or column
     pub fn optimize_positions(&self, nodes: &mut [Node], edges: &[Edge]) {
@@ -195,13 +333,12 @@ impl<'a> ChildPositioner<'a> {
             })
             .collect();
 
-        // Separate edges by type for crossing detection
         let inter_edges: Vec<&Edge> = edges
             .iter()
             .filter(|edge| !self.context.edge_is_intra_subnet(edge))
             .collect();
 
-        // Group ALL nodes by (subnet, infra, position)
+        // Group nodes by (subnet, infra)
         let mut nodes_by_subnet_infra: HashMap<(Uuid, bool), Vec<Uuid>> = HashMap::new();
         for node in nodes.iter() {
             if let NodeType::HostNode {
@@ -217,102 +354,89 @@ impl<'a> ChildPositioner<'a> {
             }
         }
 
-        // For each subnet+infra group, optimize within row/column constraints
-        for ((_, _), node_ids) in nodes_by_subnet_infra.iter() {
+        // For each subnet+infra group, optimize
+        for ((subnet_id, is_infra), node_ids) in nodes_by_subnet_infra.iter() {
             if node_ids.len() < 2 {
                 continue;
             }
 
-            // Get ALL edges involving nodes in this group
+            // Get edges for this group
             let group_edges: Vec<&Edge> = edges
                 .iter()
                 .filter(|e| node_ids.contains(&e.source) || node_ids.contains(&e.target))
                 .collect();
 
-            if group_edges.is_empty() {
-                continue;
-            }
+            if !group_edges.is_empty() {
+                // Group nodes by row and column
+                let mut nodes_by_row: HashMap<isize, Vec<Uuid>> = HashMap::new();
+                let mut nodes_by_col: HashMap<isize, Vec<Uuid>> = HashMap::new();
 
-            // Group nodes by row (Y position) and column (X position)
-            let mut nodes_by_row: HashMap<isize, Vec<Uuid>> = HashMap::new();
-            let mut nodes_by_col: HashMap<isize, Vec<Uuid>> = HashMap::new();
+                for &node_id in node_ids {
+                    if let Some(node) = nodes.iter().find(|n| n.id == node_id) {
+                        // Determine if node can be swapped based on edge handles
+                        let node_edge_handles: Vec<EdgeHandle> = edges
+                            .iter()
+                            .filter_map(|e| {
+                                if node_id == e.source {
+                                    Some(e.source_handle)
+                                } else if node_id == e.target {
+                                    Some(e.target_handle)
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
 
-            for &node_id in node_ids {
-                if let Some(node) = nodes.iter().find(|n| n.id == node_id) {
-                    // Don't allow for optimization that would break handle constraints
-                    let node_edge_source_handles: Vec<EdgeHandle> = edges
-                        .iter()
-                        .filter_map(|e| {
-                            if node_id == e.source {
-                                Some(e.source_handle)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    let node_edge_target_handles: Vec<EdgeHandle> = edges
-                        .iter()
-                        .filter_map(|e| {
-                            if node_id == e.target {
-                                Some(e.target_handle)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
+                        if node_edge_handles
+                            .iter()
+                            .all(|h| !matches!(h, EdgeHandle::Bottom | EdgeHandle::Top))
+                        {
+                            nodes_by_col
+                                .entry(node.position.x)
+                                .or_default()
+                                .push(node_id);
+                        }
 
-                    let node_edge_handles: Vec<EdgeHandle> = node_edge_source_handles
-                        .into_iter()
-                        .chain(node_edge_target_handles)
-                        .collect();
-
-                    if node_edge_handles
-                        .iter()
-                        .all(|h| !matches!(h, EdgeHandle::Bottom | EdgeHandle::Top))
-                    {
-                        nodes_by_col
-                            .entry(node.position.x)
-                            .or_default()
-                            .push(node_id);
-                    }
-
-                    if node_edge_handles
-                        .iter()
-                        .all(|h| !matches!(h, EdgeHandle::Left | EdgeHandle::Right))
-                    {
-                        nodes_by_row
-                            .entry(node.position.y)
-                            .or_default()
-                            .push(node_id);
+                        if node_edge_handles
+                            .iter()
+                            .all(|h| !matches!(h, EdgeHandle::Left | EdgeHandle::Right))
+                        {
+                            nodes_by_row
+                                .entry(node.position.y)
+                                .or_default()
+                                .push(node_id);
+                        }
                     }
                 }
-            }
 
-            // Optimize within each row
-            for (_, row_nodes) in nodes_by_row.iter() {
-                if row_nodes.len() >= 2 {
-                    self.optimize_within_constraint(
-                        nodes,
-                        row_nodes,
-                        &group_edges,
-                        &inter_edges,
-                        &subnet_positions,
-                    );
+                // Optimize within rows
+                for row_nodes in nodes_by_row.values() {
+                    if row_nodes.len() > 1 {
+                        self.optimize_within_constraint(
+                            nodes,
+                            row_nodes,
+                            &group_edges,
+                            &inter_edges,
+                            &subnet_positions,
+                        );
+                    }
+                }
+
+                // Optimize within columns
+                for col_nodes in nodes_by_col.values() {
+                    if col_nodes.len() > 1 {
+                        self.optimize_within_constraint(
+                            nodes,
+                            col_nodes,
+                            &group_edges,
+                            &inter_edges,
+                            &subnet_positions,
+                        );
+                    }
                 }
             }
-
-            // Optimize within each column
-            for (_, col_nodes) in nodes_by_col.iter() {
-                if col_nodes.len() >= 2 {
-                    self.optimize_within_constraint(
-                        nodes,
-                        col_nodes,
-                        &group_edges,
-                        &inter_edges,
-                        &subnet_positions,
-                    );
-                }
-            }
+            // After all swaps, reduce padding
+            self.compress_to_minimum_spacing(nodes, *subnet_id, *is_infra);
         }
     }
 
@@ -510,12 +634,13 @@ impl<'a> ChildPositioner<'a> {
 
             let mut best_swap: Option<(Uuid, Uuid, f64, usize)> = None;
 
-            // Only try swaps within this constrained set
+            // Try all possible swaps within this constrained set
             for i in 0..constrained_nodes.len() {
                 for j in (i + 1)..constrained_nodes.len() {
                     let node_a = constrained_nodes[i];
                     let node_b = constrained_nodes[j];
 
+                    // Perform the swap
                     self.utils.swap_node_positions(nodes, node_a, node_b);
 
                     let node_map: HashMap<Uuid, Node> =
@@ -534,22 +659,123 @@ impl<'a> ChildPositioner<'a> {
                     let should_accept = crossings_after < current_crossings
                         || (crossings_after == current_crossings && new_length < current_length);
 
-                    if (should_accept && best_swap.is_none())
-                        || (best_swap.is_some() && crossings_after < best_swap.unwrap().3)
-                        || (best_swap.is_some()
-                            && crossings_after == best_swap.unwrap().3
+                    if should_accept && best_swap.is_none()
+                        || crossings_after < best_swap.unwrap().3
+                        || (crossings_after == best_swap.unwrap().3
                             && new_length < best_swap.unwrap().2)
                     {
                         best_swap = Some((node_a, node_b, new_length, crossings_after));
                     }
 
+                    // Revert the swap
                     self.utils.swap_node_positions(nodes, node_a, node_b);
                 }
             }
 
+            // Apply the best swap if found
             if let Some((node_a, node_b, _, _)) = best_swap {
                 self.utils.swap_node_positions(nodes, node_a, node_b);
                 improved = true;
+            }
+        }
+    }
+
+    /// Compress nodes to minimum spacing based on spatial neighbors
+    pub fn compress_to_minimum_spacing(&self, nodes: &mut [Node], subnet_id: Uuid, is_infra: bool) {
+        // Get the subnet's infra width BEFORE creating mutable borrow
+        let infra_width = if !is_infra {
+            nodes
+                .iter()
+                .find(|n| {
+                    if let NodeType::SubnetNode { .. } = n.node_type {
+                        n.id == subnet_id
+                    } else {
+                        false
+                    }
+                })
+                .and_then(|subnet_node| {
+                    if let NodeType::SubnetNode { infra_width, .. } = subnet_node.node_type {
+                        Some(infra_width as isize)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(0)
+        } else {
+            0
+        };
+
+        let start_x = if is_infra {
+            NODE_PADDING.x as isize
+        } else {
+            infra_width + NODE_PADDING.x as isize
+        };
+
+        let mut subnet_nodes: Vec<&mut Node> = nodes
+            .iter_mut()
+            .filter(|n| match n.node_type {
+                NodeType::HostNode {
+                    subnet_id: sid,
+                    is_infra: infra,
+                    ..
+                } => sid == subnet_id && infra == is_infra,
+                _ => false,
+            })
+            .collect();
+
+        if subnet_nodes.len() < 2 {
+            return;
+        }
+
+        // STEP 1: Compress horizontally by rows
+        // Group nodes by Y position (rows)
+        let mut rows: HashMap<isize, Vec<usize>> = HashMap::new();
+        for (i, _) in subnet_nodes.iter().enumerate() {
+            let y = subnet_nodes[i].position.y;
+            rows.entry(y).or_default().push(i);
+        }
+
+        // For each row, compress horizontally
+        for row_indices in rows.values() {
+            if row_indices.len() < 2 {
+                continue;
+            }
+
+            // Sort nodes in row by X position
+            let mut sorted_indices = row_indices.clone();
+            sorted_indices.sort_by_key(|&idx| subnet_nodes[idx].position.x);
+
+            // Compress: set first node to start_x, then pack subsequent nodes
+            let mut current_x = start_x;
+            for &idx in &sorted_indices {
+                subnet_nodes[idx].position.x = current_x;
+                current_x += subnet_nodes[idx].size.x as isize + NODE_PADDING.x as isize;
+            }
+        }
+
+        // STEP 2: Compress vertically by columns
+        // Group nodes by X position (columns) - use updated X positions from step 1
+        let mut columns: HashMap<isize, Vec<usize>> = HashMap::new();
+        for (i, _) in subnet_nodes.iter().enumerate() {
+            let x = subnet_nodes[i].position.x;
+            columns.entry(x).or_default().push(i);
+        }
+
+        // For each column, compress vertically
+        for col_indices in columns.values() {
+            if col_indices.len() < 2 {
+                continue;
+            }
+
+            // Sort nodes in column by Y position
+            let mut sorted_indices = col_indices.clone();
+            sorted_indices.sort_by_key(|&idx| subnet_nodes[idx].position.y);
+
+            // Compress: set first node to NODE_PADDING.y, then pack subsequent nodes
+            let mut current_y = NODE_PADDING.y as isize;
+            for &idx in &sorted_indices {
+                subnet_nodes[idx].position.y = current_y;
+                current_y += subnet_nodes[idx].size.y as isize + NODE_PADDING.y as isize;
             }
         }
     }

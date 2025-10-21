@@ -26,25 +26,22 @@ pub struct CliArgs {
 /// Unified configuration struct that handles both startup and runtime config
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppConfig {
-    // Server connection (CLI/startup config)
+    // Server connection
     pub server_target: Option<String>,
+    pub network_id: Option<Uuid>,
     pub server_port: u16,
 
-    // Daemon settings (CLI/startup config)
+    // Daemon settings
     pub daemon_port: u16,
     pub name: String,
     pub log_level: String,
     pub heartbeat_interval: u64,
-    #[serde(default)]
     pub bind_address: String,
-    #[serde(default)]
     pub concurrent_scans: usize,
 
-    // Runtime state (persisted)
+    // Runtime state
     pub id: Uuid,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_heartbeat: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub host_id: Option<Uuid>,
 }
 
@@ -52,6 +49,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             server_target: None,
+            network_id: None,
             server_port: 60072,
             daemon_port: 60073,
             bind_address: "0.0.0.0".to_string(),
@@ -75,51 +73,51 @@ impl AppConfig {
         Ok((config_path.exists(), config_path))
     }
     pub fn load(cli_args: CliArgs) -> anyhow::Result<Self> {
-        let (config_exists, config_path) = AppConfig::get_config_path()?;
+    let (config_exists, config_path) = AppConfig::get_config_path()?;
+    
+    // Standard configuration layering: Defaults → Config file → Env → CLI (highest priority)
+    let mut figment = Figment::from(Serialized::defaults(AppConfig::default()));
 
-        // Standard configuration layering: Defaults → Config file → Env → CLI (highest priority)
-        let mut figment = Figment::from(Serialized::defaults(AppConfig::default()));
-
-        // Add config file if it exists
-        if config_exists {
-            figment = figment.merge(Json::file(&config_path));
-        }
-
-        // Add environment variables
-        figment = figment.merge(Env::prefixed("NETVISOR_"));
-
-        // Add CLI overrides (highest priority) - only if explicitly provided
-        if let Some(server_target) = cli_args.server_target {
-            figment = figment.merge(("server_target", server_target));
-        }
-        if let Some(server_port) = cli_args.server_port {
-            figment = figment.merge(("server_port", server_port));
-        }
-        if let Some(daemon_port) = cli_args.daemon_port {
-            figment = figment.merge(("daemon_port", daemon_port));
-        }
-        if let Some(name) = cli_args.name {
-            figment = figment.merge(("name", name));
-        }
-        if let Some(log_level) = cli_args.log_level {
-            figment = figment.merge(("log_level", log_level));
-        }
-        if let Some(heartbeat_interval) = cli_args.heartbeat_interval {
-            figment = figment.merge(("heartbeat_interval", heartbeat_interval));
-        }
-        if let Some(bind_address) = cli_args.bind_address {
-            figment = figment.merge(("bind_address", bind_address));
-        }
-        if let Some(concurrent_scans) = cli_args.concurrent_scans {
-            figment = figment.merge(("concurrent_scans", concurrent_scans));
-        }
-
-        let config: AppConfig = figment
-            .extract()
-            .map_err(|e| Error::msg(format!("Configuration error: {}", e)))?;
-
-        Ok(config)
+    // Add config file if it exists
+    if config_exists {
+        figment = figment.merge(Json::file(&config_path));
     }
+
+    // Add environment variables
+    figment = figment.merge(Env::prefixed("NETVISOR_"));
+
+    // Add CLI overrides (highest priority) - only if explicitly provided
+    if let Some(server_target) = cli_args.server_target {
+        figment = figment.merge(("server_target", server_target));
+    }
+    if let Some(server_port) = cli_args.server_port {
+        figment = figment.merge(("server_port", server_port));
+    }
+    if let Some(daemon_port) = cli_args.daemon_port {
+        figment = figment.merge(("daemon_port", daemon_port));
+    }
+    if let Some(name) = cli_args.name {
+        figment = figment.merge(("name", name));
+    }
+    if let Some(log_level) = cli_args.log_level {
+        figment = figment.merge(("log_level", log_level));
+    }
+    if let Some(heartbeat_interval) = cli_args.heartbeat_interval {
+        figment = figment.merge(("heartbeat_interval", heartbeat_interval));
+    }
+    if let Some(bind_address) = cli_args.bind_address {
+        figment = figment.merge(("bind_address", bind_address));
+    }
+    if let Some(concurrent_scans) = cli_args.concurrent_scans {
+        figment = figment.merge(("concurrent_scans", concurrent_scans));
+    }
+
+    let config: AppConfig = figment
+        .extract()
+        .map_err(|e| Error::msg(format!("Configuration error: {}", e)))?;
+
+    Ok(config)
+}
 }
 
 pub struct ConfigStore {
@@ -225,9 +223,16 @@ impl ConfigStore {
         Ok(config.bind_address.clone())
     }
 
-    pub async fn get_server_ip(&self) -> Result<Option<String>> {
+    pub async fn set_network_id(&self, network_id: Uuid) -> Result<()> {
+        let mut config = self.config.write().await;
+        config.network_id = Some(network_id);
+        self.save(&config.clone()).await
+    }
+
+    pub async fn get_network_id(&self) -> Result<Option<Uuid>> {
         let config = self.config.read().await;
-        Ok(config.server_target.clone())
+
+        Ok(config.network_id)
     }
 
     pub async fn get_server_endpoint(&self) -> Result<String> {
@@ -266,9 +271,12 @@ impl ConfigStore {
 mod tests {
     use std::path::Path;
 
+    use serial_test::serial;
+
     use crate::{daemon::shared::storage::AppConfig, tests::DAEMON_CONFIG_FIXTURE};
 
     #[test]
+    #[serial]
     fn test_daemon_config_backward_compatibility() {
         // Try to load config from fixture (from latest release)
         let config_path = Path::new(DAEMON_CONFIG_FIXTURE);

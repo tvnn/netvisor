@@ -4,7 +4,7 @@ use uuid::Uuid;
 use crate::server::topology::{
     service::context::TopologyContext,
     types::{
-        base::{Ixy, NodeLayout, Uxy},
+        base::{Ixy, NodeBounds, NodeLayout, Uxy},
         nodes::SubnetChild,
     },
 };
@@ -12,19 +12,20 @@ use crate::server::topology::{
 pub struct ChildNodePlacement;
 
 impl ChildNodePlacement {
-    /// Calculate child positions using anchor-based layout within a subnet
-    /// Layout uses Top/Bottom/Left/Right sections with center for no-handle nodes
+    /// Calculate child positions using grid-based layout with continuous coordinates
+    /// Places nodes in a grid pattern but uses actual pixel positions for overlap resolution
     pub fn calculate_anchor_based_positions(
         children: &[SubnetChild],
-        container_grid: &Uxy,
+        padding: &Uxy,
         ctx: &TopologyContext,
-    ) -> Vec<Vec<(Uuid, NodeLayout)>> {
+    ) -> HashMap<Uuid, NodeLayout> {
         if children.is_empty() {
-            return vec![Vec::new(); container_grid.y];
+            return HashMap::new();
         }
 
-        let grid_w = container_grid.x;
-        let grid_h = container_grid.y;
+        // Calculate grid dimensions (same as before)
+        let grid_w = ((children.len() as f64).sqrt().ceil() as usize).max(1);
+        let grid_h = ((children.len() as f64 / grid_w as f64).ceil() as usize).max(1);
 
         // Create force directed map of subnet children
         let force_directed_children: Vec<_> = children
@@ -40,7 +41,6 @@ impl ChildNodePlacement {
                             acc.y += e.target_handle.direction().y;
                         }
                     }
-
                     acc
                 });
 
@@ -48,7 +48,7 @@ impl ChildNodePlacement {
             })
             .collect();
 
-        // Find force extremes ---
+        // Find force extremes
         let (min_x, max_x) = force_directed_children
             .iter()
             .map(|(_, f)| f.x)
@@ -62,20 +62,16 @@ impl ChildNodePlacement {
                 (min.min(y as f32), max.max(y as f32))
             });
 
-        // Normalize to [0,1] space ---
+        // Normalize to [0,1] space
         let normalize = |v: isize, min: f32, max: f32| {
             if (max - min).abs() < f32::EPSILON {
-                0.5 // avoid division by zero; center everything
+                0.5
             } else {
                 (v as f32 - min) / (max - min)
             }
         };
 
-        // Build grid ---
-        let mut grid = vec![vec![None; grid_w]; grid_h];
-        let mut placed = HashMap::new();
-
-        // Fill stronger directional children first
+        // Sort children by force strength (stronger forces get placed first)
         let mut sorted = force_directed_children.to_vec();
         sorted.sort_by(|(_, a), (_, b)| {
             b.x.abs()
@@ -84,30 +80,33 @@ impl ChildNodePlacement {
                 .unwrap()
         });
 
-        for (child, f) in sorted {
-            // --- 4️⃣ Map to grid coordinates separately for width & height ---
-            let gx = (normalize(f.x, min_x, max_x) * (grid_w as f32 - 1.0)).round() as isize;
-            let gy = (normalize(f.y, min_y, max_y) * (grid_h as f32 - 1.0)).round() as isize;
+        // Create a grid to track which cells are occupied
+        let mut grid: Vec<Vec<Option<SubnetChild>>> = vec![vec![None; grid_w]; grid_h];
+        let mut placed_positions: HashMap<Uuid, (usize, usize)> = HashMap::new();
 
-            // Flip Y so positive Y means “up” visually
-            let gx = gx.clamp(0, (grid_w - 1) as isize);
-            let gy = ((grid_h - 1) as isize - gy).clamp(0, (grid_h - 1) as isize);
+        // Place nodes in grid cells based on force direction
+        for (child, force) in sorted {
+            let norm_x = normalize(force.x, min_x, max_x);
+            let norm_y = normalize(force.y, min_y, max_y);
 
-            // --- 5️⃣ Find nearest available slot ---
+            // Map to grid coordinates
+            let ideal_gx = (norm_x * (grid_w as f32 - 1.0)).round() as isize;
+            let ideal_gy = ((1.0 - norm_y) * (grid_h as f32 - 1.0)).round() as isize;
+
+            let ideal_gx = ideal_gx.clamp(0, (grid_w - 1) as isize) as usize;
+            let ideal_gy = ideal_gy.clamp(0, (grid_h - 1) as isize) as usize;
+
+            // Find nearest available grid cell
             let mut found_slot = None;
             let mut radius = 0;
-            while found_slot.is_none() && radius < grid_w.max(grid_h) as isize {
-                for dy in -radius..=radius {
-                    for dx in -radius..=radius {
-                        let nx = gx + dx;
-                        let ny = gy + dy;
-                        if nx >= 0
-                            && ny >= 0
-                            && nx < grid_w as isize
-                            && ny < grid_h as isize
-                            && grid[ny as usize][nx as usize].is_none()
-                        {
-                            found_slot = Some((nx as usize, ny as usize));
+            while found_slot.is_none() && radius < grid_w.max(grid_h) {
+                for dy in -(radius as isize)..=(radius as isize) {
+                    for dx in -(radius as isize)..=(radius as isize) {
+                        let gx = (ideal_gx as isize + dx).clamp(0, (grid_w - 1) as isize) as usize;
+                        let gy = (ideal_gy as isize + dy).clamp(0, (grid_h - 1) as isize) as usize;
+
+                        if grid[gy][gx].is_none() {
+                            found_slot = Some((gx, gy));
                             break;
                         }
                     }
@@ -118,31 +117,60 @@ impl ChildNodePlacement {
                 radius += 1;
             }
 
-            if let Some((x, y)) = found_slot {
-                grid[y][x] = Some(child.clone());
-                placed.insert(child.id, (x, y));
+            if let Some((gx, gy)) = found_slot {
+                grid[gy][gx] = Some((*child).clone());
+                placed_positions.insert(child.id, (gx, gy));
             }
         }
 
-        // Convert grid to the expected output format
-        let mut rows: Vec<Vec<(Uuid, NodeLayout)>> = vec![Vec::new(); grid_h];
+        // Convert grid positions to actual pixel coordinates with overlap resolution
+        let mut result: HashMap<Uuid, NodeLayout> = HashMap::new();
+        let mut placed_nodes: Vec<(Uuid, NodeBounds)> = Vec::new();
+
+        // FIXED: Calculate actual positions row by row for tighter packing
+        let mut row_heights: Vec<usize> = vec![0; grid_h];
+        let mut col_widths: Vec<usize> = vec![0; grid_w];
+
+        // First pass: calculate maximum width/height for each row/column
         for (row_idx, row) in grid.iter().enumerate() {
             for (col_idx, cell) in row.iter().enumerate() {
                 if let Some(child) = cell {
-                    rows[row_idx].push((
-                        child.id,
-                        NodeLayout {
-                            size: child.size,
-                            grid_position: Uxy {
-                                x: col_idx,
-                                y: row_idx,
-                            },
-                        },
-                    ));
+                    row_heights[row_idx] = row_heights[row_idx].max(child.size.y);
+                    col_widths[col_idx] = col_widths[col_idx].max(child.size.x);
                 }
             }
         }
 
-        rows
+        // Second pass: place nodes using cumulative positions
+        let mut current_y = padding.y as isize;
+        for (row_idx, row) in grid.iter().enumerate() {
+            let mut current_x = padding.x as isize;
+
+            for (col_idx, cell) in row.iter().enumerate() {
+                if let Some(child) = cell {
+                    let position = Ixy {
+                        x: current_x,
+                        y: current_y,
+                    };
+
+                    // No overlap resolution needed - grid spacing handles it
+                    let final_bounds = NodeBounds::new(position, child.size);
+                    placed_nodes.push((child.id, final_bounds));
+
+                    result.insert(
+                        child.id,
+                        NodeLayout {
+                            size: child.size,
+                            position,
+                        },
+                    );
+                }
+
+                current_x += col_widths[col_idx] as isize + padding.x as isize;
+            }
+
+            current_y += row_heights[row_idx] as isize + padding.y as isize;
+        }
+        result
     }
 }

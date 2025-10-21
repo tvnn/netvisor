@@ -20,7 +20,7 @@ impl ServiceDefinition for PiHole {
 
     fn discovery_pattern(&self) -> Pattern<'_> {
         Pattern::AllOf(vec![
-            Pattern::AllOf(vec![
+            Pattern::AnyOf(vec![
                 Pattern::Port(PortBase::DnsUdp),
                 Pattern::Port(PortBase::DnsTcp),
             ]),

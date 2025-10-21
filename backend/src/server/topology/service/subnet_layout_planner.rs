@@ -256,7 +256,7 @@ impl SubnetLayoutPlanner {
         ctx: &TopologyContext,
         child_nodes: &mut Vec<Node>,
     ) -> (Uxy, usize) {
-        // Separate infrastructure from regular nodes
+        // Separate infrastructure from regular nodes (unchanged)
         let (infrastructure_children, regular_children) =
             if let Some(subnet) = ctx.get_subnet_by_id(subnet_id) {
                 let infrastructure_interface_ids = ctx.get_interfaces_with_infra_service(subnet);
@@ -272,57 +272,59 @@ impl SubnetLayoutPlanner {
                 (Vec::new(), children.to_vec())
             };
 
-        // Calculate regular nodes layout
-        let (regular_grid_size, regular_grid_dimensions, regular_child_positions) = {
-            let regular_grid_dimensions =
-                GridCalculator::calculate_grid_dimensions(regular_children.len());
-
-            let nearest_square_regular_child_grid_positions =
-                ChildNodePlacement::calculate_anchor_based_positions(
-                    &regular_children,
-                    &regular_grid_dimensions,
-                    ctx,
-                );
-
-            let (regular_child_positions, regular_grid_size) =
-                GridCalculator::calculate_container_size(
-                    nearest_square_regular_child_grid_positions,
-                    &NODE_PADDING,
-                );
-            (
-                regular_grid_size,
-                regular_grid_dimensions,
-                regular_child_positions,
-            )
-        };
-
-        // Calculate infrastructure nodes layout
-        let (infra_grid_size, infra_child_positions, infra_cols) = {
-            let infra_cols = (infrastructure_children.len() as f64
-                / regular_grid_dimensions.y as f64)
-                .ceil() as usize;
-            let infra_grid_dimensions = Uxy {
-                x: infra_cols,
-                y: regular_grid_dimensions.y,
-            };
-
-            let nearest_square_infra_child_grid_positions =
-                ChildNodePlacement::calculate_anchor_based_positions(
-                    &infrastructure_children,
-                    &infra_grid_dimensions,
-                    ctx,
-                );
-
-            let (infra_child_positions, infra_grid_size) = GridCalculator::calculate_container_size(
-                nearest_square_infra_child_grid_positions,
+        // Calculate regular nodes layout using coordinate-based system
+        let (regular_child_positions, regular_grid_size) = {
+            // Calculate positions using force-directed layout
+            // No need to pass estimated container size!
+            let positions = ChildNodePlacement::calculate_anchor_based_positions(
+                &regular_children,
                 &NODE_PADDING,
+                ctx,
             );
-            (infra_grid_size, infra_child_positions, infra_cols)
+
+            // Calculate actual container size from the natural positions
+            let container_size =
+                GridCalculator::calculate_container_size_from_layouts(&positions, &NODE_PADDING);
+
+            (positions, container_size)
         };
 
-        // Create infrastructure nodes
-        infrastructure_children.iter().for_each(|child| {
-            if let Some(position) = infra_child_positions.get(&child.id) {
+        // Calculate infrastructure nodes layout using coordinate-based system
+        let infra_cols = if infrastructure_children.is_empty() {
+            0
+        } else {
+            // Calculate infrastructure nodes layout
+            let positions = ChildNodePlacement::calculate_anchor_based_positions(
+                &infrastructure_children,
+                &NODE_PADDING,
+                ctx,
+            );
+
+            // Calculate how many "columns" of infra nodes we have
+            let mut x_positions: Vec<isize> = positions.values().map(|l| l.position.x).collect();
+            x_positions.sort_unstable();
+            x_positions.dedup();
+            x_positions.len()
+        };
+
+        let (infra_child_positions, infra_grid_size) = if !infrastructure_children.is_empty() {
+            let positions = ChildNodePlacement::calculate_anchor_based_positions(
+                &infrastructure_children,
+                &NODE_PADDING,
+                ctx,
+            );
+
+            let container_size =
+                GridCalculator::calculate_container_size_from_layouts(&positions, &NODE_PADDING);
+
+            (positions, container_size)
+        } else {
+            (HashMap::new(), Uxy { x: 0, y: 0 })
+        };
+
+        // Create infrastructure nodes (using HashMap lookup instead of grid iteration)
+        for child in infrastructure_children.iter() {
+            if let Some(layout) = infra_child_positions.get(&child.id) {
                 child_nodes.push(Node {
                     id: child.id,
                     node_type: NodeType::HostNode {
@@ -332,24 +334,25 @@ impl SubnetLayoutPlanner {
                         is_infra: true,
                         header: child.header.clone(),
                     },
-                    position: *position,
+                    position: layout.position,
                     size: child.size,
                 });
             }
-        });
+        }
 
-        // Create regular nodes
-        regular_children.iter().for_each(|child| {
-            if let Some(position) = regular_child_positions.get(&child.id) {
+        // Create regular nodes (offset by infrastructure width, using HashMap lookup)
+        for child in regular_children.iter() {
+            if let Some(layout) = regular_child_positions.get(&child.id) {
                 let node_position = Ixy {
-                    x: position.x
+                    x: layout.position.x
                         + if infra_cols > 0 {
                             infra_grid_size.x as isize
                         } else {
                             0
                         },
-                    y: position.y,
+                    y: layout.position.y,
                 };
+
                 child_nodes.push(Node {
                     id: child.id,
                     node_type: NodeType::HostNode {
@@ -362,8 +365,8 @@ impl SubnetLayoutPlanner {
                     position: node_position,
                     size: child.size,
                 });
-            };
-        });
+            }
+        }
 
         let total_size = Uxy {
             x: regular_grid_size.x + infra_grid_size.x,
@@ -459,17 +462,15 @@ impl SubnetLayoutPlanner {
         }
 
         subnets_by_layer
-            .into_iter()
-            .enumerate()
-            .map(|(row_index, (_layer, row))| {
+            .into_values()
+            .map(|row| {
                 row.into_iter()
-                    .enumerate()
-                    .map(|(y, (id, layout))| {
+                    .map(|(id, layout)| {
                         (
                             *id,
                             NodeLayout {
                                 size: layout.size,
-                                grid_position: Uxy { x: row_index, y },
+                                position: Ixy { x: 0, y: 0 },
                             },
                         )
                     })

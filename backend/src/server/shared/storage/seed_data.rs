@@ -1,5 +1,6 @@
 use cidr::Ipv4Cidr;
 use std::net::{IpAddr, Ipv4Addr};
+use uuid::Uuid;
 
 use crate::server::{
     discovery::types::base::EntitySource,
@@ -9,6 +10,7 @@ use crate::server::{
         ports::{Port, PortBase},
         targets::HostTarget,
     },
+    networks::types::{Network, NetworkBase},
     services::{
         definitions::{client::Client, dns_server::DnsServer, web_service::WebService},
         types::{
@@ -17,11 +19,23 @@ use crate::server::{
         },
     },
     subnets::types::base::{Subnet, SubnetBase, SubnetType},
+    users::types::{User, UserBase},
 };
 
-pub fn create_wan_subnet() -> Subnet {
+pub fn create_user() -> User {
+    User::new(UserBase::default())
+}
+
+pub fn create_network(user_id: Uuid) -> Network {
+    let mut network = Network::new(NetworkBase::new(user_id));
+    network.base.is_default = true;
+    network
+}
+
+pub fn create_wan_subnet(network_id: Uuid) -> Subnet {
     let base = SubnetBase {
         name: "Internet".to_string(),
+        network_id,
         cidr: cidr::IpCidr::V4(
             Ipv4Cidr::new(Ipv4Addr::new(0, 0, 0, 0), 0).expect("Cidr for internet subnet"),
         ),
@@ -37,9 +51,10 @@ pub fn create_wan_subnet() -> Subnet {
     Subnet::new(base)
 }
 
-pub fn create_remote_subnet() -> Subnet {
+pub fn create_remote_subnet(network_id: Uuid) -> Subnet {
     let base = SubnetBase {
         name: "Remote Network".to_string(),
+        network_id,
         cidr: cidr::IpCidr::V4(
             Ipv4Cidr::new(Ipv4Addr::new(0, 0, 0, 0), 0).expect("Cidr for internet subnet"),
         ),
@@ -56,7 +71,7 @@ pub fn create_remote_subnet() -> Subnet {
     Subnet::new(base)
 }
 
-pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
+pub fn create_remote_host(remote_subnet: &Subnet, network_id: Uuid) -> (Host, Service) {
     let interface = Interface::new(InterfaceBase::new_conceptual(remote_subnet));
 
     let dynamic_port = Port::new(PortBase::new_tcp(0)); // Ephemeral port
@@ -66,6 +81,7 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
     let base = HostBase {
         name: "Mobile Device".to_string(), // Device type in name, not service
         hostname: None,
+        network_id,
         description: Some("A mobile device connecting from a remote network".to_string()),
         interfaces: vec![interface],
         ports: vec![dynamic_port],
@@ -79,6 +95,7 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
 
     let client_service = Service::new(ServiceBase {
         host_id: host.id,
+        network_id,
         name: "Mobile Device".to_string(),
         service_definition: Box::new(Client),
         bindings: vec![binding],
@@ -94,7 +111,10 @@ pub fn create_remote_host(remote_subnet: &Subnet) -> (Host, Service) {
     (host, client_service)
 }
 
-pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Service) {
+pub fn create_internet_connectivity_host(
+    internet_subnet: &Subnet,
+    network_id: Uuid,
+) -> (Host, Service) {
     let interface = Interface::new(InterfaceBase::new_conceptual(internet_subnet));
 
     let https_port = Port::new(PortBase::Https);
@@ -103,6 +123,7 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
 
     let base = HostBase {
         name: "Google.com".to_string(),
+        network_id,
         hostname: Some("google.com".to_string()),
         description: Some("Google.com".to_string()),
         interfaces: vec![interface],
@@ -118,6 +139,7 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
     let web_service = Service::new(ServiceBase {
         host_id: host.id,
         name: "Google.com".to_string(),
+        network_id,
         service_definition: Box::new(WebService),
         bindings: vec![binding],
         virtualization: None,
@@ -133,7 +155,7 @@ pub fn create_internet_connectivity_host(internet_subnet: &Subnet) -> (Host, Ser
     (host, web_service)
 }
 
-pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
+pub fn create_public_dns_host(internet_subnet: &Subnet, network_id: Uuid) -> (Host, Service) {
     let mut interface = Interface::new(InterfaceBase::new_conceptual(internet_subnet));
     interface.base.ip_address = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
     let dns_udp_port = Port::new(PortBase::DnsUdp);
@@ -143,6 +165,7 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
     let base = HostBase {
         name: "Cloudflare DNS".to_string(),
         hostname: None,
+        network_id,
         description: Some("Cloudflare DNS".to_string()),
         target: HostTarget::None,
         interfaces: vec![interface],
@@ -156,6 +179,7 @@ pub fn create_public_dns_host(internet_subnet: &Subnet) -> (Host, Service) {
 
     let dns_service = Service::new(ServiceBase {
         host_id: host.id,
+        network_id,
         name: "Cloudflare DNS".to_string(),
         service_definition: Box::new(DnsServer),
         bindings: vec![binding],

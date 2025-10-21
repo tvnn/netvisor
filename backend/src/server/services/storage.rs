@@ -17,7 +17,7 @@ use crate::server::{
 pub trait ServiceStorage: Send + Sync {
     async fn create(&self, service: &Service) -> Result<()>;
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Service>>;
-    async fn get_all(&self) -> Result<Vec<Service>>;
+    async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Service>>;
     async fn get_services_for_host(&self, host_id: &Uuid) -> Result<Vec<Service>>;
     async fn update(&self, service: &Service) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
@@ -46,13 +46,14 @@ impl ServiceStorage for PostgresServiceStorage {
         sqlx::query(
             r#"
             INSERT INTO services (
-                id, name, host_id, service_definition, bindings, virtualization, vms, containers, source, created_at, updated_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                id, name, host_id, service_definition, bindings, virtualization, 
+                vms, containers, source, created_at, updated_at, network_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             "#,
         )
-        .bind(&service.id)
+        .bind(service.id)
         .bind(&service.base.name)
-        .bind(&service.base.host_id)
+        .bind(service.base.host_id)
         .bind(service_def_str)
         .bind(bindings_str)
         .bind(virtualization_str)
@@ -61,6 +62,7 @@ impl ServiceStorage for PostgresServiceStorage {
         .bind(source_str)
         .bind(service.created_at)
         .bind(service.updated_at)
+        .bind(service.base.network_id)
         .execute(&self.pool)
         .await?;
 
@@ -79,10 +81,12 @@ impl ServiceStorage for PostgresServiceStorage {
         }
     }
 
-    async fn get_all(&self) -> Result<Vec<Service>> {
-        let rows = sqlx::query("SELECT * FROM services ORDER BY created_at DESC")
-            .fetch_all(&self.pool)
-            .await?;
+    async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Service>> {
+        let rows =
+            sqlx::query("SELECT * FROM services WHERE network_id = $1 ORDER BY created_at DESC")
+                .bind(network_id)
+                .fetch_all(&self.pool)
+                .await?;
 
         let mut services = Vec::new();
         for row in rows {
@@ -121,9 +125,9 @@ impl ServiceStorage for PostgresServiceStorage {
             WHERE id = $1
             "#,
         )
-        .bind(&service.id)
+        .bind(service.id)
         .bind(&service.base.name)
-        .bind(&service.base.host_id)
+        .bind(service.base.host_id)
         .bind(service_def_str)
         .bind(bindings_str)
         .bind(virtualization_str)
@@ -152,15 +156,17 @@ fn row_to_service(row: sqlx::postgres::PgRow) -> Result<Service, Error> {
     let service_definition: Box<dyn ServiceDefinition> =
         serde_json::from_str(&row.get::<String, _>("service_definition"))
             .or(Err(Error::msg("Failed to deserialize service_definition")))?;
-    let bindings: Vec<Binding> = serde_json::from_value(row.get::<serde_json::Value, _>("bindings"))
-        .or(Err(Error::msg("Failed to deserialize bindings")))?;
+    let bindings: Vec<Binding> =
+        serde_json::from_value(row.get::<serde_json::Value, _>("bindings"))
+            .or(Err(Error::msg("Failed to deserialize bindings")))?;
     let virtualization: Option<ServiceVirtualization> =
         serde_json::from_value(row.get::<serde_json::Value, _>("virtualization"))
             .or(Err(Error::msg("Failed to deserialize virtualization")))?;
     let vms: Vec<Uuid> = serde_json::from_value(row.get::<serde_json::Value, _>("vms"))
         .or(Err(Error::msg("Failed to deserialize vms")))?;
-    let containers: Vec<Uuid> = serde_json::from_value(row.get::<serde_json::Value, _>("containers"))
-        .or(Err(Error::msg("Failed to deserialize containers")))?;
+    let containers: Vec<Uuid> =
+        serde_json::from_value(row.get::<serde_json::Value, _>("containers"))
+            .or(Err(Error::msg("Failed to deserialize containers")))?;
     let source: EntitySource = serde_json::from_value(row.get::<serde_json::Value, _>("source"))
         .or(Err(Error::msg("Failed to deserialize source")))?;
 
@@ -170,6 +176,7 @@ fn row_to_service(row: sqlx::postgres::PgRow) -> Result<Service, Error> {
         updated_at: row.get("updated_at"),
         base: ServiceBase {
             name: row.get("name"),
+            network_id: row.get("network_id"),
             host_id: row.get("host_id"),
             service_definition,
             virtualization,

@@ -46,8 +46,8 @@ impl DaemonService {
     }
 
     /// Get all registered daemons
-    pub async fn get_all_daemons(&self) -> Result<Vec<Daemon>> {
-        self.daemon_storage.get_all().await
+    pub async fn get_all_daemons(&self, network_id: &Uuid) -> Result<Vec<Daemon>> {
+        self.daemon_storage.get_all(network_id).await
     }
 
     /// Update daemon heartbeat

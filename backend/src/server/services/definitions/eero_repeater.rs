@@ -23,6 +23,14 @@ impl ServiceDefinition for EeroRepeater {
             Pattern::Not(&Pattern::IsGateway),
         ])
     }
+
+    fn vector_logo_zone_icons_path(&self) -> &'static str {
+        "eero/eero-icon"
+    }
+
+    fn logo_needs_white_background(&self) -> bool {
+        true
+    }
 }
 
 inventory::submit!(ServiceDefinitionFactory::new(

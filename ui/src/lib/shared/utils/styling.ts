@@ -1,8 +1,7 @@
 import * as LucideIcons from 'lucide-svelte';
 import type { IconComponent } from './types';
 import colors from 'tailwindcss/colors';
-import DashboardIcon from '$lib/shared/components/data/DashboardIcon.svelte';
-import SimpleIcon from '../components/data/SimpleIcon.svelte';
+import LogoIcon from '$lib/shared/components/data/LogoIcon.svelte';
 
 export interface ColorStyle {
 	text: string;
@@ -171,30 +170,21 @@ export function createIconComponent(iconName: string | null): IconComponent {
 	return (LucideIcons as any)[componentName] || LucideIcons.HelpCircle;
 }
 
-// Icon helper that turns a string into an SVG from dashboard icons: https://dashboardicons.com/
-export function createDashboardIconComponent(iconName: string | null): IconComponent {
+// Icon helper that turns a string into an SVG
+export function createLogoIconComponent(
+	iconName: string | null,
+	iconSource: 'vector_zone_icons' | 'simple_icons' | 'dashboard_icons',
+	use_white_background: boolean = false
+): IconComponent {
 	if (!iconName || iconName == null) return LucideIcons.HelpCircle;
 
 	// Create a wrapper component that pre-binds the iconName
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const BoundDashboardIcon = ($$payload: any, $$props: Omit<any, 'iconName'>) => {
-		return DashboardIcon($$payload, { iconName, ...$$props });
+	const BoundLogoIcon = ($$payload: any, $$props: Omit<any, 'iconName'>) => {
+		return LogoIcon($$payload, { iconName, iconSource, use_white_background, ...$$props });
 	};
 
-	return BoundDashboardIcon;
-}
-
-// Icon helper that turns a string into an SVG from simple icons: https://simpleicons.org/
-export function createSimpleiconComponent(iconName: string | null): IconComponent {
-	if (!iconName || iconName == null) return LucideIcons.HelpCircle;
-
-	// Create a wrapper component that pre-binds the iconName
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const BoundSimpleIcon = ($$payload: any, $$props: Omit<any, 'iconName'>) => {
-		return SimpleIcon($$payload, { iconName, ...$$props });
-	};
-
-	return BoundSimpleIcon;
+	return BoundLogoIcon;
 }
 
 // Convenience wrapper that returns both color and icon

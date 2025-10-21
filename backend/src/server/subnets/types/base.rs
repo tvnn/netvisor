@@ -1,6 +1,8 @@
 use std::net::Ipv4Addr;
 
-use crate::server::discovery::types::base::{DiscoveryMetadata, DiscoveryType, EntitySource};
+use crate::server::discovery::types::base::{
+    DiscoveryMetadata, DiscoveryType, EntitySource, EntitySourceDiscriminants,
+};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use chrono::{DateTime, Utc};
@@ -8,6 +10,7 @@ use cidr::{IpCidr, Ipv4Cidr};
 use pnet::ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
+use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
 use validator::Validate;
@@ -24,6 +27,7 @@ use crate::server::{
 #[derive(Debug, Clone, Validate, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub struct SubnetBase {
     pub cidr: IpCidr,
+    pub network_id: Uuid,
     #[validate(length(min = 0, max = 100))]
     pub name: String, // "Home LAN", "VPN Network", etc.
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
@@ -38,6 +42,7 @@ impl Default for SubnetBase {
         Self {
             cidr: IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(127, 0, 0, 1), 24).unwrap()),
             name: "New Subnet".to_string(),
+            network_id: Uuid::new_v4(),
             description: None,
             subnet_type: SubnetType::Unknown,
             source: EntitySource::Manual,
@@ -70,6 +75,7 @@ impl Subnet {
         ip_network: &IpNetwork,
         daemon_id: Uuid,
         discovery_type: &DiscoveryType,
+        network_id: Uuid,
     ) -> Option<Self> {
         let subnet_type = SubnetType::from_interface_name(&interface_name);
 
@@ -94,6 +100,7 @@ impl Subnet {
 
                 Some(Subnet::new(SubnetBase {
                     cidr,
+                    network_id,
                     description: None,
                     name: cidr.to_string(),
                     subnet_type,
@@ -139,7 +146,11 @@ impl Subnet {
 
 impl PartialEq for Subnet {
     fn eq(&self, other: &Self) -> bool {
-        self.base.cidr == other.base.cidr || self.id == other.id
+        (self.base.cidr == other.base.cidr
+            && self.base.network_id == other.base.network_id
+            && self.base.source.discriminant() != EntitySourceDiscriminants::System
+            && other.base.source.discriminant() != EntitySourceDiscriminants::System)
+            || self.id == other.id
         // let sources_match = match (&self.base.source, &other.base.source) {
         //     (SubnetSource::Discovery(daemon_id), SubnetSource::Discovery(other_daemon_id))  => {
         //         daemon_id == other_daemon_id

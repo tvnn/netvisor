@@ -9,21 +9,25 @@ use crate::server::{
 };
 use axum::{
     extract::{Path, State},
-    response::Json,
+    response::{
+        sse::{Event, KeepAlive},
+        Json, Sse,
+    },
     routing::{get, post},
     Router,
 };
-use std::sync::Arc;
+use futures::Stream;
+use std::{convert::Infallible, sync::Arc};
+use tokio::sync::broadcast;
 use uuid::Uuid;
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/initiate", post(user_initiate_discovery))
         .route("/daemon-initiate", post(daemon_initiate_discovery))
-        .route("/:session_id/status", get(get_discovery_status))
         .route("/:session_id/cancel", post(cancel_discovery))
-        .route("/active", get(get_active_sessions))
         .route("/update", post(receive_discovery_update))
+        .route("/stream", get(discovery_stream))
 }
 
 /// Receive discovery progress update from daemon
@@ -41,7 +45,6 @@ async fn daemon_initiate_discovery(
     State(state): State<Arc<AppState>>,
     Json(request): Json<InitiateDiscoveryRequest>,
 ) -> ApiResult<Json<ApiResponse<Uuid>>> {
-
     let (daemon, session_id) = initiate_discovery(state.clone(), request).await?;
 
     // Create discovery session
@@ -120,28 +123,28 @@ async fn initiate_discovery(
     Ok((daemon, Uuid::new_v4()))
 }
 
-// Get all active discovery sessions
-async fn get_active_sessions(
+async fn discovery_stream(
     State(state): State<Arc<AppState>>,
-) -> ApiResult<Json<ApiResponse<Vec<DiscoveryUpdatePayload>>>> {
-    let sessions = state.discovery_manager.get_active_sessions().await;
-    Ok(Json(ApiResponse::success(sessions)))
-}
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let mut rx = state.discovery_manager.subscribe();
 
-/// Get discovery status for polling
-async fn get_discovery_status(
-    State(state): State<Arc<AppState>>,
-    Path(session_id): Path<Uuid>,
-) -> ApiResult<Json<ApiResponse<DiscoveryUpdatePayload>>> {
-    let status = state
-        .discovery_manager
-        .get_session(&session_id)
-        .await
-        .ok_or_else(|| {
-            ApiError::not_found(&format!("Discovery session '{}' not found", session_id))
-        })?;
+    let stream = async_stream::stream! {
+        loop {
+            match rx.recv().await {
+                Ok(update) => {
+                    let json = serde_json::to_string(&update).unwrap_or_default();
+                    yield Ok(Event::default().data(json));
+                }
+                Err(broadcast::error::RecvError::Lagged(n)) => {
+                    tracing::warn!("SSE client lagged by {} messages", n);
+                    continue;
+                }
+                Err(broadcast::error::RecvError::Closed) => break,
+            }
+        }
+    };
 
-    Ok(Json(ApiResponse::success(status)))
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
 /// Cancel an active discovery session

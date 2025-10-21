@@ -90,6 +90,13 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
         cancel: CancellationToken,
     ) -> Result<(), Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
+        let network_id = self
+            .as_ref()
+            .config_store
+            .get_network_id()
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Network ID not set"))?;
+
         let docker = self.new_local_docker_client().await?;
         self.domain
             .docker_client
@@ -104,7 +111,7 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
         let (mut host_interfaces, _) = self
             .as_ref()
             .utils
-            .scan_interfaces(self.discovery_type(), daemon_id)
+            .scan_interfaces(self.discovery_type(), daemon_id, network_id)
             .await?;
         let containers = self.get_containers_and_summaries().await?;
         let containers_interfaces_and_subnets =
@@ -170,14 +177,22 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
 
     async fn discover_create_subnets(&self) -> Result<Vec<Subnet>, Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
+        let network_id = self
+            .as_ref()
+            .config_store
+            .get_network_id()
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Network ID not set"))?;
 
         let (_, host_subnets) = self
             .as_ref()
             .utils
-            .scan_interfaces(self.discovery_type(), daemon_id)
+            .scan_interfaces(self.discovery_type(), daemon_id, network_id)
             .await?;
 
-        let docker_subnets = self.get_subnets_from_docker_networks(daemon_id).await?;
+        let docker_subnets = self
+            .get_subnets_from_docker_networks(daemon_id, network_id)
+            .await?;
 
         let subnets = [host_subnets, docker_subnets].concat();
 
@@ -204,6 +219,13 @@ impl Discovery<DockerScanDiscovery> {
     /// Create service which has all discovered containers in containers field
     pub async fn create_docker_daemon_service(&self, services: Vec<Service>) -> Result<(), Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
+        let network_id = self
+            .as_ref()
+            .config_store
+            .get_network_id()
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("Network ID not set"))?;
+
         let host_id = self.domain.host_id;
 
         let docker_service_definition = crate::server::services::definitions::docker_daemon::Docker;
@@ -213,6 +235,7 @@ impl Discovery<DockerScanDiscovery> {
             service_definition: Box::new(docker_service_definition),
             bindings: vec![],
             host_id,
+            network_id,
             virtualization: None,
             vms: vec![],
             containers: services.iter().map(|s| s.id).collect(),
@@ -224,6 +247,7 @@ impl Discovery<DockerScanDiscovery> {
 
         let mut temp_docker_daemon_host = Host::new(HostBase::default());
         temp_docker_daemon_host.id = self.domain.host_id;
+        temp_docker_daemon_host.base.network_id = network_id;
         temp_docker_daemon_host.base.source = EntitySource::Discovery {
             metadata: vec![DiscoveryMetadata::new(self.discovery_type(), daemon_id)],
         };
@@ -523,7 +547,11 @@ impl Discovery<DockerScanDiscovery> {
             .map_err(|e| anyhow!(e))
     }
 
-    pub async fn get_subnets_from_docker_networks(&self, daemon_id: Uuid) -> Result<Vec<Subnet>> {
+    pub async fn get_subnets_from_docker_networks(
+        &self,
+        daemon_id: Uuid,
+        network_id: Uuid,
+    ) -> Result<Vec<Subnet>> {
         let docker = self
             .domain
             .docker_client
@@ -547,6 +575,7 @@ impl Discovery<DockerScanDiscovery> {
                             return Some(Subnet::new(SubnetBase {
                                 cidr: IpCidr::from_str(cidr).ok()?,
                                 description: None,
+                                network_id,
                                 name: network_name.clone(),
                                 subnet_type: SubnetType::DockerBridge,
                                 source: EntitySource::Discovery {
@@ -603,6 +632,8 @@ impl Discovery<DockerScanDiscovery> {
         container_name: &str,
         cancel: CancellationToken,
     ) -> Result<Vec<EndpointResponse>, Error> {
+        use std::collections::HashMap;
+
         // Build inverse map: (container_port) -> Vec<(host_ip, host_port)>
         let mut container_to_host_port_map: HashMap<u16, Vec<(IpAddr, u16)>> = HashMap::new();
         for ((host_ip, host_port), container_port) in host_to_container_port_map {
@@ -612,28 +643,36 @@ impl Discovery<DockerScanDiscovery> {
                 .push((*host_ip, *host_port));
         }
 
-        tracing::debug!(
-            "Scanning {} endpoints for container {} at {} using docker exec",
-            Service::all_discovery_endpoints().len(),
-            container_name,
-            interface.base.ip_address
-        );
-
         let docker = self
             .domain
             .docker_client
             .get()
             .ok_or_else(|| anyhow!("Docker client unavailable"))?;
 
-        let endpoints_to_scan = Service::all_discovery_endpoints();
+        let all_endpoints = Service::all_discovery_endpoints();
+
+        // Group endpoints by (port, path) to avoid duplicate requests
+        let mut unique_endpoints: HashMap<(u16, String), Endpoint> = HashMap::new();
+        for endpoint in all_endpoints {
+            let key = (endpoint.port_base.number(), endpoint.path.clone());
+            unique_endpoints.entry(key).or_insert(endpoint);
+        }
+
+        tracing::debug!(
+            "Scanning {} unique endpoints for container {} at {} using docker exec (deduplicated from {} total)",
+            unique_endpoints.len(),
+            container_name,
+            interface.base.ip_address,
+            Service::all_discovery_endpoints().len()
+        );
+
         let mut endpoint_responses = Vec::new();
 
-        for endpoint in endpoints_to_scan {
+        // Only make one docker exec per unique (port, path) combination
+        for ((container_port, path), endpoint) in unique_endpoints {
             if cancel.is_cancelled() {
                 break;
             }
-
-            let container_port = endpoint.port_base.number();
 
             let url = format!(
                 "{}://127.0.0.1:{}{}",
@@ -642,7 +681,7 @@ impl Discovery<DockerScanDiscovery> {
                     ApplicationProtocol::Https => "https",
                 },
                 container_port,
-                endpoint.path
+                path
             );
 
             // Execute curl with -i to include headers, or wget with -S
@@ -696,82 +735,34 @@ impl Discovery<DockerScanDiscovery> {
                     // Only accept 2xx-3xx status codes
                     if (199..400).contains(&status_code) {
                         tracing::debug!(
-                            "Got successful response (status {}) from container {}:{}{} (length: {})",
-                            status_code,
+                            "Endpoint {}:{}{} returned status {} for container {}",
                             interface.base.ip_address,
                             container_port,
-                            endpoint.path,
-                            response_body.len()
+                            path,
+                            status_code,
+                            container_name
                         );
 
-                        // Create response for container IP/port
-                        endpoint_responses.push(EndpointResponse {
-                            endpoint: Endpoint {
-                                protocol: endpoint.protocol,
-                                ip: Some(interface.base.ip_address),
-                                port_base: endpoint.port_base,
-                                path: endpoint.path.clone(),
-                            },
-                            response: response_body.to_string(),
-                        });
-
-                        // ALSO create responses for any exposed host ports
+                        // Map back to the host-visible endpoint
                         if let Some(host_mappings) = container_to_host_port_map.get(&container_port)
                         {
                             for (host_ip, host_port) in host_mappings {
-                                // Determine the correct PortBase for the host port
-                                let host_port_base = if *host_port == container_port {
-                                    endpoint.port_base // Same port number, keep original type
-                                } else {
-                                    // Different port number, create custom port
-                                    match endpoint.port_base.protocol() {
-                                        crate::server::hosts::types::ports::TransportProtocol::Tcp => {
-                                            PortBase::new_tcp(*host_port)
-                                        }
-                                        crate::server::hosts::types::ports::TransportProtocol::Udp => {
-                                            PortBase::new_udp(*host_port)
-                                        }
-                                    }
+                                let host_endpoint = Endpoint {
+                                    ip: Some(*host_ip),
+                                    port_base: PortBase::new_tcp(*host_port),
+                                    protocol: endpoint.protocol,
+                                    path: path.clone(),
                                 };
 
                                 endpoint_responses.push(EndpointResponse {
-                                    endpoint: Endpoint {
-                                        protocol: endpoint.protocol,
-                                        ip: Some(*host_ip),
-                                        port_base: host_port_base,
-                                        path: endpoint.path.clone(),
-                                    },
-                                    response: response_body.to_string(),
+                                    endpoint: host_endpoint,
+                                    response: response_body.clone(),
                                 });
-
-                                tracing::debug!(
-                                    "Also mapped to host {}:{}{} (from container port {})",
-                                    host_ip,
-                                    host_port,
-                                    endpoint.path,
-                                    container_port
-                                );
                             }
                         }
-                    } else {
-                        tracing::debug!(
-                            "Skipping non-2xx response (status {}) from container {}:{}{}",
-                            status_code,
-                            interface.base.ip_address,
-                            container_port,
-                            endpoint.path
-                        );
                     }
                 }
             }
-        }
-
-        if !endpoint_responses.is_empty() {
-            tracing::debug!(
-                "Scanned container {} and found {} endpoint responses (including host mappings)",
-                container_name,
-                endpoint_responses.len()
-            );
         }
 
         Ok(endpoint_responses)

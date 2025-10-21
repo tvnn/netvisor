@@ -6,11 +6,17 @@ import { services } from '../services/store';
 import { getInterfaceFromId, hosts } from '../hosts/store';
 import { serviceDefinitions } from '$lib/shared/stores/metadata';
 import type { Service } from '../services/types/base';
+import { currentNetwork } from '../networks/store';
 
 export const subnets = writable<Subnet[]>([]);
 
 export async function getSubnets() {
-	return await api.request<Subnet[]>('/subnets', subnets, (subnets) => subnets, { method: 'GET' });
+	return await api.request<Subnet[]>(
+		`/subnets?network_id=${get(currentNetwork).id}`,
+		subnets,
+		(subnets) => subnets,
+		{ method: 'GET' }
+	);
 }
 
 export async function createSubnet(subnet: Subnet) {
@@ -58,6 +64,7 @@ export function createEmptySubnetFormData(): Subnet {
 		created_at: utcTimeZoneSentinel,
 		updated_at: utcTimeZoneSentinel,
 		name: '',
+		network_id: get(currentNetwork).id,
 		cidr: '',
 		description: '',
 		subnet_type: 'Unknown',

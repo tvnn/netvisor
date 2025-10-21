@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS hosts (
     id UUID PRIMARY KEY,
+    network_id UUID NOT NULL REFERENCES networks(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     hostname TEXT,
     description TEXT,
@@ -12,3 +13,5 @@ CREATE TABLE IF NOT EXISTS hosts (
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_hosts_network ON hosts(network_id);

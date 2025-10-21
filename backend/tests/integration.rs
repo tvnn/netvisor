@@ -3,6 +3,7 @@ use std::process::{Child, Command};
 use netvisor::server::daemons::types::api::DiscoveryUpdatePayload;
 use netvisor::server::daemons::types::base::Daemon;
 use netvisor::server::discovery::types::api::InitiateDiscoveryRequest;
+use netvisor::server::networks::types::Network;
 use netvisor::server::services::definitions::home_assistant::HomeAssistant;
 use netvisor::server::services::types::base::Service;
 use netvisor::server::shared::types::api::ApiResponse;
@@ -135,13 +136,58 @@ where
     Err(last_error)
 }
 
+async fn check_network_created(client: &reqwest::Client) -> Result<Network, String> {
+    let network = retry_api_request("check default network exists", 15, 2, || {
+        let client = client.clone();
+
+        async move {
+            let response = client
+                .get("http://localhost:60072/api/networks/default")
+                .send()
+                .await
+                .map_err(|e| format!("Request failed: {}", e))?;
+
+            let status = response.status();
+            if !status.is_success() {
+                let body = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Could not read body".to_string());
+                return Err(format!("Status {}: {}", status, body));
+            }
+
+            let api_response = response
+                .json::<ApiResponse<Network>>()
+                .await
+                .map_err(|e| format!("Failed to parse response: {}", e))?;
+
+            if !api_response.success {
+                let error = api_response
+                    .error
+                    .unwrap_or_else(|| "Unknown error".to_string());
+                return Err(format!("API returned success=false: {}", error));
+            }
+
+            let network = api_response
+                .data
+                .ok_or_else(|| "No data in response".to_string())?;
+
+            println!("✅ Found {}", network);
+            Ok(network)
+        }
+    })
+    .await?;
+
+    Ok(network)
+}
+
 /// Verify daemon is registered
-async fn check_daemon_registered(client: &reqwest::Client) -> Result<Daemon, String> {
+async fn check_daemon_registered(client: &reqwest::Client, network_id: Uuid) -> Result<Daemon, String> {
     let daemons = retry_api_request("check daemon registration", 15, 2, || {
         let client = client.clone();
         async move {
             let response = client
-                .get("http://localhost:60072/api/daemons")
+                .get(format!("http://localhost:60072/api/daemons?network_id={}", network_id))
                 .send()
                 .await
                 .map_err(|e| format!("Request failed: {}", e))?;
@@ -191,7 +237,7 @@ async fn check_daemon_registered(client: &reqwest::Client) -> Result<Daemon, Str
     Ok(daemons.into_iter().next().unwrap())
 }
 
-/// Start discovery and wait for it to complete
+/// Start discovery and wait for it to complete using SSE
 async fn run_discovery_and_wait(client: &reqwest::Client, daemon_id: Uuid) -> Result<(), String> {
     // Initiate discovery
     println!("\n=== Starting Discovery ===");
@@ -234,69 +280,89 @@ async fn run_discovery_and_wait(client: &reqwest::Client, daemon_id: Uuid) -> Re
     let session_id = initial_update.session_id;
     println!("✅ Discovery session started: {}", session_id);
 
-    // Poll for completion
-    retry_api_request("wait for discovery to complete", 60, 5, || {
-        let client = client.clone();
-        let session_id = session_id;
-        async move {
-            let response = client
-                .get(format!(
-                    "http://localhost:60072/api/discovery/{}/status",
-                    session_id
-                ))
-                .send()
-                .await
-                .map_err(|e| format!("Request failed: {}", e))?;
+    // Connect to SSE stream and wait for completion
+    println!("🔌 Connecting to SSE stream...");
+    
+    let mut event_source = client
+        .get("http://localhost:60072/api/discovery/stream")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to connect to SSE stream: {}", e))?;
 
-            let status = response.status();
+    // Set a timeout for the entire discovery process
+    let timeout_duration = tokio::time::Duration::from_secs(300); // 5 minutes
+    let timeout = tokio::time::sleep(timeout_duration);
+    tokio::pin!(timeout);
 
-            if !status.is_success() {
-                let body = response
-                    .text()
-                    .await
-                    .unwrap_or_else(|_| "Could not read body".to_string());
-                return Err(format!("Status {}: {}", status, body));
+    loop {
+        tokio::select! {
+            _ = &mut timeout => {
+                return Err("Discovery timed out after 5 minutes".to_string());
             }
+            
+            chunk = event_source.chunk() => {
+                match chunk {
+                    Ok(Some(bytes)) => {
+                        // Parse SSE data
+                        let text = String::from_utf8_lossy(&bytes);
+                        
+                        // SSE format: "data: {json}\n\n"
+                        for line in text.lines() {
+                            if let Some(data) = line.strip_prefix("data: ") {
+                                match serde_json::from_str::<DiscoveryUpdatePayload>(data) {
+                                    Ok(update) => {
+                                        // Only process updates for our session
+                                        if update.session_id != session_id {
+                                            continue;
+                                        }
 
-            let api_response = response
-                .json::<ApiResponse<DiscoveryUpdatePayload>>()
-                .await
-                .map_err(|e| format!("Failed to parse response: {}", e))?;
+                                        println!(
+                                            "📊 Discovery progress: {} - {}/{} scanned, {} discovered",
+                                            update.phase,
+                                            update.completed,
+                                            update.total,
+                                            update.discovered_count
+                                        );
 
-            if !api_response.success {
-                return Err("API returned success=false".to_string());
-            }
-
-            let update = api_response
-                .data
-                .ok_or_else(|| "No data in response".to_string())?;
-
-            // Check if discovery is complete
-            if update.finished_at.is_some() {
-                if let Some(error) = &update.error {
-                    return Err(format!("Discovery failed: {}", error));
+                                        // Check if discovery is complete
+                                        if update.finished_at.is_some() {
+                                            if let Some(error) = &update.error {
+                                                return Err(format!("Discovery failed: {}", error));
+                                            }
+                                            println!("✅ Discovery completed successfully!");
+                                            println!("   Total scanned: {}", update.completed);
+                                            println!("   Hosts discovered: {}", update.discovered_count);
+                                            return Ok(());
+                                        }
+                                    }
+                                    Err(e) => {
+                                        eprintln!("⚠️  Failed to parse SSE update: {} - Data: {}", e, data);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Ok(None) => {
+                        return Err("SSE stream ended unexpectedly".to_string());
+                    }
+                    Err(e) => {
+                        return Err(format!("Error reading SSE stream: {}", e));
+                    }
                 }
-                println!("✅ Discovery completed successfully!");
-                println!("   Total scanned: {}", update.completed);
-                println!("   Hosts discovered: {}", update.discovered_count);
-                Ok(())
-            } else {
-                Err("Discovery still in progress".to_string())
             }
         }
-    })
-    .await
+    }
 }
 
 /// Check for Home Assistant service
-async fn check_for_home_assistant_service(client: &reqwest::Client) -> Result<Service, String> {
+async fn check_for_home_assistant_service(client: &reqwest::Client, network_id: Uuid) -> Result<Service, String> {
     println!("\n=== Checking for Home Assistant Service ===");
 
     let services = retry_api_request("fetch services", 10, 2, || {
         let client = client.clone();
         async move {
             let response = client
-                .get("http://localhost:60072/api/services")
+                .get(format!("http://localhost:60072/api/services?network_id={}",network_id))
                 .send()
                 .await
                 .map_err(|e| format!("Request failed: {}", e))?;
@@ -366,9 +432,15 @@ async fn test_container_daemon_server_integration() {
 
     let client = reqwest::Client::new();
 
+    println!("\n=== Step 1: Checking Network ===");
+    let network = check_network_created(&client)
+        .await
+        .expect("Failed to verify default network");
+    println!("Network ID: {}", network.id);
+
     // Step 1: Check daemon registration
     println!("\n=== Step 1: Checking Daemon Registration ===");
-    let daemon = check_daemon_registered(&client)
+    let daemon = check_daemon_registered(&client, network.id)
         .await
         .expect("Failed to verify daemon registration");
     println!("Daemon ID: {}", daemon.id);
@@ -381,7 +453,7 @@ async fn test_container_daemon_server_integration() {
 
     // Step 3: Verify Home Assistant service was discovered
     println!("\n=== Step 3: Verifying Service Discovery ===");
-    let _service = check_for_home_assistant_service(&client)
+    let _service = check_for_home_assistant_service(&client, network.id)
         .await
         .expect("Failed to find Home Assistant service");
 

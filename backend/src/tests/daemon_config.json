@@ -1,12 +1,14 @@
 {
-  "server_target": "server",
+  "server_target": "127.0.0.1",
+  "network_id": "60018195-9be8-4fed-b091-fbb6a7a16c89",
   "server_port": 60072,
-  "port": 60073,
+  "daemon_port": 60073,
   "name": "netvisor-daemon",
-  "log_level": "info",
+  "log_level": "debug",
   "heartbeat_interval": 30,
   "bind_address": "0.0.0.0",
-  "id": "f7927234-c7e1-4751-969c-ada1cfadf16e",
-  "last_heartbeat": "2025-10-15T17:44:45.468653082Z",
-  "host_id": "a0ba5ff7-e6de-4373-b908-b95b72c943c5"
+  "concurrent_scans": 15,
+  "id": "e150a9ba-e16d-438e-9677-cd488760dd20",
+  "last_heartbeat": "2025-10-21T03:59:25.321849Z",
+  "host_id": "ef57ae49-7445-4bd1-9af1-54df156866dd"
 }

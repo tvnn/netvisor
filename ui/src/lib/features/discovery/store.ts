@@ -1,44 +1,109 @@
 import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
-import { createPoller, Poller } from '../../shared/utils/polling';
 import type { DiscoveryUpdatePayload, InitiateDiscoveryRequest } from './types/api';
 import { pushError, pushSuccess, pushWarning } from '$lib/shared/stores/feedback';
 import { getHosts } from '../hosts/store';
 import { getSubnets } from '../subnets/store';
 import { getServices } from '../services/store';
+import { SSEClient, type SSEClient as SSEClientType } from '$lib/shared/utils/sse';
 
-// daemon_id to latest update
+// session_id to latest update
 export const sessions = writable<Map<string, DiscoveryUpdatePayload>>(new Map());
 export const cancelling = writable<Map<string, boolean>>(new Map());
 
-// Discovery status poller instance
-let discoveryPoller: Poller | null = null;
+// Track last known discovered_count per session to detect changes
+const lastDiscoveredCount = new Map<string, number>();
 
-export function startDiscoveryPolling() {
-	discoveryPoller = createPoller({
-		intervalMs: 5000, // 5 seconds
-		onPoll: async () => {
-			Promise.all([
-				await getActiveDiscoverySessions(),
-				await getServices(),
-				await getSubnets(),
-				await getHosts()
-			]);
+let sseClient: SSEClientType<DiscoveryUpdatePayload> | null = null;
+
+export function startDiscoverySSE() {
+	if (sseClient?.isConnected()) {
+		return;
+	}
+
+	sseClient = new SSEClient<DiscoveryUpdatePayload>({
+		url: '/api/discovery/stream',
+		onMessage: (update) => {
+			sessions.update((current) => {
+				const newMap = new Map(current);
+				newMap.set(update.session_id, update);
+
+				// Check if discovered_count increased
+				const lastCount = lastDiscoveredCount.get(update.session_id) || 0;
+				const currentCount = update.discovered_count || 0;
+
+				if (currentCount > lastCount) {
+					// New hosts discovered - refresh data
+					getHosts();
+					getServices();
+					getSubnets();
+					lastDiscoveredCount.set(update.session_id, currentCount);
+				}
+
+				// Handle terminal phases
+				if (update.phase === 'Complete') {
+					pushSuccess(`Discovery completed with ${update.discovered_count} hosts found`);
+					// Final refresh on completion
+					getHosts();
+					getServices();
+					getSubnets();
+
+					// Cleanup
+					setTimeout(() => {
+						sessions.update((s) => {
+							const m = new Map(s);
+							m.delete(update.session_id);
+							lastDiscoveredCount.delete(update.session_id);
+							return m;
+						});
+					}, 5000);
+				} else if (update.phase === 'Cancelled') {
+					pushWarning(`Discovery cancelled`);
+					lastDiscoveredCount.delete(update.session_id);
+					setTimeout(() => {
+						sessions.update((s) => {
+							const m = new Map(s);
+							m.delete(update.session_id);
+							return m;
+						});
+					}, 3000);
+				} else if (update.phase === 'Failed' && update.error) {
+					pushError(`Discovery error: ${update.error}`, -1);
+					lastDiscoveredCount.delete(update.session_id);
+				}
+
+				// Clear cancelling state for terminal phases
+				if (
+					update.phase === 'Complete' ||
+					update.phase === 'Cancelled' ||
+					update.phase === 'Failed'
+				) {
+					cancelling.update((c) => {
+						const m = new Map(c);
+						m.delete(update.session_id);
+						return m;
+					});
+				}
+
+				return newMap;
+			});
 		},
-		onError: (pollingError) => {
-			pushError(`Failed to poll discovery status: ${pollingError}`);
-			stopDiscoveryPolling();
+		onError: (error) => {
+			console.error('Discovery SSE error:', error);
+			pushError('Lost connection to discovery updates');
 		},
-		name: 'DiscoveryPoller'
+		onOpen: () => {
+			console.log('Connected to discovery updates');
+		}
 	});
 
-	discoveryPoller.start();
+	sseClient.connect();
 }
 
-export async function stopDiscoveryPolling() {
-	if (discoveryPoller) {
-		discoveryPoller.stop();
-		discoveryPoller = null;
+export function stopDiscoverySSE() {
+	if (sseClient) {
+		sseClient.disconnect();
+		sseClient = null;
 	}
 }
 
@@ -48,14 +113,14 @@ export async function initiateDiscovery(data: InitiateDiscoveryRequest) {
 		sessions,
 		(update, currentSessions) => {
 			const map = new Map(currentSessions);
-			map.set(update.daemon_id, update);
+			map.set(update.session_id, update);
 			return map;
 		},
 		{ method: 'POST', body: JSON.stringify(data) }
 	);
 
-	if (result?.success && !discoveryPoller?.getIsRunning) {
-		startDiscoveryPolling();
+	if (result?.success) {
+		startDiscoverySSE(); // Start SSE on first discovery
 	}
 }
 
@@ -65,58 +130,4 @@ export async function cancelDiscovery(id: string) {
 	cancelling.set(map);
 
 	await api.request<void, void>(`/discovery/${id}/cancel`, null, null, { method: 'POST' });
-}
-
-export async function getActiveDiscoverySessions() {
-	const result = await api.request<DiscoveryUpdatePayload[], Map<string, DiscoveryUpdatePayload>>(
-		'/discovery/active',
-		sessions,
-		(actives, current) => {
-			// Only update if there are actual changes
-			const newMap = actives.reduce((map, session) => {
-				map.set(session.daemon_id, session);
-				return map;
-			}, new Map<string, DiscoveryUpdatePayload>());
-
-			// Compare with current state - only return new map if different
-			if (current.size !== newMap.size) {
-				return newMap;
-			}
-
-			// Check for actual content changes
-			for (const [daemonId, session] of newMap) {
-				const currentSession = current.get(daemonId);
-				if (
-					!currentSession ||
-					currentSession.completed !== session.completed ||
-					currentSession.phase !== session.phase ||
-					currentSession.discovered_count !== session.discovered_count ||
-					currentSession.error !== session.error
-				) {
-					if (session.phase == 'Complete')
-						pushSuccess(`Discovery completed with ${session.discovered_count} hosts found`);
-					if (session.phase == 'Cancelled')
-						pushWarning(`Discovery cancelled with ${session.discovered_count} hosts found`);
-					const updatedCancelling = new Map(get(cancelling));
-					updatedCancelling.set(session.session_id, false);
-					cancelling.set(updatedCancelling);
-					if (session.error) {
-						pushError(`Discovery error: ${session.error}`, -1);
-					}
-
-					return newMap;
-				}
-			}
-
-			// No changes - return current to prevent reactive updates
-			return current;
-		},
-		{ method: 'GET' }
-	);
-
-	if (result?.success && result.data && result.data?.length > 0) {
-		if (!discoveryPoller?.getIsRunning()) startDiscoveryPolling();
-	} else {
-		stopDiscoveryPolling();
-	}
 }

@@ -6,11 +6,7 @@
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
 	import { getDaemons, hostDaemonMap } from '$lib/features/daemons/store';
 	import type { Daemon } from '$lib/features/daemons/types/base';
-	import {
-		getActiveDiscoverySessions,
-		initiateDiscovery,
-		sessions
-	} from '$lib/features/discovery/store';
+	import { initiateDiscovery, sessions } from '$lib/features/discovery/store';
 	import HostEditor from './HostEditModal/HostEditor.svelte';
 	import HostConsolidationModal from './HostConsolidationModal.svelte';
 	import { consolidateHosts, createHost, deleteHost, getHosts, hosts, updateHost } from '../store';
@@ -19,14 +15,7 @@
 	import { getServiceForBinding, getServices } from '$lib/features/services/store';
 	import { getSubnets } from '$lib/features/subnets/store';
 
-	const loading = loadData([
-		getHosts,
-		getGroups,
-		getServices,
-		getSubnets,
-		getDaemons,
-		getActiveDiscoverySessions
-	]);
+	const loading = loadData([getHosts, getGroups, getServices, getSubnets, getDaemons]);
 
 	let showHostEditor = false;
 	let editingHost: Host | null = null;

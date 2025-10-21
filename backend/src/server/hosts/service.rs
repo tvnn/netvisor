@@ -48,8 +48,8 @@ impl HostService {
         self.storage.get_by_id(id).await
     }
 
-    pub async fn get_all_hosts(&self) -> Result<Vec<Host>> {
-        self.storage.get_all().await
+    pub async fn get_all_hosts(&self, network_id: &Uuid) -> Result<Vec<Host>> {
+        self.storage.get_all(network_id).await
     }
 
     pub async fn create_host_with_services(
@@ -60,9 +60,11 @@ impl HostService {
         // Create host first (handles duplicates via upsert_host)
 
         let mut created_host = if host.id == Uuid::nil() {
-            self.create_host(Host::new(host.base.clone())).await?
+            self.create_host(Host::new(host.base.clone()), &host.base.network_id)
+                .await?
         } else {
-            self.create_host(host.clone()).await?
+            self.create_host(host.clone(), &host.base.network_id)
+                .await?
         };
 
         // Create services, handling case where created_host was upserted instead of created anew (ie during discovery), which means that host ID + interfaces/port IDs
@@ -94,10 +96,10 @@ impl HostService {
     }
 
     /// Create a new host
-    async fn create_host(&self, host: Host) -> Result<Host> {
+    async fn create_host(&self, host: Host, network_id: &Uuid) -> Result<Host> {
         tracing::debug!("Creating host {:?}", host);
 
-        let all_hosts = self.storage.get_all().await?;
+        let all_hosts = self.storage.get_all(network_id).await?;
 
         let host_from_storage = match all_hosts.into_iter().find(|h| host.eq(h)) {
             // If both are from discovery, or if they have the same ID but for some reason the create route is being used, upsert data
@@ -419,14 +421,17 @@ impl HostService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Host {} not found", id))?;
 
-        let mut all_services = self.service_service.get_all_services().await?;
+        let mut all_services = self
+            .service_service
+            .get_all_services(&host.base.network_id)
+            .await?;
 
         let lock = self.get_host_lock(id).await;
         let _guard = lock.lock().await;
 
         if delete_services {
             for service_id in &host.base.services {
-                self.service_service.delete_service(service_id).await?;
+                let _ = self.service_service.delete_service(service_id).await;
             }
         }
 

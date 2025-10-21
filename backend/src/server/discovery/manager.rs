@@ -1,7 +1,7 @@
 use anyhow::Error;
 use chrono::Utc;
 use std::collections::HashMap;
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 
 use crate::{
@@ -13,14 +13,21 @@ use crate::{
 pub struct DiscoverySessionManager {
     sessions: RwLock<HashMap<Uuid, DiscoveryUpdatePayload>>, // session_id -> session state mapping
     daemon_sessions: RwLock<HashMap<Uuid, Uuid>>,            // daemon_id -> session_id mapping
+    update_tx: broadcast::Sender<DiscoveryUpdatePayload>,
 }
 
 impl DiscoverySessionManager {
     pub fn new() -> Self {
+        let (tx, _rx) = broadcast::channel(100); // Buffer 100 messages
         Self {
             sessions: RwLock::new(HashMap::new()),
             daemon_sessions: RwLock::new(HashMap::new()),
+            update_tx: tx,
         }
+    }
+
+    pub fn subscribe(&self) -> broadcast::Receiver<DiscoveryUpdatePayload> {
+        self.update_tx.subscribe()
     }
 
     /// Create a new discovery session
@@ -69,6 +76,9 @@ impl DiscoverySessionManager {
                 update.completed,
                 update.total
             );
+
+            let _ = self.update_tx.send(update.clone());
+
             *session = update;
 
             if matches!(
@@ -128,37 +138,6 @@ impl DiscoverySessionManager {
                 tracing::debug!("Cleaned up old discovery session {}", session_id);
             }
         }
-    }
-
-    /// Get active session count for monitoring
-    pub async fn get_active_sessions(&self) -> Vec<DiscoveryUpdatePayload> {
-        let now = Utc::now();
-
-        self.sessions
-            .read()
-            .await
-            .values()
-            .filter(|session| {
-                match session.phase {
-                    // Always show active phases
-                    DiscoveryPhase::Initiated
-                    | DiscoveryPhase::Started
-                    | DiscoveryPhase::Scanning => true,
-
-                    // Show terminal phases for a short time so UI can poll and see them
-                    DiscoveryPhase::Complete
-                    | DiscoveryPhase::Cancelled
-                    | DiscoveryPhase::Failed => {
-                        if let Some(finished_at) = session.finished_at {
-                            (now - finished_at).num_seconds() < 30 // Keep for 30 seconds
-                        } else {
-                            true // If no finished_at yet, keep showing it
-                        }
-                    }
-                }
-            })
-            .cloned()
-            .collect()
     }
 }
 

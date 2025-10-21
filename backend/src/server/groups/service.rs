@@ -26,8 +26,8 @@ impl GroupService {
     }
 
     /// Get all groups
-    pub async fn get_all_groups(&self) -> Result<Vec<Group>> {
-        self.group_storage.get_all().await
+    pub async fn get_all_groups(&self, network_id: &Uuid) -> Result<Vec<Group>> {
+        self.group_storage.get_all(network_id).await
     }
 
     /// Update group

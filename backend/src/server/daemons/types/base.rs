@@ -7,6 +7,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DaemonBase {
     pub host_id: Uuid,
+    pub network_id: Uuid,
     pub ip: IpAddr,
     pub port: u16,
 }

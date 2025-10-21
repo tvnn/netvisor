@@ -4,7 +4,7 @@ use crate::server::daemons::types::base::{Daemon, DaemonBase};
 use anyhow::Error;
 use anyhow::Result;
 use async_trait::async_trait;
-use sqlx::{Row, PgPool};
+use sqlx::{PgPool, Row};
 use tracing::info;
 use uuid::Uuid;
 
@@ -13,7 +13,7 @@ pub trait DaemonStorage: Send + Sync {
     async fn create(&self, daemon: &Daemon) -> Result<()>;
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Daemon>>;
     async fn get_by_host_id(&self, host_id: &Uuid) -> Result<Option<Daemon>>;
-    async fn get_all(&self) -> Result<Vec<Daemon>>;
+    async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Daemon>>;
     async fn update(&self, group: &Daemon) -> Result<()>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
 }
@@ -37,16 +37,17 @@ impl DaemonStorage for PostgresDaemonStorage {
             r#"
             INSERT INTO daemons (
                 id, host_id, ip, port,
-                last_seen, registered_at
-            ) VALUES ($1, $2, $3, $4, $5, $6)
+                last_seen, registered_at, network_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             "#,
         )
-        .bind(&daemon.id)
-        .bind(&daemon.base.host_id)
+        .bind(daemon.id)
+        .bind(daemon.base.host_id)
         .bind(ip_str)
-        .bind(TryInto::<i32>::try_into(daemon.base.port).unwrap())
+        .bind(Into::<i32>::into(daemon.base.port))
         .bind(chrono::Utc::now())
         .bind(chrono::Utc::now())
+        .bind(daemon.base.network_id)
         .execute(&self.pool)
         .await?;
 
@@ -77,8 +78,9 @@ impl DaemonStorage for PostgresDaemonStorage {
         }
     }
 
-    async fn get_all(&self) -> Result<Vec<Daemon>> {
-        let rows = sqlx::query("SELECT * FROM daemons")
+    async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Daemon>> {
+        let rows = sqlx::query("SELECT * FROM daemons WHERE network_id = $1")
+            .bind(network_id)
             .fetch_all(&self.pool)
             .await
             .map_err(|e| {
@@ -104,8 +106,8 @@ impl DaemonStorage for PostgresDaemonStorage {
             WHERE id = $1
             "#,
         )
-        .bind(&daemon.id)
-        .bind(&daemon.base.host_id)
+        .bind(daemon.id)
+        .bind(daemon.base.host_id)
         .bind(ip_str)
         .bind(daemon.base.port as i32)
         .bind(chrono::Utc::now())
@@ -136,7 +138,8 @@ fn row_to_daemon(row: sqlx::postgres::PgRow) -> Result<Daemon, Error> {
         base: DaemonBase {
             ip,
             port: row.get::<i32, _>("port").try_into().unwrap(),
-            host_id: row.get("host_id")
+            host_id: row.get("host_id"),
+            network_id: row.get("network_id"),
         },
     })
 }
