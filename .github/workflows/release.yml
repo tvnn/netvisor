@@ -9,7 +9,6 @@ permissions:
   packages: write
 
 jobs:
-
   build-binaries:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
