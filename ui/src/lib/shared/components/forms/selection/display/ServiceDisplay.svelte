@@ -13,7 +13,7 @@
 				let confidence = service.source.details.confidence;
 
 				if (confidence != 'Certain' && confidence != 'NotApplicable') {
-					descriptionItems.push('Match Confidence: ' + confidence);
+					descriptionItems.push(matchConfidenceLabel(confidence));
 				}
 			}
 
@@ -46,6 +46,7 @@
 	import type { EntityDisplayComponent } from '../types';
 	import type { Service } from '$lib/features/services/types/base';
 	import type { TagProps } from '$lib/shared/components/data/types';
+	import { matchConfidenceLabel } from '$lib/shared/types';
 
 	export let item: Service;
 </script>

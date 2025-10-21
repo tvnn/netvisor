@@ -24,7 +24,7 @@
 
 <!-- Basic Information -->
 <div class="space-y-4">
-	<h3 class="text-lg font-medium text-white">Subnet Details</h3>
+	<h3 class="text-primary text-lg font-medium">Subnet Details</h3>
 
 	<TextInput
 		label="Name"
@@ -47,13 +47,13 @@
 	/>
 
 	<!-- Subnet Type -->
-	<label for="subnet_type" class="mb-2 block text-sm font-medium text-gray-300">
+	<label for="subnet_type" class="text-secondary mb-2 block text-sm font-medium">
 		Network Type
 	</label>
 	<select
 		id="subnet_type"
 		bind:value={formData.subnet_type}
-		class="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-white focus:border-transparent focus:outline-none focus:ring-2"
+		class="text-primary w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2"
 	>
 		{#each subnetTypes.getItems() as subnet_type (subnet_type.id)}
 			<option value={subnet_type.id}>{subnet_type.name}</option>

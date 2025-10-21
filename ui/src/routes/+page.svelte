@@ -103,7 +103,7 @@
 </script>
 
 {#if appInitialized}
-	<div class="flex min-h-screen bg-gray-900 text-white">
+	<div class="flex min-h-screen">
 		<!-- Sidebar -->
 		<Sidebar {activeTab} onTabChange={handleTabChange} />
 
@@ -127,15 +127,3 @@
 		</main>
 	</div>
 {/if}
-
-<style>
-	:global(html) {
-		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	}
-
-	:global(body) {
-		margin: 0;
-		padding: 0;
-		background: #111827;
-	}
-</style>

@@ -18,7 +18,7 @@
 		<div class="flex h-7 w-7 flex-shrink-0 items-center justify-center">
 			<svelte:component
 				this={icon}
-				class="h-5 w-5 {displayComponent.getIconColor?.(item, context) || 'text-gray-300'}"
+				class="h-5 w-5 {displayComponent.getIconColor?.(item, context) || 'text-secondary'}"
 			/>
 		</div>
 	{/if}
@@ -26,7 +26,7 @@
 	<!-- Label and description -->
 	<div class="min-w-0 flex-1 text-left">
 		<div class="flex items-center gap-3">
-			<span class="block truncate">{displayComponent.getLabel(item, context)}</span>
+			<span class="text-secondary block truncate">{displayComponent.getLabel(item, context)}</span>
 			<!-- Tags -->
 			{#if tags.length > 0}
 				<div class="flex gap-1">
@@ -37,7 +37,7 @@
 			{/if}
 		</div>
 		{#if description.length > 0}
-			<span class="mt-2 block truncate text-xs text-gray-400">{description}</span>
+			<span class="text-tertiary mt-2 block truncate text-xs">{description}</span>
 		{/if}
 	</div>
 </div>

@@ -182,12 +182,18 @@ async fn check_network_created(client: &reqwest::Client) -> Result<Network, Stri
 }
 
 /// Verify daemon is registered
-async fn check_daemon_registered(client: &reqwest::Client, network_id: Uuid) -> Result<Daemon, String> {
+async fn check_daemon_registered(
+    client: &reqwest::Client,
+    network_id: Uuid,
+) -> Result<Daemon, String> {
     let daemons = retry_api_request("check daemon registration", 15, 2, || {
         let client = client.clone();
         async move {
             let response = client
-                .get(format!("http://localhost:60072/api/daemons?network_id={}", network_id))
+                .get(format!(
+                    "http://localhost:60072/api/daemons?network_id={}",
+                    network_id
+                ))
                 .send()
                 .await
                 .map_err(|e| format!("Request failed: {}", e))?;
@@ -282,7 +288,7 @@ async fn run_discovery_and_wait(client: &reqwest::Client, daemon_id: Uuid) -> Re
 
     // Connect to SSE stream and wait for completion
     println!("🔌 Connecting to SSE stream...");
-    
+
     let mut event_source = client
         .get("http://localhost:60072/api/discovery/stream")
         .send()
@@ -299,13 +305,13 @@ async fn run_discovery_and_wait(client: &reqwest::Client, daemon_id: Uuid) -> Re
             _ = &mut timeout => {
                 return Err("Discovery timed out after 5 minutes".to_string());
             }
-            
+
             chunk = event_source.chunk() => {
                 match chunk {
                     Ok(Some(bytes)) => {
                         // Parse SSE data
                         let text = String::from_utf8_lossy(&bytes);
-                        
+
                         // SSE format: "data: {json}\n\n"
                         for line in text.lines() {
                             if let Some(data) = line.strip_prefix("data: ") {
@@ -355,14 +361,20 @@ async fn run_discovery_and_wait(client: &reqwest::Client, daemon_id: Uuid) -> Re
 }
 
 /// Check for Home Assistant service
-async fn check_for_home_assistant_service(client: &reqwest::Client, network_id: Uuid) -> Result<Service, String> {
+async fn check_for_home_assistant_service(
+    client: &reqwest::Client,
+    network_id: Uuid,
+) -> Result<Service, String> {
     println!("\n=== Checking for Home Assistant Service ===");
 
     let services = retry_api_request("fetch services", 10, 2, || {
         let client = client.clone();
         async move {
             let response = client
-                .get(format!("http://localhost:60072/api/services?network_id={}",network_id))
+                .get(format!(
+                    "http://localhost:60072/api/services?network_id={}",
+                    network_id
+                ))
                 .send()
                 .await
                 .map_err(|e| format!("Request failed: {}", e))?;

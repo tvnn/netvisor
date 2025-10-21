@@ -58,17 +58,12 @@
 			{
 				label: 'Delete Group',
 				icon: Trash2,
-				color: 'text-gray-400',
-				hoverColor: 'text-red-400',
-				bgHover: 'hover:bg-red-900/20',
+				class: 'btn-icon-danger',
 				onClick: () => onDelete(group)
 			},
 			{
 				label: 'Edit Group',
 				icon: Edit,
-				color: 'text-gray-400',
-				hoverColor: 'text-white',
-				bgHover: 'hover:bg-gray-700',
 				onClick: () => onEdit(group)
 			}
 		]

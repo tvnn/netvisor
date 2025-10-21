@@ -7,8 +7,6 @@
 	export let title: string;
 	export let link: string = '';
 	export let subtitle: string = '';
-	export let status: string = '';
-	export let statusColor: string = 'text-gray-400';
 	export let icon: IconComponent | null = null; // Expects Svelte component, not string
 	export let iconColor: string = 'text-blue-400';
 	export let actions: CardAction[] = [];
@@ -19,9 +17,7 @@
 	export let footerProps: Record<string, unknown> = {}; // Props to pass to footer component
 </script>
 
-<div
-	class="flex h-full flex-col rounded-lg border border-gray-700 bg-gray-800 p-6 transition-colors hover:border-gray-600"
->
+<div class="card-modern flex h-full flex-col">
 	<!-- Header -->
 	<div class="mb-4 flex items-start justify-between">
 		<div class="flex items-center space-x-3">
@@ -30,31 +26,26 @@
 			{/if}
 			<div>
 				{#if link}
-					<a
-						href={link}
-						class="text-lg font-semibold text-white hover:text-blue-400"
-						target="_blank">{title}</a
+					<a href={link} class="text-primary hover:text-info text-lg font-semibold" target="_blank"
+						>{title}</a
 					>
 				{:else}
-					<h3 class="text-lg font-semibold text-white">{title}</h3>
+					<h3 class="text-primary text-lg font-semibold">{title}</h3>
 				{/if}
 				{#if subtitle}
-					<p class="text-sm text-gray-400">{subtitle}</p>
+					<p class="text-secondary text-sm">{subtitle}</p>
 				{/if}
 			</div>
 		</div>
-		{#if status}
-			<span class="text-sm font-medium {statusColor}">{status}</span>
-		{/if}
 	</div>
 
 	<!-- Content - grows to fill available space -->
 	<div class="flex-grow space-y-3">
 		<!-- Basic info sections -->
 		{#each sections as section (section.value)}
-			<div class="text-sm text-gray-300">
-				<span class="text-gray-400">{section.label}:</span>
-				<span class="ml-2">{section.value}</span>
+			<div class="text-sm">
+				<span class="text-secondary">{section.label}:</span>
+				<span class="text-tertiary ml-2">{section.value}</span>
 			</div>
 		{/each}
 
@@ -64,7 +55,7 @@
 				<div class="text-sm">
 					<div class="flex flex-wrap items-center gap-2">
 						{#if list.label}
-							<span class="text-gray-400">{list.label}:</span>
+							<span class="text-secondary">{list.label}:</span>
 						{/if}
 						{#if list.items.length > 0}
 							{#each list.items as item (item.id)}
@@ -86,16 +77,12 @@
 												<button
 													on:click={action.onClick}
 													disabled={action.disabled}
-													class="p-1 {action.color || 'text-gray-400'} hover:{action.hoverColor ||
-														'text-white'} {action.bgHover ||
-														'hover:bg-gray-700'} rounded transition-colors disabled:opacity-50"
+													class={(action.class ? action.class : 'btn-icon') +
+														' ' +
+														action.animation || ''}
 													title={action.label}
 												>
-													<svelte:component
-														this={action.icon}
-														size={16}
-														class={action.animation || ''}
-													/>
+													<svelte:component this={action.icon} size={16} />
 												</button>
 											{/each}
 										</div>
@@ -103,8 +90,7 @@
 								</div>
 							{/each}
 						{:else if list.label}
-							<span class="text-gray-500">{list.emptyText || `No ${list.label.toLowerCase()}`}</span
-							>
+							<span class="text-muted">{list.emptyText || `No ${list.label.toLowerCase()}`}</span>
 						{/if}
 					</div>
 				</div>
@@ -114,24 +100,22 @@
 
 	<!-- Footer Component -->
 	{#if footerComponent}
-		<div class="mt-4 border-t border-gray-700 pt-4">
+		<div class="card-divider mt-4 pt-4">
 			<svelte:component this={footerComponent} {...footerProps} />
 		</div>
 	{/if}
 
 	<!-- Action Buttons -->
 	{#if actions.length > 0}
-		<div class="mt-4 flex items-center justify-between border-t border-gray-700 pt-4">
+		<div class="card-divider mt-4 flex items-center justify-between pt-4">
 			{#each actions as action (action.label)}
 				<button
 					on:click={action.onClick}
 					disabled={action.disabled}
-					class="p-2 {action.color || 'text-gray-400'} hover:{action.hoverColor ||
-						'text-white'} {action.bgHover ||
-						'hover:bg-gray-700'} rounded transition-colors disabled:opacity-50"
+					class={(action.class ? action.class : 'btn-icon') + ' ' + action.animation || ''}
 					title={action.label}
 				>
-					<svelte:component this={action.icon} size={16} class={action.animation || ''} />
+					<svelte:component this={action.icon} size={16} />
 				</button>
 			{/each}
 		</div>

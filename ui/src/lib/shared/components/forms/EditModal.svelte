@@ -87,9 +87,7 @@
 						type="button"
 						disabled={deleting || loading}
 						on:click={handleDelete}
-						class="rounded-lg border border-red-700/30 px-4 py-2
-                   text-red-400 transition-colors hover:border-red-600/50 hover:bg-red-900/20
-                   hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+						class="btn-danger"
 					>
 						{deleting ? 'Deleting...' : 'Delete'}
 					</button>
@@ -103,9 +101,7 @@
 						type="button"
 						disabled={loading || deleting}
 						on:click={handleCancel}
-						class="rounded-lg border border-gray-600 px-4 py-2
-                   text-gray-400 transition-colors hover:bg-gray-700 hover:text-white
-                   disabled:cursor-not-allowed disabled:opacity-50"
+						class="btn-secondary"
 					>
 						{cancelLabel}
 					</button>
@@ -115,8 +111,7 @@
 					type="button"
 					disabled={actualDisableSave}
 					on:click={handleFormSubmit}
-					class="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors
-                 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+					class="btn-primary"
 				>
 					{loading ? 'Saving...' : saveLabel}
 				</button>

@@ -14,7 +14,11 @@ async fn test_host_deduplication_on_create() {
     let (storage, services) = test_services().await;
 
     let user = services.user_service.create_user(user()).await.unwrap();
-    let network = services.network_service.create_network(network(&user.id)).await.unwrap();
+    let network = services
+        .network_service
+        .create_network(network(&user.id))
+        .await
+        .unwrap();
 
     let start_host_count = storage.hosts.get_all(&network.id).await.unwrap().len();
 
@@ -54,7 +58,11 @@ async fn test_host_upsert_merges_new_data() {
     let (_, services) = test_services().await;
 
     let user = services.user_service.create_user(user()).await.unwrap();
-    let network = services.network_service.create_network(network(&user.id)).await.unwrap();
+    let network = services
+        .network_service
+        .create_network(network(&user.id))
+        .await
+        .unwrap();
 
     // Create host with one interface
     let mut host1 = host(&network.id);
@@ -110,7 +118,11 @@ async fn test_host_consolidation() {
     let (_, services) = test_services().await;
 
     let user = services.user_service.create_user(user()).await.unwrap();
-    let network = services.network_service.create_network(network(&user.id)).await.unwrap();
+    let network = services
+        .network_service
+        .create_network(network(&user.id))
+        .await
+        .unwrap();
 
     let subnet_obj = subnet(&network.id);
     services

@@ -52,7 +52,7 @@
 {#if isOpen}
 	<!-- Modal backdrop -->
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/50 p-4 backdrop-blur-sm"
+		class="modal-backdrop"
 		on:click={handleBackdropClick}
 		role="dialog"
 		aria-modal="true"
@@ -62,41 +62,36 @@
 	>
 		<!-- Modal content -->
 		<div
-			class="w-full rounded-lg border border-gray-700 bg-gray-900 shadow-2xl {sizeClasses[
-				size
-			]} {size === 'full' ? 'h-[95vh]' : 'max-h-[95vh]'} flex flex-col"
+			class="modal-container {sizeClasses[size]} {size === 'full'
+				? 'h-[95vh]'
+				: 'max-h-[95vh]'} flex flex-col"
 		>
 			<!-- Header -->
-			<div class="flex shrink-0 items-center justify-between border-b border-gray-700 p-6">
+			<div class="modal-header">
 				<div class="flex items-center gap-3">
 					{#if $$slots['header-icon']}
 						<slot name="header-icon" />
 					{/if}
-					<h2 id="modal-title" class="text-xl font-semibold text-white">
+					<h2 id="modal-title" class="text-primary text-xl font-semibold">
 						{title}
 					</h2>
 				</div>
 
 				{#if showCloseButton}
-					<button
-						type="button"
-						on:click={handleClose}
-						class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white"
-						aria-label="Close modal"
-					>
+					<button type="button" on:click={handleClose} class="btn-icon" aria-label="Close modal">
 						<X class="h-5 w-5" />
 					</button>
 				{/if}
 			</div>
 
 			<!-- Content slot -->
-			<div class="min-h-0 flex-1 overflow-auto scroll-smooth">
+			<div class="modal-content">
 				<slot />
 			</div>
 
 			<!-- Footer slot -->
 			{#if $$slots.footer}
-				<div class="shrink-0 border-t border-gray-700 p-6">
+				<div class="modal-footer">
 					<slot name="footer" />
 				</div>
 			{/if}

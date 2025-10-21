@@ -27,7 +27,7 @@
 		},
 		getIconColor: (binding: Binding) => {
 			const service = getServiceForBinding(binding.id);
-			if (!service) return 'text-gray-400';
+			if (!service) return 'text-secondary';
 
 			return serviceDefinitions.getColorHelper(service.service_definition).icon;
 		},

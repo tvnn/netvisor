@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { matchConfidenceColor, type MatchReason, type MatchDetails } from '$lib/shared/types';
+	import {
+		matchConfidenceColor,
+		type MatchReason,
+		type MatchDetails,
+		matchConfidenceLabel
+	} from '$lib/shared/types';
 	import { ChevronDown, ChevronRight } from 'lucide-svelte';
 	import Tag from '$lib/shared/components/data/Tag.svelte';
 
@@ -11,8 +16,8 @@
 
 {#snippet matchReasonNode(reason: MatchReason)}
 	{#if reason.type === 'reason'}
-		<div class="flex items-start gap-2 py-1 text-sm text-gray-300">
-			<span class="select-none text-gray-500">•</span>
+		<div class="text-secondary flex items-start gap-2 py-1 text-sm">
+			<span class="text-tertiary select-none">•</span>
 			<span>{reason.data}</span>
 		</div>
 	{:else if reason.type === 'container'}
@@ -22,7 +27,7 @@
 		<div class="py-1">
 			<div class="flex items-start gap-2 px-2 py-1">
 				<span class="w-4 flex-shrink-0"></span>
-				<span class="text-sm font-medium text-gray-200">{label}</span>
+				<span class="text-secondary text-sm font-medium">{label}</span>
 			</div>
 
 			{#if children.length > 0}
@@ -40,17 +45,17 @@
 	<button
 		type="button"
 		onclick={() => (isExpanded = !isExpanded)}
-		class="flex w-full items-center justify-between text-left transition-colors hover:text-white"
+		class="flex w-full items-center justify-between text-left transition-colors"
 	>
-		<div class="flex items-center gap-2">
+		<div class="text-secondary hover:text-info flex items-center gap-2">
 			{#if isExpanded}
-				<ChevronDown class="h-4 w-4 text-gray-400" />
+				<ChevronDown class="h-4 w-4" />
 			{:else}
-				<ChevronRight class="h-4 w-4 text-gray-400" />
+				<ChevronRight class="h-4 w-4" />
 			{/if}
-			<h3 class="text-sm font-semibold text-gray-300">Match Details</h3>
+			<h3 class="text-sm font-semibold">Match Details</h3>
 		</div>
-		<Tag label={details.confidence + ' Confidence'} color={confidenceColor} />
+		<Tag label={matchConfidenceLabel(details.confidence)} color={confidenceColor} />
 	</button>
 
 	{#if isExpanded}

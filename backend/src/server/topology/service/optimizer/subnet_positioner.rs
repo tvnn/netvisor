@@ -99,14 +99,16 @@ impl<'a> SubnetPositioner<'a> {
                                 .unwrap_or(0)
                         });
 
-                        let leftmost = sorted_subnets.first().unwrap();
-                        let rightmost = sorted_subnets.last().unwrap();
-
-                        if self.optimize_edge_subnet(nodes, *leftmost, edges, true) {
-                            improved = true;
+                        if let Some(leftmost) = sorted_subnets.first() {
+                            if self.optimize_edge_subnet(nodes, *leftmost, edges, true) {
+                                improved = true;
+                            }
                         }
-                        if self.optimize_edge_subnet(nodes, *rightmost, edges, false) {
-                            improved = true;
+
+                        if let Some(rightmost) = sorted_subnets.last() {
+                            if self.optimize_edge_subnet(nodes, *rightmost, edges, true) {
+                                improved = true;
+                            }
                         }
                     }
                 }

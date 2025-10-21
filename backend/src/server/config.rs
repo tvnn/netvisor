@@ -6,8 +6,11 @@ use figment::{
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
 
-use crate::server::{shared::{services::ServiceFactory, types::storage::StorageFactory}, users::types::{User, UserBase}};
 use crate::server::{discovery::manager::DiscoverySessionManager, utils::base::ServerNetworkUtils};
+use crate::server::{
+    shared::{services::ServiceFactory, types::storage::StorageFactory},
+    users::types::{User, UserBase},
+};
 
 /// CLI arguments structure (for figment integration)
 #[derive(Debug)]
@@ -39,7 +42,7 @@ pub struct ServerConfig {
     pub web_external_path: Option<PathBuf>,
 
     /// Whether to seed a test user, used for headless integration testing
-    pub seed_test_user: bool
+    pub seed_test_user: bool,
 }
 
 impl Default for ServerConfig {
@@ -110,7 +113,10 @@ impl AppState {
         let services = ServiceFactory::new(&storage).await?;
 
         if config.seed_test_user {
-            services.user_service.create_user(User::new(UserBase::default())).await?;
+            services
+                .user_service
+                .create_user(User::new(UserBase::default()))
+                .await?;
         }
 
         Ok(Arc::new(Self {

@@ -147,10 +147,10 @@
 <div class="relative">
 	<!-- Label -->
 	{#if label}
-		<div class="block text-sm font-medium text-gray-300">
+		<div class="text-secondary mb-2 block text-sm font-medium">
 			{label}
 			{#if required}
-				<span class="ml-1 text-red-400">*</span>
+				<span class="text-danger ml-1">*</span>
 			{/if}
 		</div>
 	{/if}
@@ -160,8 +160,8 @@
 		bind:this={triggerElement}
 		type="button"
 		on:click={handleToggle}
-		class="flex w-full items-center justify-between rounded-md border border-gray-600 bg-gray-700
-           px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500
+		class="text-primary flex w-full items-center justify-between rounded-md border border-gray-600
+           bg-gray-700 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500
            {error ? 'border-red-500' : ''}
            {disabled || options.length == 0 ? 'cursor-not-allowed opacity-50' : ''}"
 		disabled={disabled || options.length == 0}
@@ -170,20 +170,20 @@
 			{#if selectedItem}
 				<ListSelectItem item={selectedItem} {displayComponent} />
 			{:else}
-				<span class="text-gray-400"
+				<span class="text-secondary"
 					>{options.length == 0 ? 'No options available' : placeholder}</span
 				>
 			{/if}
 		</div>
 
 		<ChevronDown
-			class="h-4 w-4 flex-shrink-0 text-gray-400 transition-transform {isOpen ? 'rotate-180' : ''}"
+			class="text-tertiary h-4 w-4 flex-shrink-0 transition-transform {isOpen ? 'rotate-180' : ''}"
 		/>
 	</button>
 
 	<!-- Error Message -->
 	{#if error}
-		<div class="mt-1 flex items-center gap-2 text-sm text-red-400">
+		<div class="text-danger mt-1 flex items-center gap-2 text-sm">
 			<span>{error}</span>
 		</div>
 	{/if}
@@ -205,7 +205,7 @@
 					bind:value={filterText}
 					type="text"
 					placeholder="Type to filter options..."
-					class="w-full rounded border border-gray-600 bg-gray-800 px-2 py-1 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+					class="text-primary w-full rounded border border-gray-600 bg-gray-800 px-2 py-1 text-sm placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
 					on:keydown={handleInputKeydown}
 					on:click|stopPropagation
 				/>
@@ -215,7 +215,7 @@
 		<!-- Options list with scroll container -->
 		<div class="max-h-80 overflow-y-auto">
 			{#if groupedOptions.length === 0 || groupedOptions.every((group) => group.options.length === 0)}
-				<div class="px-3 py-4 text-center text-sm text-gray-400">
+				<div class="text-tertiary px-3 py-4 text-center text-sm">
 					No options match "{filterText}"
 				</div>
 			{:else}
@@ -224,7 +224,7 @@
 						<!-- Category Header -->
 						{#if group.category !== null}
 							<div
-								class="sticky top-0 border-b border-gray-600 bg-gray-800 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-400"
+								class="text-secondary sticky top-0 border-b border-gray-600 bg-gray-800 px-3 py-2 text-xs font-semibold uppercase tracking-wide"
 							>
 								{group.category}
 							</div>

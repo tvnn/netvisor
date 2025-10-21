@@ -117,11 +117,6 @@
 				<!-- Services Section -->
 				<div class="space-y-4">
 					<div class="border-t border-gray-700 pt-6">
-						<h3 class="mb-2 text-lg font-medium text-white">Services</h3>
-						<p class="mb-4 text-sm text-gray-400">
-							Define the services in this group. Only services with at least one port and one
-							interface binding ca be selected.
-						</p>
 						<div class="rounded-lg bg-gray-800/50 p-4">
 							<ListManager
 								label="Services"

@@ -100,12 +100,12 @@
 <div>
 	<div class="mb-2 flex items-start justify-between gap-4">
 		<div class="min-w-0 flex-1">
-			<div class="block text-sm font-medium text-gray-300">
+			<div class="text-primary block text-sm font-medium">
 				{label}
-				{#if required}<span class="text-red-400">*</span>{/if}
+				{#if required}<span class="text-danger">*</span>{/if}
 			</div>
 			{#if helpText}
-				<p class="mt-1 text-sm text-gray-400">
+				<p class="text-secondary mt-1 text-sm">
 					{helpText}
 				</p>
 			{/if}
@@ -116,7 +116,7 @@
 				type="button"
 				disabled={disableCreateNewButton}
 				on:click={() => onCreateNew()}
-				class={`flex flex-shrink-0 items-center gap-2 rounded px-3 py-2 text-sm text-white transition-colors ${disableCreateNewButton ? 'bg-gray-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+				class="btn-primary"
 			>
 				<Plus size={16} />
 				{createNewLabel}
@@ -189,7 +189,7 @@
 									on:click|stopPropagation={() => {
 										editingIndex = editingIndex === index ? -1 : index;
 									}}
-									class="p-1 text-gray-400 transition-colors hover:text-white"
+									class="btn-icon"
 									title={editingIndex === index ? 'Done editing' : 'Edit'}
 								>
 									<Edit size={16} />
@@ -198,7 +198,7 @@
 								<button
 									type="button"
 									on:click|stopPropagation={() => onEdit(item, index)}
-									class="p-1 text-gray-400 transition-colors hover:text-white"
+									class="btn-icon"
 									title="Edit"
 								>
 									<Edit size={16} />
@@ -211,7 +211,7 @@
 								type="button"
 								on:click|stopPropagation={() => moveItemUp(index)}
 								disabled={index === 0}
-								class="p-1 text-gray-400 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+								class="btn-icon"
 								title="Move up"
 							>
 								<ArrowUp size={16} />
@@ -221,7 +221,7 @@
 								type="button"
 								on:click|stopPropagation={() => moveItemDown(index)}
 								disabled={index === items.length - 1}
-								class="p-1 text-gray-400 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+								class="btn-icon"
 								title="Move down"
 							>
 								<ArrowDown size={16} />
@@ -232,7 +232,7 @@
 							<button
 								type="button"
 								on:click|stopPropagation={() => removeItem(index)}
-								class="p-1 text-gray-400 transition-colors hover:text-red-400"
+								class="btn-icon-danger"
 								title="Remove"
 							>
 								<Trash2 size={16} />
@@ -244,7 +244,7 @@
 		</div>
 	{:else if computedEmptyMessage}
 		<div
-			class="rounded-lg border border-dashed border-gray-600 bg-gray-700/10 py-4 text-center text-sm text-gray-400"
+			class="text-secondary rounded-lg border border-dashed border-gray-600 bg-gray-700/10 py-4 text-center text-sm"
 		>
 			{computedEmptyMessage}
 		</div>
@@ -252,7 +252,7 @@
 
 	<!-- Error Message -->
 	{#if error}
-		<div class="mt-2 text-sm text-red-400">
+		<div class="text-danger mt-2 text-sm">
 			{error}
 		</div>
 	{/if}

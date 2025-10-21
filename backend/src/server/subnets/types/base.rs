@@ -281,7 +281,8 @@ impl SubnetType {
                     && name_lower
                         .get(pattern.len()..)
                         .map(|rest| {
-                            rest.is_empty() || rest.chars().next().unwrap().is_ascii_digit()
+                            rest.is_empty()
+                                || rest.chars().next().unwrap_or_default().is_ascii_digit()
                         })
                         .unwrap_or(false)
             }

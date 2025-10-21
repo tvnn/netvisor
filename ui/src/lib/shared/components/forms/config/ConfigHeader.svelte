@@ -4,8 +4,8 @@
 </script>
 
 <div class="border-b border-gray-600 pb-4">
-	<h3 class="text-lg font-medium text-white">{title}</h3>
+	<h3 class="text-primary text-sm font-medium">{title}</h3>
 	{#if subtitle}
-		<p class="text-sm text-gray-400">{subtitle}</p>
+		<p class="text-secondary text-sm">{subtitle}</p>
 	{/if}
 </div>

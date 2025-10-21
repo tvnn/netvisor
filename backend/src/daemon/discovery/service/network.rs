@@ -418,7 +418,7 @@ impl Discovery<NetworkScanDiscovery> {
         let client = reqwest::Client::builder()
             .timeout(SCAN_TIMEOUT)
             .build()
-            .unwrap();
+            .map_err(|e| anyhow!("Could not build client {}", e))?;
 
         let all_endpoints = Service::all_discovery_endpoints();
 
@@ -582,7 +582,8 @@ impl Discovery<NetworkScanDiscovery> {
 
         match AsyncSession::new_v2c(&target, community, 0).await {
             Ok(mut session) => {
-                let sys_descr_oid = Oid::from(&[1, 3, 6, 1, 2, 1, 1, 1, 0]).unwrap();
+                let sys_descr_oid = Oid::from(&[1, 3, 6, 1, 2, 1, 1, 1, 0])
+                    .map_err(|e| anyhow!("Invalid Oid: {:?}", e))?;
 
                 match timeout(Duration::from_millis(2000), session.get(&sys_descr_oid)).await {
                     Ok(Ok(mut response)) => {

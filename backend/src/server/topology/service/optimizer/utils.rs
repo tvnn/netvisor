@@ -113,12 +113,17 @@ impl OptimizerUtils {
             return false;
         }
 
-        let pos1 = self.get_absolute_node_center(node1_src.unwrap(), subnet_positions);
-        let pos2 = self.get_absolute_node_center(node1_tgt.unwrap(), subnet_positions);
-        let pos3 = self.get_absolute_node_center(node2_src.unwrap(), subnet_positions);
-        let pos4 = self.get_absolute_node_center(node2_tgt.unwrap(), subnet_positions);
+        match (node1_src, node1_tgt, node2_src, node2_tgt) {
+            (Some(node1_src), Some(node1_tgt), Some(node2_src), Some(node2_tgt)) => {
+                let pos1 = self.get_absolute_node_center(node1_src, subnet_positions);
+                let pos2 = self.get_absolute_node_center(node1_tgt, subnet_positions);
+                let pos3 = self.get_absolute_node_center(node2_src, subnet_positions);
+                let pos4 = self.get_absolute_node_center(node2_tgt, subnet_positions);
 
-        self.segments_intersect(pos1, pos2, pos3, pos4)
+                self.segments_intersect(pos1, pos2, pos3, pos4)
+            }
+            _ => false,
+        }
     }
 
     fn segments_intersect(&self, p1: Ixy, p2: Ixy, p3: Ixy, p4: Ixy) -> bool {

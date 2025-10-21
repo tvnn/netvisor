@@ -23,7 +23,7 @@ use axum::Router;
 use cidr::IpCidr;
 use cidr::Ipv4Cidr;
 use mac_address::MacAddress;
-use sqlx::{PgPool};
+use sqlx::PgPool;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
@@ -45,7 +45,7 @@ pub async fn setup_test_db() -> (PgPool, String) {
         .with_env_var("POSTGRES_DB", "netvisor_test");
 
     let container = postgres_image.start().await.unwrap();
-    
+
     let port = container.get_host_port_ipv4(5432).await.unwrap();
 
     let database_url = format!(

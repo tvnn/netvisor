@@ -73,51 +73,51 @@ impl AppConfig {
         Ok((config_path.exists(), config_path))
     }
     pub fn load(cli_args: CliArgs) -> anyhow::Result<Self> {
-    let (config_exists, config_path) = AppConfig::get_config_path()?;
-    
-    // Standard configuration layering: Defaults → Config file → Env → CLI (highest priority)
-    let mut figment = Figment::from(Serialized::defaults(AppConfig::default()));
+        let (config_exists, config_path) = AppConfig::get_config_path()?;
 
-    // Add config file if it exists
-    if config_exists {
-        figment = figment.merge(Json::file(&config_path));
-    }
+        // Standard configuration layering: Defaults → Config file → Env → CLI (highest priority)
+        let mut figment = Figment::from(Serialized::defaults(AppConfig::default()));
 
-    // Add environment variables
-    figment = figment.merge(Env::prefixed("NETVISOR_"));
+        // Add config file if it exists
+        if config_exists {
+            figment = figment.merge(Json::file(&config_path));
+        }
 
-    // Add CLI overrides (highest priority) - only if explicitly provided
-    if let Some(server_target) = cli_args.server_target {
-        figment = figment.merge(("server_target", server_target));
-    }
-    if let Some(server_port) = cli_args.server_port {
-        figment = figment.merge(("server_port", server_port));
-    }
-    if let Some(daemon_port) = cli_args.daemon_port {
-        figment = figment.merge(("daemon_port", daemon_port));
-    }
-    if let Some(name) = cli_args.name {
-        figment = figment.merge(("name", name));
-    }
-    if let Some(log_level) = cli_args.log_level {
-        figment = figment.merge(("log_level", log_level));
-    }
-    if let Some(heartbeat_interval) = cli_args.heartbeat_interval {
-        figment = figment.merge(("heartbeat_interval", heartbeat_interval));
-    }
-    if let Some(bind_address) = cli_args.bind_address {
-        figment = figment.merge(("bind_address", bind_address));
-    }
-    if let Some(concurrent_scans) = cli_args.concurrent_scans {
-        figment = figment.merge(("concurrent_scans", concurrent_scans));
-    }
+        // Add environment variables
+        figment = figment.merge(Env::prefixed("NETVISOR_"));
 
-    let config: AppConfig = figment
-        .extract()
-        .map_err(|e| Error::msg(format!("Configuration error: {}", e)))?;
+        // Add CLI overrides (highest priority) - only if explicitly provided
+        if let Some(server_target) = cli_args.server_target {
+            figment = figment.merge(("server_target", server_target));
+        }
+        if let Some(server_port) = cli_args.server_port {
+            figment = figment.merge(("server_port", server_port));
+        }
+        if let Some(daemon_port) = cli_args.daemon_port {
+            figment = figment.merge(("daemon_port", daemon_port));
+        }
+        if let Some(name) = cli_args.name {
+            figment = figment.merge(("name", name));
+        }
+        if let Some(log_level) = cli_args.log_level {
+            figment = figment.merge(("log_level", log_level));
+        }
+        if let Some(heartbeat_interval) = cli_args.heartbeat_interval {
+            figment = figment.merge(("heartbeat_interval", heartbeat_interval));
+        }
+        if let Some(bind_address) = cli_args.bind_address {
+            figment = figment.merge(("bind_address", bind_address));
+        }
+        if let Some(concurrent_scans) = cli_args.concurrent_scans {
+            figment = figment.merge(("concurrent_scans", concurrent_scans));
+        }
 
-    Ok(config)
-}
+        let config: AppConfig = figment
+            .extract()
+            .map_err(|e| Error::msg(format!("Configuration error: {}", e)))?;
+
+        Ok(config)
+    }
 }
 
 pub struct ConfigStore {

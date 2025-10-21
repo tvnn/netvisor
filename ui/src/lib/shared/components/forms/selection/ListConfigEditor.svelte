@@ -1,4 +1,6 @@
 <script lang="ts" generics="TItem">
+	import Loading from '../../feedback/Loading.svelte';
+
 	// Core data
 	export let items: TItem[] = [];
 
@@ -76,12 +78,7 @@
 
 {#if loading}
 	<div class="flex h-full items-center justify-center">
-		<div class="flex items-center gap-3 text-gray-400">
-			<div
-				class="h-5 w-5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent"
-			></div>
-			Loading...
-		</div>
+		<Loading />
 	</div>
 {:else}
 	<div class="flex h-full gap-6">
@@ -98,7 +95,7 @@
 					highlightedIndex={selectedIndex}
 				>
 					<!-- Default slot content if no list slot provided -->
-					<div class="text-gray-400">No list component provided</div>
+					<div class="text-danger">No list component provided</div>
 				</slot>
 			</div>
 
@@ -109,7 +106,7 @@
 		<!-- Right Panel - Configuration -->
 		<div class="{configPanelWidth} overflow-y-auto border-l border-gray-600 p-6">
 			<slot name="config" {selectedItem} {selectedIndex} onChange={handleItemChange}>
-				<div class="flex h-32 items-center justify-center text-gray-400">
+				<div class="text-tertiary flex h-32 items-center justify-center">
 					<p>Select an item to configure</p>
 				</div>
 			</slot>

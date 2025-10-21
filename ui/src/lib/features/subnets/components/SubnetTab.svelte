@@ -75,18 +75,12 @@
 		<Loading />
 	{:else if $subnets.length === 0}
 		<!-- Empty state -->
-		<div class="py-12 text-center">
-			{#if $subnets.length === 0}
-				<EmptyState
-					title="No subnets configured yet"
-					subtitle=""
-					onClick={handleCreateSubnet}
-					cta="Create your first subnet"
-				/>
-			{:else}
-				<p class="text-lg text-gray-400">No subnets match your search</p>
-			{/if}
-		</div>
+		<EmptyState
+			title="No subnets configured yet"
+			subtitle=""
+			onClick={handleCreateSubnet}
+			cta="Create your first subnet"
+		/>
 	{:else}
 		<!-- Subnets grid -->
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

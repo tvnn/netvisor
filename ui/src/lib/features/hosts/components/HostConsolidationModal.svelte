@@ -118,24 +118,24 @@
 			<!-- Step 2: Conversion Preview -->
 			<div>
 				<div class="mb-6 text-center">
-					<h3 class="mb-2 text-lg font-medium text-white">Consolidation Preview</h3>
-					<p class="text-sm text-gray-400">
+					<h3 class="text-primary mb-2 text-lg font-medium">Consolidation Preview</h3>
+					<p class="text-secondary text-sm">
 						Review the changes before confirming the consolidation.
 					</p>
 				</div>
 
 				<!-- Details of what will happen -->
-				<div class="mb-6 rounded-lg border border-gray-700 bg-gray-800/50 p-4">
-					<h4 class="mb-3 text-sm font-medium text-gray-300">What will happen:</h4>
-					<ul class="space-y-2 text-sm text-gray-400">
+				<div class="card-modern mb-6">
+					<h4 class="text-primary mb-3 text-sm font-medium">What will happen:</h4>
+					<ul class="text-secondary space-y-2 text-sm">
 						{#if otherHost && selectedTargetHost}
 							<li class="flex items-start gap-2">
-								<CheckCircle class="mt-0.5 h-4 w-4 shrink-0 text-green-400" />
+								<CheckCircle class="mt-0.5 h-4 w-4 shrink-0 text-success" />
 								<span>Host "{otherHost.name}" will be deleted</span>
 							</li>
 							{#if otherHost.services?.length > 0}
 								<li class="flex items-start gap-2">
-									<CheckCircle class="mt-0.5 h-4 w-4 shrink-0 text-green-400" />
+									<CheckCircle class="mt-0.5 h-4 w-4 shrink-0 text-success" />
 									<span
 										>{otherHost.services.length} services from "{otherHost.name}" will be migrated
 										to "{selectedTargetHost.name}".</span
@@ -144,7 +144,7 @@
 							{/if}
 							{#if otherHost.interfaces?.length > 0}
 								<li class="flex items-start gap-2">
-									<CheckCircle class="mt-0.5 h-4 w-4 shrink-0 text-green-400" />
+									<CheckCircle class="mt-0.5 h-4 w-4 shrink-0 text-success" />
 									<span
 										>{otherHost.interfaces.length} interfaces from "{otherHost.name}" will be
 										migrated to "{selectedTargetHost.name}".</span
@@ -153,7 +153,7 @@
 							{/if}
 							{#if otherHost.ports?.length > 0}
 								<li class="flex items-start gap-2">
-									<CheckCircle class="mt-0.5 h-4 w-4 shrink-0 text-green-400" />
+									<CheckCircle class="mt-0.5 h-4 w-4 shrink-0 text-success" />
 									<span
 										>{otherHost.ports.length} ports from "{otherHost.name}" will be migrated to "{selectedTargetHost.name}".</span
 									>
@@ -183,26 +183,12 @@
 
 			<div class="flex items-center gap-3">
 				{#if showPreview}
-					<button
-						type="button"
-						disabled={loading}
-						on:click={handleBack}
-						class="rounded-lg border border-gray-600 px-4 py-2
-                   text-gray-400 transition-colors hover:bg-gray-700 hover:text-white
-                   disabled:cursor-not-allowed disabled:opacity-50"
-					>
+					<button type="button" disabled={loading} on:click={handleBack} class="btn-secondary">
 						Back
 					</button>
 				{/if}
 
-				<button
-					type="button"
-					disabled={loading}
-					on:click={handleClose}
-					class="rounded-lg border border-gray-600 px-4 py-2
-                 text-gray-400 transition-colors hover:bg-gray-700 hover:text-white
-                 disabled:cursor-not-allowed disabled:opacity-50"
-				>
+				<button type="button" disabled={loading} on:click={handleClose} class="btn-secondary">
 					Cancel
 				</button>
 
@@ -211,8 +197,7 @@
 						type="button"
 						disabled={!selectedDestinationHostId}
 						on:click={handleTargetSelection}
-						class="rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors
-                   hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+						class="btn-primary"
 					>
 						Next
 					</button>
@@ -221,8 +206,7 @@
 						type="button"
 						disabled={loading || !selectedDestinationHostId}
 						on:click={handleConsolidate}
-						class="rounded-lg bg-red-600 px-4 py-2 text-white transition-colors
-                   hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+						class="btn-danger"
 					>
 						{loading ? 'Consolidating...' : 'Consolidate Hosts'}
 					</button>

@@ -50,13 +50,13 @@
 				{#if id}
 					<div class="flex items-center space-x-3">
 						<div class="flex-shrink-0">
-							<Hash class="h-5 w-5 text-gray-400" />
+							<Hash class="text-tertiary h-5 w-5" />
 						</div>
 						<div class="min-w-0 flex-1">
-							<p class="text-sm font-medium text-gray-300">ID</p>
+							<p class="text-secondary text-sm font-medium">ID</p>
 							<button
 								type="button"
-								class="block max-w-full cursor-pointer truncate font-mono text-sm text-gray-400 transition-colors hover:text-white"
+								class="text-tertiary hover:text-primary block max-w-full cursor-pointer truncate font-mono text-sm transition-colors"
 								title={`${id} (Click to copy)`}
 								on:click={copyId}
 							>
@@ -70,11 +70,11 @@
 					<!-- Created -->
 					<div class="flex items-center space-x-3">
 						<div class="flex-shrink-0">
-							<Calendar class="h-5 w-5 text-gray-400" />
+							<Calendar class="text-tertiary h-5 w-5" />
 						</div>
 						<div class="min-w-0 flex-1">
-							<p class="text-sm font-medium text-gray-300">Created</p>
-							<p class="text-sm text-gray-400" title={createdAt}>
+							<p class="text-secondary text-sm font-medium">Created</p>
+							<p class="text-tertiary text-sm" title={createdAt}>
 								{formatTimestamp(createdAt)}
 							</p>
 						</div>
@@ -85,11 +85,11 @@
 					<!-- Updated -->
 					<div class="flex items-center space-x-3">
 						<div class="flex-shrink-0">
-							<Clock class="h-5 w-5 text-gray-400" />
+							<Clock class="text-tertiary h-5 w-5" />
 						</div>
 						<div class="min-w-0 flex-1">
-							<p class="text-sm font-medium text-gray-300">Updated</p>
-							<p class="text-sm text-gray-400" title={updatedAt}>
+							<p class="text-secondary text-sm font-medium">Updated</p>
+							<p class="text-tertiary text-sm" title={updatedAt}>
 								{formatTimestamp(updatedAt)}
 							</p>
 						</div>
@@ -101,17 +101,13 @@
 		<!-- JSON Entity Section -->
 		{#if entities.length > 0}
 			<div>
-				<button
-					type="button"
-					class="flex w-full items-center space-x-2 text-left text-sm font-medium text-gray-300 transition-colors hover:text-white"
-					on:click={toggleJson}
-				>
+				<button type="button" class="btn-icon" on:click={toggleJson}>
 					{#if isJsonExpanded}
 						<ChevronDown class="h-4 w-4" />
 					{:else}
 						<ChevronRight class="h-4 w-4" />
 					{/if}
-					<span>JSON</span>
+					<span class="ml-1">JSON</span>
 				</button>
 
 				{#if isJsonExpanded}
@@ -119,7 +115,7 @@
 						<div class="absolute right-2 top-2 z-10">
 							<button
 								type="button"
-								class="rounded border border-gray-600 bg-gray-900 px-2 py-1 text-xs text-gray-400 transition-colors hover:text-white"
+								class="btn-icon"
 								title="Copy JSON to clipboard"
 								on:click={copyJson}
 							>

@@ -12,10 +12,10 @@
 	];
 </script>
 
-<div class="flex min-h-screen w-64 flex-col border-r border-gray-700 bg-gray-800">
+<div class="sidebar">
 	<!-- Logo/Brand -->
-	<div class="border-b border-gray-700 p-6">
-		<h1 class="text-xl font-bold text-white">NetVisor</h1>
+	<div class="sidebar-section">
+		<h1 class="text-primary text-xl font-bold">NetVisor</h1>
 	</div>
 
 	<!-- Navigation -->
@@ -25,12 +25,14 @@
 				<li>
 					<button
 						on:click={() => onTabChange(item.id)}
-						class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors"
-						class:bg-blue-600={activeTab === item.id}
+						class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left font-medium transition-colors"
+						class:bg-blue-700={activeTab === item.id}
+						class:border={activeTab === item.id}
+						class:border-blue-600={activeTab === item.id}
 						class:text-white={activeTab === item.id}
-						class:text-gray-300={activeTab !== item.id}
-						class:hover:text-white={activeTab !== item.id}
-						class:hover:bg-gray-700={activeTab !== item.id}
+						class:text-tertiary={activeTab !== item.id}
+						class:hover:text-secondary={activeTab !== item.id}
+						class:hover:bg-gray-800={activeTab !== item.id}
 					>
 						<svelte:component this={item.icon} class="h-5 w-5" />
 						{item.label}

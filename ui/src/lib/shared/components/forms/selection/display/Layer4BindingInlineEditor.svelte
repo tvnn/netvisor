@@ -108,14 +108,14 @@
 </script>
 
 <div class="flex-1">
-	<div class="mb-1 block text-xs font-medium text-gray-400">Interface Binding</div>
+	<div class="text-secondary mb-1 block text-xs font-medium">Interface Binding</div>
 
 	{#if !service}
-		<div class="rounded border border-red-600 bg-red-900/20 px-2 py-1 text-xs text-red-400">
+		<div class="text-danger rounded border border-red-600 bg-red-900/20 px-2 py-1 text-xs">
 			Service not found
 		</div>
 	{:else if !host}
-		<div class="rounded border border-red-600 bg-red-900/20 px-2 py-1 text-xs text-red-400">
+		<div class="text-danger rounded border border-red-600 bg-red-900/20 px-2 py-1 text-xs">
 			Host not found
 		</div>
 	{:else}
@@ -123,7 +123,7 @@
 			<div class="flex-1">
 				{#if host.interfaces && host.interfaces.length === 0}
 					<div
-						class="rounded border border-yellow-600 bg-yellow-900/20 px-2 py-1 text-xs text-yellow-400"
+						class="rounded border border-yellow-600 bg-yellow-900/20 px-2 py-1 text-xs text-warning"
 					>
 						No interfaces configured on host
 					</div>
@@ -132,7 +132,7 @@
 					<select
 						value={selectValue}
 						on:change={handleInterfaceChange}
-						class="w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+						class="text-primary w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
 						<option value="" disabled>Select interface...</option>
 						{#each interfaceOptions as { iface, disabled, boundService } (iface.id)}
@@ -155,7 +155,7 @@
 			<div class="flex-1">
 				{#if host.ports.length === 0}
 					<div
-						class="rounded border border-yellow-600 bg-yellow-900/20 px-2 py-1 text-xs text-yellow-400"
+						class="rounded border border-yellow-600 bg-yellow-900/20 px-2 py-1 text-xs text-warning"
 					>
 						No ports configured on host
 					</div>
@@ -164,7 +164,7 @@
 					<select
 						value={binding.port_id}
 						on:change={handlePortChange}
-						class="w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+						class="text-primary w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
 						<option value="" disabled>Select port...</option>
 						{#each portOptions as { port, disabled, boundService } (port.id)}

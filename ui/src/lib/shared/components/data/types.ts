@@ -11,9 +11,7 @@ export interface TagProps {
 export interface CardAction {
 	label: string;
 	icon: typeof HelpCircle; // Svelte component
-	color?: string;
-	hoverColor?: string;
-	bgHover?: string;
+	class?: string;
 	onClick: () => void;
 	disabled?: boolean;
 	animation?: string;

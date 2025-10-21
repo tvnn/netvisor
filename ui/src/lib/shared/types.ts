@@ -42,6 +42,17 @@ export function matchConfidenceColor(confidence: MatchDetails['confidence']): st
 	return confidenceColor[confidence];
 }
 
+export function matchConfidenceLabel(confidence: MatchDetails['confidence']): string {
+	const confidenceLabel: Record<MatchDetails['confidence'], string> = {
+		NotApplicable: 'Not Applicable',
+		Low: 'Low Confidence',
+		Medium: 'Medium Confidence',
+		High: 'High Confidence',
+		Certain: 'Certain'
+	};
+	return confidenceLabel[confidence];
+}
+
 export type DiscoveryType =
 	| { type: 'SelfReport' }
 	| { type: 'Network' }

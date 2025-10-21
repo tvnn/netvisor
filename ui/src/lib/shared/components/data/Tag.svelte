@@ -31,7 +31,7 @@
 	<span
 		class="inline-block {!disabled ? bgColor : 'bg-gray-700/30'} {!disabled
 			? textColor
-			: 'text-gray-500'} rounded px-2 py-1 text-xs"
+			: 'text-tertiary'} rounded px-2 py-1 text-xs"
 	>
 		{label}
 		{#if badge.length > 0}

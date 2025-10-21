@@ -119,9 +119,7 @@
 			{
 				label: 'Delete Host',
 				icon: Trash2,
-				color: 'text-gray-400',
-				hoverColor: 'text-red-400',
-				bgHover: 'hover:bg-red-900/20',
+				class: 'btn-icon-danger',
 				onClick: () => onDelete(host)
 			},
 			...(daemon == null
@@ -129,9 +127,6 @@
 						{
 							label: 'Consolidate',
 							icon: Replace,
-							color: 'text-gray-400',
-							hoverColor: 'text-white',
-							bgHover: 'hover:bg-gray-700',
 							onClick: () => onConsolidate(host)
 						}
 					]
@@ -141,17 +136,7 @@
 						{
 							label: 'Run Discovery',
 							icon: Radar,
-							color: hostIsRunningDiscovery ? 'text-green-400' : 'text-gray-400',
-							hoverColor: hostIsRunningDiscovery
-								? 'text-green-400'
-								: discoveryIsRunning
-									? 'text-gray-400'
-									: 'text-green-400',
-							bgHover: hostIsRunningDiscovery
-								? 'hover:bg-green-700/50'
-								: discoveryIsRunning
-									? ''
-									: 'hover:bg-green-700/50',
+							class: hostIsRunningDiscovery ? 'btn-icon-success' : 'btn-icon',
 							onClick: !hostIsRunningDiscovery ? () => onDiscovery(daemon) : () => {},
 							animation: hostIsRunningDiscovery ? 'animate-spin' : '',
 							disabled: hostIsRunningDiscovery
@@ -161,9 +146,6 @@
 			{
 				label: 'Edit Host',
 				icon: Edit,
-				color: 'text-gray-400',
-				hoverColor: 'text-white',
-				bgHover: 'hover:bg-gray-700',
 				onClick: () => onEdit(host)
 			}
 		],

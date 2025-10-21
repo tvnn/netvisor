@@ -39,10 +39,10 @@
 	<div class="flex items-center justify-between gap-3">
 		<div class="flex-1 space-y-2">
 			<div class="flex items-center gap-3">
-				<span class="text-sm font-medium text-blue-400"
+				<span class="text-accent text-sm font-medium"
 					>{isCancelling ? 'Cancelling' : discoveryData.phase}</span
 				>
-				<span class="text-sm font-medium text-green-400"
+				<span class="text-sm font-medium text-success"
 					>{discoveryData.discovered_count} hosts found</span
 				>
 			</div>
@@ -55,16 +55,12 @@
 							style="width: {progressPercent}%"
 						></div>
 					</div>
-					<span class="text-xs text-gray-400">{Math.round(progressPercent)}%</span>
+					<span class="text-secondary text-xs">{Math.round(progressPercent)}%</span>
 				</div>
 			{/if}
 		</div>
 
-		<button
-			class="rounded p-1 text-red-400 transition-colors hover:bg-gray-700 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
-			on:click={handleCancelDiscovery}
-			title="Cancel Discovery"
-		>
+		<button class="btn-icon-danger" on:click={handleCancelDiscovery} title="Cancel Discovery">
 			{#if isCancelling}
 				<Loader2 class="h-4 w-4 animate-spin" />
 			{:else}

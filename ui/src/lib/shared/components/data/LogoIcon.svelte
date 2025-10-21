@@ -15,6 +15,9 @@
 		use_white_background?: boolean;
 	} = $props();
 
+	let background_padding = 0.5;
+	size = use_white_background ? size : size - 2 * background_padding;
+
 	const sourceUrls: Record<IconSource, (name: string) => string> = {
 		vector_zone_icons: (name) => `https://www.vectorlogo.zone/logos/${name}.svg`,
 		simple_icons: (name) => `https://cdn.simpleicons.org/${name}`,
@@ -36,7 +39,7 @@
 	}
 
 	let containerClasses = $derived(
-		`inline-flex items-center justify-center ${use_white_background ? 'bg-white rounded-md p-0.5' : ''} ${className}`
+		`inline-flex items-center justify-center ${use_white_background ? `bg-white rounded-md p-${background_padding}` : ''} ${className}`
 	);
 </script>
 

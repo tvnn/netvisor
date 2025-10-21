@@ -1,6 +1,6 @@
 <script context="module" lang="ts">
 	export const INPUT_BASE_CLASSES =
-		'w-full px-3 py-2 bg-gray-700 border rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed';
+		'w-full px-3 py-2 bg-gray-700 border rounded-md text-primary focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed';
 	export const getInputClasses = (hasErrors: boolean) =>
 		`${INPUT_BASE_CLASSES} ${hasErrors ? 'border-red-500' : 'border-gray-600'}`;
 </script>
@@ -26,23 +26,23 @@
 </script>
 
 <div class="space-y-2">
-	<label for={id} class="block text-sm font-medium text-gray-300">
+	<label for={id} class="text-secondary block text-sm font-medium">
 		{label}
 		{#if required}
-			<span class="ml-1 text-red-400">*</span>
+			<span class="text-danger ml-1">*</span>
 		{/if}
 	</label>
 
 	<slot />
 
 	{#if showValidation && errors.length > 0}
-		<div class="flex items-center gap-2 text-red-400">
+		<div class="text-danger flex items-center gap-2">
 			<AlertCircle size={16} />
 			<p class="text-xs">{errors[0]}</p>
 		</div>
 	{/if}
 
 	{#if helpText}
-		<p class="text-xs text-gray-400">{helpText}</p>
+		<p class="text-tertiary text-xs">{helpText}</p>
 	{/if}
 </div>

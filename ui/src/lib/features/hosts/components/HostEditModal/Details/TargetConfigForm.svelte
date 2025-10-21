@@ -96,19 +96,19 @@
 <div class="flex items-start gap-6">
 	<!-- Target Type Selection -->
 	<div class="flex w-1/3 flex-col space-y-2">
-		<label for="target_type" class="block text-sm font-medium text-gray-300"> Link Type </label>
+		<label for="target_type" class="text-secondary block text-sm font-medium"> Link Type </label>
 		<select
 			id="target_type"
 			value={formData.target?.type || 'Interface'}
 			on:change={handleTargetTypeChange}
-			class="w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2 text-white
+			class="text-primary w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2
               focus:outline-none focus:ring-2"
 		>
 			{#each targetTypes as targetType (targetType.value)}
 				<option disabled={targetType.disabled} value={targetType.value}>{targetType.label}</option>
 			{/each}
 		</select>
-		<p class="text-xs text-gray-400">How should NetVisor display a link for this host?</p>
+		<p class="text-tertiary text-xs">How should NetVisor display a link for this host?</p>
 	</div>
 
 	<!-- Target Configuration -->
@@ -118,9 +118,9 @@
 				{#if formData.target.type === 'ServiceBinding'}
 					<!-- Interface Selection -->
 					<div class="space-y-2">
-						<label for="interface_select" class="block text-sm font-medium text-gray-300">
+						<label for="interface_select" class="text-secondary block text-sm font-medium">
 							Service Binding
-							<span class="ml-1 text-red-400">*</span>
+							<span class="text-danger ml-1">*</span>
 						</label>
 
 						{#if formData.interfaces.length == 0}
@@ -141,9 +141,9 @@
 				{:else if formData.target.type === 'Hostname'}
 					<!-- Hostname Display -->
 					<div class="space-y-2">
-						<div class="block text-sm font-medium text-gray-300">Hostname</div>
+						<div class="text-secondary block text-sm font-medium">Hostname</div>
 						<div
-							class="flex w-full items-center gap-2 rounded-md border border-gray-500 bg-gray-800/50 px-3 py-2 text-gray-200"
+							class="text-secondary flex w-full items-center gap-2 rounded-md border border-gray-500 bg-gray-800/50 px-3 py-2"
 						>
 							<span class="font-mono">{formData.hostname}</span>
 						</div>

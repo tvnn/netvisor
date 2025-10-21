@@ -137,7 +137,7 @@
 			{/if}
 
 			<!-- Label -->
-			<span class="text-s whitespace-nowrap font-medium text-gray-200">
+			<span class="text-s text-secondary whitespace-nowrap font-medium">
 				{label || cidr}
 			</span>
 		</div>

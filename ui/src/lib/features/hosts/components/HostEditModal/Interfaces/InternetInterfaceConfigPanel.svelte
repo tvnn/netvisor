@@ -72,8 +72,6 @@
 		/>
 
 		<div class="space-y-4">
-			<h4 class="text-sm font-medium text-gray-300">Interface Configuration</h4>
-
 			{#if $nameField}
 				<TextInput
 					label="Name"

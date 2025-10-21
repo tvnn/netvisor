@@ -296,14 +296,17 @@ impl<'a> ChildPositioner<'a> {
                             false
                         };
 
+                        let node_a = subnet_nodes.iter().find(|n| n.id == id_a);
+                        let node_b = subnet_nodes.iter().find(|n| n.id == id_b);
+
                         // Update bounds
                         node_bounds[i].1 = NodeBounds::new(
-                            subnet_nodes.iter().find(|n| n.id == id_a).unwrap().position,
-                            subnet_nodes.iter().find(|n| n.id == id_a).unwrap().size,
+                            node_a.map(|n| n.position).unwrap_or_default(),
+                            node_a.map(|n| n.size).unwrap_or_default(),
                         );
                         node_bounds[j].1 = NodeBounds::new(
-                            subnet_nodes.iter().find(|n| n.id == id_b).unwrap().position,
-                            subnet_nodes.iter().find(|n| n.id == id_b).unwrap().size,
+                            node_b.map(|n| n.position).unwrap_or_default(),
+                            node_b.map(|n| n.size).unwrap_or_default(),
                         );
                     }
                 }
@@ -659,12 +662,19 @@ impl<'a> ChildPositioner<'a> {
                     let should_accept = crossings_after < current_crossings
                         || (crossings_after == current_crossings && new_length < current_length);
 
-                    if should_accept && best_swap.is_none()
-                        || crossings_after < best_swap.unwrap().3
-                        || (crossings_after == best_swap.unwrap().3
-                            && new_length < best_swap.unwrap().2)
-                    {
-                        best_swap = Some((node_a, node_b, new_length, crossings_after));
+                    match best_swap {
+                        Some(swap) => {
+                            if crossings_after < swap.3
+                                || (crossings_after == swap.3 && new_length < swap.2)
+                            {
+                                best_swap = Some((node_a, node_b, new_length, crossings_after))
+                            }
+                        }
+                        None => {
+                            if should_accept {
+                                best_swap = Some((node_a, node_b, new_length, crossings_after))
+                            }
+                        }
                     }
 
                     // Revert the swap

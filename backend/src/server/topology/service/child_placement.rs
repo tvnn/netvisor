@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cmp::Ordering, collections::HashMap};
 use uuid::Uuid;
 
 use crate::server::topology::{
@@ -77,7 +77,7 @@ impl ChildNodePlacement {
             b.x.abs()
                 .max(b.y.abs())
                 .partial_cmp(&a.x.abs().max(a.y.abs()))
-                .unwrap()
+                .unwrap_or(Ordering::Equal)
         });
 
         // Create a grid to track which cells are occupied

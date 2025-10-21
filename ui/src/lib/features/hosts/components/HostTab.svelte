@@ -115,18 +115,12 @@
 		<Loading />
 	{:else if $hosts.length === 0}
 		<!-- Empty state -->
-		<div class="py-12 text-center">
-			{#if $hosts.length === 0}
-				<EmptyState
-					title="No hosts configured yet"
-					subtitle=""
-					onClick={handleCreateHost}
-					cta="Create your first host"
-				/>
-			{:else}
-				<p class="text-lg text-gray-400">No hosts match your search</p>
-			{/if}
-		</div>
+		<EmptyState
+			title="No hosts configured yet"
+			subtitle=""
+			onClick={handleCreateHost}
+			cta="Create your first host"
+		/>
 	{:else}
 		<!-- Hosts grid -->
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">

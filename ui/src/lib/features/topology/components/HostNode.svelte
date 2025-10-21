@@ -44,28 +44,6 @@
 			: null
 	);
 
-	// const hostColorHelper = entities.getColorHelper('Host');
-	// const virtualizationColorHelper = entities.getColorHelper('Virtualization');
-
-	// const headerColorHelper = $derived(
-	// 	!nodeData?.isVirtualized ? hostColorHelper : virtualizationColorHelper
-	// );
-
-	// let nodeClasses = $derived(`
-	//     border-2 ${hostColorHelper.border} ${hostColorHelper.text}
-	//     rounded-lg text-s font-medium transition-all duration-200
-	//     shadow-md overflow-hidden
-	//     ${selected ? `ring-2 ${hostColorHelper.ring} ring-opacity-75` : ''}
-	// `);
-	// let nodeStyle = $derived(
-	// 	`width: ${width}px; height: ${height}px; display: flex; flex-direction: column;
-	// 	background: linear-gradient(to bottom,
-	// 		${twColorToRgba(headerColorHelper.bg)} 0%,
-	// 		color-mix(in srgb, ${twColorToRgba(hostColorHelper.bg)} 15%, ${twColorToRgba(headerColorHelper.bg)} 85%) 30%,
-	// 		${twColorToRgba(hostColorHelper.bg)} 70%,
-	// 		color-mix(in srgb, ${twColorToRgba(hostColorHelper.bg)} 75%, black) ${height}px);`
-	// );
-
 	const hostColorHelper = entities.getColorHelper('Host');
 	const virtualizationColorHelper = entities.getColorHelper('Virtualization');
 

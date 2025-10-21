@@ -10,37 +10,250 @@
 	body {
 		margin: 0;
 		padding: 0;
-		background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+		background: linear-gradient(135deg, #1a1d29 0%, #252d3a 100%, #252d3a 100%);
 		min-height: 100vh;
 	}
 }
 
 @layer components {
+	/* Primary action button - blue accent for emphasis */
 	.btn-primary {
-		@apply bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700;
-		@apply rounded-xl px-6 py-3 font-semibold text-white;
-		@apply transition-all duration-300 ease-in-out;
-		@apply transform shadow-lg hover:-translate-y-1 hover:shadow-xl;
+		@apply bg-blue-700 hover:bg-blue-600;
+		@apply border border-blue-600 hover:border-blue-500;
+		@apply rounded-md px-4 py-2 font-medium text-white;
+		@apply transition-colors duration-150;
+		@apply inline-flex items-center justify-center gap-2;
+		@apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-blue-600 disabled:hover:bg-blue-700;
 	}
 
+	/* Secondary action button - outlined, less prominent */
+	.btn-secondary {
+		@apply bg-transparent hover:bg-gray-800;
+		@apply border border-gray-700 hover:border-gray-600;
+		@apply rounded-md px-4 py-2 font-medium text-gray-400 hover:text-gray-200;
+		@apply transition-colors duration-150;
+		@apply inline-flex items-center justify-center gap-2;
+		@apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-gray-700 disabled:hover:bg-transparent disabled:hover:text-gray-400;
+	}
+
+	/* Destructive action button - for dangerous operations */
+	.btn-danger {
+		@apply bg-red-950/40 hover:bg-red-950/60;
+		@apply border border-red-800/50 hover:border-red-700;
+		@apply rounded-md px-4 py-2 font-medium text-red-400 hover:text-red-300;
+		@apply transition-colors duration-150;
+		@apply inline-flex items-center justify-center gap-2;
+		@apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-red-800/50 disabled:hover:bg-red-950/40 disabled:hover:text-red-400;
+	}
+
+	/* Success/confirmation action button - for positive operations */
+	.btn-success {
+		@apply bg-green-950/40 hover:bg-green-950/60;
+		@apply border border-green-800/50 hover:border-green-700;
+		@apply rounded-md px-4 py-2 font-medium text-green-400 hover:text-green-300;
+		@apply transition-colors duration-150;
+		@apply inline-flex items-center justify-center gap-2;
+		@apply disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-green-800/50 disabled:hover:bg-green-950/40 disabled:hover:text-green-400;
+	}
+
+	/* Icon buttons - minimal style for icon-only actions */
+	.btn-icon {
+		@apply rounded p-2 text-gray-500 hover:bg-gray-800 hover:text-gray-200;
+		@apply transition-colors duration-150;
+		@apply inline-flex items-center justify-center;
+		@apply disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-500;
+	}
+
+	/* Icon button - danger variant */
+	.btn-icon-danger {
+		@apply rounded p-2 text-gray-500 hover:bg-red-950/30 hover:text-red-400;
+		@apply transition-colors duration-150;
+		@apply inline-flex items-center justify-center;
+		@apply disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-500;
+	}
+
+	/* Icon button - success variant */
+	.btn-icon-success {
+		@apply rounded p-2 text-gray-500 hover:bg-green-950/30 hover:text-green-400;
+		@apply transition-colors duration-150;
+		@apply inline-flex items-center justify-center;
+		@apply disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-500;
+	}
+
+	/* Icon button - primary variant (for emphasized icon actions) */
+	.btn-icon-primary {
+		@apply rounded p-2 text-gray-500 hover:bg-purple-950/30 hover:text-purple-400;
+		@apply transition-colors duration-150;
+		@apply inline-flex items-center justify-center;
+		@apply disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-gray-500;
+	}
+
+	/* Card component */
 	.card-modern {
-		@apply border border-gray-700 bg-gray-800 bg-opacity-80 backdrop-blur-sm;
+		@apply border border-gray-700 bg-gray-800/90 backdrop-blur-sm;
 		@apply rounded-2xl p-6 shadow-xl transition-all duration-300 ease-in-out;
+	}
+
+	/* Card dividers/borders */
+	.card-divider {
+		@apply border-t border-gray-700;
+	}
+
+	/* Sidebar component */
+	.sidebar {
+		@apply flex min-h-screen w-64 flex-col border-r border-gray-700 bg-gray-900;
+	}
+
+	.sidebar-section {
+		@apply border-b border-gray-700 p-6;
+	}
+
+	.sidebar-footer {
+		@apply border-t border-gray-700 p-4;
+	}
+
+	/* Modal components */
+	.modal-backdrop {
+		@apply fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/70 p-4 backdrop-blur-sm;
+	}
+
+	.modal-container {
+		@apply w-full rounded-lg border border-gray-700 bg-gray-900 shadow-2xl;
+	}
+
+	.modal-header {
+		@apply flex shrink-0 items-center justify-between border-b border-gray-700 p-6;
+	}
+
+	.modal-content {
+		@apply min-h-0 flex-1 overflow-auto scroll-smooth p-6;
+	}
+
+	.modal-footer {
+		@apply shrink-0 border-t border-gray-700 p-6;
+	}
+
+	/* Form inputs */
+	.input-field {
+		@apply w-full rounded-md border border-gray-600 bg-gray-700/50 px-3 py-2 text-white;
+		@apply placeholder-gray-400 transition-colors duration-150;
+		@apply focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500;
+		@apply disabled:cursor-not-allowed disabled:opacity-50;
+	}
+
+	.input-field-error {
+		@apply border-red-500 focus:border-red-500 focus:ring-red-500;
+	}
+
+	/* Dropdown/select components */
+	.select-trigger {
+		@apply flex w-full items-center justify-between rounded-md border border-gray-600 bg-gray-700/50;
+		@apply px-3 py-2 text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500;
+		@apply transition-colors duration-150;
+		@apply disabled:cursor-not-allowed disabled:opacity-50;
+	}
+
+	.select-trigger-error {
+		@apply border-red-500 focus:border-red-500 focus:ring-red-500;
+	}
+
+	.select-dropdown {
+		@apply rounded-md border border-gray-600 bg-gray-700 shadow-lg;
+	}
+
+	.select-option {
+		@apply w-full px-3 py-3 text-left transition-colors;
+		@apply hover:bg-gray-600;
+		@apply disabled:cursor-not-allowed disabled:opacity-50;
+	}
+
+	.select-option-selected {
+		@apply border-l-2 border-purple-500 bg-purple-900/30;
+	}
+
+	/* List items (for ListSelectItem, cards, etc) */
+	.list-item {
+		@apply rounded-lg border border-gray-700 bg-gray-800/50 p-4;
+		@apply transition-colors duration-150;
+	}
+
+	.list-item-selected {
+		@apply border-blue-500 bg-purple-900/20 ring-1 ring-blue-500;
+	}
+
+	.list-item-hover {
+		@apply hover:border-gray-600 hover:bg-gray-700/50;
+	}
+
+	/* Label/tag backgrounds (for topology nodes, etc) */
+	.label-dark {
+		@apply rounded-md border border-gray-600 bg-gray-800/95 px-2 py-1 shadow-lg backdrop-blur-sm;
+	}
+
+	/* Text color utilities - semantic naming */
+	.text-primary {
+		@apply text-white;
+	}
+
+	.text-secondary {
+		@apply text-gray-300;
+	}
+
+	.text-tertiary {
+		@apply text-gray-400;
+	}
+
+	.text-muted {
+		@apply text-gray-500;
+	}
+
+	.text-disabled {
+		@apply text-gray-600;
+	}
+
+	/* Semantic text colors for status/actions */
+	.text-success {
+		@apply text-green-400;
+	}
+
+	.text-warning {
+		@apply text-yellow-400;
+	}
+
+	.text-danger {
+		@apply text-red-400;
+	}
+
+	.text-info {
+		@apply text-blue-400;
+	}
+
+	.text-accent {
+		@apply text-purple-400;
 	}
 }
 
 @layer utilities {
+	/* Neutral gradient text */
 	.text-gradient {
-		background: linear-gradient(135deg, #60a5fa 0%, #a855f7 50%, #ec4899 100%);
+		background: linear-gradient(135deg, #cbd5e1 0%, #94a3b8 50%, #64748b 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+	}
+
+	/* Purple accent gradient */
+	.text-gradient-accent {
+		background: linear-gradient(135deg, #c084fc 0%, #a855f7 50%, #9333ea 100%);
 		-webkit-background-clip: text;
 		-webkit-text-fill-color: transparent;
 		background-clip: text;
 	}
 
 	.glass {
-		background: rgba(255, 255, 255, 0.05);
+		background: rgba(255, 255, 255, 0.03);
 		backdrop-filter: blur(10px);
-		border: 1px solid rgba(255, 255, 255, 0.1);
+		border: 1px solid rgba(255, 255, 255, 0.08);
 	}
 }
 

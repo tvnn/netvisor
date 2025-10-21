@@ -9,14 +9,11 @@
 </script>
 
 <div class="py-12 text-center">
-	<svelte:component this={IconComponent} size={16} class="mx-auto mb-4 h-16 w-16 text-gray-600" />
-	<p class="mb-4 text-lg text-gray-400">{title}</p>
-	<p class="mb-6 text-gray-500">{subtitle}</p>
+	<svelte:component this={IconComponent} size={16} class="text-secondary mx-auto mb-4 h-16 w-16" />
+	<p class="text-secondary mb-4 text-lg">{title}</p>
+	<p class="text-tertiary mb-6">{subtitle}</p>
 	{#if cta.length > 0}
-		<button
-			on:click={onClick}
-			class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
-		>
+		<button on:click={onClick} class="btn-primary">
 			<Plus class="h-4 w-4" />
 			{cta}
 		</button>

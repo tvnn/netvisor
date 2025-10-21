@@ -12,6 +12,7 @@
 	import EntityMetadataSection from '$lib/shared/components/forms/EntityMetadataSection.svelte';
 	import Layer4ServicesConfigPanel from './Layer4ServicesConfigPanel.svelte';
 	import Layer3ServicesConfigPanel from './Layer3ServicesConfigPanel.svelte';
+	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
 
 	export let formApi: FormApi;
 	export let formData: Host;
@@ -118,12 +119,10 @@
 					/>
 				{/if}
 			{:else}
-				<div class="flex min-h-0 flex-1 items-center justify-center text-gray-400">
-					<div class="text-center">
-						<div class="mb-2 text-lg">No service selected</div>
-						<div class="text-sm">Select an service from the list to configure it</div>
-					</div>
-				</div>
+				<EntityConfigEmpty
+					title="No service selected"
+					subtitle="Select an service from the list to configure it"
+				/>
 			{/if}
 		</svelte:fragment>
 	</ListConfigEditor>
