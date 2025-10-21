@@ -1,0 +1,108 @@
+name: Test Fixtures
+
+on:
+  workflow_dispatch:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  update-fixtures:
+    name: Update Test Fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Get release version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Start dev environment
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+          echo "Waiting for services to be ready..."
+          sleep 30
+
+      - name: Wait for PostgreSQL
+        run: |
+          until docker exec netvisor-postgres-1 pg_isready -U postgres; do
+            sleep 2
+          done
+      
+      - name: Wait for server health
+        run: |
+          max_attempts=30
+          attempt=0
+          until curl -f http://localhost:60072/api/health || [ $attempt -eq $max_attempts ]; do
+            echo "Waiting for server to be healthy... (attempt $((attempt+1))/$max_attempts)"
+            sleep 5
+            attempt=$((attempt+1))
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Server failed to become healthy"
+            docker compose -f docker-compose.yml -f docker-compose.dev.yml logs
+            exit 1
+          fi
+      
+      - name: Wait for daemon to initialize
+        run: |
+          echo "Waiting for daemon to create config file..."
+          max_attempts=30
+          attempt=0
+          until [ -f "./data/daemon_config/config.json" ] || [ $attempt -eq $max_attempts ]; do
+            sleep 5
+            attempt=$((attempt+1))
+          done
+          if [ $attempt -eq $max_attempts ]; then
+            echo "Daemon config file was not created after 150 seconds"
+            docker compose -f docker-compose.yml -f docker-compose.dev.yml logs daemon
+            exit 1
+          fi
+          echo "✓ Daemon config file created"
+      
+      - name: Extract fixtures from containers
+        run: |
+          # Create tests directory if it doesn't exist
+          mkdir -p backend/src/tests
+          
+          # Copy database from server container
+          docker exec -t netvisor-postgres-1 pg_dump -U postgres \
+            --inserts \
+            --no-owner \
+            --no-acl \
+            netvisor > backend/src/tests/netvisor.sql
+          echo "✓ Copied netvisor.db from server container"
+          
+          # Copy daemon config from bind mount (no need to copy from container)
+          cp ./data/daemon_config/config.json ./backend/src/tests/daemon_config.json
+          echo "✓ Copied config.json from daemon bind mount"
+      
+      - name: Stop dev environment
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
+      
+      - name: Configure Git for bot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Commit and push fixtures
+        run: |
+          # Checkout main branch (we're in detached HEAD from the tag)
+          git fetch origin main
+          git checkout main
+          
+          # Copy the fixtures we extracted
+          git add backend/src/tests/netvisor.sql backend/src/tests/daemon_config.json
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "updating test fixture data stores for release ${{ steps.version.outputs.version }}"
+            git push origin main
+          fi

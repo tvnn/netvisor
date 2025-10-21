@@ -15,7 +15,7 @@
 		use_white_background?: boolean;
 	} = $props();
 
-	let background_padding = 0.5;
+	let background_padding = 1;
 	size = use_white_background ? size : size - 2 * background_padding;
 
 	const sourceUrls: Record<IconSource, (name: string) => string> = {
