@@ -137,7 +137,9 @@ impl Discovery<SelfReportDiscovery> {
             services: Vec::new(),
             interfaces: interfaces.clone(),
             ports: vec![own_port],
-            source: EntitySource::Discovery { metadata: vec!(DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)) },
+            source: EntitySource::Discovery {
+                metadata: vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],
+            },
             virtualization: None,
         };
 

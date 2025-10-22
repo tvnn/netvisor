@@ -16,7 +16,10 @@
 
 	let isJsonExpanded = false;
 
-	const isSecureContext = window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+	const isSecureContext =
+		window.isSecureContext ||
+		window.location.hostname === 'localhost' ||
+		window.location.hostname === '127.0.0.1';
 
 	// Copy ID to clipboard
 	async function copyId() {
