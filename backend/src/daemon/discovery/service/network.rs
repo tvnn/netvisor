@@ -60,7 +60,8 @@ impl DiscoversNetworkedEntities for Discovery<NetworkScanDiscovery> {
         request: DaemonDiscoveryRequest,
         cancel: CancellationToken,
     ) -> Result<(), Error> {
-        let subnets = self.discover_create_subnets().await?;
+        // Ignore docker bridge subnets, they are discovered through Docker Discovery
+        let subnets: Vec<Subnet> = self.discover_create_subnets().await?.into_iter().filter(|s| s.base.subnet_type != SubnetType::DockerBridge).collect();
 
         let total_ips_across_subnets: usize = subnets
             .iter()

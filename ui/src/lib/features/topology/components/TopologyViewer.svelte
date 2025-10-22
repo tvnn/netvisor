@@ -224,4 +224,19 @@
 	:global(.svelte-flow.hide-for-export .svelte-flow__panel) {
 		display: none !important;
 	}
+
+	:global(.svelte-flow__panel),
+	:global(.svelte-flow__attribution) {
+		background-color: #1f2937 !important; /* gray-800 */
+		border: 1px solid #374151 !important; /* gray-700 */
+		color: #9ca3af !important; /* gray-400 */
+		padding: 4px 8px !important;
+		border-radius: 4px !important;
+		font-size: 11px !important;
+	}
+
+	:global(.svelte-flow__attribution a) {
+		color: #60a5fa !important; /* blue-400 */
+		text-decoration: none !important;
+	}
 </style>

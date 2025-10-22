@@ -16,6 +16,8 @@
 
 	let isJsonExpanded = false;
 
+	const isSecureContext = window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
 	// Copy ID to clipboard
 	async function copyId() {
 		if (id) {
@@ -112,16 +114,18 @@
 
 				{#if isJsonExpanded}
 					<div class="relative mt-3">
-						<div class="absolute right-2 top-2 z-10">
-							<button
-								type="button"
-								class="btn-icon"
-								title="Copy JSON to clipboard"
-								on:click={copyJson}
-							>
-								Copy
-							</button>
-						</div>
+						{#if isSecureContext}
+							<div class="absolute right-2 top-2 z-10">
+								<button
+									type="button"
+									class="btn-icon"
+									title="Copy JSON to clipboard"
+									on:click={copyJson}
+								>
+									Copy
+								</button>
+							</div>
+						{/if}
 						<pre
 							class="overflow-auto rounded-md border border-gray-600 bg-gray-900 p-4 font-mono text-sm text-gray-300"><code
 								>{JSON.stringify(entities, null, 2)}</code

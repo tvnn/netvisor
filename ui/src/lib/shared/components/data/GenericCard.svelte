@@ -22,7 +22,7 @@
 	<div class="mb-4 flex items-start justify-between">
 		<div class="flex items-center space-x-3">
 			{#if icon}
-				<svelte:component this={icon} size={24} class={iconColor} />
+				<svelte:component this={icon} size={28} class={iconColor} />
 			{/if}
 			<div>
 				{#if link}

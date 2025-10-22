@@ -18,6 +18,8 @@ services:
       - NETVISOR_HEARTBEAT_INTERVAL=${NETVISOR_HEARTBEAT_INTERVAL:-30}
     volumes:
       - daemon-config:/root/.config/netvisor/daemon
+      # Uncomment this if you want the daemon to be able to run docker host discovery
+      # - /var/run/docker.sock:/var/run/docker.sock:ro
 
 volumes:
   daemon-config:

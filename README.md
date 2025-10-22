@@ -72,11 +72,17 @@ Refer to [configuration](#configuration) for more setup options.
 curl -O https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/docker-compose.yml && docker compose up -d
 ```
 
+or, run the contents of `docker-compose.yml`
+
 The server collects data from the daemon(s) and generates the topology visualization. The server can support multiple daemon instances in case you want to collect data from the perspective of multiple hosts on your network (ie - mapping out vlans).
 
-### 2. Install the Daemon  
+### 2. Load the UI
 
-The daemon scans the network and requires access to host network interfaces. 
+Navigate to `<your-ip>:60072` (or whichever port you set it to) to load the UI and initialize a new network with seed data.
+
+### 3. Install the Daemon  
+
+The daemon scans the network and requires access to host network interfaces.
 
 **Linux**: Can run in Docker with `--network host` and `--privileged` flags, or as a binary directly on the host.
 
@@ -90,6 +96,8 @@ Make sure to replace YOUR_SERVER_IP
 curl -O https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/docker-compose.daemon.yml && \
 NETVISOR_SERVER_TARGET=YOUR_SERVER_IP docker compose -f docker-compose.daemon.yml up -d
 ```
+
+or, run the contents of `docker-compose.daemon.yml`
 
 #### Linux (Binary)
 
@@ -113,16 +121,11 @@ netvisor-daemon --server-target YOUR_SERVER_IP --server-port 60072
 
 If you used the Docker command above, the daemon is already connected and running.
 
-### 4. Accessing the Web Interface
-
-Once the server is running, open your web browser and navigate to:
-
-`http://<your-server-ip>:60072`
-
-
 ## Discovery
 
 ### Docker
+
+
 
 If the host running the daemon is also running Docker, the daemon automatically detects containerized services by connecting to the Docker socket. This provides enhanced service discovery including:
 - Container names and metadata
@@ -130,7 +133,7 @@ If the host running the daemon is also running Docker, the daemon automatically 
 - Internal Docker networks
 - Container ports and exposed services
 
-The daemon connects to the Docker socket at `/var/run/docker.sock`.
+**Important**: The daemon connects to the Docker socket at `/var/run/docker.sock`. To ensure it has access to this, uncomment the line in `docker-compose.daemon.yml` that mounts the Docker socket to the container. If you are running the binary directly, you can ignore this.
 
 ### Network Scanning
 
