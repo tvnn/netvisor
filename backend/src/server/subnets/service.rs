@@ -1,4 +1,5 @@
 use crate::server::{
+    discovery::types::base::{DiscoveryType, EntitySource},
     hosts::service::HostService,
     subnets::{storage::SubnetStorage, types::base::Subnet},
 };
@@ -24,8 +25,56 @@ impl SubnetService {
     pub async fn create_subnet(&self, subnet: Subnet) -> Result<Subnet> {
         let all_subnets = self.storage.get_all(&subnet.base.network_id).await?;
 
+        tracing::debug!("Creating subnet {:?}", subnet);
+
         let subnet_from_storage = match all_subnets.iter().find(|s| subnet.eq(s)) {
-            Some(existing_subnet) => {
+            // Docker will default to the same subnet range for bridge networks, so we need a way to distinguish docker bridge subnets
+            // with the same CIDR but which originate from different hosts
+
+            // This branch returns the existing subnet for docker bridge subnets created from the same host
+            // And the same subnet for all other sources provided CIDRs match
+            Some(existing_subnet)
+                if {
+                    let result = match (&existing_subnet.base.source, &subnet.base.source) {
+                        (
+                            EntitySource::Discovery {
+                                metadata: existing_metadata,
+                            },
+                            EntitySource::Discovery { metadata },
+                        ) => {
+                            // Only one metadata entry will be present for subnet which is trying to be created bc it is brand new / just discovered
+                            if let Some(metadata) = metadata.first() {
+                                existing_metadata.iter().any(|other_m| {
+                                    match (metadata.discovery_type, other_m.discovery_type) {
+                                        // Only return existing if they originate from the same host
+                                        (
+                                            DiscoveryType::Docker { host_id },
+                                            DiscoveryType::Docker {
+                                                host_id: other_host_id,
+                                            },
+                                        ) => host_id == other_host_id,
+                                        // Always return existing for other types
+                                        _ => true,
+                                    }
+                                })
+                            } else {
+                                return Err(anyhow::anyhow!("Error comparing discovered subnets during creation: subnet missing discovery metadata"));
+                            }
+                        }
+                        // Don't apply this to other cases - same CIDR means same subnet
+                        _ => true,
+                    };
+
+                    tracing::info!(
+                        "Dedup check result: {}, existing: {:?}, new: {:?}",
+                        result,
+                        existing_subnet.base.source,
+                        subnet.base.source
+                    );
+
+                    result
+                } =>
+            {
                 tracing::warn!(
                     "Duplicate subnet for {}: {} found, returning existing {}: {}",
                     subnet.base.name,
@@ -35,7 +84,8 @@ impl SubnetService {
                 );
                 existing_subnet.clone()
             }
-            None => {
+            // If there's no existing subnet, create a new one
+            _ => {
                 self.storage.create(&subnet).await?;
                 tracing::info!("Created subnet {}: {}", subnet.base.name, subnet.id);
                 subnet

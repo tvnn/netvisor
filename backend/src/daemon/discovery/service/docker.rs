@@ -190,14 +190,20 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
             .scan_interfaces(self.discovery_type(), daemon_id, network_id)
             .await?;
 
+        tracing::info!("Host subnets {:?}", host_subnets);
+
         let docker_subnets = self
             .get_subnets_from_docker_networks(daemon_id, network_id)
             .await?;
 
-        let subnets = [host_subnets, docker_subnets].concat();
+        tracing::info!("Docker subnets {:?}", docker_subnets);
+
+        let subnets: Vec<Subnet> = [host_subnets, docker_subnets].concat();
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
         let subnets = try_join_all(subnet_futures).await?;
+
+        tracing::info!("Subnets {:?}", subnets);
 
         Ok(subnets)
     }
@@ -217,6 +223,7 @@ impl Discovery<DockerScanDiscovery> {
     }
 
     /// Create service which has all discovered containers in containers field
+    /// Host will also have
     pub async fn create_docker_daemon_service(&self, services: Vec<Service>) -> Result<(), Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
         let network_id = self

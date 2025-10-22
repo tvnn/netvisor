@@ -109,7 +109,7 @@ impl EdgeBuilder {
                     .collect();
 
                 if group_docker_bridges_by_host {
-                    // If subnets are grouped, pick an arbitrary
+                    // If subnets are grouped, pick an arbitrary subnet ID to use for grouping
                     if let (Some(first_interface_id), Some(first_subnet_id)) = (
                         container_subnet_interface_ids.first(),
                         container_subnets.first(),

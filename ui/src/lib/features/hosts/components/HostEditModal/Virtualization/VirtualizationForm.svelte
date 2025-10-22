@@ -6,10 +6,12 @@
 	import VmManagerConfigPanel from './VmManagerConfigPanel.svelte';
 	import ContainerManagerConfigPanel from './ContainerManagerConfigPanel.svelte';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
-	import { VirtualizationManagerServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay copy.svelte';
+	import { VirtualizationManagerServiceDisplay } from '$lib/shared/components/forms/selection/display/VirtualizationManagerServiceDisplay.svelte';
 
 	export let virtualizationManagerServices: Service[];
 	export let onServiceChange: (service: Service, index: number) => void;
+
+	console.log(virtualizationManagerServices);
 
 	function handleServiceChange(service: Service, index: number) {
 		onServiceChange(service, index);

@@ -19,7 +19,10 @@
 
 			return descriptionItems.join(' · ');
 		},
-		getIcon: (service: Service) => serviceDefinitions.getIconComponent(service.service_definition),
+		getIcon: (service: Service) => {
+			console.log(service);
+			return serviceDefinitions.getIconComponent(service.service_definition);
+		},
 		getIconColor: (service: Service) =>
 			serviceDefinitions.getColorHelper(service.service_definition).icon,
 		getTags: (service: Service) => {

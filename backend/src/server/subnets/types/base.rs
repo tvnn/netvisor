@@ -1,8 +1,6 @@
 use std::net::Ipv4Addr;
 
-use crate::server::discovery::types::base::{
-    DiscoveryMetadata, DiscoveryType, EntitySource, EntitySourceDiscriminants,
-};
+use crate::server::discovery::types::base::{DiscoveryMetadata, DiscoveryType, EntitySource};
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use chrono::{DateTime, Utc};
@@ -10,7 +8,6 @@ use cidr::{IpCidr, Ipv4Cidr};
 use pnet::ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
-use strum::IntoDiscriminant;
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
 use validator::Validate;
@@ -146,18 +143,10 @@ impl Subnet {
 
 impl PartialEq for Subnet {
     fn eq(&self, other: &Self) -> bool {
-        (self.base.cidr == other.base.cidr
-            && self.base.network_id == other.base.network_id
-            && self.base.source.discriminant() != EntitySourceDiscriminants::System
-            && other.base.source.discriminant() != EntitySourceDiscriminants::System)
-            || self.id == other.id
-        // let sources_match = match (&self.base.source, &other.base.source) {
-        //     (SubnetSource::Discovery(daemon_id), SubnetSource::Discovery(other_daemon_id))  => {
-        //         daemon_id == other_daemon_id
-        //     },
-        //     _ => false
-        // };
-        // cidr_match
+        let network_match =
+            self.base.cidr == other.base.cidr && self.base.network_id == other.base.network_id;
+
+        network_match || self.id == other.id
     }
 }
 

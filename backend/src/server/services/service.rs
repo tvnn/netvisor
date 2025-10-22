@@ -102,14 +102,14 @@ impl ServiceService {
     ) -> Result<Service> {
         let mut binding_updates = 0;
 
+        let lock = self.get_service_lock(&existing_service.id).await;
+        let _guard = lock.lock().await;
+
         tracing::debug!(
             "Upserting new service data {:?} into {:?}",
             new_service_data,
             existing_service
         );
-
-        let lock = self.get_service_lock(&existing_service.id).await;
-        let _guard = lock.lock().await;
 
         for new_service_binding in &new_service_data.base.bindings {
             if !existing_service.base.bindings.contains(new_service_binding) {
@@ -227,10 +227,10 @@ impl ServiceService {
     }
 
     pub async fn update_service(&self, mut service: Service) -> Result<Service> {
-        tracing::debug!("Updating service: {:?}", service);
-
         let lock = self.get_service_lock(&service.id).await;
         let _guard = lock.lock().await;
+
+        tracing::debug!("Updating service: {:?}", service);
 
         let current_service = self
             .get_service(&service.id)
@@ -409,15 +409,15 @@ impl ServiceService {
     }
 
     pub async fn delete_service(&self, id: &Uuid) -> Result<()> {
+        let lock = self.get_service_lock(id).await;
+        let _guard = lock.lock().await;
+
         let service = self
             .get_service(id)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Service {} not found", id))?;
 
         let mut all_services = self.get_all_services(&service.base.network_id).await?;
-
-        let lock = self.get_service_lock(&service.id).await;
-        let _guard = lock.lock().await;
 
         self.update_group_service_bindings(&service, None).await?;
 

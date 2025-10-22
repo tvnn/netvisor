@@ -211,19 +211,16 @@ Both the server and daemon support multiple configuration methods with the follo
 
 ### Daemon Configuration
 
-The daemon supports the following configuration options:
-
-| Parameter | CLI Flag | Environment Variable | Config File | Default | Description |
-|-----------|----------|---------------------|-------------|---------|-------------|
+| Parameter | CLI Flag | Environment Variable | Config File Key | Default | Description |
+|-----------|----------|---------------------|-----------------|---------|-------------|
 | Server Target | `--server-target` | `NETVISOR_SERVER_TARGET` | `server_target` | `None` | IP address or hostname of the NetVisor server (required) |
 | Server Port | `--server-port` | `NETVISOR_SERVER_PORT` | `server_port` | `60072` | Port the NetVisor server is listening on |
-| Daemon Port | `--port` or `-p` | `NETVISOR_PORT` | `port` | `60073` | Port for the daemon to listen on |
-| Bind Address | `--bind-address` | `NETVISOR_BIND_ADDRESS` | `bind_address` | `0.0.0.0` | IP address to bind the daemon to (useful for restricting to specific interfaces when using host networking) |
+| Daemon Port | `--daemon-port` or `-p` | `NETVISOR_DAEMON_PORT` | `daemon_port` | `60073` | Port for the daemon to listen on |
+| Bind Address | `--bind-address` | `NETVISOR_BIND_ADDRESS` | `bind_address` | `0.0.0.0` | IP address to bind the daemon to |
 | Daemon Name | `--name` | `NETVISOR_NAME` | `name` | `netvisor-daemon` | Human-readable name for this daemon instance |
 | Log Level | `--log-level` | `NETVISOR_LOG_LEVEL` | `log_level` | `info` | Logging verbosity (`trace`, `debug`, `info`, `warn`, `error`) |
 | Heartbeat Interval | `--heartbeat-interval` | `NETVISOR_HEARTBEAT_INTERVAL` | `heartbeat_interval` | `30` | Seconds between heartbeat updates to the server |
-| Concurrent Scans | `--concurrent-scans` | `NETVISOR_CONCURRENT_SCANS` | `concurrent_scans` | `15` | How many hosts the daemon will attempt to scan in parallel |
-
+| Concurrent Scans | `--concurrent-scans` | `NETVISOR_CONCURRENT_SCANS` | `concurrent_scans` | `15` | Maximum number of hosts to scan in parallel during discovery |
 
 #### Configuration File Location
 
@@ -240,10 +237,10 @@ The server supports the following configuration options:
 
 | Parameter | CLI Flag | Environment Variable | Default | Description |
 |-----------|----------|---------------------|---------|-------------|
-| Port | `--port` | `NETVISOR_PORT` | `60072` | Port for the server to listen on |
+| Server Port | `--server-port` | `NETVISOR_SERVER_PORT` | `60072` | Port for the server to listen on |
 | Log Level | `--log-level` | `NETVISOR_LOG_LEVEL` | `info` | Logging verbosity (`trace`, `debug`, `info`, `warn`, `error`) |
-| Database Path | `--database-path` | `NETVISOR_DATABASE_PATH` | `./netvisor.db` | Path to the SQLite database file |
-| Web Assets Path | `--web-external-path` | `NETVISOR_WEB_EXTERNAL_PATH` | `None` | Path to static web UI assets (used in Docker builds) |
+| Rust Log | `--rust-log` | `NETVISOR_RUST_LOG` | `""` | Low-level Rust framework logging |
+| Database URL | `--database-url` | `NETVISOR_DATABASE_URL` | `postgresql://postgres:password@localhost:5432/netvisor` | PostgreSQL connection string |
 
 ## Troubleshooting
 
@@ -255,7 +252,8 @@ You can control this using the environment variable `NETVISOR_CONCURRENT_SCANS`.
 - **Recommended ranges**:
   - Low-resource systems (Raspberry Pi): 5-10
   - Developer laptops: 15-20
-  - Servers: 25+
+  - Docker containers: 10-30 (depends on container memory limits)
+  - Servers: 25-50
 
 ## Uninstall Daemon
 
