@@ -17,6 +17,7 @@ use crate::{
                 patterns::MatchDetails,
             },
         },
+        subnets::types::base::{Subnet, SubnetType},
     },
 };
 use crate::{
@@ -95,6 +96,11 @@ impl Discovery<SelfReportDiscovery> {
         let (mut interfaces, subnets) = utils
             .scan_interfaces(self.discovery_type(), daemon_id, network_id)
             .await?;
+
+        let subnets: Vec<Subnet> = subnets
+            .into_iter()
+            .filter(|s| s.base.subnet_type != SubnetType::DockerBridge)
+            .collect();
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));
         let created_subnets = try_join_all(subnet_futures).await?;
