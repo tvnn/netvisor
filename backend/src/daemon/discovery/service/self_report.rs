@@ -107,16 +107,19 @@ impl Discovery<SelfReportDiscovery> {
 
         // Created subnets may differ from discovered if there are existing subnets with the same CIDR, so we need to update interface subnet_id references
         // Also filter out interfaces where subnet creation didn't happen for any reason
-        let interfaces: Vec<Interface> = interfaces.into_iter().filter_map(|mut i| {
-            if let Some(subnet) = created_subnets
-                .iter()
-                .find(|s| s.base.cidr.contains(&i.base.ip_address))
-            {
-                i.base.subnet_id = subnet.id;
-                return Some(i);
-            }
-            None
-        }).collect();
+        let interfaces: Vec<Interface> = interfaces
+            .into_iter()
+            .filter_map(|mut i| {
+                if let Some(subnet) = created_subnets
+                    .iter()
+                    .find(|s| s.base.cidr.contains(&i.base.ip_address))
+                {
+                    i.base.subnet_id = subnet.id;
+                    return Some(i);
+                }
+                None
+            })
+            .collect();
 
         let daemon_bound_subnet_ids: Vec<Uuid> = if binding_address == ALL_INTERFACES_IP.to_string()
         {

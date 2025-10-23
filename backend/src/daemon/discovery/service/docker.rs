@@ -9,6 +9,7 @@ use bollard::{
 use futures::future::try_join_all;
 use futures::stream::{self, StreamExt};
 use std::str::FromStr;
+use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 use std::{collections::HashMap, net::IpAddr, sync::OnceLock};
 use tokio_util::sync::CancellationToken;
@@ -210,6 +211,15 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
     }
 }
 
+pub struct ProcessContainerParams<'a> {
+    pub containers_interfaces_and_subnets: &'a HashMap<String, Vec<(Interface, Subnet)>>,
+    pub container: &'a ContainerInspectResponse,
+    pub container_summary: &'a ContainerSummary,
+    pub scanned_count: Arc<AtomicUsize>,
+    pub discovered_count: Arc<AtomicUsize>,
+    pub cancel: CancellationToken,
+}
+
 impl Discovery<DockerScanDiscovery> {
     /// Create a new Docker discovery instance connecting to a remote Docker daemon
     pub async fn new_local_docker_client(&self) -> Result<Docker, Error> {
@@ -224,7 +234,7 @@ impl Discovery<DockerScanDiscovery> {
     }
 
     /// Create docker daemon service which has all discovered containers in containers field
-    /// Create netvisor daemon service which has container relationship with docker daemon service 
+    /// Create netvisor daemon service which has container relationship with docker daemon service
     pub async fn create_docker_daemon_service(&self, services: Vec<Service>) -> Result<(), Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
         let network_id = self
@@ -285,19 +295,19 @@ impl Discovery<DockerScanDiscovery> {
         // Process containers concurrently using streams
         let results = stream::iter(containers.into_iter())
             .map(|(container, container_summary)| {
-                let scanned = scanned_count.clone();
-                let discovered = discovered_count.clone();
+                let scanned_count = scanned_count.clone();
+                let discovered_count = discovered_count.clone();
                 let cancel = cancel.clone();
 
                 async move {
-                    self.process_single_container(
+                    self.process_single_container(&ProcessContainerParams {
                         containers_interfaces_and_subnets,
-                        &container,
-                        &container_summary,
-                        scanned,
-                        discovered,
+                        container: &container,
+                        container_summary: &container_summary,
+                        scanned_count,
+                        discovered_count,
                         cancel,
-                    )
+                    })
                     .await
                 }
             })
@@ -330,17 +340,19 @@ impl Discovery<DockerScanDiscovery> {
 
     async fn process_single_container(
         &self,
-        containers_interfaces_and_subnets: &HashMap<String, Vec<(Interface, Subnet)>>,
-        container: &ContainerInspectResponse,
-        container_summary: &ContainerSummary,
-        scanned_count: Arc<std::sync::atomic::AtomicUsize>,
-        discovered_count: Arc<std::sync::atomic::AtomicUsize>,
-        cancel: CancellationToken,
+        params: &ProcessContainerParams<'_>,
     ) -> Result<Option<(Host, Vec<Service>)>> {
+        let ProcessContainerParams {
+            container,
+            container_summary,
+            scanned_count,
+            cancel,
+            ..
+        } = params;
+
         scanned_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         if let Some(container_id) = container.id.clone() {
-
             if cancel.is_cancelled() {
                 return Err(Error::msg("Discovery was cancelled"));
             }
@@ -351,16 +363,20 @@ impl Discovery<DockerScanDiscovery> {
             }
 
             let host_networking_mode = container
-                    .host_config
-                    .as_ref()
-                    .and_then(|c| c.network_mode.clone())
-                    .unwrap_or_default()
-                    == "host";
+                .host_config
+                .as_ref()
+                .and_then(|c| c.network_mode.clone())
+                .unwrap_or_default()
+                == "host";
 
             if host_networking_mode {
-                return self.process_host_mode_container(&container_id, containers_interfaces_and_subnets, container, container_summary, scanned_count, discovered_count, cancel).await
+                return self
+                    .process_host_mode_container(params, &container_id)
+                    .await;
             } else {
-                return self.process_bridge_mode_container(&container_id, containers_interfaces_and_subnets, container, container_summary, scanned_count, discovered_count, cancel).await
+                return self
+                    .process_bridge_mode_container(params, &container_id)
+                    .await;
             }
         }
 
@@ -369,32 +385,51 @@ impl Discovery<DockerScanDiscovery> {
 
     async fn process_host_mode_container(
         &self,
+        params: &ProcessContainerParams<'_>,
         container_id: &String,
-        containers_interfaces_and_subnets: &HashMap<String, Vec<(Interface, Subnet)>>,
-        container: &ContainerInspectResponse,
-        _container_summary: &ContainerSummary,
-        scanned_count: Arc<std::sync::atomic::AtomicUsize>,
-        discovered_count: Arc<std::sync::atomic::AtomicUsize>,
-        cancel: CancellationToken,
     ) -> Result<Option<(Host, Vec<Service>)>> {
+        let ProcessContainerParams {
+            containers_interfaces_and_subnets,
+            container,
+            scanned_count,
+            discovered_count,
+            cancel,
+            ..
+        } = params;
+
         scanned_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        
-        tracing::info!("Processing host mode container {}", container.name.as_ref().unwrap_or(&"Unknown Container Name".to_string()));
+
+        tracing::info!(
+            "Processing host mode container {}",
+            container
+                .name
+                .as_ref()
+                .unwrap_or(&"Unknown Container Name".to_string())
+        );
 
         let host_ip = self.as_ref().utils.get_own_ip_address()?;
 
         if let Some(Some(p)) = container.config.as_ref().map(|c| c.exposed_ports.as_ref()) {
-            let open_ports: Vec<PortBase> = p.keys().filter_map(|v| PortBase::from_str(v).ok()).collect();
+            let open_ports: Vec<PortBase> = p
+                .keys()
+                .filter_map(|v| PortBase::from_str(v).ok())
+                .collect();
 
             // Scan ports and any endpoints that match open ports
-            let endpoint_responses = tokio::spawn(Self::scan_endpoints(host_ip, cancel.clone(), Some(open_ports.clone())))
-                .await
-                .map_err(|e| anyhow!("Scan task panicked: {}", e))?
-                .map_err(|e| anyhow!("Endpoint scanning error: {}", e))?;
-            
-            let empty_vec_ref = &vec!();
+            let endpoint_responses = tokio::spawn(Self::scan_endpoints(
+                host_ip,
+                cancel.clone(),
+                Some(open_ports.clone()),
+            ))
+            .await
+            .map_err(|e| anyhow!("Scan task panicked: {}", e))?
+            .map_err(|e| anyhow!("Endpoint scanning error: {}", e))?;
 
-            let container_interfaces_and_subnets = containers_interfaces_and_subnets.get(container_id).unwrap_or(empty_vec_ref);
+            let empty_vec_ref = &vec![];
+
+            let container_interfaces_and_subnets = containers_interfaces_and_subnets
+                .get(container_id)
+                .unwrap_or(empty_vec_ref);
 
             for (interface, subnet) in container_interfaces_and_subnets {
                 let params = ServiceMatchBaselineParams {
@@ -402,24 +437,21 @@ impl Discovery<DockerScanDiscovery> {
                     interface,
                     all_ports: &open_ports,
                     endpoint_responses: &endpoint_responses,
-                    virtualization: &Some(ServiceVirtualization::Docker(
-                        DockerVirtualization {
-                            container_name: container
-                                .name
-                                .clone()
-                                .map(|n| n.trim_start_matches("/").to_string()),
-                            container_id: container.id.clone(),
-                        },
-                    )),
+                    virtualization: &Some(ServiceVirtualization::Docker(DockerVirtualization {
+                        container_name: container
+                            .name
+                            .clone()
+                            .map(|n| n.trim_start_matches("/").to_string()),
+                        container_id: container.id.clone(),
+                    })),
                 };
 
-                if let Ok(Some((mut host, services))) = self
-                    .process_host(params, None).await {
-
+                if let Ok(Some((mut host, services))) = self.process_host(params, None).await {
                     host.id = self.domain.host_id;
 
                     discovered_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    if let Ok((created_host, created_services)) = self.create_host(host, services).await
+                    if let Ok((created_host, created_services)) =
+                        self.create_host(host, services).await
                     {
                         return Ok::<Option<(Host, Vec<Service>)>, Error>(Some((
                             created_host,
@@ -427,9 +459,7 @@ impl Discovery<DockerScanDiscovery> {
                         )));
                     }
                     return Ok(None);
-
                 }
-                
             }
         }
         Ok(None)
@@ -437,27 +467,36 @@ impl Discovery<DockerScanDiscovery> {
 
     async fn process_bridge_mode_container(
         &self,
+        params: &ProcessContainerParams<'_>,
         container_id: &String,
-        containers_interfaces_and_subnets: &HashMap<String, Vec<(Interface, Subnet)>>,
-        container: &ContainerInspectResponse,
-        container_summary: &ContainerSummary,
-        scanned_count: Arc<std::sync::atomic::AtomicUsize>,
-        discovered_count: Arc<std::sync::atomic::AtomicUsize>,
-        cancel: CancellationToken,
     ) -> Result<Option<(Host, Vec<Service>)>> {
+        let ProcessContainerParams {
+            containers_interfaces_and_subnets,
+            container,
+            container_summary,
+            scanned_count,
+            discovered_count,
+            cancel,
+        } = params;
 
-        tracing::info!("Processing bridge mode container {}", container.name.as_ref().unwrap_or(&"Unknown Container Name".to_string()));
+        tracing::info!(
+            "Processing bridge mode container {}",
+            container
+                .name
+                .as_ref()
+                .unwrap_or(&"Unknown Container Name".to_string())
+        );
 
         scanned_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-        let empty_vec_ref = &vec!();
+        let empty_vec_ref = &vec![];
 
         let container_interfaces_and_subnets = containers_interfaces_and_subnets
-                .get(container_id)
-                .unwrap_or(empty_vec_ref);
+            .get(container_id)
+            .unwrap_or(empty_vec_ref);
 
         let (host_ip_to_host_ports, container_ips_to_container_ports, host_to_container_port_map) =
-            self.get_ports_from_container(container_summary, &container_interfaces_and_subnets);
+            self.get_ports_from_container(container_summary, container_interfaces_and_subnets);
 
         for (interface, subnet) in container_interfaces_and_subnets {
             if cancel.is_cancelled() {
@@ -585,7 +624,7 @@ impl Discovery<DockerScanDiscovery> {
                                     None => (Port::new(*pb), vec![]),
                                 };
 
-                            // Get host interface corresponding to 
+                            // Get host interface corresponding to
                             let host_interface = host
                                 .base
                                 .interfaces
@@ -783,9 +822,7 @@ impl Discovery<DockerScanDiscovery> {
 
             let url = format!(
                 "{}://127.0.0.1:{}{}",
-                endpoint.protocol,
-                container_port,
-                path
+                endpoint.protocol, container_port, path
             );
 
             // Execute curl with -i to include headers, or wget with -S
@@ -993,7 +1030,6 @@ impl Discovery<DockerScanDiscovery> {
         containers
             .iter()
             .filter_map(|(container, _)| {
-
                 let host_networking_mode = container
                     .host_config
                     .as_ref()
@@ -1001,62 +1037,59 @@ impl Discovery<DockerScanDiscovery> {
                     .unwrap_or_default()
                     == "host";
 
-                let mut interfaces_and_subnets: Vec<(Interface, Subnet)> =
-                    if host_networking_mode {
-                        host_interfaces_and_subnets.clone()
-                    }
-                    // Containers not in host networking mode
-                    else if let Some(network_settings) = &container.network_settings {
-                        if let Some(networks) = &network_settings.networks {
-                            networks
-                                .iter()
-                                .filter_map(|(network_name, endpoint)| {
-                                    // Parse interface if IP
-                                    if let Some(ip_string) = &endpoint.ip_address {
-                                        let ip_address = ip_string.parse::<IpAddr>().ok();
+                let mut interfaces_and_subnets: Vec<(Interface, Subnet)> = if host_networking_mode {
+                    host_interfaces_and_subnets.clone()
+                }
+                // Containers not in host networking mode
+                else if let Some(network_settings) = &container.network_settings {
+                    if let Some(networks) = &network_settings.networks {
+                        networks
+                            .iter()
+                            .filter_map(|(network_name, endpoint)| {
+                                // Parse interface if IP
+                                if let Some(ip_string) = &endpoint.ip_address {
+                                    let ip_address = ip_string.parse::<IpAddr>().ok();
 
-                                        if let Some(ip_address) = ip_address {
-                                            if let Some(subnet) = subnets
-                                                .iter()
-                                                .find(|s| s.base.cidr.contains(&ip_address))
-                                            {
-                                                // Parse MAC address
-                                                let mac_address = if let Some(mac_string) =
-                                                    &endpoint.mac_address
-                                                {
+                                    if let Some(ip_address) = ip_address {
+                                        if let Some(subnet) = subnets
+                                            .iter()
+                                            .find(|s| s.base.cidr.contains(&ip_address))
+                                        {
+                                            // Parse MAC address
+                                            let mac_address =
+                                                if let Some(mac_string) = &endpoint.mac_address {
                                                     mac_string.parse::<MacAddress>().ok()
                                                 } else {
                                                     None
                                                 };
 
-                                                return Some((
-                                                    Interface::new(InterfaceBase {
-                                                        subnet_id: subnet.id,
-                                                        ip_address,
-                                                        mac_address,
-                                                        name: Some(network_name.to_owned()),
-                                                    }),
-                                                    subnet.clone(),
-                                                ));
-                                            }
+                                            return Some((
+                                                Interface::new(InterfaceBase {
+                                                    subnet_id: subnet.id,
+                                                    ip_address,
+                                                    mac_address,
+                                                    name: Some(network_name.to_owned()),
+                                                }),
+                                                subnet.clone(),
+                                            ));
                                         }
                                     }
-                                    tracing::warn!(
-                                "No matching subnet found for container {:?} on network '{}'",
-                                container.name,
-                                network_name
-                            );
+                                }
+                                tracing::warn!(
+                                    "No matching subnet found for container {:?} on network '{}'",
+                                    container.name,
+                                    network_name
+                                );
 
-                                    None
-                                })
-                                .collect::<Vec<(Interface, Subnet)>>()
-                        } else {
-                            Vec::new()
-                        }
-                    } 
-                    else {
+                                None
+                            })
+                            .collect::<Vec<(Interface, Subnet)>>()
+                    } else {
                         Vec::new()
-                    };
+                    }
+                } else {
+                    Vec::new()
+                };
 
                 // Merge in host interfaces
                 interfaces_and_subnets.extend(host_interfaces_and_subnets.clone());

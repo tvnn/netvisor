@@ -29,7 +29,7 @@ impl Display for ApplicationProtocol {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let str = match self {
             ApplicationProtocol::Http => "http",
-            ApplicationProtocol::Https => "https"
+            ApplicationProtocol::Https => "https",
         };
 
         write!(f, "{}", str)

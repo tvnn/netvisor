@@ -20,7 +20,6 @@
 			return descriptionItems.join(' · ');
 		},
 		getIcon: (service: Service) => {
-			console.log(service);
 			return serviceDefinitions.getIconComponent(service.service_definition);
 		},
 		getIconColor: (service: Service) =>

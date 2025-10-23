@@ -4,6 +4,8 @@ use std::{
     time::Duration,
 };
 
+use crate::server::hosts::types::ports::TransportProtocol;
+use crate::server::services::types::endpoints::Endpoint;
 use crate::{
     daemon::discovery::{
         manager::DaemonDiscoverySessionManager, types::base::DiscoveryCriticalError,
@@ -18,25 +20,24 @@ use crate::{
             base::{
                 DiscoverySessionServiceMatchParams, ServiceMatchBaselineParams,
                 ServiceMatchServiceParams,
-            }, endpoints::EndpointResponse, patterns::MatchConfidence
+            },
+            endpoints::EndpointResponse,
+            patterns::MatchConfidence,
         },
     },
 };
 use anyhow::{anyhow, Error};
 use axum::async_trait;
 use chrono::Utc;
-use tokio::{net::TcpStream, sync::RwLock, time::timeout};
-use tokio_util::sync::CancellationToken;
-use crate::server::hosts::types::ports::TransportProtocol;
-use crate::server::services::types::endpoints::Endpoint;
 use dhcproto::v4::{self, Decodable, Encodable, Encoder, Message, MessageType};
 use rand::{Rng, SeedableRng};
 use rsntp::AsyncSntpClient;
 use snmp2::{AsyncSession, Oid};
 use std::net::SocketAddr;
+use tokio::{net::TcpStream, sync::RwLock, time::timeout};
+use tokio_util::sync::CancellationToken;
 
-use tokio::net::{UdpSocket};
-
+use tokio::net::UdpSocket;
 
 use trust_dns_resolver::config::{NameServerConfig, Protocol, ResolverConfig, ResolverOpts};
 use trust_dns_resolver::TokioAsyncResolver;
@@ -138,7 +139,7 @@ where
     pub async fn scan_ports_and_endpoints(
         ip: IpAddr,
         cancel: CancellationToken,
-        filter_endpoint_ports: Option<Vec<PortBase>>
+        filter_endpoint_ports: Option<Vec<PortBase>>,
     ) -> Result<(Vec<PortBase>, Vec<EndpointResponse>), Error> {
         if cancel.is_cancelled() {
             return Err(anyhow!("Operation cancelled"));
@@ -177,7 +178,10 @@ where
         Ok((open_ports, endpoint_responses))
     }
 
-    pub async fn scan_tcp_ports(ip: IpAddr, cancel: CancellationToken) -> Result<Vec<PortBase>, Error> {
+    pub async fn scan_tcp_ports(
+        ip: IpAddr,
+        cancel: CancellationToken,
+    ) -> Result<Vec<PortBase>, Error> {
         let discovery_ports = Service::all_discovery_ports();
         let ports: Vec<u16> = discovery_ports
             .iter()
@@ -258,7 +262,7 @@ where
     pub async fn scan_endpoints(
         ip: IpAddr,
         cancel: CancellationToken,
-        filter_ports: Option<Vec<PortBase>>
+        filter_ports: Option<Vec<PortBase>>,
     ) -> Result<Vec<EndpointResponse>, Error> {
         use std::collections::HashMap;
 
@@ -267,16 +271,19 @@ where
             .build()
             .map_err(|e| anyhow!("Could not build client {}", e))?;
 
-        let all_endpoints: Vec<Endpoint> = Service::all_discovery_endpoints().into_iter().filter_map(|e| {
-            if let Some(filter_ports) = &filter_ports {
-                if filter_ports.contains(&e.port_base) {
-                    return Some(e);
+        let all_endpoints: Vec<Endpoint> = Service::all_discovery_endpoints()
+            .into_iter()
+            .filter_map(|e| {
+                if let Some(filter_ports) = &filter_ports {
+                    if filter_ports.contains(&e.port_base) {
+                        return Some(e);
+                    }
+                    None
+                } else {
+                    Some(e)
                 }
-                None
-            } else {
-                Some(e)
-            }
-        }).collect();
+            })
+            .collect();
 
         // Group endpoints by (port, path) to avoid duplicate requests
         let mut unique_endpoints: HashMap<(u16, String), Endpoint> = HashMap::new();
@@ -318,7 +325,7 @@ where
         Ok(responses)
     }
 
-        // Use simpler DNS resolver that doesn't have API issues
+    // Use simpler DNS resolver that doesn't have API issues
     pub async fn test_dns_service(ip: IpAddr) -> Result<Option<u16>, Error> {
         // Use the simpler approach - create resolver with custom config directly
         let mut config = ResolverConfig::new();

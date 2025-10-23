@@ -8,7 +8,7 @@ use crate::server::hosts::types::{
     interfaces::{Interface, InterfaceBase},
     ports::PortBase,
 };
-use crate::server::services::types::base::{ServiceMatchBaselineParams};
+use crate::server::services::types::base::ServiceMatchBaselineParams;
 use crate::{
     daemon::utils::base::DaemonUtils,
     server::{
@@ -22,14 +22,14 @@ use anyhow::anyhow;
 use anyhow::{Error, Result};
 use axum::async_trait;
 use cidr::IpCidr;
-use tokio_util::sync::CancellationToken;
 use futures::{
     future::try_join_all,
     stream::{self, StreamExt},
 };
-use std::{net::IpAddr, sync::Arc};
 use std::result::Result::Ok;
+use std::{net::IpAddr, sync::Arc};
 use tokio::time::timeout;
+use tokio_util::sync::CancellationToken;
 
 #[derive(Default)]
 pub struct NetworkScanDiscovery {}
@@ -73,7 +73,10 @@ impl DiscoversNetworkedEntities for Discovery<NetworkScanDiscovery> {
     }
 
     async fn get_gateway_ips(&self) -> Result<Vec<IpAddr>, Error> {
-        self.as_ref().utils.get_own_routing_table_gateway_ips().await
+        self.as_ref()
+            .utils
+            .get_own_routing_table_gateway_ips()
+            .await
     }
 
     async fn discover_create_subnets(&self) -> Result<Vec<Subnet>, Error> {

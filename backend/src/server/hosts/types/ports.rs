@@ -1,7 +1,7 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::{fmt::Display, str::FromStr};
 use std::hash::Hash;
+use std::{fmt::Display, str::FromStr};
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
 use validator::Validate;
@@ -101,8 +101,7 @@ impl FromStr for PortBase {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let re = Regex::new(r"(?i)\b(\d+)\s*[/\-\s:]*\s*(tcp|udp)\b")
-            .map_err(|e| e.to_string())?;
+        let re = Regex::new(r"(?i)\b(\d+)\s*[/\-\s:]*\s*(tcp|udp)\b").map_err(|e| e.to_string())?;
 
         if let Some(caps) = re.captures(s.trim()) {
             let number = caps

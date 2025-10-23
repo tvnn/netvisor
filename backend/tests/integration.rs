@@ -438,32 +438,35 @@ async fn check_for_home_assistant_service(
 async fn generate_fixtures_from_test_data() -> Result<(), Box<dyn std::error::Error>> {
     // This test should run AFTER all other integration tests
     // The database now contains all the data created during test runs
-    
+
     let output = std::process::Command::new("docker")
         .args([
             "exec",
             "netvisor-postgres-1",
             "pg_dump",
-            "-U", "postgres",
-            "-d", "netvisor",
+            "-U",
+            "postgres",
+            "-d",
+            "netvisor",
             "--clean",
             "--if-exists",
         ])
         .output()?;
-    
+
     if !output.status.success() {
         return Err(format!(
             "pg_dump failed: {}",
             String::from_utf8_lossy(&output.stderr)
-        ).into());
+        )
+        .into());
     }
-    
-    let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/tests/netvisor-next.sql");
+
+    let fixture_path =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tests/netvisor-next.sql");
     std::fs::write(&fixture_path, output.stdout)?;
-    
+
     println!("✓ Generated netvisor-next.sql from integration test database");
-    
+
     Ok(())
 }
 
