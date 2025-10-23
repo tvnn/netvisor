@@ -55,8 +55,8 @@
 						height: node.size.y,
 						expandParent: true,
 						deletable: false,
-						parentId: node.type == 'HostNode' ? node.subnet_id : undefined,
-						extent: node.subnet_id ? 'parent' : undefined,
+						parentId: node.node_type == 'HostNode' ? node.subnet_id : undefined,
+						extent: node.node_type == 'HostNode' ? 'parent' : undefined,
 						data: node
 					};
 				});

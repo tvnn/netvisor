@@ -85,7 +85,7 @@ impl ChildNodePlacement {
         let mut placed_positions: HashMap<Uuid, (usize, usize)> = HashMap::new();
 
         // Place nodes in grid cells based on force direction
-        for (child, force) in sorted {
+        for (child, force) in &sorted {
             let norm_x = normalize(force.x, min_x, max_x);
             let norm_y = normalize(force.y, min_y, max_y);
 
@@ -127,7 +127,7 @@ impl ChildNodePlacement {
         let mut result: HashMap<Uuid, NodeLayout> = HashMap::new();
         let mut placed_nodes: Vec<(Uuid, NodeBounds)> = Vec::new();
 
-        // FIXED: Calculate actual positions row by row for tighter packing
+        // Calculate actual positions row by row for tighter packing
         let mut row_heights: Vec<usize> = vec![0; grid_h];
         let mut col_widths: Vec<usize> = vec![0; grid_w];
 

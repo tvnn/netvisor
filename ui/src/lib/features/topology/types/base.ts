@@ -8,13 +8,13 @@ export interface NodeBase {
 
 type NodeType =
 	| {
-			type: 'HostNode';
+			node_type: 'HostNode';
 			subnet_id: string;
 			host_id: string;
 			interface_id: string;
 			is_infra: boolean;
 	  }
-	| { type: 'SubnetNode'; infra_width: number };
+	| { node_type: 'SubnetNode'; infra_width: number };
 
 type TopologyNode = NodeBase & NodeType & Record<string, unknown>;
 
