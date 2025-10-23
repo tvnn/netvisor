@@ -13,6 +13,8 @@ use crate::server::topology::{
     },
 };
 
+const GRID_SIZE: isize = 25;
+
 pub struct SubnetPositioner<'a> {
     max_iterations: usize,
     context: &'a TopologyContext<'a>,
@@ -26,6 +28,11 @@ impl<'a> SubnetPositioner<'a> {
             context: ctx,
             utils: OptimizerUtils::new(),
         }
+    }
+
+    /// Snap a position to the nearest grid point
+    fn snap_to_grid(value: isize) -> isize {
+        ((value as f64 / GRID_SIZE as f64).round() as isize) * GRID_SIZE
     }
 
     /// Optimize subnet positions starting from top row, cascading downward
@@ -106,7 +113,7 @@ impl<'a> SubnetPositioner<'a> {
                         }
 
                         if let Some(rightmost) = sorted_subnets.last() {
-                            if self.optimize_edge_subnet(nodes, *rightmost, edges, true) {
+                            if self.optimize_edge_subnet(nodes, *rightmost, edges, false) {
                                 improved = true;
                             }
                         }
@@ -265,7 +272,7 @@ impl<'a> SubnetPositioner<'a> {
             .sum::<f64>()
             / rows_to_optimize.len() as f64;
 
-        (median_target - current_center).round() as isize
+        Self::snap_to_grid((median_target - current_center).round() as isize)
     }
 
     fn optimize_edge_subnet(
@@ -291,15 +298,15 @@ impl<'a> SubnetPositioner<'a> {
                     // Has neighbor: clamp optimal position to not overlap neighbor
                     if is_left {
                         // Leftmost subnet: can't move right past the constraint
-                        optimal_x.min(constraint_x)
+                        Self::snap_to_grid(optimal_x.min(constraint_x))
                     } else {
                         // Rightmost subnet: can't move left past the constraint
-                        optimal_x.max(constraint_x)
+                        Self::snap_to_grid(optimal_x.max(constraint_x))
                     }
                 }
                 None => {
                     // No neighbor: move freely to optimal position
-                    optimal_x
+                    Self::snap_to_grid(optimal_x)
                 }
             };
 
@@ -330,7 +337,8 @@ impl<'a> SubnetPositioner<'a> {
             None => return false,
         };
 
-        let optimal_x = self.calculate_optimal_subnet_x(nodes, subnet_id, edges);
+        let optimal_x =
+            Self::snap_to_grid(self.calculate_optimal_subnet_x(nodes, subnet_id, edges));
 
         if optimal_x == original_pos.x {
             return false;
@@ -455,7 +463,8 @@ impl<'a> SubnetPositioner<'a> {
         // Calculate shift and apply to current subnet position
         let shift = (median_target - median_current).round() as isize;
         let current_subnet_x = subnet_positions.get(&subnet_id).map(|p| p.x).unwrap_or(0);
-        current_subnet_x + shift
+
+        Self::snap_to_grid(current_subnet_x + shift)
     }
 
     fn calculate_total_edge_length(&self, nodes: &[Node], edges: &[Edge]) -> f64 {

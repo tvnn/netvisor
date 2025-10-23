@@ -10,7 +10,7 @@
 	body {
 		margin: 0;
 		padding: 0;
-		background: linear-gradient(135deg, #1a1d29 0%, #252d3a 100%, #252d3a 100%);
+		background: #1a1d29;
 		min-height: 100vh;
 	}
 }
@@ -89,19 +89,24 @@
 	}
 
 	/* Card component */
-	.card-modern {
+	.card {
 		@apply border border-gray-700 bg-gray-800/90 backdrop-blur-sm;
+		@apply hover:ring-1 hover:ring-gray-600;
 		@apply rounded-2xl p-6 shadow-xl transition-all duration-300 ease-in-out;
 	}
-
 	/* Card dividers/borders */
-	.card-divider {
+	.card-divider-h {
 		@apply border-t border-gray-700;
+	}
+
+	.card-divider-v {
+		@apply border-r border-gray-700;
 	}
 
 	/* Sidebar component */
 	.sidebar {
-		@apply flex min-h-screen w-64 flex-col border-r border-gray-700 bg-gray-900;
+		@apply flex min-h-screen w-64 flex-col border-r border-gray-700;
+		background-color: #15131e;
 	}
 
 	.sidebar-section {

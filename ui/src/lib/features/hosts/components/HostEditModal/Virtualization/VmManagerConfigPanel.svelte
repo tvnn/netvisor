@@ -3,7 +3,6 @@
 	import { getHostFromId, hosts } from '$lib/features/hosts/store';
 	import { HostDisplay } from '$lib/shared/components/forms/selection/display/HostDisplay.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
 
 	export let service: Service;
@@ -38,21 +37,17 @@
 </script>
 
 <div class="space-y-6">
-	{#if serviceMetadata}
-		<ConfigHeader
-			title="{serviceMetadata.name} - Virtual Machines"
-			subtitle="Manage VMs controlled by this {serviceMetadata.name} instance"
-		/>
-	{/if}
-
 	<ListManager
-		label="Managed Virtual Machines"
-		helpText="Select which hosts are VMs managed by this service"
+		label="Virtual Machines"
+		helpText="Manage VMs controlled by this {serviceMetadata?.name
+			? serviceMetadata.name
+			: ''} instance"
 		placeholder="Add VM host..."
 		emptyMessage="No VMs managed by this service yet. Add hosts that are VMs running on this hypervisor."
 		allowReorder={false}
 		allowDuplicates={false}
 		showSearch={true}
+		allowItemEdit={() => false}
 		options={selectableVms}
 		items={managedVms}
 		optionDisplayComponent={HostDisplay}

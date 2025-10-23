@@ -17,7 +17,7 @@
 	export let footerProps: Record<string, unknown> = {}; // Props to pass to footer component
 </script>
 
-<div class="card-modern flex h-full flex-col">
+<div class="card flex h-full flex-col">
 	<!-- Header -->
 	<div class="mb-4 flex items-start justify-between">
 		<div class="flex items-center space-x-3">
@@ -100,14 +100,14 @@
 
 	<!-- Footer Component -->
 	{#if footerComponent}
-		<div class="card-divider mt-4 pt-4">
+		<div class="card-divider-h mt-4 pt-4">
 			<svelte:component this={footerComponent} {...footerProps} />
 		</div>
 	{/if}
 
 	<!-- Action Buttons -->
 	{#if actions.length > 0}
-		<div class="card-divider mt-4 flex items-center justify-between pt-4">
+		<div class="card-divider-h mt-4 flex items-center justify-between pt-4">
 			{#each actions as action (action.label)}
 				<button
 					on:click={action.onClick}

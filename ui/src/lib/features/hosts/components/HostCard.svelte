@@ -39,10 +39,10 @@
 	$: vms = hostServices
 		.flatMap((sv) => sv.vms.map((h_id) => getHostFromId(h_id)))
 		.filter((h) => h != undefined);
-	$: containerIds = hostServices
+	$: containers = hostServices
 		.flatMap((sv) => sv.containers.map((s_id) => getServiceById(s_id)))
-		.filter((s) => s != undefined)
-		.map((s) => s.id);
+		.filter((s) => s != undefined);
+	$: containerIds = containers.map((s) => s.id);
 
 	// Build card data
 	$: cardData = {
@@ -63,6 +63,15 @@
 				: [])
 		],
 		lists: [
+			{
+				label: 'Groups',
+				items: hostGroups.map((group: Group) => ({
+					id: group.id,
+					label: group.name,
+					color: entities.getColorHelper('Group').string
+				})),
+				emptyText: 'No groups assigned'
+			},
 			...(vms.length > 0
 				? [
 						{
@@ -81,18 +90,34 @@
 			{
 				label: 'Services',
 				items: hostServices
+					.filter((sv) => !containerIds.includes(sv.id))
 					.map((sv) => {
 						return {
 							id: sv.id,
-							label: (containerIds.includes(sv.id) ? 'Container: ' : '') + sv.name,
-							color: !containerIds.includes(sv.id)
-								? entities.getColorHelper('Service').string
-								: entities.getColorHelper('Virtualization').string
+							label: sv.name,
+							color: entities.getColorHelper('Service').string
 						};
 					})
 					.sort((a) => (containerIds.includes(a.id) ? 1 : -1)),
 				emptyText: 'No services assigned'
 			},
+			...(containers.length > 0
+				? [
+						{
+							label: 'Containers',
+							items: containers
+								.map((c) => {
+									return {
+										id: c.id,
+										label: c.name,
+										color: entities.getColorHelper('Virtualization').string
+									};
+								})
+								.sort((a) => (containerIds.includes(a.id) ? 1 : -1)),
+							emptyText: 'No services assigned'
+						}
+					]
+				: []),
 			{
 				label: 'Interfaces',
 				items: host.interfaces.map((i) => {
@@ -103,15 +128,6 @@
 					};
 				}),
 				emptyText: 'No subnets assigned'
-			},
-			{
-				label: 'Groups',
-				items: hostGroups.map((group: Group) => ({
-					id: group.id,
-					label: group.name,
-					color: entities.getColorHelper('Group').string
-				})),
-				emptyText: 'No groups assigned'
 			}
 		],
 

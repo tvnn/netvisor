@@ -125,7 +125,7 @@
 				</div>
 
 				<!-- Details of what will happen -->
-				<div class="card-modern mb-6">
+				<div class="card mb-6">
 					<h4 class="text-primary mb-3 text-sm font-medium">What will happen:</h4>
 					<ul class="text-secondary space-y-2 text-sm">
 						{#if otherHost && selectedTargetHost}

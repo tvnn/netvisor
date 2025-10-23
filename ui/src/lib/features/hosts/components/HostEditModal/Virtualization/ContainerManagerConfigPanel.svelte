@@ -3,7 +3,6 @@
 	import { getServiceById, services } from '$lib/features/services/store';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
-	import ConfigHeader from '$lib/shared/components/forms/config/ConfigHeader.svelte';
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
 
 	export let service: Service;
@@ -40,16 +39,11 @@
 </script>
 
 <div class="space-y-6">
-	{#if serviceMetadata}
-		<ConfigHeader
-			title="{serviceMetadata.name} - Containers"
-			subtitle="Manage containerized services controlled by this {serviceMetadata.name} instance"
-		/>
-	{/if}
-
 	<ListManager
-		label="Managed Containers"
-		helpText="Select which services are containers managed by {service.name}"
+		label="Containers"
+		helpText="Manage containers controlled by this {serviceMetadata?.name
+			? serviceMetadata.name
+			: ''} instance"
 		placeholder="Add container service..."
 		emptyMessage="No containers managed by this service yet. Add services that run in containers on this host."
 		allowReorder={false}

@@ -155,7 +155,7 @@
 						? 'cursor-pointer'
 						: ''} {isHighlighted
 						? 'border-blue-500 bg-blue-900/20 hover:border-blue-400 hover:bg-blue-900/30'
-						: 'border-gray-600 bg-gray-700/20 hover:border-gray-500 hover:bg-gray-700/30'}"
+						: 'card'}"
 					on:click={() =>
 						allowItemEdit(item) && !itemDisplayComponent.supportsInlineEdit && onEdit(item, index)}
 					tabindex={allowItemEdit(item) ? 0 : -1}

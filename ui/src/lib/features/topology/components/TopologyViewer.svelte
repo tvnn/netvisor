@@ -13,22 +13,26 @@
 	import { edgeTypes } from '$lib/shared/stores/metadata';
 	import { pushError } from '$lib/shared/stores/feedback';
 
-	// Import custom node components
+	// Import custom node/edge components
 	import SubnetNode from './SubnetNode.svelte';
 	import HostNode from './HostNode.svelte';
+	import CustomEdge from './CustomEdge.svelte';
 	import {
 		EdgeHandle,
 		type TopologyEdgeData,
 		type CustomEdgeData,
 		type CustomNodeData
 	} from '../types/base';
-	import { twColorToRgba } from '$lib/shared/utils/styling';
 	import { onMount } from 'svelte';
 
 	// Define node types
 	const nodeTypes = {
 		SubnetNode: SubnetNode,
 		HostNode: HostNode
+	};
+
+	const customEdgeTypes = {
+		custom: CustomEdge
 	};
 
 	// Stores
@@ -96,12 +100,6 @@
 									color: edgeColorHelper.rgb
 								} as EdgeMarkerType);
 
-						const labelStyle = edgeMetadata.style_label_like_nodes
-							? `background: ${twColorToRgba(edgeColorHelper.bg)};
-								color: ${edgeColorHelper.rgb};
-								border: 2px solid ${twColorToRgba(edgeColorHelper.border)};`
-							: 'background: #374151; color: #f3f4f6; border: 1px solid #4b5563;';
-
 						const data: CustomEdgeData = {
 							edgeType: edgeType,
 							label: edgeLabel,
@@ -117,11 +115,8 @@
 							markerStart,
 							sourceHandle: edgeData.source_handle.toString(),
 							targetHandle: edgeData.target_handle.toString(),
-							type: 'smoothstep',
+							type: 'custom',
 							label: edgeData.label,
-							labelStyle:
-								labelStyle +
-								'font-size: 12px; font-weight: 500; padding: 2px 6px; border-radius: 4px;',
 							style: `stroke: ${edgeColorHelper.rgb}; stroke-width: 2px; ${dashArray}`,
 							data
 						};
@@ -195,19 +190,21 @@
 	}
 </script>
 
-<div class="h-[calc(100vh-200px)] w-full overflow-hidden rounded-lg border border-gray-700">
+<div class="h-[calc(100vh-200px)] w-full overflow-hidden rounded-2xl border border-gray-700">
 	<SvelteFlow
 		nodes={$nodes}
 		edges={$edges}
 		{nodeTypes}
+		edgeTypes={customEdgeTypes}
 		onedgeclick={onEdgeClick}
 		fitView
-		snapGrid={[5, 5]}
+		noPanClass="nopan"
+		snapGrid={[25, 25]}
 		nodesDraggable={true}
 		nodesConnectable={false}
 		elementsSelectable={true}
 	>
-		<Background variant={BackgroundVariant.Dots} bgColor="#374151" gap={10} size={1} />
+		<Background variant={BackgroundVariant.Dots} bgColor="#15131e" gap={50} size={1} />
 
 		<Controls
 			showZoom={true}
@@ -236,7 +233,7 @@
 	}
 
 	:global(.svelte-flow__attribution a) {
-		color: #60a5fa !important; /* blue-400 */
+		color: 'text-primary';
 		text-decoration: none !important;
 	}
 </style>

@@ -26,109 +26,15 @@
 			(isContainerSubnet(subnet.id) ? '' : ': ' + subnet.cidr);
 	let infra_width = (data.infra_width as number) || 0;
 
-	let nodeClasses = $derived(
-		`
-        ${grayColorHelper.bg} ${grayColorHelper.text} 
-        border-2 ${selected ? subnetColorHelper.border : grayColorHelper.border} 
-        rounded-xl text-sm font-semibold text-center 
-        transition-all duration-200
-        shadow-lg
-        `
-	);
-
 	let nodeStyle = $derived(`width: ${width}px; height: ${height}px;`);
 	let hasInfra = $derived(infra_width > 0);
 </script>
-
-<NodeResizeControl
-	position="bottom-right"
-	style="z-index: 100; border: none; width: 20px; height: 20px;"
->
-	<svg
-		xmlns="http://www.w3.org/2000/svg"
-		width="20"
-		height="20"
-		viewBox="0 0 20 20"
-		style="position: absolute; right: 10px; bottom: 10px;"
-	>
-		<path
-			d="M20 7.5 L20 20 L7.5 20 Z"
-			fill={selected ? subnetColorHelper.rgb : grayColorHelper.rgb}
-			style="transition: fill 200ms ease-in-out;"
-		/>
-		<line x1="11.667" y1="20" x2="20" y2="11.667" stroke="#374151" stroke-width="1" />
-		<line x1="16.333" y1="20" x2="20" y2="16.333" stroke="#374151" stroke-width="1" />
-	</svg>
-</NodeResizeControl>
-
-<NodeResizeControl
-	position="top-left"
-	style="z-index: 100; border: none; width: 20px; height: 20px;"
->
-	<svg
-		xmlns="http://www.w3.org/2000/svg"
-		width="20"
-		height="20"
-		viewBox="0 0 20 20"
-		style="position: absolute; left: 10px; top: 10px;"
-	>
-		<path
-			d="M0 12.5 L0 0 L12.5 0 Z"
-			fill={selected ? subnetColorHelper.rgb : grayColorHelper.rgb}
-			style="transition: fill 200ms ease-in-out;"
-		/>
-		<line x1="8.333" y1="0" x2="0" y2="8.333" stroke="#374151" stroke-width="1" />
-		<line x1="3.667" y1="0" x2="0" y2="3.667" stroke="#374151" stroke-width="1" />
-	</svg>
-</NodeResizeControl>
-
-<NodeResizeControl
-	position="top-right"
-	style="z-index: 100; border: none; width: 20px; height: 20px;"
->
-	<svg
-		xmlns="http://www.w3.org/2000/svg"
-		width="20"
-		height="20"
-		viewBox="0 0 20 20"
-		style="position: absolute; right: 10px; top: 10px;"
-	>
-		<path
-			d="M7.5 0 L20 0 L20 12.5 Z"
-			fill={selected ? subnetColorHelper.rgb : grayColorHelper.rgb}
-			style="transition: fill 200ms ease-in-out;"
-		/>
-		<line x1="11.667" y1="0" x2="20" y2="8.333" stroke="#374151" stroke-width="1" />
-		<line x1="16.333" y1="0" x2="20" y2="3.667" stroke="#374151" stroke-width="1" />
-	</svg>
-</NodeResizeControl>
-
-<NodeResizeControl
-	position="bottom-left"
-	style="z-index: 100; border: none; width: 20px; height: 20px;"
->
-	<svg
-		xmlns="http://www.w3.org/2000/svg"
-		width="20"
-		height="20"
-		viewBox="0 0 20 20"
-		style="position: absolute; left: 10px; bottom: 10px;"
-	>
-		<path
-			d="M0 7.5 L12.5 20 L0 20 Z"
-			fill={selected ? subnetColorHelper.rgb : grayColorHelper.rgb}
-			style="transition: fill 200ms ease-in-out;"
-		/>
-		<line x1="0" y1="11.667" x2="8.333" y2="20" stroke="#374151" stroke-width="1" />
-		<line x1="0" y1="16.333" x2="3.667" y2="20" stroke="#374151" stroke-width="1" />
-	</svg>
-</NodeResizeControl>
 
 <div class="relative" style={nodeStyle}>
 	<!-- External label in upper left corner -->
 	{#if cidr || label}
 		<div
-			class="absolute -top-10 left-0 z-10 flex items-center gap-1 rounded-md border border-gray-600 bg-gray-800/90 px-2 py-1 shadow-lg backdrop-blur-sm"
+			class="card text-secondary absolute -top-10 left-0 z-10 flex items-center gap-1 px-2 py-1 shadow-lg backdrop-blur-sm"
 		>
 			<!-- Icon -->
 			{#if IconComponent}
@@ -144,7 +50,10 @@
 	{/if}
 
 	<!-- Main container -->
-	<div class={nodeClasses} style="width: 100%; height: 100%; position: relative; overflow: hidden;">
+	<div
+		class="rounded-xl text-center text-sm font-semibold shadow-lg transition-all duration-200"
+		style="background: #1a1d29; width: 100%; height: 100%; position: relative; overflow: hidden;"
+	>
 		<!-- Infrastructure background area with gradient centered at infra_width -->
 		{#if hasInfra}
 			<div
@@ -156,7 +65,7 @@
 			>
 				<!-- Infrastructure title -->
 				<div
-					class="absolute left-1/2 top-0.5 -translate-x-1/2 transform text-[0.5rem] font-semibold {grayColorHelper.text}"
+					class="text-muted absolute left-1/2 top-0.5 -translate-x-1/2 transform text-[0.5rem] font-semibold"
 				>
 					Infrastructure
 				</div>
@@ -174,6 +83,90 @@
 	<Handle type="source" id="Right" position={Position.Right} style="opacity: 0" />
 	<Handle type="source" id="Bottom" position={Position.Bottom} style="opacity: 0" />
 	<Handle type="source" id="Left" position={Position.Left} style="opacity: 0" />
+
+	<NodeResizeControl
+		position="bottom-right"
+		style="z-index: 100; border: none; width: 20px; height: 20px;"
+	>
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="20"
+			height="20"
+			viewBox="0 0 20 20"
+			style="position: absolute; right: 10px; bottom: 10px;"
+		>
+			<path
+				d="M20 7.5 L20 20 L7.5 20 Z"
+				fill={selected ? subnetColorHelper.rgb : grayColorHelper.rgb}
+				style="transition: fill 200ms ease-in-out;"
+			/>
+			<line x1="11.667" y1="20" x2="20" y2="11.667" stroke="#374151" stroke-width="1" />
+			<line x1="16.333" y1="20" x2="20" y2="16.333" stroke="#374151" stroke-width="1" />
+		</svg>
+	</NodeResizeControl>
+
+	<NodeResizeControl
+		position="top-left"
+		style="z-index: 100; border: none; width: 20px; height: 20px;"
+	>
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="20"
+			height="20"
+			viewBox="0 0 20 20"
+			style="position: absolute; left: 10px; top: 10px;"
+		>
+			<path
+				d="M0 12.5 L0 0 L12.5 0 Z"
+				fill={selected ? subnetColorHelper.rgb : grayColorHelper.rgb}
+				style="transition: fill 200ms ease-in-out;"
+			/>
+			<line x1="8.333" y1="0" x2="0" y2="8.333" stroke="#374151" stroke-width="1" />
+			<line x1="3.667" y1="0" x2="0" y2="3.667" stroke="#374151" stroke-width="1" />
+		</svg>
+	</NodeResizeControl>
+
+	<NodeResizeControl
+		position="top-right"
+		style="z-index: 100; border: none; width: 20px; height: 20px;"
+	>
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="20"
+			height="20"
+			viewBox="0 0 20 20"
+			style="position: absolute; right: 10px; top: 10px;"
+		>
+			<path
+				d="M7.5 0 L20 0 L20 12.5 Z"
+				fill={selected ? subnetColorHelper.rgb : grayColorHelper.rgb}
+				style="transition: fill 200ms ease-in-out;"
+			/>
+			<line x1="11.667" y1="0" x2="20" y2="8.333" stroke="#374151" stroke-width="1" />
+			<line x1="16.333" y1="0" x2="20" y2="3.667" stroke="#374151" stroke-width="1" />
+		</svg>
+	</NodeResizeControl>
+
+	<NodeResizeControl
+		position="bottom-left"
+		style="z-index: 100; border: none; width: 20px; height: 20px;"
+	>
+		<svg
+			xmlns="http://www.w3.org/2000/svg"
+			width="20"
+			height="20"
+			viewBox="0 0 20 20"
+			style="position: absolute; left: 10px; bottom: 10px;"
+		>
+			<path
+				d="M0 7.5 L12.5 20 L0 20 Z"
+				fill={selected ? subnetColorHelper.rgb : grayColorHelper.rgb}
+				style="transition: fill 200ms ease-in-out;"
+			/>
+			<line x1="0" y1="11.667" x2="8.333" y2="20" stroke="#374151" stroke-width="1" />
+			<line x1="0" y1="16.333" x2="3.667" y2="20" stroke="#374151" stroke-width="1" />
+		</svg>
+	</NodeResizeControl>
 </div>
 
 <style>

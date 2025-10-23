@@ -4,9 +4,8 @@
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import { getServicesForHost } from '$lib/features/services/store';
 	import { isContainerSubnet } from '$lib/features/subnets/store';
-	import { twColorToRgba } from '$lib/shared/utils/styling';
 
-	let { data, selected, width, height }: NodeProps = $props();
+	let { data, width, height }: NodeProps = $props();
 
 	height = height ? height : 0;
 	width = width ? width : 0;
@@ -46,52 +45,19 @@
 
 	const hostColorHelper = entities.getColorHelper('Host');
 	const virtualizationColorHelper = entities.getColorHelper('Virtualization');
-
-	const headerColorHelper = $derived(
-		!nodeData?.isVirtualized ? hostColorHelper : virtualizationColorHelper
-	);
-
-	let nodeClasses = $derived(`
-		border-2 ${hostColorHelper.border} ${hostColorHelper.text}
-		rounded-lg text-s font-medium transition-all duration-200
-		shadow-md overflow-hidden
-		${selected ? `ring-2 ${hostColorHelper.ring} ring-opacity-75` : ''}
-	`);
-
-	let nodeStyle = $state('');
-
-	$effect(() => {
-		const isVirtualized = !!nodeData?.isVirtualized;
-
-		const topBlendHeight = 50;
-		const bottomBlendHeight = 50;
-
-		const hostBg = twColorToRgba(hostColorHelper.bg);
-		const headerBg = twColorToRgba(headerColorHelper.bg);
-
-		nodeStyle = `
-			width: ${width}px;
-			height: ${height}px;
-			display: flex;
-			flex-direction: column;
-			background: linear-gradient(
-				to bottom,
-				${isVirtualized ? `${headerBg} ` : `color-mix(in srgb, ${hostBg} 97%, white) `} 0px,
-				${isVirtualized ? `${headerBg} ` : `color-mix(in srgb, ${hostBg} 97%, white) `} ${topBlendHeight / 2}px,
-				${hostBg} ${topBlendHeight}px,
-				${hostBg} ${height - bottomBlendHeight}px,
-				color-mix(in srgb, ${hostBg} 80%, black) ${height}px
-			);
-		`;
-	});
 </script>
 
 {#if nodeData}
-	<div class={nodeClasses} style={`${nodeStyle} padding: 0;`}>
+	<div
+		class={`card ${nodeData.isVirtualized ? `border-color: ${virtualizationColorHelper.border}` : ''}`}
+		style={`width: ${width}px; height: ${height}px; display: flex; flex-direction: column; padding: 0;`}
+	>
 		<!-- Header section with gradient transition to body -->
 		{#if nodeData.headerText}
 			<div class="relative flex-shrink-0 px-2 py-2 text-center">
-				<div class={`truncate text-xs font-medium leading-none ${hostColorHelper.text}`}>
+				<div
+					class={`truncate text-xs font-medium leading-none ${nodeData.isVirtualized ? virtualizationColorHelper.text : 'text-tertiary'}`}
+				>
 					{nodeData.headerText}
 				</div>
 			</div>
@@ -108,7 +74,7 @@
 					{#each nodeData.services as service (service.id)}
 						{@const ServiceIcon = serviceDefinitions.getIconComponent(service.service_definition)}
 						<div
-							class="text-m flex max-w-full items-center justify-center gap-1 truncate text-center"
+							class="text-m text-secondary flex max-w-full items-center justify-center gap-1 truncate text-center"
 							style="line-height: 1.3;"
 							title={service.name}
 						>
@@ -125,10 +91,10 @@
 			{/if}
 		</div>
 
-		<!-- Footer section with gradient transition from body -->
+		<!-- Footer section -->
 		{#if nodeData.footerText}
 			<div class="relative flex flex-shrink-0 items-center justify-center px-2 py-2">
-				<div class={`truncate text-xs font-medium leading-none ${hostColorHelper.text}`}>
+				<div class="text-tertiary truncate text-xs font-medium leading-none">
 					{nodeData.footerText}
 				</div>
 			</div>

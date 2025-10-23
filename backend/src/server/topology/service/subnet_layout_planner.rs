@@ -256,7 +256,7 @@ impl SubnetLayoutPlanner {
         ctx: &TopologyContext,
         child_nodes: &mut Vec<Node>,
     ) -> (Uxy, usize) {
-        // Separate infrastructure from regular nodes (unchanged)
+        // Separate infrastructure from regular nodes
         let (infrastructure_children, regular_children) =
             if let Some(subnet) = ctx.get_subnet_by_id(subnet_id) {
                 let infrastructure_interface_ids = ctx.get_interfaces_with_infra_service(subnet);
@@ -273,20 +273,20 @@ impl SubnetLayoutPlanner {
             };
 
         // Calculate regular nodes layout using coordinate-based system
-        let (regular_child_positions, regular_grid_size) = {
-            // Calculate positions using force-directed layout
-            // No need to pass estimated container size!
+        let (regular_child_positions, regular_grid_size) = if !regular_children.is_empty() {
             let positions = ChildNodePlacement::calculate_anchor_based_positions(
                 &regular_children,
                 &NODE_PADDING,
                 ctx,
             );
 
-            // Calculate actual container size from the natural positions
             let container_size =
                 GridCalculator::calculate_container_size_from_layouts(&positions, &NODE_PADDING);
 
             (positions, container_size)
+        } else {
+            // Return 0 size when no regular children
+            (HashMap::new(), Uxy { x: 0, y: 0 })
         };
 
         // Calculate infrastructure nodes layout using coordinate-based system
