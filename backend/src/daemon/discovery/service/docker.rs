@@ -168,16 +168,16 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
             .await?
             .iter()
             .filter_map(|n| {
-                if let Some(ipam) = &n.ipam {
-                    if let Some(config) = &ipam.config {
-                        return Some(
-                            config
-                                .iter()
-                                .filter_map(|c| c.gateway.as_ref())
-                                .filter_map(|g| g.parse::<IpAddr>().ok())
-                                .collect::<Vec<IpAddr>>(),
-                        );
-                    }
+                if let Some(ipam) = &n.ipam
+                    && let Some(config) = &ipam.config
+                {
+                    return Some(
+                        config
+                            .iter()
+                            .filter_map(|c| c.gateway.as_ref())
+                            .filter_map(|g| g.parse::<IpAddr>().ok())
+                            .collect::<Vec<IpAddr>>(),
+                    );
                 }
                 None
             })
@@ -615,18 +615,16 @@ impl Discovery<DockerScanDiscovery> {
                                             .bindings
                                             .iter()
                                             .filter_map(|b| {
-                                                if let Some(port_id) = b.port_id() {
-                                                    if port_id == existing_port.id {
-                                                        // Only include if it's NOT on a Docker bridge
-                                                        if let Some(interface) =
-                                                            host.get_interface(&b.interface_id())
-                                                        {
-                                                            if !docker_bridge_subnet_ids
-                                                                .contains(&interface.base.subnet_id)
-                                                            {
-                                                                return Some(b.id());
-                                                            }
-                                                        }
+                                                if let Some(port_id) = b.port_id()
+                                                    && port_id == existing_port.id
+                                                {
+                                                    // Only include if it's NOT on a Docker bridge
+                                                    if let Some(interface) =
+                                                        host.get_interface(&b.interface_id())
+                                                        && !docker_bridge_subnet_ids
+                                                            .contains(&interface.base.subnet_id)
+                                                    {
+                                                        return Some(b.id());
                                                     }
                                                 }
                                                 None
@@ -1065,29 +1063,28 @@ impl Discovery<DockerScanDiscovery> {
                                 if let Some(ip_string) = &endpoint.ip_address {
                                     let ip_address = ip_string.parse::<IpAddr>().ok();
 
-                                    if let Some(ip_address) = ip_address {
-                                        if let Some(subnet) = subnets
+                                    if let Some(ip_address) = ip_address
+                                        && let Some(subnet) = subnets
                                             .iter()
                                             .find(|s| s.base.cidr.contains(&ip_address))
-                                        {
-                                            // Parse MAC address
-                                            let mac_address =
-                                                if let Some(mac_string) = &endpoint.mac_address {
-                                                    mac_string.parse::<MacAddress>().ok()
-                                                } else {
-                                                    None
-                                                };
+                                    {
+                                        // Parse MAC address
+                                        let mac_address =
+                                            if let Some(mac_string) = &endpoint.mac_address {
+                                                mac_string.parse::<MacAddress>().ok()
+                                            } else {
+                                                None
+                                            };
 
-                                            return Some((
-                                                Interface::new(InterfaceBase {
-                                                    subnet_id: subnet.id,
-                                                    ip_address,
-                                                    mac_address,
-                                                    name: Some(network_name.to_owned()),
-                                                }),
-                                                subnet.clone(),
-                                            ));
-                                        }
+                                        return Some((
+                                            Interface::new(InterfaceBase {
+                                                subnet_id: subnet.id,
+                                                ip_address,
+                                                mac_address,
+                                                name: Some(network_name.to_owned()),
+                                            }),
+                                            subnet.clone(),
+                                        ));
                                     }
                                 }
                                 tracing::warn!(

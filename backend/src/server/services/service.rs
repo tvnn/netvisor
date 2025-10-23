@@ -362,32 +362,31 @@ impl ServiceService {
                         interface_id,
                         ..
                     } => {
-                        if let Some(original_port) = original_host.get_port(port_id) {
-                            if let Some(new_port) =
+                        if let Some(original_port) = original_host.get_port(port_id)
+                            && let Some(new_port) =
                                 new_host.base.ports.iter().find(|p| *p == original_port)
+                        {
+                            let new_interface: Option<Option<Interface>> = match original_interface
                             {
-                                let new_interface: Option<Option<Interface>> =
-                                    match original_interface {
-                                        // None interface = listen on all interfaces, assume same for new host
-                                        None => Some(None),
-                                        Some(original_interface) => new_host
-                                            .base
-                                            .interfaces
-                                            .iter()
-                                            .find(|i| *i == original_interface)
-                                            .map(|found_interface| Some(found_interface.clone())),
-                                    };
+                                // None interface = listen on all interfaces, assume same for new host
+                                None => Some(None),
+                                Some(original_interface) => new_host
+                                    .base
+                                    .interfaces
+                                    .iter()
+                                    .find(|i| *i == original_interface)
+                                    .map(|found_interface| Some(found_interface.clone())),
+                            };
 
-                                match new_interface {
-                                    None => return None,
-                                    Some(new_interface) => {
-                                        *port_id = new_port.id;
-                                        *interface_id = match new_interface {
-                                            Some(new_interface) => Some(new_interface.id),
-                                            None => None,
-                                        };
-                                        return Some(*b);
-                                    }
+                            match new_interface {
+                                None => return None,
+                                Some(new_interface) => {
+                                    *port_id = new_port.id;
+                                    *interface_id = match new_interface {
+                                        Some(new_interface) => Some(new_interface.id),
+                                        None => None,
+                                    };
+                                    return Some(*b);
                                 }
                             }
                         }

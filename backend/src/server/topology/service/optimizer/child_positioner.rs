@@ -179,10 +179,10 @@ impl<'a> ChildPositioner<'a> {
 
         // Assign new positions based on topological order
         for (new_idx, &node_id) in order.iter().enumerate() {
-            if new_idx < position_values.len() {
-                if let Some(node) = nodes.iter_mut().find(|n| n.id == node_id) {
-                    node.position = position_values[new_idx];
-                }
+            if new_idx < position_values.len()
+                && let Some(node) = nodes.iter_mut().find(|n| n.id == node_id)
+            {
+                node.position = position_values[new_idx];
             }
         }
     }
@@ -485,32 +485,31 @@ impl<'a> ChildPositioner<'a> {
                 if let (Some((src_node, src_subnet)), Some((tgt_node, tgt_subnet))) = (
                     node_positions.get(&edge.source),
                     node_positions.get(&edge.target),
-                ) {
-                    if src_subnet == tgt_subnet {
-                        let dx = tgt_node.position.x - src_node.position.x;
-                        let dy = tgt_node.position.y - src_node.position.y;
+                ) && src_subnet == tgt_subnet
+                {
+                    let dx = tgt_node.position.x - src_node.position.x;
+                    let dy = tgt_node.position.y - src_node.position.y;
 
-                        let (primary_src, alt_src, primary_tgt, alt_tgt) =
-                            Self::determine_handle_preferences(dx as f32, dy as f32);
+                    let (primary_src, alt_src, primary_tgt, alt_tgt) =
+                        Self::determine_handle_preferences(dx as f32, dy as f32);
 
-                        // Choose source handle (prefer primary, fall back to alternative)
-                        let src_used = source_handles_used.entry(edge.source).or_default();
-                        edge.source_handle = if !src_used.contains(&primary_src) {
-                            primary_src
-                        } else {
-                            alt_src
-                        };
-                        src_used.insert(edge.source_handle);
+                    // Choose source handle (prefer primary, fall back to alternative)
+                    let src_used = source_handles_used.entry(edge.source).or_default();
+                    edge.source_handle = if !src_used.contains(&primary_src) {
+                        primary_src
+                    } else {
+                        alt_src
+                    };
+                    src_used.insert(edge.source_handle);
 
-                        // Choose target handle (prefer primary, fall back to alternative)
-                        let tgt_used = target_handles_used.entry(edge.target).or_default();
-                        edge.target_handle = if !tgt_used.contains(&primary_tgt) {
-                            primary_tgt
-                        } else {
-                            alt_tgt
-                        };
-                        tgt_used.insert(edge.target_handle);
-                    }
+                    // Choose target handle (prefer primary, fall back to alternative)
+                    let tgt_used = target_handles_used.entry(edge.target).or_default();
+                    edge.target_handle = if !tgt_used.contains(&primary_tgt) {
+                        primary_tgt
+                    } else {
+                        alt_tgt
+                    };
+                    tgt_used.insert(edge.target_handle);
                 }
                 edge
             })

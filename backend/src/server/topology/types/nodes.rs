@@ -63,7 +63,7 @@ impl SubnetType {
             SubnetType::IoT => 2,
 
             // Layer 3: Infrastructure
-            SubnetType::DockerBridge { .. } => 3,
+            SubnetType::DockerBridge => 3,
             SubnetType::Management => 3,
             SubnetType::Storage => 3,
 
@@ -93,7 +93,7 @@ impl SubnetType {
             // Layer 3
             SubnetType::Storage => 0,
             SubnetType::Management => 1,
-            SubnetType::DockerBridge { .. } => 2,
+            SubnetType::DockerBridge => 2,
 
             // Special
             SubnetType::Unknown => 999,

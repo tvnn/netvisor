@@ -179,11 +179,11 @@ impl OptimizerUtils {
     ) -> Ixy {
         let mut pos = node.position;
 
-        if let NodeType::HostNode { subnet_id, .. } = node.node_type {
-            if let Some(subnet_pos) = subnet_positions.get(&subnet_id) {
-                pos.x += subnet_pos.x;
-                pos.y += subnet_pos.y;
-            }
+        if let NodeType::HostNode { subnet_id, .. } = node.node_type
+            && let Some(subnet_pos) = subnet_positions.get(&subnet_id)
+        {
+            pos.x += subnet_pos.x;
+            pos.y += subnet_pos.y;
         }
 
         pos
@@ -200,11 +200,11 @@ impl OptimizerUtils {
             y: node.position.y + (node.size.y as isize / 2),
         };
 
-        if let NodeType::HostNode { subnet_id, .. } = node.node_type {
-            if let Some(subnet_pos) = subnet_positions.get(&subnet_id) {
-                abs_pos.x += subnet_pos.x;
-                abs_pos.y += subnet_pos.y;
-            }
+        if let NodeType::HostNode { subnet_id, .. } = node.node_type
+            && let Some(subnet_pos) = subnet_positions.get(&subnet_id)
+        {
+            abs_pos.x += subnet_pos.x;
+            abs_pos.y += subnet_pos.y;
         }
 
         abs_pos

@@ -125,10 +125,10 @@ impl DiscoverySessionManager {
 
         let mut to_remove = Vec::new();
         for (session_id, session) in sessions.iter() {
-            if let Some(finished_at) = session.finished_at {
-                if finished_at < cutoff {
-                    to_remove.push(*session_id);
-                }
+            if let Some(finished_at) = session.finished_at
+                && finished_at < cutoff
+            {
+                to_remove.push(*session_id);
             }
         }
 

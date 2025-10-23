@@ -82,11 +82,11 @@ impl DaemonDiscoverySessionManager {
     /// Clear completed task
     pub async fn clear_completed_task(&self) {
         let mut task_guard = self.current_task.write().await;
-        if let Some(handle) = task_guard.as_ref() {
-            if handle.is_finished() {
-                *self.cancellation_token.write().await = CancellationToken::new();
-                *task_guard = None;
-            }
+        if let Some(handle) = task_guard.as_ref()
+            && handle.is_finished()
+        {
+            *self.cancellation_token.write().await = CancellationToken::new();
+            *task_guard = None;
         }
     }
 }

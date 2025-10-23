@@ -298,7 +298,7 @@ impl EntityMetadataProvider for SubnetType {
             SubnetType::WiFi => "teal",
 
             SubnetType::Management => "gray",
-            SubnetType::DockerBridge { .. } => Entity::Virtualization.color(),
+            SubnetType::DockerBridge => Entity::Virtualization.color(),
             SubnetType::Storage => Entity::Storage.color(),
 
             SubnetType::Unknown => "gray",
@@ -320,7 +320,7 @@ impl EntityMetadataProvider for SubnetType {
             SubnetType::WiFi => "WiFi",
 
             SubnetType::Management => "ServerCog",
-            SubnetType::DockerBridge { .. } => "Box",
+            SubnetType::DockerBridge => "Box",
             SubnetType::Storage => Entity::Storage.icon(),
 
             SubnetType::Unknown => Entity::Subnet.icon(),
@@ -345,7 +345,7 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::WiFi => "WiFi",
 
             SubnetType::Management => "Management",
-            SubnetType::DockerBridge { .. } => "Docker Bridge",
+            SubnetType::DockerBridge => "Docker Bridge",
             SubnetType::Storage => "Storage",
 
             SubnetType::Unknown => "Unknown",
@@ -368,7 +368,7 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::WiFi => "WiFi network",
 
             SubnetType::Management => "Management network",
-            SubnetType::DockerBridge { .. } => "Docker bridge network",
+            SubnetType::DockerBridge => "Docker bridge network",
             SubnetType::Storage => "Storage network",
 
             SubnetType::Unknown => "Unknown network type",

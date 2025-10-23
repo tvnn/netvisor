@@ -111,23 +111,21 @@ impl SubnetLayoutPlanner {
                         .interfaces
                         .iter()
                         .find(|i| i.base.subnet_id == **first)
-                    {
-                        if host_interface_subnet_ids
+                        && host_interface_subnet_ids
                             .iter()
                             .filter(|i| i == first)
                             .count()
                             == 1
-                            && virtualization_service_interface_subnet_ids
-                                .iter()
-                                .filter(|i| i == first)
-                                .count()
-                                == 1
-                        {
-                            return Some(format!(
-                                "VM: {} @ {}",
-                                service.base.name, interface.base.ip_address
-                            ));
-                        }
+                        && virtualization_service_interface_subnet_ids
+                            .iter()
+                            .filter(|i| i == first)
+                            .count()
+                            == 1
+                    {
+                        return Some(format!(
+                            "VM: {} @ {}",
+                            service.base.name, interface.base.ip_address
+                        ));
                     }
                     return Some(format!("VM: {}", service.base.name));
                 }
@@ -210,9 +208,7 @@ impl SubnetLayoutPlanner {
                 };
 
                 // Special handling for DockerBridge (only if grouping is enabled)
-                if group_docker_bridges_by_host
-                    && matches!(subnet_type, SubnetType::DockerBridge { .. })
-                {
+                if group_docker_bridges_by_host && matches!(subnet_type, SubnetType::DockerBridge) {
                     if let Some(subnet_grouping_id) =
                         docker_bridge_host_subnet_id_to_group_on.get(&host.id)
                     {

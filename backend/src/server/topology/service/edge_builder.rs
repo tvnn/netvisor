@@ -141,27 +141,25 @@ impl EdgeBuilder {
                     if let (Some(first_interface_id), Some(first_subnet_id)) = (
                         container_subnet_interface_ids.first(),
                         container_subnets.first(),
-                    ) {
-                        if let Some((source_handle, target_handle)) =
-                            EdgeBuilder::determine_interface_handles(
-                                ctx,
-                                &origin_interface.id,
-                                first_interface_id,
-                            )
-                        {
-                            docker_bridge_host_subnet_id_to_group_on
-                                .entry(host.id)
-                                .or_insert(*first_subnet_id);
+                    ) && let Some((source_handle, target_handle)) =
+                        EdgeBuilder::determine_interface_handles(
+                            ctx,
+                            &origin_interface.id,
+                            first_interface_id,
+                        )
+                    {
+                        docker_bridge_host_subnet_id_to_group_on
+                            .entry(host.id)
+                            .or_insert(*first_subnet_id);
 
-                            return vec![Edge {
-                                source: origin_interface.id,
-                                target: *first_subnet_id,
-                                edge_type: EdgeType::ServiceVirtualization,
-                                label: Some(format!("{} on {}", s.base.name, host.base.name)),
-                                source_handle,
-                                target_handle,
-                            }];
-                        }
+                        return vec![Edge {
+                            source: origin_interface.id,
+                            target: *first_subnet_id,
+                            edge_type: EdgeType::ServiceVirtualization,
+                            label: Some(format!("{} on {}", s.base.name, host.base.name)),
+                            source_handle,
+                            target_handle,
+                        }];
                     }
                 } else {
                     return docker_service_to_containerized_service_ids
@@ -219,20 +217,18 @@ impl EdgeBuilder {
                                 ctx.get_subnet_by_id(origin_interface.base.subnet_id);
                             let target_subnet = ctx.get_subnet_by_id(interface.base.subnet_id);
 
-                            if let Some(source_subnet) = source_subnet {
-                                if source_subnet.base.subnet_type.discriminant()
+                            if let Some(source_subnet) = source_subnet
+                                && source_subnet.base.subnet_type.discriminant()
                                     == SubnetTypeDiscriminants::DockerBridge
-                                {
-                                    return None;
-                                }
+                            {
+                                return None;
                             }
 
-                            if let Some(target_subnet) = target_subnet {
-                                if target_subnet.base.subnet_type.discriminant()
+                            if let Some(target_subnet) = target_subnet
+                                && target_subnet.base.subnet_type.discriminant()
                                     == SubnetTypeDiscriminants::DockerBridge
-                                {
-                                    return None;
-                                }
+                            {
+                                return None;
                             }
 
                             let (source_handle, target_handle) =

@@ -106,16 +106,16 @@ impl<'a> SubnetPositioner<'a> {
                                 .unwrap_or(0)
                         });
 
-                        if let Some(leftmost) = sorted_subnets.first() {
-                            if self.optimize_edge_subnet(nodes, *leftmost, edges, true) {
-                                improved = true;
-                            }
+                        if let Some(leftmost) = sorted_subnets.first()
+                            && self.optimize_edge_subnet(nodes, *leftmost, edges, true)
+                        {
+                            improved = true;
                         }
 
-                        if let Some(rightmost) = sorted_subnets.last() {
-                            if self.optimize_edge_subnet(nodes, *rightmost, edges, false) {
-                                improved = true;
-                            }
+                        if let Some(rightmost) = sorted_subnets.last()
+                            && self.optimize_edge_subnet(nodes, *rightmost, edges, false)
+                        {
+                            improved = true;
                         }
                     }
                 }
@@ -247,13 +247,12 @@ impl<'a> SubnetPositioner<'a> {
             // Edge from rows below to optimizing rows
             else if subnets_below.contains(&source_subnet.unwrap_or_default())
                 && rows_to_optimize.contains(&target_subnet.unwrap_or_default())
+                && let Some(source_node) = node_map.get(&edge.source)
             {
-                if let Some(source_node) = node_map.get(&edge.source) {
-                    let source_pos = self
-                        .utils
-                        .get_absolute_node_center(source_node, &subnet_positions);
-                    target_x_positions.push(source_pos.x as f64);
-                }
+                let source_pos = self
+                    .utils
+                    .get_absolute_node_center(source_node, &subnet_positions);
+                target_x_positions.push(source_pos.x as f64);
             }
         }
 
