@@ -33,6 +33,7 @@ setup-db:
 	@echo "PostgreSQL ready at localhost:5432"
 
 clean-db:
+	rm -rf /data/daemon_config/*
 	docker stop netvisor-postgres || true
 	docker rm netvisor-postgres || true
 

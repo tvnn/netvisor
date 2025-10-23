@@ -434,7 +434,6 @@ async fn check_for_home_assistant_service(
     Ok(home_assistant_service)
 }
 
-#[tokio::test]
 async fn generate_fixtures_from_test_data() -> Result<(), Box<dyn std::error::Error>> {
     // This test should run AFTER all other integration tests
     // The database now contains all the data created during test runs
@@ -505,7 +504,7 @@ async fn test_container_daemon_server_integration() {
         .await
         .expect("Failed to find Home Assistant service");
 
-    generate_fixtures_from_test_data().expect("Failed to generate test fixtures");
+    generate_fixtures_from_test_data().await.expect("Failed to generate test fixtures");
 
     println!("\n✅ All integration tests passed!");
     println!("   ✓ Daemon registered successfully");

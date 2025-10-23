@@ -36,7 +36,7 @@ pub const DAEMON_CONFIG_FIXTURE: &str = "src/tests/daemon_config.json";
 pub const SERVER_DB_FIXTURE: &str = "src/tests/netvisor.sql";
 
 pub async fn setup_test_db() -> (PgPool, String) {
-    let postgres_image = GenericImage::new("postgres", "16-alpine")
+    let postgres_image = GenericImage::new("postgres", "17-alpine")
         .with_wait_for(WaitFor::message_on_stderr(
             "database system is ready to accept connections",
         ))
@@ -153,9 +153,7 @@ pub fn daemon(network_id: &Uuid, host_id: &Uuid) -> Daemon {
 
 pub async fn test_services() -> (StorageFactory, ServiceFactory) {
     let storage = test_storage().await;
-    println!("Storage factory created");
     let services = ServiceFactory::new(&storage).await.unwrap();
-    println!("Service factory created");
     (storage, services)
 }
 pub async fn setup_test_app() -> Router<Arc<AppState>> {
