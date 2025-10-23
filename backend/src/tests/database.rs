@@ -78,6 +78,18 @@ async fn test_database_schema_backward_compatibility() {
                 .await
                 .is_ok()
         );
+        assert!(
+            sqlx::query("SELECT * FROM networks")
+                .fetch_all(&pool)
+                .await
+                .is_ok()
+        );
+        assert!(
+            sqlx::query("SELECT * FROM users")
+                .fetch_all(&pool)
+                .await
+                .is_ok()
+        );
 
         println!("Successfully read all tables from latest release database");
 
