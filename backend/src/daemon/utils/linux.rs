@@ -5,7 +5,7 @@ use crate::daemon::utils::base::DaemonUtils;
 pub struct LinuxDaemonUtils;
 
 #[cfg(target_os = "linux")]
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result, anyhow};
 #[cfg(target_os = "linux")]
 use async_trait::async_trait;
 #[cfg(target_os = "linux")]

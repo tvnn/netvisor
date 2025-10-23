@@ -2,8 +2,8 @@ use anyhow::{Context, Error, Result};
 use async_fs;
 use directories_next::ProjectDirs;
 use figment::{
-    providers::{Env, Format, Json, Serialized},
     Figment,
+    providers::{Env, Format, Json, Serialized},
 };
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};

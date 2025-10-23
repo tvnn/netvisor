@@ -9,6 +9,7 @@ use crate::server::hosts::types::{
     ports::PortBase,
 };
 use crate::server::services::types::base::ServiceMatchBaselineParams;
+use crate::server::subnets::types::base::SubnetTypeDiscriminants;
 use crate::{
     daemon::utils::base::DaemonUtils,
     server::{
@@ -28,6 +29,7 @@ use futures::{
 };
 use std::result::Result::Ok;
 use std::{net::IpAddr, sync::Arc};
+use strum::IntoDiscriminant;
 use tokio::time::timeout;
 use tokio_util::sync::CancellationToken;
 
@@ -94,9 +96,10 @@ impl DiscoversNetworkedEntities for Discovery<NetworkScanDiscovery> {
             .get_own_interfaces(self.discovery_type(), daemon_id, network_id)
             .await?;
 
+        // Filter out docker bridge subnets, those are handled in docker discovery
         let subnets: Vec<Subnet> = subnets
             .into_iter()
-            .filter(|s| s.base.subnet_type != SubnetType::DockerBridge)
+            .filter(|s| s.base.subnet_type.discriminant() != SubnetTypeDiscriminants::DockerBridge)
             .collect();
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));

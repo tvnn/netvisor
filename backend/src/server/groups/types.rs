@@ -91,7 +91,9 @@ impl TypeMetadataProvider for GroupType {
 
     fn description(&self) -> &'static str {
         match self {
-            GroupType::NetworkPath => "Path of network traffic between sources. Edge will be directed based on service order.",
+            GroupType::NetworkPath => {
+                "Path of network traffic between sources. Edge will be directed based on service order."
+            }
         }
     }
 }

@@ -58,7 +58,9 @@ impl SubnetService {
                                     }
                                 })
                             } else {
-                                return Err(anyhow::anyhow!("Error comparing discovered subnets during creation: subnet missing discovery metadata"));
+                                return Err(anyhow::anyhow!(
+                                    "Error comparing discovered subnets during creation: subnet missing discovery metadata"
+                                ));
                             }
                         }
                         // System subnets are never going to be upserted to or from

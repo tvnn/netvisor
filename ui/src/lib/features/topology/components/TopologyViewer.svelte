@@ -17,12 +17,7 @@
 	import SubnetNode from './SubnetNode.svelte';
 	import HostNode from './HostNode.svelte';
 	import CustomEdge from './CustomEdge.svelte';
-	import {
-		EdgeHandle,
-		type TopologyEdgeData,
-		type CustomEdgeData,
-		type CustomNodeData
-	} from '../types/base';
+	import { EdgeHandle, type TopologyEdge } from '../types/base';
 	import { onMount } from 'svelte';
 
 	// Define node types
@@ -52,19 +47,6 @@
 		try {
 			if ($topology?.nodes && $topology?.edges) {
 				const flowNodes: Node[] = $topology.nodes.map((node): Node => {
-					const data: CustomNodeData = {
-						id: node.id,
-						host_id: node.host_id,
-						interface_id: node.interface_id,
-						infra_width: node.infra_width,
-						nodeType: node.node_type,
-						parentId: node.subnet_id,
-						width: node.size.x,
-						height: node.size.y,
-						subnet_type: node.subnet_type,
-						header: node.header
-					};
-
 					return {
 						id: node.id,
 						type: node.node_type,
@@ -73,15 +55,15 @@
 						height: node.size.y,
 						expandParent: true,
 						deletable: false,
-						parentId: node.subnet_id || undefined,
+						parentId: node.type == 'HostNode' ? node.subnet_id : undefined,
 						extent: node.subnet_id ? 'parent' : undefined,
-						data
+						data: node
 					};
 				});
 
 				const flowEdges: Edge[] = $topology.edges.map(
-					([, , edgeData]: [number, number, TopologyEdgeData], index: number): Edge => {
-						const edgeType = edgeData.edge_type as string;
+					([, , edge]: [number, number, TopologyEdge], index: number): Edge => {
+						const edgeType = edge.edge_type as string;
 						const edgeLabel = edgeTypes.getName(edgeType);
 						let edgeMetadata = edgeTypes.getMetadata(edgeType);
 						let edgeColorHelper = edgeTypes.getColorHelper(edgeType);
@@ -100,25 +82,18 @@
 									color: edgeColorHelper.rgb
 								} as EdgeMarkerType);
 
-						const data: CustomEdgeData = {
-							edgeType: edgeType,
-							label: edgeLabel,
-							sourceHandle: edgeData.source_handle,
-							targetHandle: edgeData.target_handle
-						};
-
 						return {
 							id: `edge-${index}`,
-							source: edgeData.source,
-							target: edgeData.target,
+							source: edge.source,
+							target: edge.target,
 							markerEnd,
 							markerStart,
-							sourceHandle: edgeData.source_handle.toString(),
-							targetHandle: edgeData.target_handle.toString(),
+							sourceHandle: edge.source_handle.toString(),
+							targetHandle: edge.target_handle.toString(),
 							type: 'custom',
-							label: edgeData.label,
+							label: edge.label,
 							style: `stroke: ${edgeColorHelper.rgb}; stroke-width: 2px; ${dashArray}`,
-							data
+							data: edge
 						};
 					}
 				);

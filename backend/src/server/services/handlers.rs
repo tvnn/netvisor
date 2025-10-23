@@ -4,10 +4,10 @@ use crate::server::{
     shared::types::api::{ApiError, ApiResponse, ApiResult},
 };
 use axum::{
+    Router,
     extract::{Query, State},
     response::Json,
     routing::get,
-    Router,
 };
 use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;

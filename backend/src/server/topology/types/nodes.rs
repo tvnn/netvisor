@@ -14,6 +14,7 @@ pub struct Node {
     pub id: Uuid,
     pub position: Ixy,
     pub size: Uxy,
+    pub header: Option<String>,
 }
 
 #[derive(
@@ -24,15 +25,12 @@ pub struct Node {
 pub enum NodeType {
     SubnetNode {
         infra_width: usize,
-        subnet_type: SubnetType,
-        header: Option<String>,
     },
     HostNode {
         subnet_id: Uuid,
         host_id: Uuid,
         interface_id: Option<Uuid>,
         is_infra: bool,
-        header: Option<String>,
     },
 }
 
@@ -65,7 +63,7 @@ impl SubnetType {
             SubnetType::IoT => 2,
 
             // Layer 3: Infrastructure
-            SubnetType::DockerBridge => 3,
+            SubnetType::DockerBridge { .. } => 3,
             SubnetType::Management => 3,
             SubnetType::Storage => 3,
 
@@ -95,7 +93,7 @@ impl SubnetType {
             // Layer 3
             SubnetType::Storage => 0,
             SubnetType::Management => 1,
-            SubnetType::DockerBridge => 2,
+            SubnetType::DockerBridge { .. } => 2,
 
             // Special
             SubnetType::Unknown => 999,

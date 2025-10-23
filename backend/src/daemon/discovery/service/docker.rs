@@ -2,16 +2,17 @@ use anyhow::anyhow;
 use anyhow::{Error, Result};
 use axum::async_trait;
 use bollard::{
+    Docker,
     query_parameters::{InspectContainerOptions, ListContainersOptions, ListNetworksOptions},
     secret::{ContainerInspectResponse, ContainerSummary, PortTypeEnum},
-    Docker,
 };
 use futures::future::try_join_all;
 use futures::stream::{self, StreamExt};
 use std::str::FromStr;
-use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use std::{collections::HashMap, net::IpAddr, sync::OnceLock};
+use strum::IntoDiscriminant;
 use tokio_util::sync::CancellationToken;
 
 use crate::daemon::discovery::service::base::{HasDiscoveryType, InitiatesOwnDiscovery};
@@ -27,7 +28,9 @@ use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::services::types::patterns::MatchDetails;
 use crate::server::services::types::virtualization::{DockerVirtualization, ServiceVirtualization};
-use crate::server::subnets::types::base::{Subnet, SubnetBase, SubnetType};
+use crate::server::subnets::types::base::{
+    Subnet, SubnetBase, SubnetType, SubnetTypeDiscriminants,
+};
 use crate::{
     daemon::discovery::service::base::{
         CreatesDiscoveredEntities, DiscoversNetworkedEntities, Discovery,
@@ -108,6 +111,13 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
 
         self.start_discovery(container_list.len(), request).await?;
 
+        // Create service for docker daemon
+        let (_, services) = self.create_docker_daemon_service().await?;
+
+        let docker_daemon_service = services
+            .first()
+            .ok_or_else(|| anyhow!("Docker daemon service was not created, aborting"))?;
+
         // Get and create docker and host subnets
         let subnets = self.discover_create_subnets().await?;
 
@@ -120,13 +130,6 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
 
         // Get container info
         let containers = self.get_containers_and_summaries().await?;
-
-        // Create service for docker daemon
-        let (_, services) = self.create_docker_daemon_service().await?;
-
-        let docker_daemon_service = services
-            .first()
-            .ok_or_else(|| anyhow!("Docker daemon service was not created, aborting"))?;
 
         // Combine host interfaces + subnets to get a map of containers to the interfaces they have + subnets those interfaces are for
         let containers_interfaces_and_subnets =
@@ -186,6 +189,7 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
 
     async fn discover_create_subnets(&self) -> Result<Vec<Subnet>, Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
+
         let network_id = self
             .as_ref()
             .config_store
@@ -358,7 +362,9 @@ impl Discovery<DockerScanDiscovery> {
             }
 
             if container_id != container_summary.id.clone().unwrap_or_default() {
-                tracing::warn!("Container inspection failure; inspected container does not match container summary");
+                tracing::warn!(
+                    "Container inspection failure; inspected container does not match container summary"
+                );
                 return Ok(None);
             }
 
@@ -564,7 +570,10 @@ impl Discovery<DockerScanDiscovery> {
 
                 let docker_bridge_subnet_ids: Vec<Uuid> = container_interfaces_and_subnets
                     .iter()
-                    .filter(|(_, subnet)| subnet.base.subnet_type == SubnetType::DockerBridge)
+                    .filter(|(_, subnet)| {
+                        subnet.base.subnet_type.discriminant()
+                            == SubnetTypeDiscriminants::DockerBridge
+                    })
                     .map(|(_, subnet)| subnet.id)
                     .collect();
 
@@ -654,7 +663,9 @@ impl Discovery<DockerScanDiscovery> {
 
                                     // Add bindings for all non-Docker bridge interfaces
                                     for (interface, subnet) in container_interfaces_and_subnets {
-                                        if subnet.base.subnet_type != SubnetType::DockerBridge {
+                                        if subnet.base.subnet_type.discriminant()
+                                            != SubnetTypeDiscriminants::DockerBridge
+                                        {
                                             s.base
                                                 .bindings
                                                 .push(Binding::new_l4(port.id, Some(interface.id)));

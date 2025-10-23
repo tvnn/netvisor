@@ -4,10 +4,10 @@ use crate::server::{
     users::types::User,
 };
 use axum::{
+    Router,
     extract::{Path, State},
     response::Json,
     routing::{delete, get, post, put},
-    Router,
 };
 use std::sync::Arc;
 use uuid::Uuid;

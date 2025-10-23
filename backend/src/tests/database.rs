@@ -48,26 +48,36 @@ async fn test_database_schema_backward_compatibility() {
         let pool = sqlx::PgPool::connect(&database_url).await.unwrap();
 
         // Verify tables
-        assert!(sqlx::query("SELECT * FROM hosts")
-            .fetch_all(&pool)
-            .await
-            .is_ok());
-        assert!(sqlx::query("SELECT * FROM services")
-            .fetch_all(&pool)
-            .await
-            .is_ok());
-        assert!(sqlx::query("SELECT * FROM subnets")
-            .fetch_all(&pool)
-            .await
-            .is_ok());
-        assert!(sqlx::query("SELECT * FROM groups")
-            .fetch_all(&pool)
-            .await
-            .is_ok());
-        assert!(sqlx::query("SELECT * FROM daemons")
-            .fetch_all(&pool)
-            .await
-            .is_ok());
+        assert!(
+            sqlx::query("SELECT * FROM hosts")
+                .fetch_all(&pool)
+                .await
+                .is_ok()
+        );
+        assert!(
+            sqlx::query("SELECT * FROM services")
+                .fetch_all(&pool)
+                .await
+                .is_ok()
+        );
+        assert!(
+            sqlx::query("SELECT * FROM subnets")
+                .fetch_all(&pool)
+                .await
+                .is_ok()
+        );
+        assert!(
+            sqlx::query("SELECT * FROM groups")
+                .fetch_all(&pool)
+                .await
+                .is_ok()
+        );
+        assert!(
+            sqlx::query("SELECT * FROM daemons")
+                .fetch_all(&pool)
+                .await
+                .is_ok()
+        );
 
         println!("Successfully read all tables from latest release database");
 

@@ -6,7 +6,7 @@ use crate::daemon::utils::base::DaemonUtils;
 pub struct MacOsDaemonUtils;
 
 #[cfg(target_os = "macos")]
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result, anyhow};
 #[cfg(target_os = "macos")]
 use mac_address::MacAddress;
 #[cfg(target_os = "macos")]

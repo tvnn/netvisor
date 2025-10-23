@@ -3,7 +3,7 @@ use crate::server::{
     shared::types::api::{ApiResponse, ApiResult},
     topology::types::api::TopologyRequestOptions,
 };
-use axum::{extract::State, response::Json, routing::post, Router};
+use axum::{Router, extract::State, response::Json, routing::post};
 use std::sync::Arc;
 
 pub fn create_router() -> Router<Arc<AppState>> {

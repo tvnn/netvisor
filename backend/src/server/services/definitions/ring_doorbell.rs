@@ -1,5 +1,5 @@
 use crate::server::hosts::types::ports::PortBase;
-use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
+use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::patterns::{Pattern, Vendor};

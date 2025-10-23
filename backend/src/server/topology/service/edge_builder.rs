@@ -1,10 +1,12 @@
 use itertools::Itertools;
-use petgraph::{graph::NodeIndex, Graph};
+use petgraph::{Graph, graph::NodeIndex};
 use std::collections::HashMap;
+use strum::IntoDiscriminant;
 use uuid::Uuid;
 
 use crate::server::{
     services::types::virtualization::ServiceVirtualization,
+    subnets::types::base::SubnetTypeDiscriminants,
     topology::{
         service::context::TopologyContext,
         types::{
@@ -113,7 +115,9 @@ impl EdgeBuilder {
                     .iter()
                     .filter_map(|i| ctx.get_subnet_by_id(i.base.subnet_id))
                     .filter_map(|s| {
-                        if s.base.subnet_type.is_for_containers() {
+                        if s.base.subnet_type.discriminant()
+                            == SubnetTypeDiscriminants::DockerBridge
+                        {
                             return Some(s.id);
                         }
                         None
@@ -216,13 +220,17 @@ impl EdgeBuilder {
                             let target_subnet = ctx.get_subnet_by_id(interface.base.subnet_id);
 
                             if let Some(source_subnet) = source_subnet {
-                                if source_subnet.base.subnet_type.is_for_containers() {
+                                if source_subnet.base.subnet_type.discriminant()
+                                    == SubnetTypeDiscriminants::DockerBridge
+                                {
                                     return None;
                                 }
                             }
 
                             if let Some(target_subnet) = target_subnet {
-                                if target_subnet.base.subnet_type.is_for_containers() {
+                                if target_subnet.base.subnet_type.discriminant()
+                                    == SubnetTypeDiscriminants::DockerBridge
+                                {
                                     return None;
                                 }
                             }

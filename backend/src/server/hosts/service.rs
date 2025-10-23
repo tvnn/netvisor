@@ -7,7 +7,7 @@ use crate::server::{
         types::{base::Service, bindings::Binding},
     },
 };
-use anyhow::{anyhow, Error, Result};
+use anyhow::{Error, Result, anyhow};
 use futures::future::{join_all, try_join_all};
 use itertools::{Either, Itertools};
 use std::{collections::HashMap, sync::Arc};
@@ -289,7 +289,9 @@ impl HostService {
             .await?
             .is_some()
         {
-            return Err(anyhow!("Can't consolidate a host that has a daemon. Consolidate the other host into the daemon host."));
+            return Err(anyhow!(
+                "Can't consolidate a host that has a daemon. Consolidate the other host into the daemon host."
+            ));
         }
 
         let lock = self.get_host_lock(&destination_host.id).await;

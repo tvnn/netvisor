@@ -1,17 +1,24 @@
-export interface TopologyNodeData {
+export interface NodeBase {
 	id: string;
 	node_type: string;
-	subnet_id: string | null;
-	host_id: string | null;
-	infra_width: number | null;
-	interface_id: string | null;
 	position: { x: number; y: number };
 	size: { x: number; y: number };
-	subnet_type: string | null;
 	header: string | null;
 }
 
-export interface TopologyEdgeData {
+type NodeType =
+	| {
+			type: 'HostNode';
+			subnet_id: string;
+			host_id: string;
+			interface_id: string;
+			is_infra: boolean;
+	  }
+	| { type: 'SubnetNode'; infra_width: number };
+
+type TopologyNode = NodeBase & NodeType & Record<string, unknown>;
+
+export interface TopologyEdge extends Record<string, unknown> {
 	edge_type: string;
 	source: string;
 	label: string;
@@ -22,9 +29,9 @@ export interface TopologyEdgeData {
 
 export interface TopologyResponse {
 	edge_property: string;
-	edges: Array<[number, number, TopologyEdgeData]>;
+	edges: Array<[number, number, TopologyEdge]>;
 	node_holes: unknown[];
-	nodes: TopologyNodeData[];
+	nodes: TopologyNode[];
 }
 
 export enum EdgeHandle {
@@ -32,26 +39,6 @@ export enum EdgeHandle {
 	Right = 'Right',
 	Bottom = 'Bottom',
 	Left = 'Left'
-}
-
-export interface CustomEdgeData extends Record<string, unknown> {
-	edgeType: string;
-	label: string | null;
-	sourceHandle: EdgeHandle;
-	targetHandle: EdgeHandle;
-}
-
-export interface CustomNodeData extends Record<string, unknown> {
-	id: string;
-	host_id: string | null;
-	interface_id: string | null;
-	infra_width: number | null;
-	nodeType: string;
-	parentId: string | null;
-	width: number;
-	height: number;
-	subnet_type: string | null;
-	header: string | null;
 }
 
 export interface TopologyRequestOptions {

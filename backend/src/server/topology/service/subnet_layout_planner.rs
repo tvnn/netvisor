@@ -5,7 +5,6 @@ use uuid::Uuid;
 use crate::server::{
     hosts::types::base::Host,
     services::types::base::Service,
-    shared::types::metadata::TypeMetadataProvider,
     subnets::types::base::SubnetType,
     topology::{
         service::{
@@ -178,10 +177,12 @@ impl SubnetLayoutPlanner {
                     .iter()
                     .filter(|s| {
                         s.base.bindings.iter().any(|b| match b.interface_id() {
+                            // Service is bound to interface if ID matches
                             Some(binding_interface_id) if binding_interface_id == interface.id => {
                                 true
                             }
-                            None => !subnet_type.is_internal(),
+                            // If there's no interface, it's an L4 binding bound to all interfaces
+                            None => true,
                             _ => false,
                         })
                     })
@@ -209,7 +210,9 @@ impl SubnetLayoutPlanner {
                 };
 
                 // Special handling for DockerBridge (only if grouping is enabled)
-                if group_docker_bridges_by_host && matches!(subnet_type, SubnetType::DockerBridge) {
+                if group_docker_bridges_by_host
+                    && matches!(subnet_type, SubnetType::DockerBridge { .. })
+                {
                     if let Some(subnet_grouping_id) =
                         docker_bridge_host_subnet_id_to_group_on.get(&host.id)
                     {
@@ -332,10 +335,10 @@ impl SubnetLayoutPlanner {
                         interface_id: child.interface_id,
                         host_id: child.host_id,
                         is_infra: true,
-                        header: child.header.clone(),
                     },
                     position: layout.position,
                     size: child.size,
+                    header: child.header.clone(),
                 });
             }
         }
@@ -360,10 +363,10 @@ impl SubnetLayoutPlanner {
                         interface_id: child.interface_id,
                         host_id: child.host_id,
                         is_infra: false,
-                        header: child.header.clone(),
                     },
                     position: node_position,
                     size: child.size,
+                    header: child.header.clone(),
                 });
             }
         }
@@ -393,8 +396,7 @@ impl SubnetLayoutPlanner {
                     if let Some(consolidated_subnet_ids) =
                         self.consolidated_docker_subnets.get(subnet_id)
                     {
-                        let header = SubnetType::DockerBridge.name().to_owned()
-                            + ": ("
+                        let header = "Docker Bridge: (".to_owned()
                             + &ctx
                                 .subnets
                                 .iter()
@@ -407,27 +409,22 @@ impl SubnetLayoutPlanner {
                             id: *subnet_id,
                             node_type: NodeType::SubnetNode {
                                 infra_width: layout.infra_width,
-                                subnet_type: SubnetType::DockerBridge,
-                                header: Some(header),
                             },
                             position: *position,
                             size: layout.size,
+                            header: Some(header),
                         });
                     }
 
-                    // Handle regular subnet case
-                    if let Some(subnet) = ctx.get_subnet_by_id(*subnet_id) {
-                        return Some(Node {
-                            id: *subnet_id,
-                            node_type: NodeType::SubnetNode {
-                                infra_width: layout.infra_width,
-                                subnet_type: subnet.base.subnet_type,
-                                header: None,
-                            },
-                            position: *position,
-                            size: layout.size,
-                        });
-                    }
+                    return Some(Node {
+                        id: *subnet_id,
+                        node_type: NodeType::SubnetNode {
+                            infra_width: layout.infra_width,
+                        },
+                        position: *position,
+                        size: layout.size,
+                        header: None,
+                    });
                 }
                 None
             })

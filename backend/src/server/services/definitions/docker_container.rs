@@ -1,4 +1,4 @@
-use crate::server::services::definitions::{create_service, ServiceDefinitionFactory};
+use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::types::base::DiscoverySessionServiceMatchParams;
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;

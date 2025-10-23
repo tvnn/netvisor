@@ -1,9 +1,9 @@
 use axum::{
+    Json,
     http::StatusCode,
     response::{IntoResponse, Response},
-    Json,
 };
-use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de::DeserializeOwned};
 
 pub type ApiResult<T> = Result<T, ApiError>;
 
@@ -98,11 +98,7 @@ pub trait EmptyToOption<T> {
 // Implement for common types that can be "empty"
 impl EmptyToOption<String> for String {
     fn empty_to_option(self) -> Option<String> {
-        if self.is_empty() {
-            None
-        } else {
-            Some(self)
-        }
+        if self.is_empty() { None } else { Some(self) }
     }
 }
 
@@ -117,11 +113,7 @@ impl EmptyToOption<String> for Option<String> {
 
 impl<T> EmptyToOption<Vec<T>> for Vec<T> {
     fn empty_to_option(self) -> Option<Vec<T>> {
-        if self.is_empty() {
-            None
-        } else {
-            Some(self)
-        }
+        if self.is_empty() { None } else { Some(self) }
     }
 }
 

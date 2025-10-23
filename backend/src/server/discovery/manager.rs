@@ -1,7 +1,7 @@
 use anyhow::Error;
 use chrono::Utc;
 use std::collections::HashMap;
-use tokio::sync::{broadcast, RwLock};
+use tokio::sync::{RwLock, broadcast};
 use uuid::Uuid;
 
 use crate::{

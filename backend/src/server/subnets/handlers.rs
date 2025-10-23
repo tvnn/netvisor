@@ -4,10 +4,10 @@ use crate::server::{
     subnets::types::base::Subnet,
 };
 use axum::{
+    Router,
     extract::{Path, Query, State},
     response::Json,
     routing::{delete, get, post, put},
-    Router,
 };
 use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;

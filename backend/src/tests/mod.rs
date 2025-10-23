@@ -26,7 +26,7 @@ use sqlx::PgPool;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
-use testcontainers::{core::WaitFor, runners::AsyncRunner, GenericImage, ImageExt};
+use testcontainers::{GenericImage, ImageExt, core::WaitFor, runners::AsyncRunner};
 use uuid::Uuid;
 
 #[cfg(test)]

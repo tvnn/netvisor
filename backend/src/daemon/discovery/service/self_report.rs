@@ -7,7 +7,7 @@ use crate::{
         daemons::types::api::DaemonDiscoveryRequest,
         discovery::types::base::{DiscoveryMetadata, DiscoveryType, EntitySource},
         hosts::types::{
-            interfaces::{Interface, ALL_INTERFACES_IP},
+            interfaces::{ALL_INTERFACES_IP, Interface},
             ports::{Port, PortBase},
         },
         services::{
@@ -17,7 +17,7 @@ use crate::{
                 patterns::MatchDetails,
             },
         },
-        subnets::types::base::{Subnet, SubnetType},
+        subnets::types::base::{Subnet, SubnetTypeDiscriminants},
     },
 };
 use crate::{
@@ -37,6 +37,7 @@ use std::{
     result::Result::Ok,
     sync::Arc,
 };
+use strum::IntoDiscriminant;
 use uuid::Uuid;
 
 #[derive(Default)]
@@ -97,9 +98,10 @@ impl Discovery<SelfReportDiscovery> {
             .get_own_interfaces(self.discovery_type(), daemon_id, network_id)
             .await?;
 
+        // Filter out docker bridge subnets, those are handled in docker discovery
         let subnets: Vec<Subnet> = subnets
             .into_iter()
-            .filter(|s| s.base.subnet_type != SubnetType::DockerBridge)
+            .filter(|s| s.base.subnet_type.discriminant() != SubnetTypeDiscriminants::DockerBridge)
             .collect();
 
         let subnet_futures = subnets.iter().map(|subnet| self.create_subnet(subnet));

@@ -8,7 +8,7 @@ use crate::server::{
     daemons::types::api::{DaemonDiscoveryRequest, DaemonDiscoveryResponse},
     shared::types::api::{ApiError, ApiResponse, ApiResult},
 };
-use axum::{extract::State, response::Json, routing::post, Router};
+use axum::{Router, extract::State, response::Json, routing::post};
 use std::sync::Arc;
 
 pub fn create_router() -> Router<Arc<DaemonAppState>> {

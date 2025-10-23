@@ -1,6 +1,6 @@
 use std::{
     net::IpAddr,
-    sync::{atomic::AtomicUsize, Arc},
+    sync::{Arc, atomic::AtomicUsize},
     time::Duration,
 };
 
@@ -26,7 +26,7 @@ use crate::{
         },
     },
 };
-use anyhow::{anyhow, Error};
+use anyhow::{Error, anyhow};
 use axum::async_trait;
 use chrono::Utc;
 use dhcproto::v4::{self, Decodable, Encodable, Encoder, Message, MessageType};
@@ -39,15 +39,15 @@ use tokio_util::sync::CancellationToken;
 
 use tokio::net::UdpSocket;
 
-use trust_dns_resolver::config::{NameServerConfig, Protocol, ResolverConfig, ResolverOpts};
 use trust_dns_resolver::TokioAsyncResolver;
+use trust_dns_resolver::config::{NameServerConfig, Protocol, ResolverConfig, ResolverOpts};
 use uuid::Uuid;
 
 use crate::{
     daemon::{
         discovery::types::base::{DiscoveryPhase, DiscoverySessionInfo, DiscoverySessionUpdate},
         shared::storage::ConfigStore,
-        utils::base::{create_system_utils, PlatformDaemonUtils},
+        utils::base::{PlatformDaemonUtils, create_system_utils},
     },
     server::{
         daemons::types::api::{DaemonDiscoveryRequest, DiscoveryUpdatePayload},
@@ -59,7 +59,7 @@ use crate::{
             targets::HostTarget,
         },
         services::{
-            definitions::{gateway::Gateway, ServiceDefinitionRegistry},
+            definitions::{ServiceDefinitionRegistry, gateway::Gateway},
             types::{
                 base::Service,
                 bindings::{Binding, BindingDiscriminants},

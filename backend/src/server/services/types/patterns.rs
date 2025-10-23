@@ -13,7 +13,7 @@ use crate::server::{
     },
     shared::types::metadata::TypeMetadataProvider,
 };
-use anyhow::{anyhow, Error};
+use anyhow::{Error, anyhow};
 use mac_oui::Oui;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumDiscriminants, IntoStaticStr};
@@ -473,7 +473,9 @@ impl Pattern<'_> {
                         },
                     })
                 } else {
-                    Err(anyhow!("IP address is not in routing table, and does not end in 1 or 254 with no other gateways identified in subnet"))
+                    Err(anyhow!(
+                        "IP address is not in routing table, and does not end in 1 or 254 with no other gateways identified in subnet"
+                    ))
                 }
             }
 

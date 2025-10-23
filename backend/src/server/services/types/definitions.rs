@@ -1,7 +1,7 @@
+use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::definitions::custom_l3::CustomLayer3;
 use crate::server::services::definitions::docker_daemon::Docker;
 use crate::server::services::definitions::proxmox::Proxmox;
-use crate::server::services::definitions::ServiceDefinitionRegistry;
 use crate::server::services::types::bindings::BindingDiscriminants;
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::patterns::Pattern;

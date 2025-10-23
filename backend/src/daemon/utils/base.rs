@@ -1,9 +1,9 @@
 use crate::server::discovery::types::base::DiscoveryType;
 use crate::server::hosts::types::interfaces::{Interface, InterfaceBase};
 use crate::server::subnets::types::base::Subnet;
-use anyhow::anyhow;
 use anyhow::Error;
 use anyhow::Result;
+use anyhow::anyhow;
 use async_trait::async_trait;
 use bollard::Docker;
 use cidr::IpCidr;

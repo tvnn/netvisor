@@ -2,7 +2,7 @@
 use crate::daemon::utils::base::DaemonUtils;
 
 #[cfg(target_family = "windows")]
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 #[cfg(target_family = "windows")]
 use async_trait::async_trait;
 #[cfg(target_family = "windows")]

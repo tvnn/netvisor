@@ -1,4 +1,4 @@
-use axum::{http::Method, Router};
+use axum::{Router, http::Method};
 use clap::Parser;
 use netvisor::daemon::{
     discovery::service::{base::Discovery, self_report::SelfReportDiscovery},

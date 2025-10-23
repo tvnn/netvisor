@@ -8,6 +8,7 @@
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import { isContainerSubnet } from '../../store';
 	import type { Subnet } from '../../types/base';
+	import EntityDisplayWrapper from '$lib/shared/components/forms/selection/display/EntityDisplayWrapper.svelte';
 
 	export let formApi: FormApi;
 	export let formData: Subnet;

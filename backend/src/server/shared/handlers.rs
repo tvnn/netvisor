@@ -17,7 +17,7 @@ use crate::server::{
     topology::handlers as topology_handlers,
     users::handlers as user_handlers,
 };
-use axum::{routing::get, Json, Router};
+use axum::{Json, Router, routing::get};
 use std::sync::Arc;
 use strum::IntoEnumIterator;
 

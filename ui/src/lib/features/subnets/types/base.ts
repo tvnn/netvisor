@@ -8,6 +8,6 @@ export interface Subnet {
 	name: string;
 	description?: string;
 	network_id: string;
-	subnet_type: string;
 	source: EntitySource;
+	subnet_type: string;
 }

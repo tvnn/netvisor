@@ -8,13 +8,13 @@ use crate::server::{
     shared::types::api::{ApiError, ApiResponse, ApiResult},
 };
 use axum::{
+    Router,
     extract::{Path, State},
     response::{
-        sse::{Event, KeepAlive},
         Json, Sse,
+        sse::{Event, KeepAlive},
     },
     routing::{get, post},
-    Router,
 };
 use futures::Stream;
 use std::{convert::Infallible, sync::Arc};
@@ -104,7 +104,7 @@ async fn initiate_discovery(
             return Err(ApiError::not_found(&format!(
                 "Daemon '{}' not found",
                 &request.daemon_id
-            )))
+            )));
         }
     };
 
@@ -159,7 +159,7 @@ async fn cancel_discovery(
             return Err(ApiError::not_found(&format!(
                 "Session '{}' not found",
                 session_id
-            )))
+            )));
         }
     };
 

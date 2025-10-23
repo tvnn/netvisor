@@ -199,14 +199,6 @@ pub enum SubnetType {
 }
 
 impl SubnetType {
-    pub fn is_for_containers(&self) -> bool {
-        *self == SubnetType::DockerBridge
-    }
-
-    pub fn is_internal(&self) -> bool {
-        matches!(self, SubnetType::DockerBridge | SubnetType::VpnTunnel)
-    }
-
     pub fn from_interface_name(interface_name: &str) -> Self {
         // Docker containers
         if Self::match_interface_names(&["docker", "br-"], interface_name) {
@@ -306,7 +298,7 @@ impl EntityMetadataProvider for SubnetType {
             SubnetType::WiFi => "teal",
 
             SubnetType::Management => "gray",
-            SubnetType::DockerBridge => Entity::Virtualization.color(),
+            SubnetType::DockerBridge { .. } => Entity::Virtualization.color(),
             SubnetType::Storage => Entity::Storage.color(),
 
             SubnetType::Unknown => "gray",
@@ -328,7 +320,7 @@ impl EntityMetadataProvider for SubnetType {
             SubnetType::WiFi => "WiFi",
 
             SubnetType::Management => "ServerCog",
-            SubnetType::DockerBridge => "Box",
+            SubnetType::DockerBridge { .. } => "Box",
             SubnetType::Storage => Entity::Storage.icon(),
 
             SubnetType::Unknown => Entity::Subnet.icon(),
@@ -353,7 +345,7 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::WiFi => "WiFi",
 
             SubnetType::Management => "Management",
-            SubnetType::DockerBridge => "Docker Bridge",
+            SubnetType::DockerBridge { .. } => "Docker Bridge",
             SubnetType::Storage => "Storage",
 
             SubnetType::Unknown => "Unknown",
@@ -376,7 +368,7 @@ impl TypeMetadataProvider for SubnetType {
             SubnetType::WiFi => "WiFi network",
 
             SubnetType::Management => "Management network",
-            SubnetType::DockerBridge => "Docker bridge network",
+            SubnetType::DockerBridge { .. } => "Docker bridge network",
             SubnetType::Storage => "Storage network",
 
             SubnetType::Unknown => "Unknown network type",
