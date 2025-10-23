@@ -37,7 +37,7 @@ pub trait DaemonUtils {
             .map(|os_str| os_str.to_string_lossy().into_owned())
     }
 
-    async fn scan_interfaces(
+    async fn get_own_interfaces(
         &self,
         discovery_type: DiscoveryType,
         daemon_id: Uuid,
@@ -99,7 +99,7 @@ pub trait DaemonUtils {
         Ok((interfaces_list, subnets))
     }
 
-    async fn scan_docker_socket(&self) -> Result<bool, Error> {
+    async fn get_own_docker_socket(&self) -> Result<bool, Error> {
         match Docker::connect_with_local_defaults() {
             Ok(docker) => {
                 // Actually verify it's a Docker daemon by pinging it
@@ -113,7 +113,7 @@ pub trait DaemonUtils {
         }
     }
 
-    async fn get_routing_table_gateway_ips(&self) -> Result<Vec<IpAddr>, Error> {
+    async fn get_own_routing_table_gateway_ips(&self) -> Result<Vec<IpAddr>, Error> {
         let routing_handle = Handle::new()?;
         let routes = routing_handle.list().await?;
 

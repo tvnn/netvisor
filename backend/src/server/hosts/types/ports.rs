@@ -1,5 +1,6 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 use std::hash::Hash;
 use strum_macros::{Display, EnumDiscriminants, EnumIter, IntoStaticStr};
 use uuid::Uuid;
@@ -93,6 +94,40 @@ impl Display for PortBase {
             self.number(),
             self.protocol().to_string().to_lowercase()
         )
+    }
+}
+
+impl FromStr for PortBase {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let re = Regex::new(r"(?i)\b(\d+)\s*[/\-\s:]*\s*(tcp|udp)\b")
+            .map_err(|e| e.to_string())?;
+
+        if let Some(caps) = re.captures(s.trim()) {
+            let number = caps
+                .get(1)
+                .ok_or("Missing port number")?
+                .as_str()
+                .parse::<u16>()
+                .map_err(|_| "Invalid port number")?;
+
+            let proto_string = caps
+                .get(2)
+                .ok_or("Missing protocol")?
+                .as_str()
+                .to_lowercase();
+
+            let protocol = match proto_string.as_str() {
+                "tcp" => TransportProtocol::Tcp,
+                "udp" => TransportProtocol::Udp,
+                _ => return Err("Unknown protocol".into()),
+            };
+
+            Ok(PortBase::Custom(PortConfig { number, protocol }))
+        } else {
+            Err("Failed to parse port and protocol".into())
+        }
     }
 }
 

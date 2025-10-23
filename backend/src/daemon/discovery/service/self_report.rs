@@ -56,7 +56,7 @@ impl Discovery<SelfReportDiscovery> {
         let utils = &self.as_ref().utils;
 
         let host_id = config_store.get_host_id().await?;
-        let docker_ok = utils.scan_docker_socket().await?;
+        let docker_ok = utils.get_own_docker_socket().await?;
 
         if let (Some(host_id), true) = (host_id, docker_ok) {
             let docker_discovery = Arc::new(Discovery::new(
@@ -93,8 +93,8 @@ impl Discovery<SelfReportDiscovery> {
         let binding_address = config_store.get_bind_address().await?;
         let binding_ip = IpAddr::V4(binding_address.parse::<Ipv4Addr>()?);
 
-        let (mut interfaces, subnets) = utils
-            .scan_interfaces(self.discovery_type(), daemon_id, network_id)
+        let (interfaces, subnets) = utils
+            .get_own_interfaces(self.discovery_type(), daemon_id, network_id)
             .await?;
 
         let subnets: Vec<Subnet> = subnets
@@ -106,14 +106,17 @@ impl Discovery<SelfReportDiscovery> {
         let created_subnets = try_join_all(subnet_futures).await?;
 
         // Created subnets may differ from discovered if there are existing subnets with the same CIDR, so we need to update interface subnet_id references
-        interfaces.iter_mut().for_each(|i| {
+        // Also filter out interfaces where subnet creation didn't happen for any reason
+        let interfaces: Vec<Interface> = interfaces.into_iter().filter_map(|mut i| {
             if let Some(subnet) = created_subnets
                 .iter()
                 .find(|s| s.base.cidr.contains(&i.base.ip_address))
             {
-                i.base.subnet_id = subnet.id
+                i.base.subnet_id = subnet.id;
+                return Some(i);
             }
-        });
+            None
+        }).collect();
 
         let daemon_bound_subnet_ids: Vec<Uuid> = if binding_address == ALL_INTERFACES_IP.to_string()
         {

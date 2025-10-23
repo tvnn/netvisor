@@ -93,7 +93,7 @@ async fn main() -> anyhow::Result<()> {
     let utils = PlatformDaemonUtils::new();
 
     let daemon_id = config_store.get_id().await?;
-    let has_docker_client = utils.scan_docker_socket().await?;
+    let has_docker_client = utils.get_own_docker_socket().await?;
     let server_addr = &config_store.get_server_endpoint().await?;
 
     let state = DaemonAppState::new(config_store, utils).await?;

@@ -10,7 +10,6 @@ use strum_macros::{Display, EnumDiscriminants, EnumIter};
     Copy,
     Clone,
     Default,
-    Display,
     PartialEq,
     Eq,
     Hash,
@@ -24,6 +23,17 @@ pub enum ApplicationProtocol {
     #[default]
     Http,
     Https,
+}
+
+impl Display for ApplicationProtocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            ApplicationProtocol::Http => "http",
+            ApplicationProtocol::Https => "https"
+        };
+
+        write!(f, "{}", str)
+    }
 }
 
 #[derive(Debug, Clone, Eq)]

@@ -435,6 +435,39 @@ async fn check_for_home_assistant_service(
 }
 
 #[tokio::test]
+async fn generate_fixtures_from_test_data() -> Result<(), Box<dyn std::error::Error>> {
+    // This test should run AFTER all other integration tests
+    // The database now contains all the data created during test runs
+    
+    let output = std::process::Command::new("docker")
+        .args([
+            "exec",
+            "netvisor-postgres-1",
+            "pg_dump",
+            "-U", "postgres",
+            "-d", "netvisor",
+            "--clean",
+            "--if-exists",
+        ])
+        .output()?;
+    
+    if !output.status.success() {
+        return Err(format!(
+            "pg_dump failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ).into());
+    }
+    
+    let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src/tests/netvisor-next.sql");
+    std::fs::write(&fixture_path, output.stdout)?;
+    
+    println!("✓ Generated netvisor-next.sql from integration test database");
+    
+    Ok(())
+}
+
+#[tokio::test]
 async fn test_container_daemon_server_integration() {
     // Start containers
     let mut container_manager = ContainerManager::new();
@@ -468,6 +501,8 @@ async fn test_container_daemon_server_integration() {
     let _service = check_for_home_assistant_service(&client, network.id)
         .await
         .expect("Failed to find Home Assistant service");
+
+    generate_fixtures_from_test_data().expect("Failed to generate test fixtures");
 
     println!("\n✅ All integration tests passed!");
     println!("   ✓ Daemon registered successfully");

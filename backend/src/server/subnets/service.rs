@@ -61,7 +61,8 @@ impl SubnetService {
                                 return Err(anyhow::anyhow!("Error comparing discovered subnets during creation: subnet missing discovery metadata"));
                             }
                         }
-                        // Don't apply this to other cases - same CIDR means same subnet
+                        // System subnets are never going to be upserted to or from
+                        (EntitySource::System, _) | (_, EntitySource::System) => false,
                         _ => true,
                     };
 

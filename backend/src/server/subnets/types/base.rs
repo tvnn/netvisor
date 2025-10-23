@@ -122,6 +122,11 @@ impl Subnet {
         })
     }
 
+    pub fn is_organizational_subnet(&self) -> bool {
+        let organizational_cidr = IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(0, 0, 0, 0), 0).unwrap());
+        self.base.cidr == organizational_cidr
+    }
+
     pub fn get_infra_services<'a>(
         &'a self,
         hosts: &'a [Host],
