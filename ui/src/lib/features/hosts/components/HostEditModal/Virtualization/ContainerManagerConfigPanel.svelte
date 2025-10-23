@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Service } from '$lib/features/services/types/base';
-	import { getServiceById, services } from '$lib/features/services/store';
+	import { getServicesForHost, services } from '$lib/features/services/store';
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
@@ -9,32 +9,45 @@
 	export let onChange: (updatedService: Service) => void;
 
 	$: serviceMetadata = serviceDefinitions.getItem(service.service_definition);
-	$: containerIds = service.containers || [];
-	$: managedContainers = containerIds
-		.map((id) => getServiceById(id))
-		.filter((s) => s !== undefined);
+
+	$: managedContainers = $services.filter(
+		(s) =>
+			s.virtualization &&
+			s.virtualization?.type == 'Docker' &&
+			s.virtualization.details.service_id == service.id
+	);
+	$: containerIds = managedContainers.map((s) => s.id);
 
 	// Filter out services on other hosts and already managed containers
 	$: selectableContainers = $services.filter(
 		(s) => s.host_id === service.host_id && s.id !== service.id && !containerIds.includes(s.id)
 	);
 
-	function handleAddContainer(containerId: string) {
-		const updatedContainerIds = [...containerIds, containerId];
-		const updatedService = {
-			...service,
-			containers: updatedContainerIds
-		};
-		onChange(updatedService);
+	function handleAddContainer(serviceId: string) {
+		let services = getServicesForHost(service.host_id);
+		let containerizedService = services.find((s) => s.id == serviceId);
+
+		if (containerizedService) {
+			containerizedService.virtualization = {
+				type: 'Docker',
+				details: {
+					container_id: null,
+					container_name: null,
+					service_id: service.id
+				}
+			};
+
+			onChange(containerizedService);
+		}
 	}
 
 	function handleRemoveContainer(index: number) {
-		const updatedContainerIds = containerIds.filter((_, i) => i !== index);
-		const updatedService = {
-			...service,
-			containers: updatedContainerIds
-		};
-		onChange(updatedService);
+		let removedContainer = managedContainers.at(index);
+
+		if (removedContainer) {
+			removedContainer.virtualization = null;
+			onChange(removedContainer);
+		}
 	}
 </script>
 

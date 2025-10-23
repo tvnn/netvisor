@@ -25,8 +25,9 @@ export interface Host {
 }
 
 export interface ProxmoxVirtualization {
-	vm_id: string;
-	vm_name: string;
+	vm_id: string | null;
+	vm_name: string | null;
+	service_id: string;
 }
 
 export interface AllInterfaces {

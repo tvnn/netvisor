@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Handle, Position, type NodeProps } from '@xyflow/svelte';
-	import { getHostFromId, getHostIsVirtualized } from '$lib/features/hosts/store';
+	import { getHostFromId } from '$lib/features/hosts/store';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import { getServicesForHost } from '$lib/features/services/store';
 	import { isContainerSubnet } from '$lib/features/subnets/store';
@@ -37,7 +37,7 @@
 						headerText: data.header,
 						bodyText,
 						showServices,
-						isVirtualized: getHostIsVirtualized(host.id)
+						isVirtualized: host.virtualization !== null
 					};
 				})()
 			: null

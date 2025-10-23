@@ -1,12 +1,6 @@
 <script lang="ts">
 	import { Edit, Radar, Replace, Trash2 } from 'lucide-svelte';
-	import {
-		formatInterface,
-		getHostFromId,
-		getHostIsVirtualized,
-		getHostTargetString,
-		getHostVirtualizerService
-	} from '../store';
+	import { formatInterface, getHostTargetString, hosts } from '../store';
 	import type { Host } from '../types/base';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
@@ -35,14 +29,33 @@
 
 	$: hostServicesStore = getServicesForHostReactive(host.id);
 	$: hostServices = $hostServicesStore;
+	$: servicesThatManageVmsIds = hostServices
+		.filter(
+			(sv) =>
+				serviceDefinitions.getItem(sv.service_definition)?.metadata.manages_virtualization == 'vms'
+		)
+		.map((sv) => sv.id);
+	$: servicesThatManageContainersIds = hostServices
+		.filter(
+			(sv) =>
+				serviceDefinitions.getItem(sv.service_definition)?.metadata.manages_virtualization ==
+				'containers'
+		)
+		.map((sv) => sv.id);
 
-	$: vms = hostServices
-		.flatMap((sv) => sv.vms.map((h_id) => getHostFromId(h_id)))
-		.filter((h) => h != undefined);
-	$: containers = hostServices
-		.flatMap((sv) => sv.containers.map((s_id) => getServiceById(s_id)))
-		.filter((s) => s != undefined);
-	$: containerIds = containers.map((s) => s.id);
+	$: vms = $hosts.filter(
+		(h) =>
+			h.virtualization &&
+			h.virtualization?.type == 'Proxmox' &&
+			servicesThatManageVmsIds.includes(h.virtualization.details.service_id)
+	);
+	$: containers = hostServices.filter(
+		(s) =>
+			s.virtualization &&
+			s.virtualization?.type == 'Docker' &&
+			servicesThatManageContainersIds.includes(s.virtualization.details.service_id)
+	);
+	$: containerIds = containers.map((c) => c.id);
 
 	// Build card data
 	$: cardData = {
@@ -53,11 +66,12 @@
 			serviceDefinitions.getIconComponent(hostServices[0]?.service_definition) ||
 			entities.getIconComponent('Host'),
 		sections: [
-			...(getHostIsVirtualized(host.id)
+			...(host.virtualization !== null
 				? [
 						{
 							label: 'VM Managed By',
-							value: getHostVirtualizerService(host.id)?.name || 'Unknown Service'
+							value:
+								getServiceById(host.virtualization.details.service_id)?.name || 'Unknown Service'
 						}
 					]
 				: [])

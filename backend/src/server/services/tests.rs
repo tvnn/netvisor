@@ -110,28 +110,15 @@ async fn test_service_deletion_cleans_up_relationships() {
     );
     svc.base.bindings = vec![binding];
 
-    let mut svc_with_containers = service(&network.id, &host_obj.id);
-    svc_with_containers.base.containers = vec![svc.id];
-    svc_with_containers.base.name = "Service with Containers".to_string();
-
     services
         .host_service
-        .create_host_with_services(
-            host_obj.clone(),
-            vec![svc.clone(), svc_with_containers.clone()],
-        )
+        .create_host_with_services(host_obj.clone(), vec![svc.clone()])
         .await
         .unwrap();
 
     let created_svc = services
         .service_service
         .get_service(&svc.id)
-        .await
-        .unwrap()
-        .unwrap();
-    let created_svc_with_containers = services
-        .service_service
-        .get_service(&svc_with_containers.id)
         .await
         .unwrap()
         .unwrap();
@@ -160,13 +147,4 @@ async fn test_service_deletion_cleans_up_relationships() {
         .unwrap();
 
     assert!(group_after.base.service_bindings.is_empty());
-
-    let container_svc_after = services
-        .service_service
-        .get_service(&created_svc_with_containers.id)
-        .await
-        .unwrap()
-        .unwrap();
-
-    assert!(container_svc_after.base.containers.is_empty())
 }

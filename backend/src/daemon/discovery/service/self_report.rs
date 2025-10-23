@@ -175,8 +175,6 @@ impl Discovery<SelfReportDiscovery> {
                 .collect(),
             host_id: host.id,
             virtualization: None,
-            vms: vec![],
-            containers: vec![],
             source: EntitySource::DiscoveryWithMatch {
                 metadata: vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],
                 details: MatchDetails::new_certain("NetVisor Daemon self-report"),

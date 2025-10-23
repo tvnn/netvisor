@@ -576,11 +576,9 @@ impl Pattern<'_> {
 mod tests {
     use std::net::IpAddr;
 
+    use crate::server::discovery::types::base::DiscoveryType;
     use crate::server::services::types::base::Service;
-    use crate::server::{
-        discovery::types::base::DiscoveryType,
-        services::types::virtualization::ServiceVirtualization,
-    };
+    use crate::server::services::types::virtualization::ServiceVirtualization;
     use crate::tests::{network, user};
     use serial_test::serial;
     use uuid::Uuid;

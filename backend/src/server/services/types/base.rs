@@ -26,10 +26,6 @@ pub struct ServiceBase {
     pub name: String,
     pub bindings: Vec<Binding>,
     pub virtualization: Option<ServiceVirtualization>,
-    /// Host IDs that are VMs managed by service
-    pub vms: Vec<Uuid>,
-    /// Service IDs that are VMs managed by service
-    pub containers: Vec<Uuid>,
     pub source: EntitySource,
 }
 
@@ -42,8 +38,6 @@ impl Default for ServiceBase {
             name: String::new(),
             bindings: Vec::new(),
             virtualization: None,
-            vms: vec![],
-            containers: vec![],
             source: EntitySource::Unknown,
         }
     }
@@ -247,8 +241,6 @@ impl Service {
                         name,
                         bindings: vec![Binding::new_l3(interface.id)],
                         virtualization: virtualization.clone(),
-                        vms: vec![],
-                        containers: vec![],
                         source: EntitySource::DiscoveryWithMatch {
                             metadata: vec![discovery_metadata],
                             details: result.details.clone(),
@@ -277,8 +269,6 @@ impl Service {
                             .iter()
                             .map(|p| Binding::new_l4(p.id, Some(interface.id)))
                             .collect(),
-                        vms: vec![],
-                        containers: vec![],
                         source: EntitySource::DiscoveryWithMatch {
                             metadata: vec![discovery_metadata],
                             details: result.details.clone(),

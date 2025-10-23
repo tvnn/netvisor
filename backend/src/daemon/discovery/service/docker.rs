@@ -121,6 +121,13 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
         // Get container info
         let containers = self.get_containers_and_summaries().await?;
 
+        // Create service for docker daemon
+        let (_, services) = self.create_docker_daemon_service().await?;
+
+        let docker_daemon_service = services
+            .first()
+            .ok_or_else(|| anyhow!("Docker daemon service was not created, aborting"))?;
+
         // Combine host interfaces + subnets to get a map of containers to the interfaces they have + subnets those interfaces are for
         let containers_interfaces_and_subnets =
             self.get_container_interfaces(&containers, &subnets, &mut host_interfaces);
@@ -130,6 +137,7 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
                 cancel.clone(),
                 containers,
                 &containers_interfaces_and_subnets,
+                &docker_daemon_service.id,
             )
             .await;
 
@@ -139,15 +147,8 @@ impl DiscoversNetworkedEntities for Discovery<DockerScanDiscovery> {
             Err(anyhow::Error::msg(""))
         };
 
-        let services: Vec<Service> = discovered_hosts_services?
-            .iter()
-            .flat_map(|(_, s)| s.clone())
-            .collect();
-
         self.finish_discovery(discovery_result, cancel.clone())
             .await?;
-
-        self.create_docker_daemon_service(services).await?;
 
         Ok(())
     }
@@ -215,6 +216,7 @@ pub struct ProcessContainerParams<'a> {
     pub containers_interfaces_and_subnets: &'a HashMap<String, Vec<(Interface, Subnet)>>,
     pub container: &'a ContainerInspectResponse,
     pub container_summary: &'a ContainerSummary,
+    pub docker_service_id: &'a Uuid,
     pub scanned_count: Arc<AtomicUsize>,
     pub discovered_count: Arc<AtomicUsize>,
     pub cancel: CancellationToken,
@@ -235,7 +237,7 @@ impl Discovery<DockerScanDiscovery> {
 
     /// Create docker daemon service which has all discovered containers in containers field
     /// Create netvisor daemon service which has container relationship with docker daemon service
-    pub async fn create_docker_daemon_service(&self, services: Vec<Service>) -> Result<(), Error> {
+    pub async fn create_docker_daemon_service(&self) -> Result<(Host, Vec<Service>), Error> {
         let daemon_id = self.as_ref().config_store.get_id().await?;
         let network_id = self
             .as_ref()
@@ -255,8 +257,6 @@ impl Discovery<DockerScanDiscovery> {
             host_id,
             network_id,
             virtualization: None,
-            vms: vec![],
-            containers: services.iter().map(|s| s.id).collect(),
             source: EntitySource::DiscoveryWithMatch {
                 metadata: vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],
                 details: MatchDetails::new_certain("Docker daemon self-report"),
@@ -272,9 +272,7 @@ impl Discovery<DockerScanDiscovery> {
         temp_docker_daemon_host.base.services = vec![docker_service.id];
 
         self.create_host(temp_docker_daemon_host, vec![docker_service])
-            .await?;
-
-        Ok(())
+            .await
     }
 
     async fn scan_and_process_containers(
@@ -282,6 +280,7 @@ impl Discovery<DockerScanDiscovery> {
         cancel: CancellationToken,
         containers: Vec<(ContainerInspectResponse, ContainerSummary)>,
         containers_interfaces_and_subnets: &HashMap<String, Vec<(Interface, Subnet)>>,
+        docker_service_id: &Uuid,
     ) -> Result<Vec<(Host, Vec<Service>)>> {
         let session = self.as_ref().get_session().await?;
         let scanned_count = session.scanned_count.clone();
@@ -304,6 +303,7 @@ impl Discovery<DockerScanDiscovery> {
                         containers_interfaces_and_subnets,
                         container: &container,
                         container_summary: &container_summary,
+                        docker_service_id,
                         scanned_count,
                         discovered_count,
                         cancel,
@@ -394,6 +394,7 @@ impl Discovery<DockerScanDiscovery> {
             scanned_count,
             discovered_count,
             cancel,
+            docker_service_id,
             ..
         } = params;
 
@@ -443,6 +444,7 @@ impl Discovery<DockerScanDiscovery> {
                             .clone()
                             .map(|n| n.trim_start_matches("/").to_string()),
                         container_id: container.id.clone(),
+                        service_id: **docker_service_id,
                     })),
                 };
 
@@ -477,6 +479,7 @@ impl Discovery<DockerScanDiscovery> {
             scanned_count,
             discovered_count,
             cancel,
+            docker_service_id,
         } = params;
 
         tracing::info!(
@@ -542,6 +545,7 @@ impl Discovery<DockerScanDiscovery> {
                                     .clone()
                                     .map(|n| n.trim_start_matches("/").to_string()),
                                 container_id: container.id.clone(),
+                                service_id: **docker_service_id,
                             },
                         )),
                     },

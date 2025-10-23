@@ -11,10 +11,6 @@ export interface Service<T extends Binding = Binding> {
 	name: string;
 	bindings: T[];
 	virtualization: ServiceVirtualization | null;
-	// Host UUIDs
-	vms: string[];
-	// Service UUIDs
-	containers: string[];
 	source: EntitySource;
 	network_id: string;
 }
@@ -24,8 +20,9 @@ export type ServiceWithVMs = Omit<Service, 'vms'> & {
 };
 
 export interface DockerVirtualization {
-	container_id: string;
-	container_name: string;
+	container_id: string | null;
+	container_name: string | null;
+	service_id: string;
 }
 
 export type Binding =

@@ -12,6 +12,7 @@
 	import { getServicesForHost } from '$lib/features/services/store';
 	import PortsDisplay from './Ports/PortsForm.svelte';
 	import VirtualizationForm from './Virtualization/VirtualizationForm.svelte';
+	import { SvelteMap } from 'svelte/reactivity';
 
 	export let host: Host | null = null;
 	export let isOpen = false;
@@ -39,13 +40,21 @@
 		(s) => serviceDefinitions.getMetadata(s.service_definition).manages_virtualization != null
 	);
 
-	function handleVmManagerServiceChange(updatedService: Service) {
+	function handleVirtualizationServiceChange(updatedService: Service) {
 		// Find the actual index in currentHostServices
 		const actualIndex = currentHostServices.findIndex((s) => s.id === updatedService.id);
 		if (actualIndex >= 0) {
 			currentHostServices[actualIndex] = updatedService;
 			currentHostServices = [...currentHostServices]; // Trigger reactivity
 		}
+	}
+
+	let vmManagedHostUpdates: SvelteMap<string, Host> = new SvelteMap();
+
+	function handleVirtualizationHostChange(updatedHost: Host) {
+		// This is another host; ie not the current
+		// Hold on to updates and only make them on submit
+		vmManagedHostUpdates.set(updatedHost.id, updatedHost);
 	}
 
 	// Tab management
@@ -113,11 +122,20 @@
 
 	async function handleSubmit() {
 		loading = true;
+		let promises = [];
 		if (isEditing && host) {
-			await onUpdate({ host: formData, services: currentHostServices });
+			promises.push(onUpdate({ host: formData, services: currentHostServices }));
 		} else {
-			await onCreate({ host: formData, services: currentHostServices });
+			promises.push(onCreate({ host: formData, services: currentHostServices }));
 		}
+
+		for (const updatedHost of vmManagedHostUpdates.values()) {
+			const hostServices = getServicesForHost(updatedHost.id);
+			promises.push(onUpdate({ host: updatedHost, services: hostServices }));
+		}
+
+		await Promise.all(promises);
+
 		loading = false;
 	}
 
@@ -255,7 +273,8 @@
 					<div class="relative flex-1">
 						<VirtualizationForm
 							virtualizationManagerServices={vmManagerServices}
-							onServiceChange={handleVmManagerServiceChange}
+							onServiceChange={handleVirtualizationServiceChange}
+							onVirtualizedHostChange={handleVirtualizationHostChange}
 						/>
 					</div>
 				</div>

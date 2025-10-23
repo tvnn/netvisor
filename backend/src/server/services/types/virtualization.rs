@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use strum_macros::IntoStaticStr;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::server::shared::{
@@ -18,6 +19,7 @@ pub enum ServiceVirtualization {
 pub struct DockerVirtualization {
     pub container_name: Option<String>,
     pub container_id: Option<String>,
+    pub service_id: Uuid,
 }
 
 impl HasId for ServiceVirtualization {

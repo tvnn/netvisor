@@ -8,8 +8,6 @@ CREATE TABLE IF NOT EXISTS services (
     bindings JSONB,
     service_definition TEXT NOT NULL,
     virtualization JSONB,
-    vms JSONB,
-    containers JSONB,
     source JSONB NOT NULL,
     FOREIGN KEY (host_id) REFERENCES hosts(id) ON DELETE CASCADE
 );

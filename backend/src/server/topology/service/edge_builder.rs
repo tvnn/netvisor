@@ -1,12 +1,16 @@
+use itertools::Itertools;
 use petgraph::{graph::NodeIndex, Graph};
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::server::topology::{
-    service::context::TopologyContext,
-    types::{
-        edges::{Edge, EdgeHandle, EdgeType},
-        nodes::Node,
+use crate::server::{
+    services::types::virtualization::ServiceVirtualization,
+    topology::{
+        service::context::TopologyContext,
+        types::{
+            edges::{Edge, EdgeHandle, EdgeType},
+            nodes::Node,
+        },
     },
 };
 
@@ -73,10 +77,30 @@ impl EdgeBuilder {
         // Host id to subnet id that will be used for grouping, if enabled
         let mut docker_bridge_host_subnet_id_to_group_on: HashMap<Uuid, Uuid> = HashMap::new();
 
+        let mut docker_service_to_containerized_service_ids: HashMap<Uuid, Vec<Uuid>> =
+            HashMap::new();
+
+        ctx.services.iter().for_each(|s| {
+            if let Some(ServiceVirtualization::Docker(docker_virtualization)) =
+                &s.base.virtualization
+            {
+                let entry = docker_service_to_containerized_service_ids
+                    .entry(docker_virtualization.service_id)
+                    .or_default();
+                if !entry.contains(&s.id) {
+                    entry.push(s.id);
+                }
+            }
+        });
+
         let edges = ctx
             .services
             .iter()
-            .filter(|s| !s.base.containers.is_empty())
+            .filter(|s| {
+                docker_service_to_containerized_service_ids
+                    .keys()
+                    .contains(&s.id)
+            })
             .filter_map(|s| {
                 let host = ctx.get_host_by_id(s.base.host_id)?;
                 let origin_interface = host.base.interfaces.first()?;
@@ -136,9 +160,9 @@ impl EdgeBuilder {
                         }
                     }
                 } else {
-                    return s
-                        .base
-                        .containers
+                    return docker_service_to_containerized_service_ids
+                        .get(&s.id)
+                        .unwrap_or(&Vec::new())
                         .iter()
                         .filter_map(move |cs| {
                             let containerized = ctx.get_service_by_id(*cs)?;

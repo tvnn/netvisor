@@ -5,8 +5,12 @@
 		getId: (service: Service) => service.id,
 		getLabel: (service: Service) => service.name,
 		getDescription: (service: Service) => {
-			let container_count = service.containers.length;
-			let vm_count = service.vms.length;
+			let container_count = get(services).filter(
+				(s) => s.virtualization && s.virtualization.details.service_id == service.id
+			).length;
+			let vm_count = get(hosts).filter(
+				(h) => h.virtualization && h.virtualization.details.service_id == service.id
+			).length;
 			return container_count > 0
 				? container_count + ' container' + (container_count == 1 ? '' : 's')
 				: vm_count + ' VM' + (vm_count == 1 ? '' : 's');
@@ -38,6 +42,9 @@
 	import type { EntityDisplayComponent } from '../types';
 	import type { Service } from '$lib/features/services/types/base';
 	import type { TagProps } from '$lib/shared/components/data/types';
+	import { services } from '$lib/features/services/store';
+	import { get } from 'svelte/store';
+	import { hosts } from '$lib/features/hosts/store';
 
 	export let item: Service;
 </script>

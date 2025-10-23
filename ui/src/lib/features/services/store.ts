@@ -37,8 +37,6 @@ export function createDefaultService(
 		name: serviceName || serviceType,
 		bindings: [],
 		virtualization: null,
-		vms: [],
-		containers: [],
 		source: {
 			type: 'Manual'
 		}

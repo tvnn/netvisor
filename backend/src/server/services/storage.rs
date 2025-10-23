@@ -39,16 +39,14 @@ impl ServiceStorage for PostgresServiceStorage {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
         let bindings_str = serde_json::to_value(&service.base.bindings)?;
         let virtualization_str = serde_json::to_value(&service.base.virtualization)?;
-        let vms_str = serde_json::to_value(&service.base.vms)?;
-        let containers_str = serde_json::to_value(&service.base.containers)?;
         let source_str = serde_json::to_value(&service.base.source)?;
 
         sqlx::query(
             r#"
             INSERT INTO services (
                 id, name, host_id, service_definition, bindings, virtualization, 
-                vms, containers, source, created_at, updated_at, network_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                source, created_at, updated_at, network_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             "#,
         )
         .bind(service.id)
@@ -57,8 +55,6 @@ impl ServiceStorage for PostgresServiceStorage {
         .bind(service_def_str)
         .bind(bindings_str)
         .bind(virtualization_str)
-        .bind(vms_str)
-        .bind(containers_str)
         .bind(source_str)
         .bind(service.created_at)
         .bind(service.updated_at)
@@ -114,14 +110,12 @@ impl ServiceStorage for PostgresServiceStorage {
         let service_def_str = serde_json::to_string(&service.base.service_definition)?;
         let bindings_str = serde_json::to_value(&service.base.bindings)?;
         let virtualization_str = serde_json::to_value(&service.base.virtualization)?;
-        let vms_str = serde_json::to_value(&service.base.vms)?;
-        let containers_str = serde_json::to_value(&service.base.containers)?;
         let source_str = serde_json::to_value(&service.base.source)?;
 
         sqlx::query(
             r#"
             UPDATE services SET 
-                name = $2, host_id = $3, service_definition = $4, bindings = $5, virtualization = $6, vms = $7, containers = $8, source = $9, updated_at = $10
+                name = $2, host_id = $3, service_definition = $4, bindings = $5, virtualization = $6, source = $7, updated_at = $8
             WHERE id = $1
             "#,
         )
@@ -131,8 +125,6 @@ impl ServiceStorage for PostgresServiceStorage {
         .bind(service_def_str)
         .bind(bindings_str)
         .bind(virtualization_str)
-        .bind(vms_str)
-        .bind(containers_str)
         .bind(source_str)
         .bind(service.updated_at)
         .execute(&self.pool)
@@ -162,11 +154,6 @@ fn row_to_service(row: sqlx::postgres::PgRow) -> Result<Service, Error> {
     let virtualization: Option<ServiceVirtualization> =
         serde_json::from_value(row.get::<serde_json::Value, _>("virtualization"))
             .or(Err(Error::msg("Failed to deserialize virtualization")))?;
-    let vms: Vec<Uuid> = serde_json::from_value(row.get::<serde_json::Value, _>("vms"))
-        .or(Err(Error::msg("Failed to deserialize vms")))?;
-    let containers: Vec<Uuid> =
-        serde_json::from_value(row.get::<serde_json::Value, _>("containers"))
-            .or(Err(Error::msg("Failed to deserialize containers")))?;
     let source: EntitySource = serde_json::from_value(row.get::<serde_json::Value, _>("source"))
         .or(Err(Error::msg("Failed to deserialize source")))?;
 
@@ -180,8 +167,6 @@ fn row_to_service(row: sqlx::postgres::PgRow) -> Result<Service, Error> {
             host_id: row.get("host_id"),
             service_definition,
             virtualization,
-            vms,
-            containers,
             bindings,
             source,
         },

@@ -7,19 +7,17 @@
 	import ContainerManagerConfigPanel from './ContainerManagerConfigPanel.svelte';
 	import EntityConfigEmpty from '$lib/shared/components/forms/EntityConfigEmpty.svelte';
 	import { VirtualizationManagerServiceDisplay } from '$lib/shared/components/forms/selection/display/VirtualizationManagerServiceDisplay.svelte';
+	import type { Host } from '$lib/features/hosts/types/base';
+	import { uuidv4Sentinel } from '$lib/shared/utils/formatting';
+	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 
 	export let virtualizationManagerServices: Service[];
-	export let onServiceChange: (service: Service, index: number) => void;
-
-	console.log(virtualizationManagerServices);
-
-	function handleServiceChange(service: Service, index: number) {
-		onServiceChange(service, index);
-	}
+	export let onServiceChange: (service: Service) => void;
+	export let onVirtualizedHostChange: (host: Host) => void;
 </script>
 
 <div class="space-y-6">
-	<ListConfigEditor bind:items={virtualizationManagerServices} onChange={handleServiceChange}>
+	<ListConfigEditor bind:items={virtualizationManagerServices} onChange={onServiceChange}>
 		<svelte:fragment slot="list" let:items let:onEdit let:highlightedIndex>
 			<ListManager
 				label="Virtualization Services"
@@ -37,26 +35,33 @@
 			/>
 		</svelte:fragment>
 
-		<svelte:fragment slot="config" let:selectedItem let:onChange>
+		<svelte:fragment slot="config" let:selectedItem>
 			{#if selectedItem}
-				{@const virtualizationType = serviceDefinitions.getMetadata(
-					selectedItem.service_definition
-				).manages_virtualization}
-				{#if virtualizationType === 'vms'}
-					<VmManagerConfigPanel
-						service={selectedItem}
-						onChange={(updatedService) => onChange(updatedService)}
-					/>
-				{:else if virtualizationType === 'containers'}
-					<ContainerManagerConfigPanel
-						service={selectedItem}
-						onChange={(updatedService) => onChange(updatedService)}
+				{#if selectedItem.id == uuidv4Sentinel}
+					<InlineWarning
+						title="Please Save {selectedItem.name}"
+						body="You need to save {selectedItem.name} before managing virtualization"
 					/>
 				{:else}
-					<EntityConfigEmpty
-						title="Unknown virtualization type"
-						subtitle="This service has an unrecognized virtualization management type"
-					/>
+					{@const virtualizationType = serviceDefinitions.getMetadata(
+						selectedItem.service_definition
+					).manages_virtualization}
+					{#if virtualizationType === 'vms'}
+						<VmManagerConfigPanel
+							service={selectedItem}
+							onChange={(updatedHost) => onVirtualizedHostChange(updatedHost)}
+						/>
+					{:else if virtualizationType === 'containers'}
+						<ContainerManagerConfigPanel
+							service={selectedItem}
+							onChange={(updatedService) => onServiceChange(updatedService)}
+						/>
+					{:else}
+						<EntityConfigEmpty
+							title="Unknown virtualization type"
+							subtitle="This service has an unrecognized virtualization management type"
+						/>
+					{/if}
 				{/if}
 			{:else}
 				<EntityConfigEmpty

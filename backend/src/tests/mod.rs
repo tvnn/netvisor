@@ -122,8 +122,6 @@ pub fn service(network_id: &Uuid, host_id: &Uuid) -> Service {
         network_id: *network_id,
         service_definition: service_def,
         virtualization: None,
-        vms: vec![],
-        containers: vec![],
         source: EntitySource::System,
     })
 }

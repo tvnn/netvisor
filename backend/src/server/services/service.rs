@@ -421,25 +421,7 @@ impl ServiceService {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Service {} not found", id))?;
 
-        let mut all_services = self.get_all_services(&service.base.network_id).await?;
-
         self.update_group_service_bindings(&service, None).await?;
-
-        let container_update_futures = all_services.iter_mut().filter_map(|s| {
-            if s.base.containers.contains(id) {
-                s.base.containers = s
-                    .base
-                    .containers
-                    .clone()
-                    .into_iter()
-                    .filter(|s_id| s_id != id)
-                    .collect();
-                return Some(self.update_service(s.clone()));
-            }
-            None
-        });
-
-        try_join_all(container_update_futures).await?;
 
         self.storage.delete(id).await?;
         tracing::info!(

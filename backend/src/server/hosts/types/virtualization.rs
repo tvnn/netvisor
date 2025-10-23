@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 use strum_macros::IntoStaticStr;
+use uuid::Uuid;
 use validator::Validate;
 
 use crate::server::shared::{
@@ -9,7 +10,7 @@ use crate::server::shared::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, IntoStaticStr)]
-#[serde(tag = "type", content = "config")]
+#[serde(tag = "type", content = "details")]
 pub enum HostVirtualization {
     Proxmox(ProxmoxVirtualization),
 }
@@ -18,6 +19,7 @@ pub enum HostVirtualization {
 pub struct ProxmoxVirtualization {
     pub vm_name: Option<String>,
     pub vm_id: Option<String>,
+    pub service_id: Uuid,
 }
 
 impl HasId for HostVirtualization {
