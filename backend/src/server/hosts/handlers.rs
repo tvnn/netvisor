@@ -12,6 +12,7 @@ use axum::{
 };
 use futures::future::try_join_all;
 use itertools::{Either, Itertools};
+use validator::Validate;
 use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
@@ -32,6 +33,18 @@ async fn create_host(
     Json(request): Json<HostWithServicesRequest>,
 ) -> ApiResult<Json<ApiResponse<HostWithServicesRequest>>> {
     let host_service = &state.services.host_service;
+
+    if let Err(e) = request.host.base.validate() {
+        tracing::error!("Host validation failed: {:?}", e);
+        return Err(ApiError::bad_request(&format!("Host validation failed: {}", e)));
+    }
+    
+    for service in &request.services {
+        if let Err(e) = service.base.validate() {
+            tracing::error!("Service validation failed: {:?}", e);
+            return Err(ApiError::bad_request(&format!("Service validation failed: {}", e)));
+        }
+    }
 
     let (host, services) = host_service
         .create_host_with_services(request.host, request.services)

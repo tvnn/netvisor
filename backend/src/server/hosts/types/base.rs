@@ -7,16 +7,11 @@ use crate::server::{
 };
 use chrono::{DateTime, Utc};
 use mac_address::MacAddress;
-use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use std::{hash::Hash, net::IpAddr, sync::LazyLock};
+use std::{hash::Hash, net::IpAddr};
 use uuid::Uuid;
 use validator::Validate;
-
-static HOSTNAME_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$").unwrap()
-});
 
 static INVALID_MACS_BYTES: &[[u8; 6]; 2] = &[
     [0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -28,7 +23,6 @@ pub struct HostBase {
     #[validate(length(min = 0, max = 100))]
     pub name: String,
     pub network_id: Uuid,
-    #[validate(regex(path = *HOSTNAME_REGEX))]
     pub hostname: Option<String>,
     #[validate(length(min = 0, max = 100))]
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]

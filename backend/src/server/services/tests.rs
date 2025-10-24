@@ -11,7 +11,7 @@ use crate::{
 #[tokio::test]
 #[serial]
 async fn test_service_deduplication_on_create() {
-    let (_, services) = test_services().await;
+    let (_, services, _container) = test_services().await;
 
     let user = services.user_service.create_user(user()).await.unwrap();
     let network = services
@@ -83,7 +83,7 @@ async fn test_service_deduplication_on_create() {
 #[tokio::test]
 #[serial]
 async fn test_service_deletion_cleans_up_relationships() {
-    let (_, services) = test_services().await;
+    let (_, services, _container) = test_services().await;
 
     let user = services.user_service.create_user(user()).await.unwrap();
     let network = services

@@ -32,10 +32,6 @@ struct Cli {
     /// Override database path
     #[arg(long)]
     database_url: Option<String>,
-
-    /// Override web external path
-    #[arg(long)]
-    web_external_path: Option<String>,
 }
 
 impl From<Cli> for CliArgs {
@@ -45,7 +41,6 @@ impl From<Cli> for CliArgs {
             log_level: cli.log_level,
             rust_log: cli.rust_log,
             database_url: cli.database_url,
-            web_external_path: cli.web_external_path,
         }
     }
 }

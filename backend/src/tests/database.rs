@@ -11,7 +11,7 @@ async fn test_database_schema_backward_compatibility() {
     if db_path.exists() {
         println!("Testing backward compatibility with database from latest release");
 
-        let (pool, database_url) = setup_test_db().await;
+        let (pool, database_url, _container) = setup_test_db().await;
 
         // Parse connection details
         let url = url::Url::parse(&database_url).unwrap();

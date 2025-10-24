@@ -152,7 +152,7 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
-    tracing::info!("✅ Daemon ID: {}", daemon_id);
+    tracing::info!("Daemon ID: {}", daemon_id);
 
     tokio::spawn(async move {
         if let Err(e) = runtime_service.heartbeat().await {

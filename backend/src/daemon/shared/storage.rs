@@ -299,8 +299,6 @@ mod tests {
             // Verify required fields exist
             assert!(!config.name.is_empty(), "Config name is empty");
             assert!(config.daemon_port > 0, "Config port is invalid");
-
-            println!("✅ Successfully loaded daemon config from latest release");
         } else {
             println!(
                 "⚠️  No daemon config fixture found at {}",

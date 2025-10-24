@@ -26,7 +26,7 @@ use sqlx::PgPool;
 use std::net::IpAddr;
 use std::net::Ipv4Addr;
 use std::sync::Arc;
-use testcontainers::{GenericImage, ImageExt, core::WaitFor, runners::AsyncRunner};
+use testcontainers::{core::WaitFor, runners::AsyncRunner, ContainerAsync, GenericImage, ImageExt};
 use uuid::Uuid;
 
 #[cfg(test)]
@@ -35,7 +35,7 @@ pub mod database;
 pub const DAEMON_CONFIG_FIXTURE: &str = "src/tests/daemon_config.json";
 pub const SERVER_DB_FIXTURE: &str = "src/tests/netvisor.sql";
 
-pub async fn setup_test_db() -> (PgPool, String) {
+pub async fn setup_test_db() -> (PgPool, String, ContainerAsync<GenericImage>) {
     let postgres_image = GenericImage::new("postgres", "17-alpine")
         .with_wait_for(WaitFor::message_on_stderr(
             "database system is ready to accept connections",
@@ -52,18 +52,15 @@ pub async fn setup_test_db() -> (PgPool, String) {
         port
     );
 
-    // Leak the container so it lives for the entire test
-    std::mem::forget(container);
-
     let pool = PgPool::connect(&database_url).await.unwrap();
-    (pool, database_url)
+    (pool, database_url, container)
 }
 
-pub async fn test_storage() -> StorageFactory {
-    let (pool, database_url) = setup_test_db().await;
+pub async fn test_storage() -> (StorageFactory, ContainerAsync<GenericImage>) {
+    let (pool, database_url, _container) = setup_test_db().await;
     pool.close().await;
     let factory = StorageFactory::new(&database_url).await.unwrap();
-    factory
+    (factory, _container)
 }
 
 pub fn user() -> User {
@@ -149,10 +146,10 @@ pub fn daemon(network_id: &Uuid, host_id: &Uuid) -> Daemon {
     )
 }
 
-pub async fn test_services() -> (StorageFactory, ServiceFactory) {
-    let storage = test_storage().await;
+pub async fn test_services() -> (StorageFactory, ServiceFactory, ContainerAsync<GenericImage>) {
+    let (storage, _container) = test_storage().await;
     let services = ServiceFactory::new(&storage).await.unwrap();
-    (storage, services)
+    (storage, services, _container)
 }
 pub async fn setup_test_app() -> Router<Arc<AppState>> {
     let config = ServerConfig::default();

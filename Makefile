@@ -33,7 +33,6 @@ setup-db:
 	@echo "PostgreSQL ready at localhost:5432"
 
 clean-db:
-	rm -rf /data/daemon_config/*
 	docker stop netvisor-postgres || true
 	docker rm netvisor-postgres || true
 
@@ -58,7 +57,7 @@ dev-container-rebuild-clean:
 	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 
 dev-down:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml down --volumes
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml down --volumes --rmi all
 
 build:
 	@echo "Building server Docker image..."
@@ -68,6 +67,8 @@ build:
 	@echo "✓ Daemon image built: mayanayza/netvisor-daemon:latest"
 
 test:
+	make dev-down
+	rm -rf ./data/daemon_config/*
 	@export DATABASE_URL="postgresql://postgres:password@localhost:5432/netvisor_test" && \
 	cd backend && cargo test -- --nocapture --test-threads=1
 

@@ -19,7 +19,6 @@ pub struct CliArgs {
     pub log_level: Option<String>,
     pub rust_log: Option<String>,
     pub database_url: Option<String>,
-    pub web_external_path: Option<String>,
 }
 
 /// Flattened server configuration struct
@@ -78,9 +77,6 @@ impl ServerConfig {
         }
         if let Some(database_url) = cli_args.database_url {
             figment = figment.merge(("database_url", database_url));
-        }
-        if let Some(web_external_path) = cli_args.web_external_path {
-            figment = figment.merge(("web_external_path", web_external_path));
         }
 
         let config: ServerConfig = figment

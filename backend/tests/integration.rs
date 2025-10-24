@@ -31,10 +31,9 @@ impl ContainerManager {
             .args([
                 "compose",
                 "-f",
-                "docker-compose.yml",
-                "-f",
                 "docker-compose.dev.yml",
                 "up",
+                "--build",
                 "--wait", // Wait for services to be healthy before returning
             ])
             .current_dir("..")
@@ -97,7 +96,7 @@ impl ContainerManager {
 
 impl Drop for ContainerManager {
     fn drop(&mut self) {
-        self.cleanup();
+        // self.cleanup();
     }
 }
 

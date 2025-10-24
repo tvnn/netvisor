@@ -11,7 +11,7 @@ use crate::{
 #[tokio::test]
 #[serial]
 async fn test_host_deduplication_on_create() {
-    let (storage, services) = test_services().await;
+    let (storage, services, _container) = test_services().await;
 
     let user = services.user_service.create_user(user()).await.unwrap();
     let network = services
@@ -55,7 +55,7 @@ async fn test_host_deduplication_on_create() {
 #[tokio::test]
 #[serial]
 async fn test_host_upsert_merges_new_data() {
-    let (_, services) = test_services().await;
+    let (_, services, _container) = test_services().await;
 
     let user = services.user_service.create_user(user()).await.unwrap();
     let network = services
@@ -115,7 +115,7 @@ async fn test_host_upsert_merges_new_data() {
 #[tokio::test]
 #[serial]
 async fn test_host_consolidation() {
-    let (_, services) = test_services().await;
+    let (_, services, _container) = test_services().await;
 
     let user = services.user_service.create_user(user()).await.unwrap();
     let network = services

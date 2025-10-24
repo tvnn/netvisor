@@ -68,13 +68,6 @@ impl SubnetService {
                         _ => true,
                     };
 
-                    tracing::info!(
-                        "Dedup check result: {}, existing: {:?}, new: {:?}",
-                        result,
-                        existing_subnet.base.source,
-                        subnet.base.source
-                    );
-
                     result
                 } =>
             {
