@@ -1,7 +1,7 @@
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::definitions::ServiceDefinition;
-use crate::server::services::types::patterns::Pattern;
+use crate::server::services::types::patterns::{MatchConfidence, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
 pub struct Gateway;
@@ -18,7 +18,21 @@ impl ServiceDefinition for Gateway {
     }
 
     fn discovery_pattern(&self) -> Pattern<'_> {
-        Pattern::IsGateway
+        Pattern::AllOf(vec![
+            Pattern::IsGateway,
+            Pattern::Custom(
+                |params| {
+                    !params
+                        .service_params
+                        .matched_services
+                        .iter()
+                        .any(|s| !s.base.is_gateway)
+                },
+                "No other gateway services matched",
+                "A gateway service has already been matched",
+                MatchConfidence::Low,
+            ),
+        ])
     }
 
     fn is_generic(&self) -> bool {

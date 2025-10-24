@@ -1,3 +1,5 @@
+import type { Service } from '$lib/features/services/types/base';
+
 export interface NodeBase {
 	id: string;
 	node_type: string;
@@ -8,7 +10,7 @@ export interface NodeBase {
 
 type NodeType =
 	| {
-			node_type: 'HostNode';
+			node_type: 'InterfaceNode';
 			subnet_id: string;
 			host_id: string;
 			interface_id: string;
@@ -17,6 +19,15 @@ type NodeType =
 	| { node_type: 'SubnetNode'; infra_width: number };
 
 type TopologyNode = NodeBase & NodeType & Record<string, unknown>;
+
+export interface NodeRenderData {
+	headerText: string | null;
+	footerText: string | null;
+	bodyText: string | null;
+	showServices: boolean;
+	isVirtualized: boolean;
+	services: Service[];
+}
 
 export interface TopologyEdge extends Record<string, unknown> {
 	edge_type: string;
@@ -43,4 +54,8 @@ export enum EdgeHandle {
 
 export interface TopologyRequestOptions {
 	group_docker_bridges_by_host: boolean;
+	network_ids: string[];
+	show_gateway_as_infra_service: boolean;
+	infra_service_categories: string[];
+	hide_service_categories: string[];
 }

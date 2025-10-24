@@ -6,6 +6,7 @@ use crate::server::{
     services::types::{base::Service, virtualization::ServiceVirtualization},
     subnets::types::base::Subnet,
     topology::types::{
+        api::TopologyRequestOptions,
         edges::Edge,
         nodes::{Node, NodeType},
     },
@@ -18,6 +19,7 @@ pub struct TopologyContext<'a> {
     pub subnets: &'a [Subnet],
     pub services: &'a [Service],
     pub groups: &'a [Group],
+    pub options: &'a TopologyRequestOptions,
 }
 
 impl<'a> TopologyContext<'a> {
@@ -26,12 +28,14 @@ impl<'a> TopologyContext<'a> {
         subnets: &'a [Subnet],
         services: &'a [Service],
         groups: &'a [Group],
+        options: &'a TopologyRequestOptions,
     ) -> Self {
         Self {
             hosts,
             subnets,
             services,
             groups,
+            options,
         }
     }
 
@@ -56,7 +60,11 @@ impl<'a> TopologyContext<'a> {
     pub fn get_services_bound_to_interface(&self, interface_id: Uuid) -> Vec<&'a Service> {
         self.services
             .iter()
-            .filter(|s| s.to_bound_interface_ids().contains(&interface_id))
+            .filter(|s| {
+                s.to_bound_interface_ids()
+                    .iter()
+                    .any(|s| s.map(|id| id == interface_id).unwrap_or(false))
+            })
             .collect()
     }
 
@@ -65,7 +73,7 @@ impl<'a> TopologyContext<'a> {
             .iter()
             .find(|n| n.id == node_id)
             .map(|node| match node.node_type {
-                NodeType::HostNode { subnet_id, .. } => subnet_id,
+                NodeType::InterfaceNode { subnet_id, .. } => subnet_id,
                 NodeType::SubnetNode { .. } => node.id,
             })
     }
@@ -122,10 +130,20 @@ impl<'a> TopologyContext<'a> {
     }
 
     pub fn get_interfaces_with_infra_service(&self, subnet: &Subnet) -> Vec<Option<Uuid>> {
-        subnet
-            .get_infra_services(self.hosts, self.services)
-            .into_iter()
-            .flat_map(|s| s.base.bindings.iter().map(|b| b.interface_id()))
+        self.services
+            .iter()
+            .filter(|s| {
+                if let Some(host) = self.hosts.iter().find(|h| h.id == s.base.host_id) {
+                    return (self
+                        .options
+                        .infra_service_categories
+                        .contains(&s.base.service_definition.category())
+                        || (self.options.show_gateway_as_infra_service && s.base.is_gateway))
+                        && subnet.has_interface_with_service(host, s);
+                }
+                false
+            })
+            .flat_map(|s| s.to_bound_interface_ids())
             .collect()
     }
 

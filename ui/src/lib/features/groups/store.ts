@@ -69,7 +69,7 @@ export function createEmptyGroupFormData(): Group {
 		service_bindings: [],
 		created_at: utcTimeZoneSentinel,
 		updated_at: utcTimeZoneSentinel,
-		group_type: 'NetworkPath',
+		group_type: 'RequestPath',
 		source: {
 			type: 'Manual'
 		},

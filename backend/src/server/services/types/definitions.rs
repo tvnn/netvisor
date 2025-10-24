@@ -1,8 +1,6 @@
 use crate::server::services::definitions::ServiceDefinitionRegistry;
-use crate::server::services::definitions::custom_l3::CustomLayer3;
 use crate::server::services::definitions::docker_daemon::Docker;
 use crate::server::services::definitions::proxmox::Proxmox;
-use crate::server::services::types::bindings::BindingDiscriminants;
 use crate::server::services::types::categories::ServiceCategory;
 use crate::server::services::types::patterns::Pattern;
 use crate::server::shared::types::metadata::TypeMetadataProvider;
@@ -53,16 +51,6 @@ pub trait ServiceDefinition: HasId + DynClone + DynHash + DynEq + Send + Sync {
     }
 }
 
-// Helper methods to be used in rest of codebase, not overridable by definition implementations
-pub trait ServiceDefinitionExt {
-    fn can_be_manually_added(&self) -> bool;
-    fn layer(&self) -> BindingDiscriminants;
-    fn is_dns_resolver(&self) -> bool;
-    fn is_reverse_proxy(&self) -> bool;
-    fn is_infra_service(&self) -> bool;
-    fn manages_virtualization(&self) -> Option<&'static str>;
-}
-
 impl<T: ServiceDefinition> HasId for T
 where
     T: ServiceDefinition,
@@ -104,41 +92,27 @@ impl ServiceDefinition for Box<dyn ServiceDefinition> {
     fn discovery_pattern(&self) -> Pattern<'_> {
         ServiceDefinition::discovery_pattern(&**self)
     }
+}
 
-    fn is_generic(&self) -> bool {
-        ServiceDefinition::is_generic(&**self)
-    }
+// Helper methods to be used in rest of codebase, not overridable by definition implementations
+pub trait ServiceDefinitionExt {
+    fn can_be_manually_added(&self) -> bool;
+    fn manages_virtualization(&self) -> Option<&'static str>;
+    fn is_netvisor(&self) -> bool;
+    fn is_generic(&self) -> bool;
 }
 
 impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
-    fn is_infra_service(&self) -> bool {
-        self.is_dns_resolver()
-            || self.discovery_pattern().contains_gateway_ip_pattern()
-            || self.is_reverse_proxy()
-        // || self.is_docker_daemon()
-    }
-
     fn can_be_manually_added(&self) -> bool {
         !matches!(ServiceDefinition::category(self), ServiceCategory::Netvisor)
     }
 
-    fn layer(&self) -> BindingDiscriminants {
-        if self.discovery_pattern().contains_gateway_ip_pattern() || self.id() == CustomLayer3.id()
-        {
-            return BindingDiscriminants::Layer3;
-        }
-        BindingDiscriminants::Layer4
+    fn is_generic(&self) -> bool {
+        ServiceDefinition::is_generic(&**self)
     }
 
-    fn is_dns_resolver(&self) -> bool {
-        matches!(
-            ServiceDefinition::category(self),
-            ServiceCategory::DNS | ServiceCategory::AdBlock
-        )
-    }
-
-    fn is_reverse_proxy(&self) -> bool {
-        ServiceDefinition::category(self) == ServiceCategory::ReverseProxy
+    fn is_netvisor(&self) -> bool {
+        matches!(ServiceDefinition::category(self), ServiceCategory::Netvisor)
     }
 
     fn manages_virtualization(&self) -> Option<&'static str> {
@@ -182,11 +156,6 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
     }
     fn metadata(&self) -> serde_json::Value {
         let can_be_added = self.can_be_manually_added();
-        let is_dns_resolver = self.is_dns_resolver();
-        let is_reverse_proxy = self.is_reverse_proxy();
-        let is_gateway = self.discovery_pattern().contains_gateway_ip_pattern();
-        let is_generic = self.is_generic();
-        let layer: &str = self.layer().into();
         let manages_virtualization = self.manages_virtualization();
         let logo_source = match self.icon() {
             _ if self.icon() == ServiceDefinition::dashboard_icons_path(self) => {
@@ -201,14 +170,9 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
         let logo_needs_white_background = self.logo_needs_white_background();
         serde_json::json!({
             "can_be_added": can_be_added,
-            "is_dns_resolver": is_dns_resolver,
-            "is_gateway": is_gateway,
-            "is_reverse_proxy": is_reverse_proxy,
-            "is_generic": is_generic,
             "manages_virtualization": manages_virtualization,
             "logo_source": logo_source,
             "logo_needs_white_background": logo_needs_white_background,
-            "layer": layer,
         })
     }
 }

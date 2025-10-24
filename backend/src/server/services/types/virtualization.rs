@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
-use strum_macros::IntoStaticStr;
+use strum_macros::{EnumDiscriminants, IntoStaticStr};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -9,7 +9,9 @@ use crate::server::shared::{
     types::metadata::{EntityMetadataProvider, HasId, TypeMetadataProvider},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, IntoStaticStr)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, IntoStaticStr, EnumDiscriminants,
+)]
 #[serde(tag = "type", content = "details")]
 pub enum ServiceVirtualization {
     Docker(DockerVirtualization),

@@ -18,7 +18,7 @@
 		getDescription: (port: Port, context: { currentServices: Service[] }) => {
 			// Use context services if available, otherwise fall back to store
 			let services: Service[] = context.currentServices.filter((s) =>
-				s.bindings.some((b) => b.type === 'Layer4' && b.port_id === port.id)
+				s.bindings.some((b) => b.type === 'Port' && b.port_id === port.id)
 			);
 
 			if (services.length > 0) {
@@ -28,7 +28,7 @@
 							s.name +
 							' on ' +
 							s.bindings
-								.filter((b) => b.type == 'Layer4' && b.port_id == port.id)
+								.filter((b) => b.type == 'Port' && b.port_id == port.id)
 								.map((b) => {
 									let iface = b.interface_id ? getInterfaceFromId(b.interface_id) : ALL_INTERFACES;
 									if (iface) {

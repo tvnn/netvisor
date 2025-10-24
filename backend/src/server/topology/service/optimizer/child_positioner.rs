@@ -46,7 +46,7 @@ impl<'a> ChildPositioner<'a> {
 
         // Collect node IDs by subnet and infra status
         for node in nodes.iter() {
-            if let NodeType::HostNode {
+            if let NodeType::InterfaceNode {
                 subnet_id,
                 is_infra,
                 ..
@@ -153,7 +153,7 @@ impl<'a> ChildPositioner<'a> {
         let mut reordered_positions: Vec<(Uuid, Ixy)> = nodes
             .iter()
             .filter_map(|n| match n.node_type {
-                NodeType::HostNode {
+                NodeType::InterfaceNode {
                     subnet_id: sid,
                     is_infra: infra,
                     ..
@@ -191,7 +191,7 @@ impl<'a> ChildPositioner<'a> {
         let mut subnet_nodes: Vec<&mut Node> = nodes
             .iter_mut()
             .filter(|n| match n.node_type {
-                NodeType::HostNode {
+                NodeType::InterfaceNode {
                     subnet_id: sid,
                     is_infra: infra,
                     ..
@@ -344,7 +344,7 @@ impl<'a> ChildPositioner<'a> {
         // Group nodes by (subnet, infra)
         let mut nodes_by_subnet_infra: HashMap<(Uuid, bool), Vec<Uuid>> = HashMap::new();
         for node in nodes.iter() {
-            if let NodeType::HostNode {
+            if let NodeType::InterfaceNode {
                 subnet_id,
                 is_infra,
                 ..
@@ -449,7 +449,7 @@ impl<'a> ChildPositioner<'a> {
         let node_positions: HashMap<Uuid, (&Node, Uuid)> = nodes
             .iter()
             .filter_map(|n| match &n.node_type {
-                NodeType::HostNode { subnet_id, .. } => Some((n.id, (n, *subnet_id))),
+                NodeType::InterfaceNode { subnet_id, .. } => Some((n.id, (n, *subnet_id))),
                 _ => None,
             })
             .collect();
@@ -723,7 +723,7 @@ impl<'a> ChildPositioner<'a> {
         let mut subnet_nodes: Vec<&mut Node> = nodes
             .iter_mut()
             .filter(|n| match n.node_type {
-                NodeType::HostNode {
+                NodeType::InterfaceNode {
                     subnet_id: sid,
                     is_infra: infra,
                     ..

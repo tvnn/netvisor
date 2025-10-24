@@ -144,7 +144,7 @@ async fn test_host_consolidation() {
     host2.base.interfaces = vec![interface(&subnet_obj.id)];
 
     let mut svc = service(&network.id, &host2.id);
-    svc.base.bindings = vec![Binding::new_l4(
+    svc.base.bindings = vec![Binding::new_port(
         host2.base.ports[0].id,
         Some(host2.base.interfaces[0].id),
     )];

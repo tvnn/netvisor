@@ -29,22 +29,20 @@ impl PostgresGroupStorage {
 #[async_trait]
 impl GroupStorage for PostgresGroupStorage {
     async fn create(&self, group: &Group) -> Result<()> {
-        let services_json = serde_json::to_value(&group.base.service_bindings)?;
-        let group_type_json = serde_json::to_string(&group.base.group_type)?;
+        let group_type_json = serde_json::to_value(&group.base.group_type)?;
         let source_json = serde_json::to_value(&group.base.source)?;
 
         sqlx::query(
             r#"
             INSERT INTO groups (
-                id, name, description, service_bindings, group_type, source,
+                id, name, description, group_type, source,
                 created_at, updated_at, network_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             "#,
         )
         .bind(group.id)
         .bind(&group.base.name)
         .bind(&group.base.description)
-        .bind(services_json)
         .bind(group_type_json)
         .bind(source_json)
         .bind(chrono::Utc::now())
@@ -83,22 +81,20 @@ impl GroupStorage for PostgresGroupStorage {
     }
 
     async fn update(&self, group: &Group) -> Result<()> {
-        let services_json = serde_json::to_value(&group.base.service_bindings)?;
-        let group_type_json = serde_json::to_string(&group.base.group_type)?;
+        let group_type_json = serde_json::to_value(&group.base.group_type)?;
         let source_json = serde_json::to_value(&group.base.source)?;
 
         sqlx::query(
             r#"
             UPDATE groups SET 
-                name = $2, description = $3, service_bindings = $4, group_type = $5, source = $6,
-                updated_at = $7
+                name = $2, description = $3, group_type = $4, source = $5,
+                updated_at = $6
             WHERE id = $1
             "#,
         )
         .bind(group.id)
         .bind(&group.base.name)
         .bind(&group.base.description)
-        .bind(services_json)
         .bind(group_type_json)
         .bind(source_json)
         .bind(chrono::Utc::now())
@@ -119,11 +115,9 @@ impl GroupStorage for PostgresGroupStorage {
 }
 
 fn row_to_group(row: sqlx::postgres::PgRow) -> Result<Group, Error> {
-    let service_bindings: Vec<Uuid> =
-        serde_json::from_value(row.get::<serde_json::Value, _>("service_bindings"))
-            .or(Err(Error::msg("Failed to deserialize service bindings")))?;
-    let group_type: GroupType = serde_json::from_str(&row.get::<String, _>("group_type"))
-        .or(Err(Error::msg("Failed to deserialize group_type")))?;
+    let group_type: GroupType =
+        serde_json::from_value(row.get::<serde_json::Value, _>("group_type"))
+            .or(Err(Error::msg("Failed to deserialize group_type")))?;
 
     let source: EntitySource = serde_json::from_value(row.get::<serde_json::Value, _>("source"))
         .or(Err(Error::msg("Failed to deserialize group_type")))?;
@@ -136,7 +130,6 @@ fn row_to_group(row: sqlx::postgres::PgRow) -> Result<Group, Error> {
             name: row.get("name"),
             description: row.get("description"),
             network_id: row.get("network_id"),
-            service_bindings,
             source,
             group_type,
         },

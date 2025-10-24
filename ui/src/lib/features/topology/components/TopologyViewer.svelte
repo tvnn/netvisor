@@ -15,7 +15,7 @@
 
 	// Import custom node/edge components
 	import SubnetNode from './SubnetNode.svelte';
-	import HostNode from './HostNode.svelte';
+	import InterfaceNode from './InterfaceNode.svelte';
 	import CustomEdge from './CustomEdge.svelte';
 	import { EdgeHandle, type TopologyEdge } from '../types/base';
 	import { onMount } from 'svelte';
@@ -23,7 +23,7 @@
 	// Define node types
 	const nodeTypes = {
 		SubnetNode: SubnetNode,
-		HostNode: HostNode
+		InterfaceNode: InterfaceNode
 	};
 
 	const customEdgeTypes = {
@@ -55,8 +55,8 @@
 						height: node.size.y,
 						expandParent: true,
 						deletable: false,
-						parentId: node.node_type == 'HostNode' ? node.subnet_id : undefined,
-						extent: node.node_type == 'HostNode' ? 'parent' : undefined,
+						parentId: node.node_type == 'InterfaceNode' ? node.subnet_id : undefined,
+						extent: node.node_type == 'InterfaceNode' ? 'parent' : undefined,
 						data: node
 					};
 				});
@@ -183,6 +183,7 @@
 		<Controls
 			showZoom={true}
 			showFitView={true}
+			position="top-right"
 			class="!rounded !border !border-gray-600 !bg-gray-800 !shadow-lg [&_button:hover]:!bg-gray-600 [&_button]:!border-gray-600 [&_button]:!bg-gray-700 [&_button]:!text-gray-100"
 		/>
 	</SvelteFlow>

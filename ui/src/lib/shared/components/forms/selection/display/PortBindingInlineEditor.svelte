@@ -2,32 +2,28 @@
 	import { formatInterface } from '$lib/features/hosts/store';
 	import { ALL_INTERFACES, type Host } from '$lib/features/hosts/types/base';
 	import { getServicesForPort } from '$lib/features/services/store';
-	import type { Layer4Binding, Service } from '$lib/features/services/types/base';
+	import type { PortBinding, Service } from '$lib/features/services/types/base';
 	import { formatPort } from '$lib/shared/utils/formatting';
 
-	export let binding: Layer4Binding;
-	export let onUpdate: (updates: Partial<Layer4Binding>) => void = () => {};
-	export let service: Service<Layer4Binding> | undefined = undefined;
+	export let binding: PortBinding;
+	export let onUpdate: (updates: Partial<PortBinding>) => void = () => {};
+	export let service: Service | undefined = undefined;
 	export let host: Host | undefined = undefined;
 
-	// Type guard to check if a service has Layer4 bindings
-	function isLayer4Service(svc: Service): svc is Service<Layer4Binding> {
-		return svc.bindings.length === 0 || svc.bindings.every((b) => b.type === 'Layer4');
+	// Type guard for services with Port bindings
+	function isServiceWithPortBindings(svc: Service): svc is Service {
+		return svc.bindings.length === 0 || svc.bindings.every((b) => b.type === 'Port');
 	}
 
-	// Check which service (if any) has bound this port to a given interface
-	// Returns the service that conflicts with binding this port to the given interface
-	function getBindingService(
-		portId: string,
-		interfaceId: string | null
-	): Service<Layer4Binding> | null {
+	// Check if this port+interface combination conflicts with existing bindings
+	function getConflictingService(portId: string, interfaceId: string | null): Service | null {
 		// Check OTHER services
-		let allServices = getServicesForPort(portId).filter((s) => s.id !== service?.id);
-		let otherServices = allServices.filter(isLayer4Service);
+		const otherServices = getServicesForPort(portId)
+			.filter((s) => s.id !== service?.id)
+			.filter(isServiceWithPortBindings);
 
-		for (let svc of otherServices) {
-			// Check if this service has a binding that conflicts
-			let hasConflict = svc.bindings.some((b) => {
+		for (const svc of otherServices) {
+			const hasConflict = svc.bindings.some((b) => {
 				// If either binding is to ALL_INTERFACES (null), they conflict
 				if (b.interface_id === null || interfaceId === null) {
 					return true;
@@ -40,10 +36,10 @@
 
 		// Check OTHER bindings in current service
 		if (service) {
-			let otherBindings = service.bindings.filter(
-				(b) => b.id !== binding.id && b.port_id === portId
+			const otherBindings = service.bindings.filter(
+				(b) => b.type === 'Port' && b.id !== binding.id && b.port_id === portId
 			);
-			let hasConflict = otherBindings.some((b) => {
+			const hasConflict = otherBindings.some((b) => {
 				// If either binding is to ALL_INTERFACES (null), they conflict
 				if (b.interface_id === null || interfaceId === null) {
 					return true;
@@ -60,20 +56,36 @@
 	// Create interface options with disabled state
 	$: interfaceOptions =
 		host?.interfaces.map((iface) => {
-			const boundService = getBindingService(binding.port_id, iface.id);
+			// Check for Interface binding conflict - can't add Port binding if THIS service has Interface binding here
+			const thisServiceHasInterfaceBinding = service?.bindings.some(
+				(b) => b.type === 'Interface' && b.interface_id === iface.id && b.id !== binding.id
+			);
+			if (thisServiceHasInterfaceBinding) {
+				return {
+					iface,
+					disabled: true,
+					reason: 'This service has an Interface binding here',
+					boundService: service
+				};
+			}
+
+			// Check for Port binding conflict
+			const boundService = getConflictingService(binding.port_id, iface.id);
 			return {
 				iface,
 				disabled: boundService !== null && iface.id !== binding.interface_id,
+				reason: boundService ? `Port bound by ${boundService.name}` : null,
 				boundService
 			};
 		}) || [];
 
 	// Check ALL_INTERFACES option
 	$: allInterfacesOption = (() => {
-		const boundService = getBindingService(binding.port_id, null);
+		const boundService = getConflictingService(binding.port_id, null);
 		return {
 			iface: ALL_INTERFACES,
 			disabled: boundService !== null && binding.interface_id !== null,
+			reason: boundService ? `Port bound by ${boundService.name}` : null,
 			boundService
 		};
 	})();
@@ -81,10 +93,11 @@
 	// Create port options with disabled state
 	$: portOptions =
 		host?.ports.map((p) => {
-			const boundService = getBindingService(p.id, binding.interface_id);
+			const boundService = getConflictingService(p.id, binding.interface_id);
 			return {
 				port: p,
 				disabled: boundService !== null && p.id !== binding.port_id,
+				reason: boundService ? `Bound by ${boundService.name}` : null,
 				boundService
 			};
 		}) || [];
@@ -108,7 +121,7 @@
 </script>
 
 <div class="flex-1">
-	<div class="text-secondary mb-1 block text-xs font-medium">Interface Binding</div>
+	<div class="text-secondary mb-1 block text-xs font-medium">Port Binding</div>
 
 	{#if !service}
 		<div class="text-danger rounded border border-red-600 bg-red-900/20 px-2 py-1 text-xs">
@@ -135,17 +148,15 @@
 						class="text-primary w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
 						<option value="" disabled>Select interface...</option>
-						{#each interfaceOptions as { iface, disabled, boundService } (iface.id)}
+						{#each interfaceOptions as { iface, disabled, reason } (iface.id)}
 							<option value={iface.id} {disabled}>
-								{formatInterface(iface)}{disabled && boundService
-									? ` - bound by ${boundService.name}`
-									: ''}
+								{formatInterface(iface)}{disabled && reason ? ` - ${reason}` : ''}
 							</option>
 						{/each}
 						<option value={ALL_INTERFACES.name} disabled={allInterfacesOption.disabled}>
 							{formatInterface(ALL_INTERFACES)}{allInterfacesOption.disabled &&
-							allInterfacesOption.boundService
-								? ` - bound by ${allInterfacesOption.boundService.name}`
+							allInterfacesOption.reason
+								? ` - ${allInterfacesOption.reason}`
 								: ''}
 						</option>
 					</select>
@@ -167,11 +178,9 @@
 						class="text-primary w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
 					>
 						<option value="" disabled>Select port...</option>
-						{#each portOptions as { port, disabled, boundService } (port.id)}
+						{#each portOptions as { port, disabled, reason } (port.id)}
 							<option value={port.id} {disabled}>
-								{formatPort(port)}{disabled && boundService
-									? ` - bound by ${boundService.name}`
-									: ''}
+								{formatPort(port)}{disabled && reason ? ` - ${reason}` : ''}
 							</option>
 						{/each}
 					</select>

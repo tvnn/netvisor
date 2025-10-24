@@ -1,10 +1,11 @@
-.PHONY: help build test clean install-dev dev-server dev-ui dev-daemon dev-container dev-container-rebuild dev-container-rebuild-clean dev-down format
+.PHONY: help build test clean format
 
 help:
 	@echo "NetVisor Development Commands"
 	@echo ""
 	@echo "  make setup-db       - Set up database"
 	@echo "  make clean-db       - Clean up database"
+	@echo "  make dump-db       - Dump database to /netvisor"
 	@echo "  make dev-server     - Start server dev environment"
 	@echo "  make dev-server     - Start server dev environment"
 	@echo "  make dev-ui         - Start ui"
@@ -35,6 +36,9 @@ setup-db:
 clean-db:
 	docker stop netvisor-postgres || true
 	docker rm netvisor-postgres || true
+
+dump-db:
+	docker exec -t netvisor-postgres pg_dump -U postgres -d netvisor > ~/dev/netvisor/netvisor.sql  
 
 dev-server:
 	@export DATABASE_URL="postgresql://postgres:password@localhost:5432/netvisor" && \
@@ -88,6 +92,7 @@ lint:
 	cd ui && npm run lint && npm run format -- --check && npm run check
 
 clean:
+	make clean-db
 	docker compose down -v
 	cd backend && cargo clean
 	cd ui && rm -rf node_modules dist build .svelte-kit

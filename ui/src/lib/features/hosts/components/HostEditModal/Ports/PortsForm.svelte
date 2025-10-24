@@ -41,7 +41,7 @@
 	// Check against currentServices instead of the global store
 	function isPortUsed(port: Port): boolean {
 		return currentServices.some((service) =>
-			service.bindings.some((b) => b.type === 'Layer4' && b.port_id === port.id)
+			service.bindings.some((b) => b.type === 'Port' && b.port_id === port.id)
 		);
 	}
 

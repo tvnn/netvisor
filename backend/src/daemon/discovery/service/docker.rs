@@ -23,7 +23,7 @@ use crate::server::hosts::types::base::HostBase;
 use crate::server::hosts::types::interfaces::ALL_INTERFACES_IP;
 use crate::server::hosts::types::ports::Port;
 use crate::server::services::types::base::{Service, ServiceBase, ServiceMatchBaselineParams};
-use crate::server::services::types::bindings::Binding;
+use crate::server::services::types::bindings::{Binding, BindingDiscriminants};
 use crate::server::services::types::definitions::ServiceDefinition;
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
 use crate::server::services::types::patterns::MatchDetails;
@@ -259,6 +259,7 @@ impl Discovery<DockerScanDiscovery> {
             service_definition: Box::new(docker_service_definition),
             bindings: vec![],
             host_id,
+            is_gateway: false,
             network_id,
             virtualization: None,
             source: EntitySource::DiscoveryWithMatch {
@@ -559,6 +560,8 @@ impl Discovery<DockerScanDiscovery> {
                 )
                 .await
             {
+                // Add information that we have from docker context to processed host + services
+
                 host.id = self.domain.host_id;
 
                 // Add all interfaces relevant to container to the host
@@ -593,7 +596,7 @@ impl Discovery<DockerScanDiscovery> {
                                         .filter_map(|b| b.port_id())
                                         .any(|port_id| port_id == unmatched_container_port.id) =>
                                 {
-                                    s.base.bindings.push(Binding::new_l4(
+                                    s.base.bindings.push(Binding::new_port(
                                         unmatched_container_port.id,
                                         Some(interface.id),
                                     ))
@@ -635,18 +638,19 @@ impl Discovery<DockerScanDiscovery> {
                                     None => (Port::new(*pb), vec![]),
                                 };
 
-                            // Get host interface corresponding to
+                            // Get host interface
                             let host_interface = host
                                 .base
                                 .interfaces
                                 .iter()
                                 .find(|i| i.base.ip_address == *ip);
 
+                            // Add binding to specific interface, or all interfaces if it's on ALL_INTERFACES_IP
                             match host_interface {
                                 Some(host_interface) => {
                                     s.base
                                         .bindings
-                                        .push(Binding::new_l4(port.id, Some(host_interface.id)));
+                                        .push(Binding::new_port(port.id, Some(host_interface.id)));
                                     host.base.ports.push(port);
                                 }
                                 None if *ip == ALL_INTERFACES_IP => {
@@ -664,9 +668,10 @@ impl Discovery<DockerScanDiscovery> {
                                         if subnet.base.subnet_type.discriminant()
                                             != SubnetTypeDiscriminants::DockerBridge
                                         {
-                                            s.base
-                                                .bindings
-                                                .push(Binding::new_l4(port.id, Some(interface.id)));
+                                            s.base.bindings.push(Binding::new_port(
+                                                port.id,
+                                                Some(interface.id),
+                                            ));
                                         }
                                     }
 
@@ -675,6 +680,29 @@ impl Discovery<DockerScanDiscovery> {
                                 _ => {}
                             }
                         });
+                    });
+
+                    // Remove any interface bindings which are now superceded by port bindings
+                    // (interface binding is implicit in port binding)
+                    let interface_ids_with_port_binding: Vec<Uuid> = s
+                        .base
+                        .bindings
+                        .clone()
+                        .into_iter()
+                        .filter_map(|b| {
+                            if b.discriminant() == BindingDiscriminants::Port
+                                && let Some(interface_id) = b.interface_id()
+                            {
+                                return Some(interface_id);
+                            }
+                            None
+                        })
+                        .collect();
+
+                    s.base.bindings.retain(|b| {
+                        b.discriminant() == BindingDiscriminants::Port
+                            || !interface_ids_with_port_binding
+                                .contains(&b.interface_id().unwrap_or_default())
                     });
                 });
 

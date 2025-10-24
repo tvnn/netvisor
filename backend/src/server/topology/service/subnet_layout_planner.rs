@@ -149,7 +149,7 @@ impl SubnetLayoutPlanner {
         None
     }
 
-    /// Group host interfaces by subnet, with optional special handling for DockerBridge
+    /// Group host interfaces by subnet
     /// If group_docker_bridges_by_host is true, all DockerBridge interfaces for a given host
     /// are consolidated into one subnet
     fn group_children_by_subnet(
@@ -174,6 +174,14 @@ impl SubnetLayoutPlanner {
                     .services
                     .iter()
                     .filter(|s| {
+                        if ctx
+                            .options
+                            .hide_service_categories
+                            .contains(&s.base.service_definition.category())
+                        {
+                            return false;
+                        }
+                        // Services with a binding to the interface
                         s.base.bindings.iter().any(|b| match b.interface_id() {
                             // Service is bound to interface if ID matches
                             Some(binding_interface_id) if binding_interface_id == interface.id => {
@@ -326,7 +334,7 @@ impl SubnetLayoutPlanner {
             if let Some(layout) = infra_child_positions.get(&child.id) {
                 child_nodes.push(Node {
                     id: child.id,
-                    node_type: NodeType::HostNode {
+                    node_type: NodeType::InterfaceNode {
                         subnet_id,
                         interface_id: child.interface_id,
                         host_id: child.host_id,
@@ -354,7 +362,7 @@ impl SubnetLayoutPlanner {
 
                 child_nodes.push(Node {
                     id: child.id,
-                    node_type: NodeType::HostNode {
+                    node_type: NodeType::InterfaceNode {
                         subnet_id,
                         interface_id: child.interface_id,
                         host_id: child.host_id,

@@ -2,10 +2,7 @@ use crate::server::{
     daemons::service::DaemonService,
     discovery::types::base::{EntitySource, EntitySourceDiscriminants},
     hosts::{storage::HostStorage, types::base::Host},
-    services::{
-        service::ServiceService,
-        types::{base::Service, bindings::Binding},
-    },
+    services::{service::ServiceService, types::base::Service},
 };
 use anyhow::{Error, Result, anyhow};
 use futures::future::{join_all, try_join_all};
@@ -72,7 +69,7 @@ impl HostService {
         // are different from what's mapped to the service and they need to be updated
         let transfer_service_futures = services.into_iter().map(|service| {
             self.service_service
-                .prepare_service_for_transfer_to_new_host(service, &host, &created_host)
+                .reassign_service_interface_bindings(service, &host, &created_host)
         });
 
         let transferred_services = join_all(transfer_service_futures).await;
@@ -323,8 +320,11 @@ impl HostService {
         let service_transfer_futures: Vec<_> = other_host_services
             .into_iter()
             .map(|s| {
-                self.service_service
-                    .prepare_service_for_transfer_to_new_host(s, &other_host, &updated_host)
+                self.service_service.reassign_service_interface_bindings(
+                    s,
+                    &other_host,
+                    &updated_host,
+                )
             })
             .collect();
 
@@ -385,30 +385,16 @@ impl HostService {
 
         try_join_all(delete_service_futures).await?;
 
-        let update_service_futures = update_services.into_iter().filter_map(|mut service| {
-            let initial_bindings_count = service.base.bindings.len();
-
-            service.base.bindings.retain(|b| {
-                // Remove binding if current host has interface, updated host doesn't have
-                !(current_host.get_interface(&b.interface_id()).is_some()
-                    && updates.get_interface(&b.interface_id()).is_none())
-            });
-
-            service.base.bindings.retain(|b| {
-                // Remove L4 bindings if current host has port, updated host doesn't have
-                match b {
-                    Binding::Layer3 { .. } => true,
-                    Binding::Layer4 { port_id, .. } => {
-                        !(current_host.get_port(port_id).is_some()
-                            && updates.get_port(port_id).is_none())
-                    }
-                }
-            });
-
-            if initial_bindings_count != service.base.bindings.len() {
-                return Some(self.service_service.update_service(service));
+        let update_service_futures = update_services.into_iter().map(|service| {
+            let service_service = self.service_service.clone();
+            let current_host = current_host.clone();
+            let updates = updates.clone();
+            async move {
+                let updated = service_service
+                    .reassign_service_interface_bindings(service, &current_host, &updates)
+                    .await;
+                service_service.update_service(updated).await
             }
-            None
         });
 
         let updated_services = try_join_all(update_service_futures).await?;

@@ -2,9 +2,9 @@
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import { getServiceForBinding } from '$lib/features/services/store';
 
-	export const Layer4BindingDisplay: EntityDisplayComponent<Layer4Binding> = {
-		getId: (binding: Layer4Binding) => binding.id,
-		getLabel: (binding: Layer4Binding) => {
+	export const PortBindingDisplay: EntityDisplayComponent<PortBinding> = {
+		getId: (binding: PortBinding) => binding.id,
+		getLabel: (binding: PortBinding) => {
 			const port = getPortFromId(binding.port_id);
 			const iface = binding.interface_id
 				? getInterfaceFromId(binding.interface_id)
@@ -18,7 +18,7 @@
 		getIconColor: () => entities.getColorHelper('Port').icon,
 		getTags: () => [],
 		getIsDisabled: () => false,
-		getCategory: (binding: Layer4Binding) => {
+		getCategory: (binding: PortBinding) => {
 			const service = getServiceForBinding(binding.id);
 			if (!service) return null;
 
@@ -27,8 +27,8 @@
 		},
 		supportsInlineEdit: true,
 		renderInlineEdit: (
-			binding: Layer4Binding,
-			onUpdate: (updates: Partial<Layer4Binding>) => void,
+			binding: PortBinding,
+			onUpdate: (updates: Partial<PortBinding>) => void,
 			context: { service?: Service; host?: Host }
 		) => {
 			return {
@@ -49,12 +49,12 @@
 	import ListSelectItem from '../ListSelectItem.svelte';
 	import { formatInterface, getInterfaceFromId, getPortFromId } from '$lib/features/hosts/store';
 	import { formatPort } from '$lib/shared/utils/formatting';
-	import type { Layer4Binding, Service } from '$lib/features/services/types/base';
+	import type { PortBinding, Service } from '$lib/features/services/types/base';
 	import { Link2 } from 'lucide-svelte';
 	import { ALL_INTERFACES, type Host } from '$lib/features/hosts/types/base';
-	import Layer4BindingInlineEditor from './Layer4BindingInlineEditor.svelte';
+	import Layer4BindingInlineEditor from './PortBindingInlineEditor.svelte';
 
-	export let item: Layer4Binding;
+	export let item: PortBinding;
 </script>
 
-<ListSelectItem {item} displayComponent={Layer4BindingDisplay} />
+<ListSelectItem {item} displayComponent={PortBindingDisplay} />

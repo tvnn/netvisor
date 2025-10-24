@@ -62,7 +62,7 @@ use crate::{
             definitions::{ServiceDefinitionRegistry, gateway::Gateway},
             types::{
                 base::Service,
-                bindings::{Binding, BindingDiscriminants},
+                bindings::Binding,
                 definitions::{ServiceDefinition, ServiceDefinitionExt},
             },
         },
@@ -764,9 +764,6 @@ pub trait DiscoversNetworkedEntities:
 
         let mut services = Vec::new();
 
-        // Only one interface, so only one L3 binding possible
-        let mut l3_interface_bound = false;
-
         // Need to track which ports are bound vs open for services to bind to
         let mut l4_unbound_ports = all_ports.to_vec();
 
@@ -776,22 +773,18 @@ pub trait DiscoversNetworkedEntities:
                 .collect();
 
         sorted_service_definitions.sort_by_key(|s| {
-            if !s.is_generic() {
+            if !ServiceDefinitionExt::is_generic(s) {
                 0 // Highest priority - non-generic services
-            } else if s.discovery_pattern().contains_gateway_ip_pattern() && s.id() != Gateway.id()
-            {
-                1 // Non-generic and subnet-typed gateways need to go before generic Gateway, otherwise will likely be classified as Gateway
-            } else if s.is_infra_service() {
-                2 // Infra services
+            } else if ServiceDefinitionExt::is_generic(s) && s.id() != Gateway.id() {
+                1 // Generic services that aren't Gateway
             } else {
-                3 // Lowest priority - non-infra generic services last
+                2 // Generic gateways need to go last, as other services may be classified as gateway first
             }
         });
 
         // Add services from detected ports
         for service_definition in sorted_service_definitions {
             let service_params = ServiceMatchServiceParams {
-                l3_interface_bound: &l3_interface_bound,
                 service_definition,
                 matched_services: &services,
                 unbound_ports: &l4_unbound_ports,
@@ -809,16 +802,12 @@ pub trait DiscoversNetworkedEntities:
                 };
 
             if let Some((service, mut result)) = Service::from_discovery(params) {
-                if service.base.service_definition.layer() == BindingDiscriminants::Layer3 {
-                    l3_interface_bound = true;
-                }
-
                 // If there's a endpoint match + host target is hostname or none, use a binding as the host target
                 if let (Some(binding), true) = (
                     service.base.bindings.iter().find(|b| {
                         match b {
-                            Binding::Layer3 { .. } => false,
-                            Binding::Layer4 { port_id, .. } => {
+                            Binding::Interface { .. } => false,
+                            Binding::Port { port_id, .. } => {
                                 if let Some(port) = host.get_port(port_id) {
                                     return result
                                         .endpoint
@@ -855,7 +844,7 @@ pub trait DiscoversNetworkedEntities:
 
         if let Some(service) = services
             .iter()
-            .find(|s| !s.base.service_definition.is_generic())
+            .find(|s| !ServiceDefinitionExt::is_generic(&s.base.service_definition))
         {
             host.base.name = service.base.service_definition.name().to_string();
         }

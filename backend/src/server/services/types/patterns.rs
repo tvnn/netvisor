@@ -616,7 +616,6 @@ mod tests {
         gateway_ips: Vec<IpAddr>,
         endpoint_responses: Vec<EndpointResponse>,
         virtualization: Option<ServiceVirtualization>,
-        l3_interface_bound: bool,
         matched_services: Vec<Service>,
     }
 
@@ -645,7 +644,6 @@ mod tests {
                 gateway_ips: vec![],
                 endpoint_responses,
                 virtualization: None,
-                l3_interface_bound: false,
                 matched_services: vec![],
             }
         }
@@ -664,7 +662,6 @@ mod tests {
                 baseline_params,
                 service_params: ServiceMatchServiceParams {
                     service_definition: self.pi.clone(),
-                    l3_interface_bound: &self.l3_interface_bound,
                     matched_services: &self.matched_services,
                     unbound_ports,
                 },

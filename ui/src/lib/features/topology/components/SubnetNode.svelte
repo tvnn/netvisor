@@ -18,13 +18,13 @@
 	let IconComponent = subnetTypes.getIconComponent(subnet.subnet_type) as any;
 	let cidr = subnet.cidr;
 
-	let header = data.header as string | null;
-
-	let label = header
-		? header
+	let label = data.header
+		? (data.header as string)
 		: (subnet.name != subnet.cidr ? subnet.name : subnetTypes.getName(subnet.subnet_type)) +
 			(isContainerSubnet(subnet.id) ? '' : ': ' + subnet.cidr);
-	let infra_width = (data.infra_width as number) || 0;
+
+	// Make infra_width reactive to data changes
+	let infra_width = $derived((data.infra_width as number) || 0);
 
 	let nodeStyle = $derived(`width: ${width}px; height: ${height}px;`);
 	let hasInfra = $derived(infra_width > 0);

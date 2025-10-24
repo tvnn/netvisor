@@ -2,11 +2,13 @@ use crate::server::discovery::types::base::{DiscoveryMetadata, DiscoveryType, En
 use crate::server::hosts::types::interfaces::Interface;
 use crate::server::hosts::types::ports::PortBase;
 use crate::server::services::definitions::ServiceDefinitionRegistry;
-use crate::server::services::types::bindings::{Binding, BindingDiscriminants};
+use crate::server::services::types::bindings::Binding;
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::patterns::{MatchConfidence, MatchReason, MatchResult};
+use crate::server::services::types::patterns::{
+    MatchConfidence, MatchReason, MatchResult, Pattern,
+};
 use crate::server::services::types::virtualization::{DockerVirtualization, ServiceVirtualization};
 use crate::server::subnets::types::base::Subnet;
 use chrono::{DateTime, Utc};
@@ -21,6 +23,7 @@ use validator::Validate;
 pub struct ServiceBase {
     pub host_id: Uuid,
     pub network_id: Uuid,
+    pub is_gateway: bool,
     pub service_definition: Box<dyn ServiceDefinition>,
     #[validate(length(min = 0, max = 100))]
     pub name: String,
@@ -34,6 +37,7 @@ impl Default for ServiceBase {
         Self {
             host_id: Uuid::nil(),
             network_id: Uuid::nil(),
+            is_gateway: false,
             service_definition: Box::new(DefaultServiceDefinition),
             name: String::new(),
             bindings: Vec::new(),
@@ -76,7 +80,6 @@ pub struct ServiceMatchBaselineParams<'a> {
 #[derive(Debug, Clone)]
 pub struct ServiceMatchServiceParams<'a> {
     pub service_definition: Box<dyn ServiceDefinition>,
-    pub l3_interface_bound: &'a bool,
     pub matched_services: &'a Vec<Service>,
     pub unbound_ports: &'a Vec<PortBase>,
 }
@@ -136,11 +139,11 @@ impl Service {
         self.base.bindings.iter().find(|b| b.id() == id)
     }
 
-    pub fn to_bound_interface_ids(&self) -> Vec<Uuid> {
+    pub fn to_bound_interface_ids(&self) -> Vec<Option<Uuid>> {
         self.base
             .bindings
             .iter()
-            .filter_map(|i| i.interface_id())
+            .map(|i| i.interface_id())
             .collect()
     }
 
@@ -190,7 +193,6 @@ impl Service {
 
         let ServiceMatchBaselineParams {
             interface,
-            all_ports,
             virtualization,
             ..
         } = baseline_params;
@@ -198,15 +200,22 @@ impl Service {
         let virtualization = *virtualization;
 
         let ServiceMatchServiceParams {
-            service_definition,
-            l3_interface_bound,
-            ..
+            service_definition, ..
         } = service_params;
 
         if let Ok(mut result) = service_definition.discovery_pattern().matches(&params) {
+            tracing::debug!("Matched service with params {:?}", params);
+
+            tracing::info!(
+                "{}: Service {:?} matched with ports {:?}",
+                interface.base.ip_address,
+                service_definition,
+                result.ports,
+            );
+
             let mut name = service_definition.name().to_string();
 
-            if service_definition.is_generic() {
+            if ServiceDefinitionExt::is_generic(&service_definition) {
                 if let Some(ServiceVirtualization::Docker(DockerVirtualization {
                     container_name: Some(c_name),
                     ..
@@ -225,67 +234,34 @@ impl Service {
 
             let discovery_metadata = DiscoveryMetadata::new(*discovery_type, *daemon_id);
 
-            if service_definition.layer() == BindingDiscriminants::Layer3 && !l3_interface_bound {
-                tracing::debug!("Matched service with params {:?}", params);
-                tracing::info!(
-                    "{}: L3 service {:?} matched",
-                    interface.base.ip_address,
-                    service_definition.name(),
-                );
-
-                Some((
-                    Service::new(ServiceBase {
-                        host_id: *host_id,
-                        network_id: *network_id,
-                        service_definition,
-                        name,
-                        bindings: vec![Binding::new_l3(interface.id)],
-                        virtualization: virtualization.clone(),
-                        source: EntitySource::DiscoveryWithMatch {
-                            metadata: vec![discovery_metadata],
-                            details: result.details.clone(),
-                        },
-                    }),
-                    result,
-                ))
-            } else if service_definition.layer() == BindingDiscriminants::Layer4 {
-                tracing::debug!("Matched service with params {:?}", params);
-                tracing::info!(
-                    "{}: L4 service {:?} matched with ports {:?}",
-                    interface.base.ip_address,
-                    service_definition,
-                    result.ports
-                );
-
-                Some((
-                    Service::new(ServiceBase {
-                        host_id: *host_id,
-                        network_id: *network_id,
-                        service_definition,
-                        name,
-                        virtualization: virtualization.clone(),
-                        bindings: result
-                            .ports
-                            .iter()
-                            .map(|p| Binding::new_l4(p.id, Some(interface.id)))
-                            .collect(),
-                        source: EntitySource::DiscoveryWithMatch {
-                            metadata: vec![discovery_metadata],
-                            details: result.details.clone(),
-                        },
-                    }),
-                    result,
-                ))
+            let bindings: Vec<Binding> = if !result.ports.is_empty() {
+                result
+                    .ports
+                    .iter()
+                    .map(|p| Binding::new_port(p.id, Some(interface.id)))
+                    .collect()
             } else {
-                tracing::warn!(
-                    "{}: No services matched. L3 interface already bound: {}, open ports on host: {:?}",
-                    interface.base.ip_address,
-                    l3_interface_bound,
-                    all_ports
-                );
+                vec![Binding::new_interface(interface.id)]
+            };
 
-                None
-            }
+            // Any service can be a gateway even if it doesn't explicitly look for it in the pattern
+            let is_gateway = Pattern::IsGateway.matches(&params).is_ok();
+
+            let service = Service::new(ServiceBase {
+                host_id: *host_id,
+                network_id: *network_id,
+                service_definition,
+                is_gateway,
+                name,
+                virtualization: virtualization.clone(),
+                bindings,
+                source: EntitySource::DiscoveryWithMatch {
+                    metadata: vec![discovery_metadata],
+                    details: result.details.clone(),
+                },
+            });
+
+            Some((service, result))
         } else {
             None
         }

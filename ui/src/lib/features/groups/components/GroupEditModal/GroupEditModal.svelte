@@ -34,10 +34,12 @@
 		formData = group ? { ...group } : createEmptyGroupFormData();
 	}
 
+	// Available service bindings (exclude already selected ones)
 	$: serviceBindings = $services
 		.flatMap((s) => s.bindings)
-		.filter((sb) => !formData.service_bindings.some((binding) => binding == sb.id));
+		.filter((sb) => !formData.service_bindings.some((binding) => binding === sb.id));
 
+	// Handlers for service bindings
 	function handleAdd(bindingId: string) {
 		formData.service_bindings = [...formData.service_bindings, bindingId];
 	}
@@ -114,19 +116,21 @@
 			<div class="space-y-8 p-6">
 				<GroupDetailsForm {formApi} bind:formData />
 
-				<!-- Services Section -->
+				<!-- Service Bindings Section -->
 				<div class="space-y-4">
 					<div class="border-t border-gray-700 pt-6">
 						<div class="rounded-lg bg-gray-800/50 p-4">
 							<ListManager
-								label="Services"
-								helpText="Select services and configure their bindings for this group"
-								placeholder="Select a service to add..."
-								emptyMessage="No services in this group yet."
+								label="Service Bindings"
+								helpText="Select service bindings to create an ordered path of network traffic"
+								placeholder="Select a binding to add..."
+								emptyMessage="No bindings in this request path yet."
 								allowReorder={true}
 								showSearch={true}
 								options={serviceBindings}
-								items={formData.service_bindings.map((b) => getBindingFromId(b))}
+								items={formData.service_bindings
+									.map((b) => getBindingFromId(b))
+									.filter((b) => b !== null)}
 								optionDisplayComponent={BindingWithServiceDisplay}
 								itemDisplayComponent={BindingWithServiceDisplay}
 								onAdd={handleAdd}

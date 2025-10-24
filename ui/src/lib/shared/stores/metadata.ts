@@ -35,13 +35,8 @@ export interface MetadataRegistry {
 
 export interface ServicedDefinitionMetadata {
 	can_be_added: boolean;
-	is_dns_resolver: boolean;
-	is_gateway: boolean;
-	is_reverse_proxy: boolean;
-	is_generic: boolean;
 	manages_virtualization: 'vms' | 'containers';
 	logo_source: 'dashboard_icons' | 'simple_icons' | 'vector_zone_icons' | null;
-	layer: 'Layer3' | 'Layer4';
 }
 
 function isValidLogoSource(
@@ -57,7 +52,6 @@ export interface EdgeTypeMetadata {
 	is_dashed: boolean;
 	has_start_marker: boolean;
 	has_end_marker: boolean;
-	style_label_like_nodes: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

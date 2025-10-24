@@ -48,7 +48,7 @@
 				});
 			}
 
-			if (binding.type == 'Layer4') {
+			if (binding.type == 'Port') {
 				const port = getPortFromId(binding.port_id);
 
 				if (port) {

@@ -9,23 +9,21 @@ use uuid::Uuid;
 use validator::Validate;
 
 #[derive(
-    Copy,
     Debug,
     Clone,
     Serialize,
     Deserialize,
     Hash,
-    Default,
     PartialEq,
     Eq,
     EnumIter,
     IntoStaticStr,
     EnumDiscriminants,
 )]
-#[strum_discriminants(derive(IntoStaticStr))]
+#[strum_discriminants(derive(IntoStaticStr, Hash, Deserialize, Serialize))]
+#[serde(tag = "group_type")]
 pub enum GroupType {
-    #[default]
-    NetworkPath,
+    RequestPath { service_bindings: Vec<Uuid> },
 }
 
 #[derive(Debug, Clone, Serialize, Validate, Deserialize)]
@@ -36,7 +34,7 @@ pub struct GroupBase {
     #[serde(deserialize_with = "deserialize_empty_string_as_none")]
     #[validate(length(min = 0, max = 500))]
     pub description: Option<String>,
-    pub service_bindings: Vec<Uuid>,
+    #[serde(flatten)]
     pub group_type: GroupType,
     pub source: EntitySource,
 }
@@ -62,37 +60,37 @@ impl Group {
     }
 }
 
-impl HasId for GroupType {
+impl HasId for GroupTypeDiscriminants {
     fn id(&self) -> &'static str {
         self.into()
     }
 }
 
-impl EntityMetadataProvider for GroupType {
+impl EntityMetadataProvider for GroupTypeDiscriminants {
     fn color(&self) -> &'static str {
         match self {
-            GroupType::NetworkPath => Entity::Group.color(),
+            GroupTypeDiscriminants::RequestPath => Entity::Group.color(),
         }
     }
 
     fn icon(&self) -> &'static str {
         match self {
-            GroupType::NetworkPath => "Route",
+            GroupTypeDiscriminants::RequestPath => "Route",
         }
     }
 }
 
-impl TypeMetadataProvider for GroupType {
+impl TypeMetadataProvider for GroupTypeDiscriminants {
     fn name(&self) -> &'static str {
         match self {
-            GroupType::NetworkPath => "Network Path",
+            GroupTypeDiscriminants::RequestPath => "Request Path",
         }
     }
 
     fn description(&self) -> &'static str {
         match self {
-            GroupType::NetworkPath => {
-                "Path of network traffic between sources. Edge will be directed based on service order."
+            GroupTypeDiscriminants::RequestPath => {
+                "Ordered path of network traffic through service bindings. Represents how requests flow through your infrastructure from one service to another."
             }
         }
     }

@@ -1,7 +1,6 @@
 use std::net::Ipv4Addr;
 
 use crate::server::discovery::types::base::{DiscoveryMetadata, DiscoveryType, EntitySource};
-use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
 use chrono::{DateTime, Utc};
 use cidr::{IpCidr, Ipv4Cidr};
@@ -125,24 +124,6 @@ impl Subnet {
     pub fn is_organizational_subnet(&self) -> bool {
         let organizational_cidr = IpCidr::V4(Ipv4Cidr::new(Ipv4Addr::new(0, 0, 0, 0), 0).unwrap());
         self.base.cidr == organizational_cidr
-    }
-
-    pub fn get_infra_services<'a>(
-        &'a self,
-        hosts: &'a [Host],
-        services: &'a [Service],
-    ) -> Vec<&'a Service> {
-        services
-            .iter()
-            .filter(|s| {
-                if let Some(host) = hosts.iter().find(|h| h.id == s.base.host_id) {
-                    return s.base.service_definition.is_infra_service()
-                        && self.has_interface_with_service(host, s);
-                }
-
-                false
-            })
-            .collect()
     }
 }
 

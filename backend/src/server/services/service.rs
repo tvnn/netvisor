@@ -1,6 +1,6 @@
 use crate::server::{
     discovery::types::base::{EntitySource, EntitySourceDiscriminants},
-    groups::service::GroupService,
+    groups::{service::GroupService, types::GroupType},
     hosts::{
         service::HostService,
         types::{base::Host, interfaces::Interface},
@@ -290,22 +290,26 @@ impl ServiceService {
             None => Vec::new(),
         };
 
-        let group_futures = groups.into_iter().filter_map(|mut group| {
-            let initial_bindings_length = group.base.service_bindings.len();
+        let group_futures =
+            groups
+                .into_iter()
+                .filter_map(|mut group| match &mut group.base.group_type {
+                    GroupType::RequestPath { service_bindings } => {
+                        let initial_bindings_length = service_bindings.len();
 
-            group.base.service_bindings.retain(|sb| {
-                // Remove if updated service doesn't have binding
-                if current_service_binding_ids.contains(sb) {
-                    return updated_service_binding_ids.contains(sb);
-                }
-                true
-            });
+                        service_bindings.retain(|sb| {
+                            if current_service_binding_ids.contains(sb) {
+                                return updated_service_binding_ids.contains(sb);
+                            }
+                            true
+                        });
 
-            if group.base.service_bindings.len() != initial_bindings_length {
-                return Some(self.group_service.update_group(group));
-            }
-            None
-        });
+                        if service_bindings.len() != initial_bindings_length {
+                            return Some(self.group_service.update_group(group));
+                        }
+                        None
+                    }
+                });
 
         tracing::info!("Updated group bindings referencing {}", current_service);
 
@@ -315,11 +319,11 @@ impl ServiceService {
     }
 
     /// Update bindings to match ports and interfaces available on new host
-    pub async fn prepare_service_for_transfer_to_new_host(
+    pub async fn reassign_service_interface_bindings(
         &self,
         service: Service,
         original_host: &Host,
-        new_host: &Host,
+        updated_host: &Host,
     ) -> Service {
         let lock = self.get_service_lock(&service.id).await;
         let _guard = lock.lock().await;
@@ -328,7 +332,7 @@ impl ServiceService {
             "Preparing service {:?} for transfer from host {:?} to host {:?}",
             service,
             original_host,
-            new_host
+            updated_host
         );
 
         let mut mutable_service = service.clone();
@@ -341,9 +345,9 @@ impl ServiceService {
                 let original_interface = original_host.get_interface(&b.interface_id());
 
                 match &mut b {
-                    Binding::Layer3 { interface_id, .. } => {
+                    Binding::Interface { interface_id, .. } => {
                         if let Some(original_interface) = original_interface {
-                            let new_interface: Option<&Interface> = new_host
+                            let new_interface: Option<&Interface> = updated_host
                                 .base
                                 .interfaces
                                 .iter()
@@ -357,20 +361,20 @@ impl ServiceService {
                         // this shouldn't happen because we just transferred bindings from old host to new
                         None::<Binding>
                     }
-                    Binding::Layer4 {
+                    Binding::Port {
                         port_id,
                         interface_id,
                         ..
                     } => {
                         if let Some(original_port) = original_host.get_port(port_id)
                             && let Some(new_port) =
-                                new_host.base.ports.iter().find(|p| *p == original_port)
+                                updated_host.base.ports.iter().find(|p| *p == original_port)
                         {
                             let new_interface: Option<Option<Interface>> = match original_interface
                             {
                                 // None interface = listen on all interfaces, assume same for new host
                                 None => Some(None),
-                                Some(original_interface) => new_host
+                                Some(original_interface) => updated_host
                                     .base
                                     .interfaces
                                     .iter()
@@ -399,13 +403,13 @@ impl ServiceService {
             })
             .collect();
 
-        mutable_service.base.host_id = new_host.id;
+        mutable_service.base.host_id = updated_host.id;
 
         tracing::debug!(
-            "Prepared service {:?} for transfer from host {:?} to host {:?}",
+            "Reassigned service {:?} bindings for from host {:?} to host {:?}",
             mutable_service,
             original_host,
-            new_host
+            updated_host
         );
 
         mutable_service

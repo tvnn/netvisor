@@ -5,6 +5,7 @@ use strum::IntoDiscriminant;
 use uuid::Uuid;
 
 use crate::server::{
+    groups::types::GroupType,
     services::types::virtualization::ServiceVirtualization,
     subnets::types::base::SubnetTypeDiscriminants,
     topology::{
@@ -24,50 +25,76 @@ impl EdgeBuilder {
         ctx.groups
             .iter()
             .flat_map(|group| {
-                let bindings = &group.base.service_bindings;
-                bindings.windows(2).filter_map(|window| {
-                    let interface_0 = ctx.services.iter().find_map(|s| {
-                        if let Some(binding) = s.get_binding(window[0]) {
-                            return Some(binding.interface_id());
-                        }
-                        None
-                    });
-                    let interface_1 = ctx.services.iter().find_map(|s| {
-                        if let Some(binding) = s.get_binding(window[1]) {
-                            return Some(binding.interface_id());
-                        }
-                        None
-                    });
+                match &group.base.group_type {
+                    GroupType::RequestPath { service_bindings } => {
+                        service_bindings
+                            .windows(2)
+                            .filter_map(|window| {
+                                let interface_0 = ctx.services.iter().find_map(|s| {
+                                    if ctx
+                                        .options
+                                        .hide_service_categories
+                                        .contains(&s.base.service_definition.category())
+                                    {
+                                        return None;
+                                    } else if let Some(binding) = s.get_binding(window[0]) {
+                                        return Some(binding.interface_id());
+                                    }
+                                    None
+                                });
 
-                    if let (Some(Some(interface_0)), Some(Some(interface_1))) =
-                        (interface_0, interface_1)
-                    {
-                        let (source_handle, target_handle) =
-                            EdgeBuilder::determine_interface_handles(
-                                ctx,
-                                &interface_0,
-                                &interface_1,
-                            )?;
+                                let interface_1 = ctx.services.iter().find_map(|s| {
+                                    if ctx
+                                        .options
+                                        .hide_service_categories
+                                        .contains(&s.base.service_definition.category())
+                                    {
+                                        return None;
+                                    } else if let Some(binding) = s.get_binding(window[1]) {
+                                        return Some(binding.interface_id());
+                                    }
+                                    None
+                                });
 
-                        let label = if ctx.get_subnet_from_interface_id(interface_0).map(|s| s.id)
-                            == ctx.get_subnet_from_interface_id(interface_1).map(|s| s.id)
-                        {
-                            None
-                        } else {
-                            Some(group.base.name.to_string())
-                        };
+                                if let (Some(Some(interface_0)), Some(Some(interface_1))) =
+                                    (interface_0, interface_1)
+                                {
+                                    let (source_handle, target_handle) =
+                                        EdgeBuilder::determine_interface_handles(
+                                            ctx,
+                                            &interface_0,
+                                            &interface_1,
+                                        )?;
 
-                        return Some(Edge {
-                            source: interface_0,
-                            target: interface_1,
-                            edge_type: EdgeType::Group(group.base.group_type),
-                            label,
-                            source_handle,
-                            target_handle,
-                        });
+                                    // If edge is intra-subnet, don't label - gets too messy
+                                    let label = if ctx
+                                        .get_subnet_from_interface_id(interface_0)
+                                        .map(|s| s.id)
+                                        == ctx
+                                            .get_subnet_from_interface_id(interface_1)
+                                            .map(|s| s.id)
+                                    {
+                                        None
+                                    } else {
+                                        Some(group.base.name.to_string())
+                                    };
+
+                                    return Some(Edge {
+                                        source: interface_0,
+                                        target: interface_1,
+                                        edge_type: EdgeType::Group(
+                                            group.base.group_type.discriminant(),
+                                        ),
+                                        label,
+                                        source_handle,
+                                        target_handle,
+                                    });
+                                }
+                                None
+                            })
+                            .collect::<Vec<Edge>>()
                     }
-                    None
-                })
+                }
             })
             .collect()
     }
@@ -102,6 +129,10 @@ impl EdgeBuilder {
                 docker_service_to_containerized_service_ids
                     .keys()
                     .contains(&s.id)
+                    && !ctx
+                        .options
+                        .hide_service_categories
+                        .contains(&s.base.service_definition.category())
             })
             .filter_map(|s| {
                 let host = ctx.get_host_by_id(s.base.host_id)?;

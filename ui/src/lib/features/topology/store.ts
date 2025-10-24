@@ -1,19 +1,116 @@
 import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { type Node } from '@xyflow/svelte';
-import { EdgeHandle, type TopologyResponse } from './types/base';
+import { EdgeHandle, type TopologyResponse, type TopologyRequestOptions } from './types/base';
 import { pushError } from '$lib/shared/stores/feedback';
 import { toPng } from 'html-to-image';
-import { currentNetwork } from '../networks/store';
+import { currentNetwork, networks } from '../networks/store';
+
+const OPTIONS_STORAGE_KEY = 'netvisor_topology_options';
+const EXPANDED_STORAGE_KEY = 'netvisor_topology_options_expanded_state';
+
+// Default options
+const defaultOptions: TopologyRequestOptions = {
+	group_docker_bridges_by_host: true,
+	show_gateway_as_infra_service: true,
+	infra_service_categories: ['DNS', 'ReverseProxy'],
+	hide_service_categories: [],
+	network_ids: []
+};
+
+// Load options from localStorage or use defaults
+function loadOptionsFromStorage(): TopologyRequestOptions {
+	if (typeof window === 'undefined') return defaultOptions;
+
+	try {
+		const stored = localStorage.getItem(OPTIONS_STORAGE_KEY);
+		if (stored) {
+			const parsed = JSON.parse(stored);
+			// Merge with defaults to ensure all fields exist
+			return { ...defaultOptions, ...parsed };
+		}
+	} catch (error) {
+		console.warn('Failed to load topology options from localStorage:', error);
+	}
+	return defaultOptions;
+}
+
+// Save options to localStorage
+function saveOptionsToStorage(options: TopologyRequestOptions): void {
+	if (typeof window === 'undefined') return;
+
+	try {
+		localStorage.setItem(OPTIONS_STORAGE_KEY, JSON.stringify(options));
+	} catch (error) {
+		console.error('Failed to save topology options to localStorage:', error);
+	}
+}
+
+// Load options panel expanded state from localStorage or use defaults
+function loadExpandedFromStorage(): boolean {
+	if (typeof window === 'undefined') return true;
+
+	try {
+		const stored = localStorage.getItem(EXPANDED_STORAGE_KEY);
+		if (stored) {
+			return JSON.parse(stored);
+		}
+	} catch (error) {
+		console.warn('Failed to load topology expanded state from localStorage:', error);
+	}
+	return false;
+}
+
+// Save options to localStorage
+function saveExpandedToStorage(expanded: boolean): void {
+	if (typeof window === 'undefined') return;
+
+	try {
+		localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(expanded));
+	} catch (error) {
+		console.error('Failed to save topology expanded state to localStorage:', error);
+	}
+}
 
 export const topology = writable<TopologyResponse>();
+export const topologyOptions = writable<TopologyRequestOptions>(loadOptionsFromStorage());
+export const optionsPanelExpanded = writable<boolean>(loadExpandedFromStorage());
+
+// Initialize network_ids with the first network when networks are loaded
+let networksInitialized = false;
+networks.subscribe(($networks) => {
+	if (!networksInitialized && $networks.length > 0) {
+		networksInitialized = true;
+		topologyOptions.update((opts) => {
+			// Only set default if network_ids is empty
+			if (opts.network_ids.length === 0 && $networks[0]) {
+				opts.network_ids = [$networks[0].id];
+			}
+			return opts;
+		});
+	}
+});
+
+// Subscribe to options changes and save to localStorage
+if (typeof window !== 'undefined') {
+	topologyOptions.subscribe((options) => {
+		saveOptionsToStorage(options);
+	});
+
+	optionsPanelExpanded.subscribe((expanded) => {
+		saveExpandedToStorage(expanded);
+	});
+}
 
 export async function getTopology() {
+	const options = get(topologyOptions);
+	const network = get(currentNetwork);
+
 	return await api.request<TopologyResponse>('/topology', topology, (topology) => topology, {
 		method: 'POST',
 		body: JSON.stringify({
-			group_docker_bridges_by_host: true,
-			network_id: get(currentNetwork).id
+			...options,
+			network_id: network.id
 		})
 	});
 }
@@ -60,15 +157,15 @@ export async function exportToPNG() {
 		maxY = Math.max(maxY, y + height);
 	});
 
-	// Add padding (in flow coordinates)
+	// Add padding around content
 	const padding = 50;
 	minX -= padding;
 	minY -= padding;
 	maxX += padding;
 	maxY += padding;
 
-	const contentWidth = (maxX - minX) * scale;
-	const contentHeight = (maxY - minY) * scale;
+	const width = maxX - minX;
+	const height = maxY - minY;
 
 	// Store original styles
 	const originalTransform = viewportElement.style.transform;
@@ -76,39 +173,43 @@ export async function exportToPNG() {
 	const originalHeight = flowElement.style.height;
 	const originalOverflow = flowElement.style.overflow;
 
-	// Adjust the flow element to fit content
-	flowElement.style.width = `${contentWidth}px`;
-	flowElement.style.height = `${contentHeight}px`;
-	flowElement.style.overflow = 'hidden';
-
-	// Position viewport to show content from minX, minY
-	const newTranslateX = -minX * scale;
-	const newTranslateY = -minY * scale;
-	viewportElement.style.transform = `translate(${newTranslateX}px, ${newTranslateY}px) scale(${scale})`;
-
-	flowElement.classList.add('hide-for-export');
-
-	const watermark = document.createElement('div');
-	watermark.className = 'export-watermark';
-	watermark.textContent = 'created with netvisor.io';
-	watermark.style.cssText = `
-		position: absolute;
-		bottom: 2px;
-		right: 10px;
-		font-size: 12px;
-		color: #9ca3af;
-		font-weight: 500;
-		z-index: 1000;
-		pointer-events: none;
-	`;
-	flowElement.appendChild(watermark);
-
 	try {
+		// Add visual indicator that export is happening
+		flowElement.classList.add('hide-for-export');
+
+		// Reset transform to show all content
+		viewportElement.style.transform = `translate(${-minX}px, ${-minY}px) scale(1)`;
+		flowElement.style.width = `${width}px`;
+		flowElement.style.height = `${height}px`;
+		flowElement.style.overflow = 'visible';
+
+		// Add watermark
+		const watermark = document.createElement('div');
+		watermark.textContent = 'NetVisor Topology';
+		watermark.style.cssText = `
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      font-family: system-ui;
+      pointer-events: none;
+      z-index: 9999;
+    `;
+		flowElement.appendChild(watermark);
+
+		// Wait a moment for styles to apply
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		// Generate image
 		const dataUrl = await toPng(flowElement, {
-			backgroundColor: '#1f2937',
+			width,
+			height,
+			backgroundColor: '#15131e',
 			pixelRatio: 2
 		});
 
+		// Download the image
 		const link = document.createElement('a');
 		link.download = `netvisor-topology-${new Date().toISOString().split('T')[0]}.png`;
 		link.href = dataUrl;
@@ -122,7 +223,8 @@ export async function exportToPNG() {
 		flowElement.style.height = originalHeight;
 		flowElement.style.overflow = originalOverflow;
 		flowElement.classList.remove('hide-for-export');
-		watermark.remove();
+		const watermark = flowElement.querySelector('div[style*="position: absolute"]');
+		watermark?.remove();
 	}
 }
 

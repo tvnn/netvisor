@@ -10,14 +10,14 @@
 	export let onEdit: (subnet: Subnet) => void = () => {};
 	export let onDelete: (subnet: Subnet) => void = () => {};
 
-	$: dnsServices = getSubnetServices(subnet, 'is_dns_resolver');
-	$: gatewayServices = getSubnetServices(subnet, 'is_gateway');
-	$: reverseProxyServices = getSubnetServices(subnet, 'is_reverse_proxy');
+	// $: dnsServices = getSubnetServices(subnet, 'is_dns_resolver');
+	// $: gatewayServices = getSubnetServices(subnet, 'is_gateway');
+	// $: reverseProxyServices = getSubnetServices(subnet, 'is_reverse_proxy');
 	$: allServices = getSubnetServices(subnet);
 
-	$: dnsLabels = formatServiceLabels(dnsServices.map((s) => s.id));
-	$: gatewayLabels = formatServiceLabels(gatewayServices.map((s) => s.id));
-	$: reverseProxyLabels = formatServiceLabels(reverseProxyServices.map((s) => s.id));
+	// $: dnsLabels = formatServiceLabels(dnsServices.map((s) => s.id));
+	// $: gatewayLabels = formatServiceLabels(gatewayServices.map((s) => s.id));
+	// $: reverseProxyLabels = formatServiceLabels(reverseProxyServices.map((s) => s.id));
 	$: serviceLabels = formatServiceLabels(allServices.map((s) => s.id));
 
 	// Build card data
@@ -48,33 +48,33 @@
 				],
 				emptyText: 'No type specified'
 			},
-			{
-				label: 'DNS Resolvers',
-				items: dnsLabels.map(({ id, label }) => ({
-					id,
-					label,
-					color: entities.getColorString('Dns')
-				})),
-				emptyText: 'No DNS resolvers'
-			},
-			{
-				label: 'Gateways',
-				items: gatewayLabels.map(({ id, label }) => ({
-					id,
-					label,
-					color: entities.getColorString('Gateway')
-				})),
-				emptyText: 'No gateways'
-			},
-			{
-				label: 'Reverse Proxies',
-				items: reverseProxyLabels.map(({ id, label }) => ({
-					id,
-					label,
-					color: entities.getColorString('ReverseProxy')
-				})),
-				emptyText: 'No reverse proxies'
-			},
+			// {
+			// 	label: 'DNS Resolvers',
+			// 	items: dnsLabels.map(({ id, label }) => ({
+			// 		id,
+			// 		label,
+			// 		color: entities.getColorString('Dns')
+			// 	})),
+			// 	emptyText: 'No DNS resolvers'
+			// },
+			// {
+			// 	label: 'Gateways',
+			// 	items: gatewayLabels.map(({ id, label }) => ({
+			// 		id,
+			// 		label,
+			// 		color: entities.getColorString('Gateway')
+			// 	})),
+			// 	emptyText: 'No gateways'
+			// },
+			// {
+			// 	label: 'Reverse Proxies',
+			// 	items: reverseProxyLabels.map(({ id, label }) => ({
+			// 		id,
+			// 		label,
+			// 		color: entities.getColorString('ReverseProxy')
+			// 	})),
+			// 	emptyText: 'No reverse proxies'
+			// },
 			{
 				label: 'Services',
 				items: serviceLabels.map(({ id, label }) => ({

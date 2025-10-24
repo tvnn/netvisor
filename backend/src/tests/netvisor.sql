@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict vxk1ZN9GUoaaFGV9qtb4fAelSj1pfjUNVq2QKmbK1rg2x7oU7Bguko7UlltLpHG
+\restrict Ib1NtxyD07t3lc3qAB4mMtlTVcApoWFF5bCg1D39wYMEI3CV76VuvhztNPEDPTP
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -65,8 +65,7 @@ CREATE TABLE public.groups (
     network_id uuid NOT NULL,
     name text NOT NULL,
     description text,
-    group_type text NOT NULL,
-    service_bindings jsonb NOT NULL,
+    group_type jsonb NOT NULL,
     created_at timestamp with time zone NOT NULL,
     updated_at timestamp with time zone NOT NULL,
     source jsonb NOT NULL
@@ -126,6 +125,7 @@ CREATE TABLE public.services (
     name text NOT NULL,
     host_id uuid NOT NULL,
     bindings jsonb,
+    is_gateway boolean,
     service_definition text NOT NULL,
     virtualization jsonb,
     source jsonb NOT NULL
@@ -172,13 +172,13 @@ ALTER TABLE public.users OWNER TO postgres;
 --
 
 COPY public._sqlx_migrations (version, description, installed_on, success, checksum, execution_time) FROM stdin;
-20251006215000	users	2025-10-23 23:00:20.228745+00	t	\\x4f13ce14ff67ef0b7145987c7b22b588745bf9fbb7b673450c26a0f2f9a36ef8ca980e456c8d77cfb1b2d7a4577a64d7	4711500
-20251006215100	networks	2025-10-23 23:00:20.234308+00	t	\\xeaa5a07a262709f64f0c59f31e25519580c79e2d1a523ce72736848946a34b17dd9adc7498eaf90551af6b7ec6d4e0e3	3510333
-20251006215151	create hosts	2025-10-23 23:00:20.238149+00	t	\\x6ec7487074c0724932d21df4cf1ed66645313cf62c159a7179e39cbc261bcb81a24f7933a0e3cf58504f2a90fc5c1962	2718458
-20251006215155	create subnets	2025-10-23 23:00:20.241171+00	t	\\xefb5b25742bd5f4489b67351d9f2494a95f307428c911fd8c5f475bfb03926347bdc269bbd048d2ddb06336945b27926	2725042
-20251006215201	create groups	2025-10-23 23:00:20.244208+00	t	\\x96cdc35b7ad03869a836d4a4fe8c3060d075c32edce248827903ceab5c4e41b0727300d6c5755e54973f3ada9e50293a	2668709
-20251006215204	create daemons	2025-10-23 23:00:20.247209+00	t	\\xcfea93403b1f9cf9aac374711d4ac72d8a223e3c38a1d2a06d9edb5f94e8a557debac3668271f8176368eadc5105349f	2774458
-20251006215212	create services	2025-10-23 23:00:20.250299+00	t	\\xd5b07f82fc7c9da2782a364d46078d7d16b5c08df70cfbf02edcfe9b1b24ab6024ad159292aeea455f15cfd1f4740c1d	2559958
+20251006215000	users	2025-10-24 22:10:30.896288+00	t	\\x4f13ce14ff67ef0b7145987c7b22b588745bf9fbb7b673450c26a0f2f9a36ef8ca980e456c8d77cfb1b2d7a4577a64d7	4037875
+20251006215100	networks	2025-10-24 22:10:30.901448+00	t	\\xeaa5a07a262709f64f0c59f31e25519580c79e2d1a523ce72736848946a34b17dd9adc7498eaf90551af6b7ec6d4e0e3	3364917
+20251006215151	create hosts	2025-10-24 22:10:30.905183+00	t	\\x6ec7487074c0724932d21df4cf1ed66645313cf62c159a7179e39cbc261bcb81a24f7933a0e3cf58504f2a90fc5c1962	2663542
+20251006215155	create subnets	2025-10-24 22:10:30.90819+00	t	\\xefb5b25742bd5f4489b67351d9f2494a95f307428c911fd8c5f475bfb03926347bdc269bbd048d2ddb06336945b27926	3307167
+20251006215201	create groups	2025-10-24 22:10:30.911816+00	t	\\x28b2ad8fa9dd6a96e8798db9c9c5884c91805f5265111ff9dcd3be0222fcb4370a9ae5829600c0281c81540a0c351d90	2471708
+20251006215204	create daemons	2025-10-24 22:10:30.914622+00	t	\\xcfea93403b1f9cf9aac374711d4ac72d8a223e3c38a1d2a06d9edb5f94e8a557debac3668271f8176368eadc5105349f	2858708
+20251006215212	create services	2025-10-24 22:10:30.917785+00	t	\\xd96da6bc018518b42c9bcab782539ea9b8c0324448b2889ef3438282ac019131b6493a54f048957613d779da672cd4a8	2770958
 \.
 
 
@@ -194,7 +194,7 @@ COPY public.daemons (id, network_id, host_id, ip, port, registered_at, last_seen
 -- Data for Name: groups; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.groups (id, network_id, name, description, group_type, service_bindings, created_at, updated_at, source) FROM stdin;
+COPY public.groups (id, network_id, name, description, group_type, created_at, updated_at, source) FROM stdin;
 \.
 
 
@@ -203,9 +203,9 @@ COPY public.groups (id, network_id, name, description, group_type, service_bindi
 --
 
 COPY public.hosts (id, network_id, name, hostname, description, target, interfaces, services, ports, source, virtualization, created_at, updated_at) FROM stdin;
-97d10182-da62-457f-ac70-137275c5718b	e861b2be-2cc4-4cb5-86ae-febd936afd2a	Cloudflare DNS	\N	Cloudflare DNS	{"type": "ServiceBinding", "config": "1ff736d4-9ef1-43c1-aa3e-914523d499a7"}	[{"id": "963b4331-37c4-422e-9214-881369f9ae8d", "name": "Internet", "subnet_id": "b4abcbcd-17ee-458a-a623-b307e5708a4e", "ip_address": "1.1.1.1", "mac_address": null}]	["2a8efd06-5bf7-4cac-b6d5-acc498a9a721"]	[{"id": "6919de89-401d-4ce0-97de-ceee5106e6ec", "type": "DnsUdp", "number": 53, "protocol": "Udp"}]	{"type": "System"}	null	2025-10-23 23:00:49.165106+00	2025-10-23 23:00:49.178894+00
-e309d76c-1a29-4a3d-884d-d88010220a5b	e861b2be-2cc4-4cb5-86ae-febd936afd2a	Google.com	google.com	Google.com	{"type": "ServiceBinding", "config": "76d97576-986f-4e9a-9642-94ebc85c2666"}	[{"id": "0cb14d82-caa5-4638-8e6b-949c0fad89e4", "name": "Internet", "subnet_id": "b4abcbcd-17ee-458a-a623-b307e5708a4e", "ip_address": "203.0.113.192", "mac_address": null}]	["207ed099-9a85-470b-9b64-55dff46d191f"]	[{"id": "2e9577ea-35c3-4500-8da1-2e76d421e5aa", "type": "Https", "number": 443, "protocol": "Tcp"}]	{"type": "System"}	null	2025-10-23 23:00:49.165114+00	2025-10-23 23:00:49.183977+00
-37ed97d2-8752-4cd4-9b0b-2e8e5d6d80e6	e861b2be-2cc4-4cb5-86ae-febd936afd2a	Mobile Device	\N	A mobile device connecting from a remote network	{"type": "ServiceBinding", "config": "f9cdc868-8693-4806-8af2-3fb1145b9c5d"}	[{"id": "0f3ef0e6-e62d-4251-9e70-694e2e9aebd1", "name": "Remote Network", "subnet_id": "01f65759-d8ce-41c5-8f83-88bb7b369ede", "ip_address": "203.0.113.180", "mac_address": null}]	["e87f4509-0034-4b7e-853a-b80d50a18123"]	[{"id": "a6980625-39ae-46fd-a636-7e238545b89d", "type": "Custom", "number": 0, "protocol": "Tcp"}]	{"type": "System"}	null	2025-10-23 23:00:49.16512+00	2025-10-23 23:00:49.188699+00
+87dd109b-b2d1-4307-9d6c-87d8cd2a8d00	20f4582c-11b4-4017-b664-1186e563e991	Cloudflare DNS	\N	Cloudflare DNS	{"type": "ServiceBinding", "config": "80b6399b-a332-4022-87a8-d12f105baccb"}	[{"id": "518c0003-a96b-4532-a47e-b01b88be80a9", "name": "Internet", "subnet_id": "1ac3d783-c575-47e0-a815-e1cdd389cf22", "ip_address": "1.1.1.1", "mac_address": null}]	["6cb42611-b0f4-4b3c-81c8-5138c5b77f69"]	[{"id": "cfc5aadf-3eab-4c63-b1bc-0bb9d64afe62", "type": "DnsUdp", "number": 53, "protocol": "Udp"}]	{"type": "System"}	null	2025-10-24 22:10:36.394772+00	2025-10-24 22:10:36.413681+00
+2d4f3a00-694d-4923-a62d-b3b7ac194b6f	20f4582c-11b4-4017-b664-1186e563e991	Google.com	google.com	Google.com	{"type": "ServiceBinding", "config": "0eacc127-ea33-4ff4-ae3f-d5920353daec"}	[{"id": "ceee803a-e084-4077-9a7d-87f309d213b5", "name": "Internet", "subnet_id": "1ac3d783-c575-47e0-a815-e1cdd389cf22", "ip_address": "203.0.113.76", "mac_address": null}]	["20deef8f-dd02-49ef-94cd-2ca71c94dffd"]	[{"id": "06525e99-a360-4a03-9d84-c601fe620c30", "type": "Https", "number": 443, "protocol": "Tcp"}]	{"type": "System"}	null	2025-10-24 22:10:36.394777+00	2025-10-24 22:10:36.419243+00
+a586fc77-9459-417e-ac31-f2d9ba93804c	20f4582c-11b4-4017-b664-1186e563e991	Mobile Device	\N	A mobile device connecting from a remote network	{"type": "ServiceBinding", "config": "54e25798-8622-4ca1-b355-3538c010b4e0"}	[{"id": "6e01e40c-9bc2-4d6a-906b-e7c0fc35c952", "name": "Remote Network", "subnet_id": "bd9befca-2b0f-4a7a-a8a9-4d80fff49701", "ip_address": "203.0.113.125", "mac_address": null}]	["8d633b32-5959-4235-97f0-ff36ac6d1046"]	[{"id": "fccf59ca-29ca-4f84-a860-9bfafcde58da", "type": "Custom", "number": 0, "protocol": "Tcp"}]	{"type": "System"}	null	2025-10-24 22:10:36.394782+00	2025-10-24 22:10:36.42436+00
 \.
 
 
@@ -214,7 +214,7 @@ e309d76c-1a29-4a3d-884d-d88010220a5b	e861b2be-2cc4-4cb5-86ae-febd936afd2a	Google
 --
 
 COPY public.networks (id, name, created_at, updated_at, is_default, user_id) FROM stdin;
-e861b2be-2cc4-4cb5-86ae-febd936afd2a	My Network	2025-10-23 23:00:49.102457+00	2025-10-23 23:00:49.102462+00	t	4a445310-d759-4517-af20-17af3f62b8ff
+20f4582c-11b4-4017-b664-1186e563e991	My Network	2025-10-24 22:10:36.347986+00	2025-10-24 22:10:36.347988+00	t	433e7f4d-dab1-4611-a2ed-5a46aca8fccc
 \.
 
 
@@ -222,10 +222,10 @@ e861b2be-2cc4-4cb5-86ae-febd936afd2a	My Network	2025-10-23 23:00:49.102457+00	20
 -- Data for Name: services; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.services (id, network_id, created_at, updated_at, name, host_id, bindings, service_definition, virtualization, source) FROM stdin;
-2a8efd06-5bf7-4cac-b6d5-acc498a9a721	e861b2be-2cc4-4cb5-86ae-febd936afd2a	2025-10-23 23:00:49.165109+00	2025-10-23 23:00:49.165109+00	Cloudflare DNS	97d10182-da62-457f-ac70-137275c5718b	[{"id": "1ff736d4-9ef1-43c1-aa3e-914523d499a7", "type": "Layer4", "port_id": "6919de89-401d-4ce0-97de-ceee5106e6ec", "interface_id": "963b4331-37c4-422e-9214-881369f9ae8d"}]	"Dns Server"	null	{"type": "System"}
-207ed099-9a85-470b-9b64-55dff46d191f	e861b2be-2cc4-4cb5-86ae-febd936afd2a	2025-10-23 23:00:49.165116+00	2025-10-23 23:00:49.165116+00	Google.com	e309d76c-1a29-4a3d-884d-d88010220a5b	[{"id": "76d97576-986f-4e9a-9642-94ebc85c2666", "type": "Layer4", "port_id": "2e9577ea-35c3-4500-8da1-2e76d421e5aa", "interface_id": "0cb14d82-caa5-4638-8e6b-949c0fad89e4"}]	"Web Service"	null	{"type": "System"}
-e87f4509-0034-4b7e-853a-b80d50a18123	e861b2be-2cc4-4cb5-86ae-febd936afd2a	2025-10-23 23:00:49.165121+00	2025-10-23 23:00:49.165121+00	Mobile Device	37ed97d2-8752-4cd4-9b0b-2e8e5d6d80e6	[{"id": "f9cdc868-8693-4806-8af2-3fb1145b9c5d", "type": "Layer4", "port_id": "a6980625-39ae-46fd-a636-7e238545b89d", "interface_id": "0f3ef0e6-e62d-4251-9e70-694e2e9aebd1"}]	"Client"	null	{"type": "System"}
+COPY public.services (id, network_id, created_at, updated_at, name, host_id, bindings, is_gateway, service_definition, virtualization, source) FROM stdin;
+6cb42611-b0f4-4b3c-81c8-5138c5b77f69	20f4582c-11b4-4017-b664-1186e563e991	2025-10-24 22:10:36.394773+00	2025-10-24 22:10:36.412608+00	Cloudflare DNS	87dd109b-b2d1-4307-9d6c-87d8cd2a8d00	[{"id": "80b6399b-a332-4022-87a8-d12f105baccb", "type": "Port", "port_id": "cfc5aadf-3eab-4c63-b1bc-0bb9d64afe62", "interface_id": "518c0003-a96b-4532-a47e-b01b88be80a9"}]	f	"Dns Server"	null	{"type": "System"}
+20deef8f-dd02-49ef-94cd-2ca71c94dffd	20f4582c-11b4-4017-b664-1186e563e991	2025-10-24 22:10:36.394778+00	2025-10-24 22:10:36.418625+00	Google.com	2d4f3a00-694d-4923-a62d-b3b7ac194b6f	[{"id": "0eacc127-ea33-4ff4-ae3f-d5920353daec", "type": "Port", "port_id": "06525e99-a360-4a03-9d84-c601fe620c30", "interface_id": "ceee803a-e084-4077-9a7d-87f309d213b5"}]	f	"Web Service"	null	{"type": "System"}
+8d633b32-5959-4235-97f0-ff36ac6d1046	20f4582c-11b4-4017-b664-1186e563e991	2025-10-24 22:10:36.394783+00	2025-10-24 22:10:36.42377+00	Mobile Device	a586fc77-9459-417e-ac31-f2d9ba93804c	[{"id": "54e25798-8622-4ca1-b355-3538c010b4e0", "type": "Port", "port_id": "fccf59ca-29ca-4f84-a860-9bfafcde58da", "interface_id": "6e01e40c-9bc2-4d6a-906b-e7c0fc35c952"}]	f	"Client"	null	{"type": "System"}
 \.
 
 
@@ -234,8 +234,8 @@ e87f4509-0034-4b7e-853a-b80d50a18123	e861b2be-2cc4-4cb5-86ae-febd936afd2a	2025-1
 --
 
 COPY public.subnets (id, network_id, created_at, updated_at, cidr, name, description, subnet_type, source) FROM stdin;
-b4abcbcd-17ee-458a-a623-b307e5708a4e	e861b2be-2cc4-4cb5-86ae-febd936afd2a	2025-10-23 23:00:49.165034+00	2025-10-23 23:00:49.165034+00	"0.0.0.0/0"	Internet	This subnet uses the 0.0.0.0/0 CIDR as an organizational container for services running on the internet (e.g., public DNS servers, cloud services, etc.).	"Internet"	{"type": "System"}
-01f65759-d8ce-41c5-8f83-88bb7b369ede	e861b2be-2cc4-4cb5-86ae-febd936afd2a	2025-10-23 23:00:49.165042+00	2025-10-23 23:00:49.165042+00	"0.0.0.0/0"	Remote Network	This subnet uses the 0.0.0.0/0 CIDR as an organizational container for hosts on remote networks (e.g., mobile connections, friend's networks, public WiFi, etc.).	"Remote"	{"type": "System"}
+1ac3d783-c575-47e0-a815-e1cdd389cf22	20f4582c-11b4-4017-b664-1186e563e991	2025-10-24 22:10:36.394695+00	2025-10-24 22:10:36.394695+00	"0.0.0.0/0"	Internet	This subnet uses the 0.0.0.0/0 CIDR as an organizational container for services running on the internet (e.g., public DNS servers, cloud services, etc.).	"Internet"	{"type": "System"}
+bd9befca-2b0f-4a7a-a8a9-4d80fff49701	20f4582c-11b4-4017-b664-1186e563e991	2025-10-24 22:10:36.394703+00	2025-10-24 22:10:36.394703+00	"0.0.0.0/0"	Remote Network	This subnet uses the 0.0.0.0/0 CIDR as an organizational container for hosts on remote networks (e.g., mobile connections, friend's networks, public WiFi, etc.).	"Remote"	{"type": "System"}
 \.
 
 
@@ -244,7 +244,7 @@ b4abcbcd-17ee-458a-a623-b307e5708a4e	e861b2be-2cc4-4cb5-86ae-febd936afd2a	2025-1
 --
 
 COPY public.users (id, name, created_at, updated_at) FROM stdin;
-4a445310-d759-4517-af20-17af3f62b8ff		2025-10-23 23:00:49.095149+00	2025-10-23 23:00:49.095191+00
+433e7f4d-dab1-4611-a2ed-5a46aca8fccc		2025-10-24 22:10:36.345537+00	2025-10-24 22:10:36.345541+00
 \.
 
 
@@ -421,5 +421,5 @@ ALTER TABLE ONLY public.subnets
 -- PostgreSQL database dump complete
 --
 
-\unrestrict vxk1ZN9GUoaaFGV9qtb4fAelSj1pfjUNVq2QKmbK1rg2x7oU7Bguko7UlltLpHG
+\unrestrict Ib1NtxyD07t3lc3qAB4mMtlTVcApoWFF5bCg1D39wYMEI3CV76VuvhztNPEDPTP
 

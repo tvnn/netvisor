@@ -26,7 +26,7 @@ pub enum NodeType {
     SubnetNode {
         infra_width: usize,
     },
-    HostNode {
+    InterfaceNode {
         subnet_id: Uuid,
         host_id: Uuid,
         interface_id: Option<Uuid>,

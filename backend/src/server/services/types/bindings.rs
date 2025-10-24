@@ -13,11 +13,11 @@ use uuid::Uuid;
 #[strum_discriminants(derive(IntoStaticStr))]
 #[serde(tag = "type")]
 pub enum Binding {
-    Layer3 {
+    Interface {
         id: Uuid,
         interface_id: Uuid,
     },
-    Layer4 {
+    Port {
         id: Uuid,
         port_id: Uuid,
         interface_id: Option<Uuid>, // None = all interfaces
@@ -27,29 +27,29 @@ pub enum Binding {
 impl Binding {
     pub fn id(&self) -> Uuid {
         match self {
-            Binding::Layer3 { id, .. } => *id,
-            Binding::Layer4 { id, .. } => *id,
+            Binding::Interface { id, .. } => *id,
+            Binding::Port { id, .. } => *id,
         }
     }
 
     pub fn interface_id(&self) -> Option<Uuid> {
         match self {
-            Binding::Layer3 { interface_id, .. } => Some(*interface_id),
-            Binding::Layer4 { interface_id, .. } => *interface_id,
+            Binding::Interface { interface_id, .. } => Some(*interface_id),
+            Binding::Port { interface_id, .. } => *interface_id,
         }
     }
 
     pub fn port_id(&self) -> Option<Uuid> {
         match self {
-            Binding::Layer3 { .. } => None,
-            Binding::Layer4 { port_id, .. } => Some(*port_id),
+            Binding::Interface { .. } => None,
+            Binding::Port { port_id, .. } => Some(*port_id),
         }
     }
 }
 
 impl Default for Binding {
     fn default() -> Self {
-        Self::Layer4 {
+        Self::Port {
             id: Uuid::nil(),
             port_id: Uuid::nil(),
             interface_id: Some(Uuid::nil()),
@@ -61,22 +61,22 @@ impl PartialEq for Binding {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (
-                Binding::Layer3 {
+                Binding::Interface {
                     interface_id: self_interface_id,
                     ..
                 },
-                Binding::Layer3 {
+                Binding::Interface {
                     interface_id: other_interface_id,
                     ..
                 },
             ) => self_interface_id == other_interface_id,
             (
-                Binding::Layer4 {
+                Binding::Port {
                     port_id: self_port_id,
                     interface_id: self_interface_id,
                     ..
                 },
-                Binding::Layer4 {
+                Binding::Port {
                     port_id: other_port_id,
                     interface_id: other_interface_id,
                     ..
@@ -94,15 +94,15 @@ impl Hash for Binding {
 }
 
 impl Binding {
-    pub fn new_l3(interface_id: Uuid) -> Self {
-        Binding::Layer3 {
+    pub fn new_interface(interface_id: Uuid) -> Self {
+        Binding::Interface {
             id: Uuid::new_v4(),
             interface_id,
         }
     }
 
-    pub fn new_l4(port_id: Uuid, interface_id: Option<Uuid>) -> Self {
-        Binding::Layer4 {
+    pub fn new_port(port_id: Uuid, interface_id: Option<Uuid>) -> Self {
+        Binding::Port {
             id: Uuid::new_v4(),
             port_id,
             interface_id,

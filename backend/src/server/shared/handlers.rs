@@ -19,7 +19,7 @@ use crate::server::{
 };
 use axum::{Json, Router, routing::get};
 use std::sync::Arc;
-use strum::IntoEnumIterator;
+use strum::{IntoDiscriminant, IntoEnumIterator};
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
@@ -43,7 +43,9 @@ async fn get_metadata_registry() -> Json<ApiResponse<MetadataRegistry>> {
             .map(|t| t.to_metadata())
             .collect(),
         subnet_types: SubnetType::iter().map(|t| t.to_metadata()).collect(),
-        group_types: GroupType::iter().map(|t| t.to_metadata()).collect(),
+        group_types: GroupType::iter()
+            .map(|t| t.discriminant().to_metadata())
+            .collect(),
         edge_types: EdgeType::all_variants()
             .into_iter()
             .map(|t| t.to_metadata())

@@ -86,10 +86,7 @@ export function isContainerSubnet(id: string): Subnet | boolean {
 	return false;
 }
 
-export function getSubnetServices(
-	subnet: Subnet,
-	infra_type_flag?: 'is_dns_resolver' | 'is_gateway' | 'is_reverse_proxy'
-): Service[] {
+export function getSubnetServices(subnet: Subnet, category?: string): Service[] {
 	const host_ids = get(hosts)
 		.filter((h) => h.interfaces.some((i) => i.subnet_id == subnet.id))
 		.map((h) => h.id);
@@ -107,10 +104,10 @@ export function getSubnetServices(
 	});
 
 	return subnetServices.filter((s) => {
-		if (!infra_type_flag) return subnetServices;
+		if (!category) return subnetServices;
 		else {
 			return (
-				serviceDefinitions.getMetadata(s.service_definition)[infra_type_flag] &&
+				serviceDefinitions.getCategory(s.service_definition) == category &&
 				s.bindings.some(
 					(b) => b.interface_id && getInterfaceFromId(b.interface_id)?.subnet_id == subnet.id
 				)

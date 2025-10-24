@@ -4,7 +4,7 @@ import { api } from '../../shared/utils/api';
 import { pushSuccess } from '$lib/shared/stores/feedback';
 import { utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
 import { isContainerSubnet } from '../subnets/store';
-import { getBindingFromId, getLayerBindingDisplayName } from '../services/store';
+import { getBindingFromId, getBindingDisplayName } from '../services/store';
 import { currentNetwork } from '../networks/store';
 
 export const hosts = writable<Host[]>([]);
@@ -92,7 +92,7 @@ export function getHostTargetString(host: Host): string | null {
 		case 'ServiceBinding': {
 			const binding = getBindingFromId(host.target.config);
 			if (binding) {
-				return getLayerBindingDisplayName(binding);
+				return getBindingDisplayName(binding);
 			}
 			return 'Unknown Binding';
 		}

@@ -30,14 +30,9 @@
 	};
 
 	const getNameField = () => {
-		return field(
-			`interface_name_${currentInterfaceId}`,
-			iface.name || '',
-			[required(), maxLength(100)],
-			{
-				checkOnInit: false
-			}
-		);
+		return field(`interface_name_${currentInterfaceId}`, iface.name || '', [maxLength(100)], {
+			checkOnInit: false
+		});
 	};
 
 	const getMacField = () => {

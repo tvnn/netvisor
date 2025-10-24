@@ -2,14 +2,14 @@ import type { EntitySource } from '$lib/shared/types';
 
 export type ServiceVirtualization = { type: 'Docker'; details: DockerVirtualization };
 
-export interface Service<T extends Binding = Binding> {
+export interface Service {
 	id: string;
 	created_at: string;
 	updated_at: string;
 	host_id: string;
 	service_definition: string;
 	name: string;
-	bindings: T[];
+	bindings: Binding[];
 	virtualization: ServiceVirtualization | null;
 	source: EntitySource;
 	network_id: string;
@@ -26,8 +26,8 @@ export interface DockerVirtualization {
 }
 
 export type Binding =
-	| { type: 'Layer3'; id: string; interface_id: string }
-	| { type: 'Layer4'; id: string; interface_id: string | null; port_id: string };
+	| { type: 'Interface'; id: string; interface_id: string }
+	| { type: 'Port'; id: string; interface_id: string | null; port_id: string };
 
-export type Layer4Binding = Extract<Binding, { type: 'Layer4' }>;
-export type Layer3Binding = Extract<Binding, { type: 'Layer3' }>;
+export type PortBinding = Extract<Binding, { type: 'Port' }>;
+export type InterfaceBinding = Extract<Binding, { type: 'Interface' }>;

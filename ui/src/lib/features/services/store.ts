@@ -110,11 +110,16 @@ export function getServicesForGroupReactive(group_id: string) {
 		const group = $groups.find((g) => g.id == group_id);
 
 		if (group) {
-			const serviceMap = new Map($services.flatMap((s) => s.bindings.map((b) => [b.id, s])));
-			return group.service_bindings.map((sb) => serviceMap.get(sb)).filter((s) => s !== undefined);
-		} else {
-			return [];
+			if (group.group_type === 'RequestPath') {
+				const serviceMap = new Map($services.flatMap((s) => s.bindings.map((b) => [b.id, s])));
+				return group.service_bindings
+					.map((sb) => serviceMap.get(sb))
+					.filter((s) => s !== null && s !== undefined);
+			} else {
+				return [];
+			}
 		}
+		return [];
 	});
 }
 
@@ -138,7 +143,7 @@ export function getServicesForPort(port_id: string): Service[] {
 	if (host) {
 		const services = getServicesForHost(host.id);
 		return services.filter((s) =>
-			s.bindings.some((b) => b.type == 'Layer4' && b.port_id === port_id)
+			s.bindings.some((b) => b.type == 'Port' && b.port_id === port_id)
 		);
 	}
 	return [];
@@ -166,17 +171,17 @@ export function getBindingFromId(id: string): Binding | null {
 	);
 }
 
-export function getLayerBindingDisplayName(binding: Binding): string {
+export function getBindingDisplayName(binding: Binding): string {
 	const service = getServiceForBinding(binding.id);
 	if (service) {
 		const iface = binding.interface_id ? getInterfaceFromId(binding.interface_id) : ALL_INTERFACES;
 		const host = getServiceHost(service.id);
 		if (host) {
 			switch (binding.type) {
-				case 'Layer3':
+				case 'Interface':
 					if (iface) return formatInterface(iface);
 					break;
-				case 'Layer4': {
+				case 'Port': {
 					const port = getPortFromId(binding.port_id);
 					if (port && iface) return formatInterface(iface) + ' · ' + formatPort(port);
 					break;

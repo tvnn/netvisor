@@ -173,9 +173,10 @@ impl Discovery<SelfReportDiscovery> {
             network_id,
             bindings: daemon_service_bound_interfaces
                 .iter()
-                .map(|i| Binding::new_l4(own_port_id, Some(i.id)))
+                .map(|i| Binding::new_port(own_port_id, Some(i.id)))
                 .collect(),
             host_id: host.id,
+            is_gateway: false,
             virtualization: None,
             source: EntitySource::DiscoveryWithMatch {
                 metadata: vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],
