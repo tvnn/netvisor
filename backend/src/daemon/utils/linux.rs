@@ -31,11 +31,11 @@ impl DaemonUtils for LinuxDaemonUtils {
             .map_err(|e| anyhow!("Failed to read ARP table from /proc/net/arp: {}", e))?;
 
         for entry in arp_table {
-            if entry.ip_address == ipv4_addr {
-                if let Some(hw_addr) = entry.hw_address {
-                    let mac = MacAddress::new(hw_addr);
-                    return Ok(Some(mac));
-                }
+            if entry.ip_address == ipv4_addr
+                && let Some(hw_addr) = entry.hw_address
+            {
+                let mac = MacAddress::new(hw_addr);
+                return Ok(Some(mac));
             }
         }
 
