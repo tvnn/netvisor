@@ -12,9 +12,9 @@ use axum::{
 };
 use futures::future::try_join_all;
 use itertools::{Either, Itertools};
-use validator::Validate;
 use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
+use validator::Validate;
 
 pub fn create_router() -> Router<Arc<AppState>> {
     Router::new()
@@ -36,13 +36,19 @@ async fn create_host(
 
     if let Err(e) = request.host.base.validate() {
         tracing::error!("Host validation failed: {:?}", e);
-        return Err(ApiError::bad_request(&format!("Host validation failed: {}", e)));
+        return Err(ApiError::bad_request(&format!(
+            "Host validation failed: {}",
+            e
+        )));
     }
-    
+
     for service in &request.services {
         if let Err(e) = service.base.validate() {
             tracing::error!("Service validation failed: {:?}", e);
-            return Err(ApiError::bad_request(&format!("Service validation failed: {}", e)));
+            return Err(ApiError::bad_request(&format!(
+                "Service validation failed: {}",
+                e
+            )));
         }
     }
 

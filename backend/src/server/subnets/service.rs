@@ -35,7 +35,7 @@ impl SubnetService {
             // And the same subnet for all other sources provided CIDRs match
             Some(existing_subnet)
                 if {
-                    let result = match (&existing_subnet.base.source, &subnet.base.source) {
+                    match (&existing_subnet.base.source, &subnet.base.source) {
                         (
                             EntitySource::Discovery {
                                 metadata: existing_metadata,
@@ -66,9 +66,7 @@ impl SubnetService {
                         // System subnets are never going to be upserted to or from
                         (EntitySource::System, _) | (_, EntitySource::System) => false,
                         _ => true,
-                    };
-
-                    result
+                    }
                 } =>
             {
                 tracing::warn!(
