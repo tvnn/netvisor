@@ -96,7 +96,7 @@ impl ContainerManager {
 
 impl Drop for ContainerManager {
     fn drop(&mut self) {
-        // self.cleanup();
+        self.cleanup();
     }
 }
 
