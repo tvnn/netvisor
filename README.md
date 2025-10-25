@@ -99,13 +99,7 @@ NETVISOR_SERVER_TARGET=YOUR_SERVER_IP docker compose -f docker-compose.daemon.ym
 
 or, run the contents of `docker-compose.daemon.yml`
 
-#### Linux (Binary)
-
-```bash
-curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/install.sh | bash
-```
-
-#### Mac / Windows (Binary)
+#### Linux / Mac / Windows (Binary)
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/install.sh | bash
