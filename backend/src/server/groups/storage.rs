@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 #[async_trait]
 pub trait GroupStorage: Send + Sync {
-    async fn create(&self, group: &Group) -> Result<()>;
+    async fn create(&self, group: &Group) -> Result<Group>;
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Group>>;
     async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Group>>;
     async fn update(&self, group: &Group) -> Result<()>;
@@ -28,7 +28,7 @@ impl PostgresGroupStorage {
 
 #[async_trait]
 impl GroupStorage for PostgresGroupStorage {
-    async fn create(&self, group: &Group) -> Result<()> {
+    async fn create(&self, group: &Group) -> Result<Group> {
         let group_type_json = serde_json::to_value(&group.base.group_type)?;
         let source_json = serde_json::to_value(&group.base.source)?;
 
@@ -51,7 +51,7 @@ impl GroupStorage for PostgresGroupStorage {
         .execute(&self.pool)
         .await?;
 
-        Ok(())
+        Ok(group.clone())
     }
 
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Group>> {

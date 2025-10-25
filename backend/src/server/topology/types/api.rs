@@ -10,4 +10,5 @@ pub struct TopologyRequestOptions {
     pub hide_service_categories: Vec<ServiceCategory>,
     pub show_gateway_as_infra_service: bool,
     pub infra_service_categories: Vec<ServiceCategory>,
+    pub edge_type: String,
 }

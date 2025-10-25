@@ -20,6 +20,7 @@ pub struct Edge {
     pub label: Option<String>,
     pub source_handle: EdgeHandle,
     pub target_handle: EdgeHandle,
+    pub is_multi_hop: bool,
 }
 
 #[derive(
@@ -58,6 +59,7 @@ impl EdgeHandle {
         target_subnet: &Subnet,
         source_is_infra: bool,
         target_is_infra: bool,
+        is_multi_hop: bool,
     ) -> (EdgeHandle, EdgeHandle) {
         // Special case: edges within the same subnet
         if source_subnet.id == target_subnet.id {
@@ -72,12 +74,22 @@ impl EdgeHandle {
         match source_vertical_order.cmp(&target_vertical_order) {
             // Different layers - vertical flow
             std::cmp::Ordering::Less => {
-                // Edge flows downward: source Bottom -> target Top
-                (EdgeHandle::Bottom, EdgeHandle::Top)
+                if is_multi_hop {
+                    // Multi-hop downward: route around the side
+                    Self::choose_side_handles_for_multi_hop(source_is_infra, target_is_infra)
+                } else {
+                    // Single-hop downward: source Bottom -> target Top
+                    (EdgeHandle::Bottom, EdgeHandle::Top)
+                }
             }
             std::cmp::Ordering::Greater => {
-                // Edge flows upward: source Top -> target Bottom
-                (EdgeHandle::Top, EdgeHandle::Bottom)
+                if is_multi_hop {
+                    // Multi-hop upward: route around the side
+                    Self::choose_side_handles_for_multi_hop(source_is_infra, target_is_infra)
+                } else {
+                    // Single-hop upward: source Top -> target Bottom
+                    (EdgeHandle::Top, EdgeHandle::Bottom)
+                }
             }
             // Same layer - horizontal flow based on priority and infra status
             std::cmp::Ordering::Equal => {
@@ -127,6 +139,48 @@ impl EdgeHandle {
                 }
             }
         }
+    }
+
+    /// Choose handles for multi-hop edges that route around the side
+    /// Both handles should be on the same side (left or right) for clean routing
+    fn choose_side_handles_for_multi_hop(
+        source_is_infra: bool,
+        target_is_infra: bool,
+    ) -> (EdgeHandle, EdgeHandle) {
+        // Determine which side to route: left is generally preferred to keep
+        // long edges on the periphery
+
+        // Check if either node has infra constraints
+        let source_can_use_left = !source_is_infra;
+        let source_can_use_right = source_is_infra;
+        let target_can_use_left = !target_is_infra;
+        let target_can_use_right = target_is_infra;
+
+        // Try to route on the left side first (keeps edges on periphery)
+        if source_can_use_left && target_can_use_left {
+            return (EdgeHandle::Left, EdgeHandle::Left);
+        }
+
+        // If left doesn't work, try right side
+        if source_can_use_right && target_can_use_right {
+            return (EdgeHandle::Right, EdgeHandle::Right);
+        }
+
+        // If we can't use the same side due to infra constraints,
+        // fall back to using Bottom for infra nodes
+        let source_handle = if source_is_infra {
+            EdgeHandle::Bottom
+        } else {
+            EdgeHandle::Left // Prefer left for non-infra
+        };
+
+        let target_handle = if target_is_infra {
+            EdgeHandle::Bottom
+        } else {
+            EdgeHandle::Left // Prefer left for non-infra
+        };
+
+        (source_handle, target_handle)
     }
 
     /// Handle edges within the same subnet - defer to anchor analysis

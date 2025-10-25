@@ -14,10 +14,18 @@ impl GroupService {
 
     /// Create a new group
     pub async fn create_group(&self, group: Group) -> Result<Group> {
-        self.group_storage.create(&group).await?;
+        let created_group = if group.id == Uuid::nil() {
+            self.group_storage.create(&Group::new(group.base)).await?
+        } else {
+            self.group_storage.create(&group).await?
+        };
 
-        tracing::info!("Created group {}: {}", group.base.name, group.id);
-        Ok(group)
+        tracing::info!(
+            "Created group {}: {}",
+            created_group.base.name,
+            created_group.id
+        );
+        Ok(created_group)
     }
 
     /// Get group by ID

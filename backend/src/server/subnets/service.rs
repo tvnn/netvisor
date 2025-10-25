@@ -25,6 +25,12 @@ impl SubnetService {
     pub async fn create_subnet(&self, subnet: Subnet) -> Result<Subnet> {
         let all_subnets = self.storage.get_all(&subnet.base.network_id).await?;
 
+        let subnet = if subnet.id == Uuid::nil() {
+            Subnet::new(subnet.base)
+        } else {
+            subnet
+        };
+
         tracing::debug!("Creating subnet {:?}", subnet);
 
         let subnet_from_storage = match all_subnets.iter().find(|s| subnet.eq(s)) {

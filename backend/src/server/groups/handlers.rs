@@ -26,9 +26,7 @@ async fn create_group(
 ) -> ApiResult<Json<ApiResponse<Group>>> {
     let service = &state.services.group_service;
 
-    let group = Group::new(request.base);
-
-    let created_group = service.create_group(group).await?;
+    let created_group = service.create_group(request).await?;
 
     Ok(Json(ApiResponse::success(created_group)))
 }

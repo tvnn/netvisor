@@ -36,6 +36,7 @@ export interface TopologyEdge extends Record<string, unknown> {
 	target: string;
 	source_handle: EdgeHandle;
 	target_handle: EdgeHandle;
+	is_multi_hop: boolean;
 }
 
 export interface TopologyResponse {
@@ -58,4 +59,5 @@ export interface TopologyRequestOptions {
 	show_gateway_as_infra_service: boolean;
 	infra_service_categories: string[];
 	hide_service_categories: string[];
+	edge_type: 'smoothstep' | 'bezier';
 }

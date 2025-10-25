@@ -33,6 +33,7 @@ export function createDefaultService(
 		updated_at: utcTimeZoneSentinel,
 		network_id: get(currentNetwork).id,
 		host_id,
+		is_gateway: false,
 		service_definition: serviceType,
 		name: serviceName || serviceType,
 		bindings: [],

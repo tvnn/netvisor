@@ -34,7 +34,7 @@
 	<!-- External label in upper left corner -->
 	{#if cidr || label}
 		<div
-			class="card text-secondary absolute -top-10 left-0 z-10 flex items-center gap-1 px-2 py-1 shadow-lg backdrop-blur-sm"
+			class="card text-secondary z-100 absolute -top-10 left-0 flex items-center gap-1 px-2 py-1 shadow-lg backdrop-blur-sm"
 		>
 			<!-- Icon -->
 			{#if IconComponent}

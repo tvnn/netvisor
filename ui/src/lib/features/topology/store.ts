@@ -15,7 +15,8 @@ const defaultOptions: TopologyRequestOptions = {
 	show_gateway_as_infra_service: true,
 	infra_service_categories: ['DNS', 'ReverseProxy'],
 	hide_service_categories: [],
-	network_ids: []
+	network_ids: [],
+	edge_type: 'smoothstep'
 };
 
 // Load options from localStorage or use defaults
@@ -185,7 +186,7 @@ export async function exportToPNG() {
 
 		// Add watermark
 		const watermark = document.createElement('div');
-		watermark.textContent = 'NetVisor Topology';
+		watermark.textContent = 'created with netvisor.io';
 		watermark.style.cssText = `
       position: absolute;
       bottom: 10px;

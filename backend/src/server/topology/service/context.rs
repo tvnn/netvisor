@@ -88,6 +88,24 @@ impl<'a> TopologyContext<'a> {
         false
     }
 
+    pub fn edge_is_multi_hop(
+        &self,
+        source_interface_id: &Uuid,
+        target_interface_id: &Uuid,
+    ) -> bool {
+        if let (Some(source_subnet), Some(target_subnet)) = (
+            self.get_subnet_from_interface_id(*source_interface_id),
+            self.get_subnet_from_interface_id(*target_interface_id),
+        ) {
+            let vertical_order_difference = source_subnet.base.subnet_type.vertical_order()
+                as isize
+                - target_subnet.base.subnet_type.vertical_order() as isize;
+
+            return vertical_order_difference.abs() > 1;
+        }
+        false
+    }
+
     pub fn get_subnet_from_interface_id(&self, interface_id: Uuid) -> Option<&'a Subnet> {
         let interface = self
             .hosts

@@ -164,7 +164,7 @@
 	}
 </script>
 
-<div class="h-[calc(100vh-200px)] w-full overflow-hidden rounded-2xl border border-gray-700">
+<div class="h-[calc(100vh-150px)] w-full overflow-hidden rounded-2xl border border-gray-700">
 	<SvelteFlow
 		nodes={$nodes}
 		edges={$edges}

@@ -20,6 +20,7 @@
 	// Update formData when field values change
 	$: formData.name = $name.value;
 	$: formData.description = $description.value;
+	$: formData.cidr = $cidr.value;
 </script>
 
 <!-- Basic Information -->

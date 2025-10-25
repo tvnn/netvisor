@@ -8,6 +8,7 @@ export interface Service {
 	updated_at: string;
 	host_id: string;
 	service_definition: string;
+	is_gateway: boolean;
 	name: string;
 	bindings: Binding[];
 	virtualization: ServiceVirtualization | null;

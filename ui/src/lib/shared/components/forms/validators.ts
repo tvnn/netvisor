@@ -21,7 +21,8 @@ export const ipAddress = (): Validator => (value: string) => {
 export const cidr = (): Validator => (value: string) => {
 	if (!value) return { valid: true, name: 'Valid CIDR' }; // Allow empty if not required
 
-	if (!isValidCIDR(value)) return { valid: false, name: `${cidr} is not valid CIDR notation` };
+	if (!isValidCIDR(value))
+		return { valid: false, name: 'Invalid CIDR', message: `${cidr} is not valid CIDR notation` };
 
 	return {
 		valid: true,

@@ -51,7 +51,10 @@
 				</div>
 			{:else}
 				<!-- Show host name as body text -->
-				<div class="truncate text-center text-xs leading-none" title={nodeData.bodyText}>
+				<div
+					class="text-secondary truncate text-center text-xs leading-none"
+					title={nodeData.bodyText}
+				>
 					{nodeData.bodyText}
 				</div>
 			{/if}

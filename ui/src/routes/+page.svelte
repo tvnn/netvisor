@@ -108,7 +108,7 @@
 		<Sidebar {activeTab} onTabChange={handleTabChange} />
 
 		<!-- Main Content -->
-		<main class="flex-1 overflow-auto">
+		<main class="ml-64 flex-1 overflow-auto">
 			<div class="p-8">
 				{#if !appInitialized}
 					<Loading />
