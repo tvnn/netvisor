@@ -12,6 +12,7 @@ interface BaseGroup {
 	description: string;
 	source: EntitySource;
 	network_id: string;
+	color: string;
 }
 
 export interface RequestPathGroup extends BaseGroup {

@@ -1,13 +1,15 @@
 <script lang="ts">
 	import type { IconComponent } from '$lib/shared/utils/types';
+	import { type Component } from 'svelte';
 
 	export let title: string;
 	export let subtitle: string;
 	export let buttons: {
-		cta: string;
-		onClick: () => void;
+		cta?: string;
+		onClick?: () => void;
 		disabled?: boolean;
 		IconComponent?: IconComponent;
+		ButtonComponent?: Component;
 	}[] = [];
 </script>
 
@@ -18,10 +20,14 @@
 	</div>
 	<div class="flex gap-4">
 		{#each buttons as button (button)}
-			<button on:click={button.onClick} disabled={button.disabled} class="btn-primary">
-				<svelte:component this={button.IconComponent} class="h-4 w-4" />
-				{button.cta}
-			</button>
+			{#if button.ButtonComponent}
+				<svelte:component this={button.ButtonComponent} />
+			{:else}
+				<button on:click={button.onClick} disabled={button.disabled} class="btn-primary">
+					<svelte:component this={button.IconComponent} class="h-4 w-4" />
+					{button.cta}
+				</button>
+			{/if}
 		{/each}
 	</div>
 </div>

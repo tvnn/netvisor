@@ -5,6 +5,7 @@ help:
 	@echo ""
 	@echo "  make setup-db       - Set up database"
 	@echo "  make clean-db       - Clean up database"
+	@echo "  make clean-daemon       - Remove daemon config file"
 	@echo "  make dump-db       - Dump database to /netvisor"
 	@echo "  make dev-server     - Start server dev environment"
 	@echo "  make dev-server     - Start server dev environment"
@@ -36,6 +37,9 @@ setup-db:
 clean-db:
 	docker stop netvisor-postgres || true
 	docker rm netvisor-postgres || true
+
+clean-daemon:
+	rm -rf ~/Library/Application\ Support/com.netvisor.daemon
 
 dump-db:
 	docker exec -t netvisor-postgres pg_dump -U postgres -d netvisor > ~/dev/netvisor/netvisor.sql  

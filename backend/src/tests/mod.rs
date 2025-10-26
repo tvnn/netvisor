@@ -117,7 +117,6 @@ pub fn service(network_id: &Uuid, host_id: &Uuid) -> Service {
         host_id: *host_id,
         bindings: vec![],
         network_id: *network_id,
-        is_gateway: false,
         service_definition: service_def,
         virtualization: None,
         source: EntitySource::System,
@@ -129,6 +128,7 @@ pub fn group(network_id: &Uuid) -> Group {
         name: "Test Group".to_string(),
         description: None,
         network_id: *network_id,
+        color: "".to_string(),
         group_type: GroupType::RequestPath {
             service_bindings: vec![],
         },

@@ -1,6 +1,6 @@
 use crate::server::services::definitions::{ServiceDefinitionFactory, create_service};
 use crate::server::services::types::categories::ServiceCategory;
-use crate::server::services::types::definitions::ServiceDefinition;
+use crate::server::services::types::definitions::{ServiceDefinition, ServiceDefinitionExt};
 use crate::server::services::types::patterns::{MatchConfidence, Pattern};
 
 #[derive(Default, Clone, Eq, PartialEq, Hash)]
@@ -26,7 +26,7 @@ impl ServiceDefinition for Gateway {
                         .service_params
                         .matched_services
                         .iter()
-                        .any(|s| !s.base.is_gateway)
+                        .any(|s| !s.base.service_definition.is_gateway())
                 },
                 "No other gateway services matched",
                 "A gateway service has already been matched",

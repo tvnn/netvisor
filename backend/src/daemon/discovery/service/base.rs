@@ -728,7 +728,7 @@ pub trait DiscoversNetworkedEntities:
             hostname,
             target,
             network_id,
-            description: Some("Discovered host".to_owned()),
+            description: None,
             interfaces: vec![interface.clone()],
             services: Vec::new(),
             ports: Vec::new(),

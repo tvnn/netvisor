@@ -36,8 +36,8 @@ impl GroupStorage for PostgresGroupStorage {
             r#"
             INSERT INTO groups (
                 id, name, description, group_type, source,
-                created_at, updated_at, network_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                created_at, updated_at, network_id, color
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             "#,
         )
         .bind(group.id)
@@ -48,6 +48,7 @@ impl GroupStorage for PostgresGroupStorage {
         .bind(chrono::Utc::now())
         .bind(chrono::Utc::now())
         .bind(group.base.network_id)
+        .bind(&group.base.color)
         .execute(&self.pool)
         .await?;
 
@@ -88,7 +89,7 @@ impl GroupStorage for PostgresGroupStorage {
             r#"
             UPDATE groups SET 
                 name = $2, description = $3, group_type = $4, source = $5,
-                updated_at = $6
+                updated_at = $6, color = $7
             WHERE id = $1
             "#,
         )
@@ -98,6 +99,7 @@ impl GroupStorage for PostgresGroupStorage {
         .bind(group_type_json)
         .bind(source_json)
         .bind(chrono::Utc::now())
+        .bind(&group.base.color)
         .execute(&self.pool)
         .await?;
 
@@ -132,6 +134,7 @@ fn row_to_group(row: sqlx::postgres::PgRow) -> Result<Group, Error> {
             network_id: row.get("network_id"),
             source,
             group_type,
+            color: row.get("color"),
         },
     })
 }

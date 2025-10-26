@@ -6,7 +6,6 @@ CREATE TABLE IF NOT EXISTS services (
     name TEXT NOT NULL,
     host_id UUID NOT NULL,
     bindings JSONB,
-    is_gateway BOOLEAN,
     service_definition TEXT NOT NULL,
     virtualization JSONB,
     source JSONB NOT NULL,

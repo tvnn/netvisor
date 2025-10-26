@@ -190,10 +190,12 @@
 </div>
 
 <style>
-	:global(.svelte-flow.hide-for-export .svelte-flow__controls),
-	:global(.svelte-flow.hide-for-export .svelte-flow__resize-control),
-	:global(.svelte-flow.hide-for-export .svelte-flow__minimap),
-	:global(.svelte-flow.hide-for-export .svelte-flow__panel) {
+	:global(.hide-for-export .svelte-flow__controls),
+	:global(.hide-for-export .svelte-flow__resize-control),
+	:global(.hide-for-export .svelte-flow__attribution),
+	:global(.hide-for-export .svelte-flow__minimap),
+	:global(.hide-for-export .topology-options),
+	:global(.hide-for-export .svelte-flow__panel) {
 		display: none !important;
 	}
 

@@ -45,8 +45,8 @@ impl ServiceStorage for PostgresServiceStorage {
             r#"
             INSERT INTO services (
                 id, name, host_id, service_definition, bindings, virtualization, 
-                source, created_at, updated_at, network_id, is_gateway
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                source, created_at, updated_at, network_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             "#,
         )
         .bind(service.id)
@@ -59,7 +59,6 @@ impl ServiceStorage for PostgresServiceStorage {
         .bind(service.created_at)
         .bind(service.updated_at)
         .bind(service.base.network_id)
-        .bind(service.base.is_gateway)
         .execute(&self.pool)
         .await?;
 
@@ -117,7 +116,7 @@ impl ServiceStorage for PostgresServiceStorage {
             r#"
             UPDATE services SET 
                 name = $2, host_id = $3, service_definition = $4, bindings = $5, virtualization = $6, source = $7, 
-                updated_at = $8, is_gateway = $9
+                updated_at = $8
             WHERE id = $1
             "#,
         )
@@ -129,7 +128,6 @@ impl ServiceStorage for PostgresServiceStorage {
         .bind(virtualization_str)
         .bind(source_str)
         .bind(service.updated_at)
-        .bind(service.base.is_gateway)
         .execute(&self.pool)
         .await?;
 
@@ -170,7 +168,6 @@ fn row_to_service(row: sqlx::postgres::PgRow) -> Result<Service, Error> {
             host_id: row.get("host_id"),
             service_definition,
             virtualization,
-            is_gateway: row.get("is_gateway"),
             bindings,
             source,
         },

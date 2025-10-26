@@ -37,6 +37,7 @@ pub struct GroupBase {
     #[serde(flatten)]
     pub group_type: GroupType,
     pub source: EntitySource,
+    pub color: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

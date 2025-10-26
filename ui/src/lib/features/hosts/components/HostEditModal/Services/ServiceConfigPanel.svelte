@@ -264,6 +264,7 @@
 
 		<!-- Basic Configuration -->
 		<div class="space-y-4">
+			<div class="text-primary font-medium">Details</div>
 			<!-- Service Name Field -->
 			{#if $nameField}
 				<TextInput
@@ -277,9 +278,12 @@
 			{/if}
 		</div>
 
-		<div class="text-muted">
-			For a given interface, a service can have either port bindings OR an interface binding, not
-			both.
+		<div>
+			<div class="text-primary font-medium">Bindings</div>
+			<span class="text-muted text-xs">
+				For a given interface, a service can have either port bindings OR an interface binding, not
+				both.
+			</span>
 		</div>
 		<!-- Port Bindings -->
 		<div class="space-y-4">

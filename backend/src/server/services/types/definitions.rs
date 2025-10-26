@@ -100,6 +100,7 @@ pub trait ServiceDefinitionExt {
     fn manages_virtualization(&self) -> Option<&'static str>;
     fn is_netvisor(&self) -> bool;
     fn is_generic(&self) -> bool;
+    fn is_gateway(&self) -> bool;
 }
 
 impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
@@ -113,6 +114,10 @@ impl ServiceDefinitionExt for Box<dyn ServiceDefinition> {
 
     fn is_netvisor(&self) -> bool {
         matches!(ServiceDefinition::category(self), ServiceCategory::Netvisor)
+    }
+
+    fn is_gateway(&self) -> bool {
+        self.discovery_pattern().contains_gateway_ip_pattern()
     }
 
     fn manages_virtualization(&self) -> Option<&'static str> {
@@ -157,6 +162,7 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
     fn metadata(&self) -> serde_json::Value {
         let can_be_added = self.can_be_manually_added();
         let manages_virtualization = self.manages_virtualization();
+        let is_gateway = self.is_gateway();
         let logo_source = match self.icon() {
             _ if self.icon() == ServiceDefinition::dashboard_icons_path(self) => {
                 Some("dashboard_icons")
@@ -171,6 +177,7 @@ impl TypeMetadataProvider for Box<dyn ServiceDefinition> {
         serde_json::json!({
             "can_be_added": can_be_added,
             "manages_virtualization": manages_virtualization,
+            "is_gateway": is_gateway,
             "logo_source": logo_source,
             "logo_needs_white_background": logo_needs_white_background,
         })

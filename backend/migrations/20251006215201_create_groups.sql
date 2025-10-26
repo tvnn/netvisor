@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS groups (
     group_type JSONB NOT NULL,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,
-    source JSONB NOT NULL
+    source JSONB NOT NULL,
+    color TEXT NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_groups_network ON groups(network_id);

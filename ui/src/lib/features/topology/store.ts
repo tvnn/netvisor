@@ -2,8 +2,6 @@ import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { type Node } from '@xyflow/svelte';
 import { EdgeHandle, type TopologyResponse, type TopologyRequestOptions } from './types/base';
-import { pushError } from '$lib/shared/stores/feedback';
-import { toPng } from 'html-to-image';
 import { currentNetwork, networks } from '../networks/store';
 
 const OPTIONS_STORAGE_KEY = 'netvisor_topology_options';
@@ -14,6 +12,7 @@ const defaultOptions: TopologyRequestOptions = {
 	group_docker_bridges_by_host: true,
 	show_gateway_as_infra_service: true,
 	infra_service_categories: ['DNS', 'ReverseProxy'],
+	show_interface_edges: true,
 	hide_service_categories: [],
 	network_ids: [],
 	edge_type: 'smoothstep'
@@ -114,119 +113,6 @@ export async function getTopology() {
 			network_id: network.id
 		})
 	});
-}
-
-export async function exportToPNG() {
-	const flowElement = document.querySelector('.svelte-flow') as HTMLElement;
-	const viewportElement = document.querySelector('.svelte-flow__viewport') as HTMLElement;
-
-	if (!flowElement || !viewportElement) {
-		pushError('Could not find flow element');
-		return;
-	}
-
-	// Get all node elements to calculate bounds
-	const nodeElements = flowElement.querySelectorAll('.svelte-flow__node');
-	if (nodeElements.length === 0) {
-		pushError('No nodes to export');
-		return;
-	}
-
-	// Get current transform to extract scale and translation
-	const currentTransform = new DOMMatrix(getComputedStyle(viewportElement).transform);
-	const scale = currentTransform.a; // scale factor
-
-	// Calculate bounding box of all nodes
-	let minX = Infinity,
-		minY = Infinity,
-		maxX = -Infinity,
-		maxY = -Infinity;
-
-	nodeElements.forEach((node) => {
-		const rect = node.getBoundingClientRect();
-		const viewportRect = viewportElement.getBoundingClientRect();
-
-		// Calculate position in flow coordinates (accounting for scale)
-		const x = (rect.left - viewportRect.left) / scale;
-		const y = (rect.top - viewportRect.top) / scale;
-		const width = rect.width / scale;
-		const height = rect.height / scale;
-
-		minX = Math.min(minX, x);
-		minY = Math.min(minY, y);
-		maxX = Math.max(maxX, x + width);
-		maxY = Math.max(maxY, y + height);
-	});
-
-	// Add padding around content
-	const padding = 50;
-	minX -= padding;
-	minY -= padding;
-	maxX += padding;
-	maxY += padding;
-
-	const width = maxX - minX;
-	const height = maxY - minY;
-
-	// Store original styles
-	const originalTransform = viewportElement.style.transform;
-	const originalWidth = flowElement.style.width;
-	const originalHeight = flowElement.style.height;
-	const originalOverflow = flowElement.style.overflow;
-
-	try {
-		// Add visual indicator that export is happening
-		flowElement.classList.add('hide-for-export');
-
-		// Reset transform to show all content
-		viewportElement.style.transform = `translate(${-minX}px, ${-minY}px) scale(1)`;
-		flowElement.style.width = `${width}px`;
-		flowElement.style.height = `${height}px`;
-		flowElement.style.overflow = 'visible';
-
-		// Add watermark
-		const watermark = document.createElement('div');
-		watermark.textContent = 'created with netvisor.io';
-		watermark.style.cssText = `
-      position: absolute;
-      bottom: 10px;
-      right: 10px;
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 12px;
-      font-family: system-ui;
-      pointer-events: none;
-      z-index: 9999;
-    `;
-		flowElement.appendChild(watermark);
-
-		// Wait a moment for styles to apply
-		await new Promise((resolve) => setTimeout(resolve, 100));
-
-		// Generate image
-		const dataUrl = await toPng(flowElement, {
-			width,
-			height,
-			backgroundColor: '#15131e',
-			pixelRatio: 2
-		});
-
-		// Download the image
-		const link = document.createElement('a');
-		link.download = `netvisor-topology-${new Date().toISOString().split('T')[0]}.png`;
-		link.href = dataUrl;
-		link.click();
-	} catch (err) {
-		pushError(`Failed to export topology: ${err}`);
-	} finally {
-		// Restore original styles
-		viewportElement.style.transform = originalTransform;
-		flowElement.style.width = originalWidth;
-		flowElement.style.height = originalHeight;
-		flowElement.style.overflow = originalOverflow;
-		flowElement.classList.remove('hide-for-export');
-		const watermark = flowElement.querySelector('div[style*="position: absolute"]');
-		watermark?.remove();
-	}
 }
 
 // Cycle through anchor positions in logical order

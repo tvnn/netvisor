@@ -100,12 +100,12 @@
 <div>
 	<div class="mb-2 flex items-start justify-between gap-4">
 		<div class="min-w-0 flex-1">
-			<div class="text-primary block text-sm font-medium">
+			<div class="text-secondary block text-sm font-medium">
 				{label}
 				{#if required}<span class="text-danger">*</span>{/if}
 			</div>
 			{#if helpText}
-				<p class="text-secondary mt-1 text-sm">
+				<p class="text-tertiary mt-1 text-sm">
 					{helpText}
 				</p>
 			{/if}

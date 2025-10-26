@@ -6,9 +6,7 @@ use crate::server::services::types::bindings::Binding;
 use crate::server::services::types::definitions::ServiceDefinitionExt;
 use crate::server::services::types::definitions::{DefaultServiceDefinition, ServiceDefinition};
 use crate::server::services::types::endpoints::{Endpoint, EndpointResponse};
-use crate::server::services::types::patterns::{
-    MatchConfidence, MatchReason, MatchResult, Pattern,
-};
+use crate::server::services::types::patterns::{MatchConfidence, MatchReason, MatchResult};
 use crate::server::services::types::virtualization::{DockerVirtualization, ServiceVirtualization};
 use crate::server::subnets::types::base::Subnet;
 use chrono::{DateTime, Utc};
@@ -23,7 +21,6 @@ use validator::Validate;
 pub struct ServiceBase {
     pub host_id: Uuid,
     pub network_id: Uuid,
-    pub is_gateway: bool,
     pub service_definition: Box<dyn ServiceDefinition>,
     #[validate(length(min = 0, max = 100))]
     pub name: String,
@@ -37,7 +34,6 @@ impl Default for ServiceBase {
         Self {
             host_id: Uuid::nil(),
             network_id: Uuid::nil(),
-            is_gateway: false,
             service_definition: Box::new(DefaultServiceDefinition),
             name: String::new(),
             bindings: Vec::new(),
@@ -244,14 +240,10 @@ impl Service {
                 vec![Binding::new_interface(interface.id)]
             };
 
-            // Any service can be a gateway even if it doesn't explicitly look for it in the pattern
-            let is_gateway = Pattern::IsGateway.matches(&params).is_ok();
-
             let service = Service::new(ServiceBase {
                 host_id: *host_id,
                 network_id: *network_id,
                 service_definition,
-                is_gateway,
                 name,
                 virtualization: virtualization.clone(),
                 bindings,

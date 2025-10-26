@@ -57,6 +57,7 @@ export interface TopologyRequestOptions {
 	group_docker_bridges_by_host: boolean;
 	network_ids: string[];
 	show_gateway_as_infra_service: boolean;
+	show_interface_edges: boolean;
 	infra_service_categories: string[];
 	hide_service_categories: string[];
 	edge_type: 'smoothstep' | 'bezier';

@@ -36,8 +36,6 @@
 		// Determine routing direction from edge handles
 		const routingLeft = sourceHandleId == 'Left' || targetHandleId == 'Left';
 
-		console.log(sourceHandleId);
-
 		// Find the bounding box of the edge path
 		const minX = Math.min(sourceX, targetX);
 		const maxX = Math.max(sourceX, targetX);

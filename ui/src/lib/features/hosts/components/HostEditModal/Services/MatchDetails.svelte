@@ -45,7 +45,7 @@
 	<button
 		type="button"
 		onclick={() => (isExpanded = !isExpanded)}
-		class="flex w-full items-center justify-between text-left transition-colors"
+		class="flex w-full items-center justify-between text-left"
 	>
 		<div class="text-secondary hover:text-info flex items-center gap-2">
 			{#if isExpanded}

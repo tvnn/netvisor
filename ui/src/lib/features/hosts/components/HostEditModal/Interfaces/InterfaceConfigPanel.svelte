@@ -77,7 +77,7 @@
 {#if subnet}
 	<div class="space-y-6">
 		<ConfigHeader
-			title={'Interface with subnet ' + (subnet?.name ? subnet.name : subnet.cidr)}
+			title={'Interface with subnet "' + (subnet?.name ? subnet.name : subnet.cidr) + '"'}
 			subtitle={subnet?.description}
 		/>
 

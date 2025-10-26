@@ -176,7 +176,6 @@ impl Discovery<SelfReportDiscovery> {
                 .map(|i| Binding::new_port(own_port_id, Some(i.id)))
                 .collect(),
             host_id: host.id,
-            is_gateway: false,
             virtualization: None,
             source: EntitySource::DiscoveryWithMatch {
                 metadata: vec![DiscoveryMetadata::new(DiscoveryType::SelfReport, daemon_id)],

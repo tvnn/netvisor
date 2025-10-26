@@ -100,7 +100,6 @@ pub fn create_remote_host(remote_subnet: &Subnet, network_id: Uuid) -> (Host, Se
         service_definition: Box::new(Client),
         bindings: vec![binding],
         virtualization: None,
-        is_gateway: false,
         source: EntitySource::System,
     });
 
@@ -142,7 +141,6 @@ pub fn create_internet_connectivity_host(
         service_definition: Box::new(WebService),
         bindings: vec![binding],
         virtualization: None,
-        is_gateway: false,
         source: EntitySource::System,
     });
 
@@ -182,7 +180,6 @@ pub fn create_public_dns_host(internet_subnet: &Subnet, network_id: Uuid) -> (Ho
         service_definition: Box::new(DnsServer),
         bindings: vec![binding],
         virtualization: None,
-        is_gateway: false,
         source: EntitySource::System,
     });
 

@@ -259,7 +259,6 @@ impl Discovery<DockerScanDiscovery> {
             service_definition: Box::new(docker_service_definition),
             bindings: vec![],
             host_id,
-            is_gateway: false,
             network_id,
             virtualization: None,
             source: EntitySource::DiscoveryWithMatch {

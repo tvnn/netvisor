@@ -58,18 +58,20 @@ impl TopologyService {
         let ctx = TopologyContext::new(&hosts, &subnets, &services, &groups, &options);
 
         // Create all edges (needed for anchor analysis)
-        let interface_edges = EdgeBuilder::create_interface_edges(&ctx);
-        let group_edges = EdgeBuilder::create_group_edges(&ctx);
+        let mut all_edges = Vec::new();
+
+        if options.show_interface_edges {
+            all_edges.extend(EdgeBuilder::create_interface_edges(&ctx));
+        }
+
+        all_edges.extend(EdgeBuilder::create_group_edges(&ctx));
         let (container_edges, docker_bridge_host_subnet_id_to_group_on) =
             EdgeBuilder::create_containerized_service_edges(
                 &ctx,
                 options.group_docker_bridges_by_host,
             );
-        let mut all_edges: Vec<Edge> = interface_edges
-            .into_iter()
-            .chain(group_edges)
-            .chain(container_edges)
-            .collect();
+
+        all_edges.extend(container_edges);
 
         // Create nodes with layout
         let mut layout_planner = SubnetLayoutPlanner::new();

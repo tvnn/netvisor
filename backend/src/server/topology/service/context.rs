@@ -3,7 +3,9 @@ use uuid::Uuid;
 use crate::server::{
     groups::types::Group,
     hosts::types::{base::Host, interfaces::Interface, virtualization::HostVirtualization},
-    services::types::{base::Service, virtualization::ServiceVirtualization},
+    services::types::{
+        base::Service, definitions::ServiceDefinitionExt, virtualization::ServiceVirtualization,
+    },
     subnets::types::base::Subnet,
     topology::types::{
         api::TopologyRequestOptions,
@@ -156,7 +158,8 @@ impl<'a> TopologyContext<'a> {
                         .options
                         .infra_service_categories
                         .contains(&s.base.service_definition.category())
-                        || (self.options.show_gateway_as_infra_service && s.base.is_gateway))
+                        || (self.options.show_gateway_as_infra_service
+                            && s.base.service_definition.is_gateway()))
                         && subnet.has_interface_with_service(host, s);
                 }
                 false
