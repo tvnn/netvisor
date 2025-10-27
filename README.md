@@ -12,7 +12,7 @@ NetVisor scans your network, identifies hosts and services, and generates an int
 
 
 <p align="center">
-  <img src="./media/example_visualization.png" width="1200" alt="Example Visualization">
+  <img src="./media/example_visualization.jpeg" width="1200" alt="Example Visualization">
 </p>
 
 ## Table of Contents
