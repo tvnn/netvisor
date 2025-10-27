@@ -86,7 +86,7 @@ class ApiClient {
 				: env.PUBLIC_SERVER_HOSTNAME;
 
 		const url = URL.parse(
-			`${window.location.protocol}/${hostname}:${env.PUBLIC_SERVER_PORT}/api${endpoint}`
+			`${window.location.protocol}//${hostname}:${env.PUBLIC_SERVER_PORT}/api${endpoint}`
 		);
 		const baseErrorMessage = `Failed to ${method} from ${endpoint}`;
 

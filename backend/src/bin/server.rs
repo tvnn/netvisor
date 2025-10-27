@@ -59,14 +59,15 @@ async fn main() -> anyhow::Result<()> {
     // Initialize tracing
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(format!(
-            "netvisor={}",
-            config.log_level
+            "netvisor={},server={}",
+            config.log_level, config.log_level
         )))
         .with(tracing_subscriber::fmt::layer())
         .init();
 
     // Create app state
     let state = AppState::new(config, DiscoverySessionManager::new()).await?;
+    let web_external_path = state.config.web_external_path.clone();
 
     // Create discovery cleanup task
     let cleanup_state = state.clone();
@@ -87,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
     });
 
     // Create router
-    let api_router = if let Some(static_path) = &state.config.web_external_path {
+    let api_router = if let Some(static_path) = &web_external_path {
         Router::new()
             .nest_service("/", ServeDir::new(static_path))
             .merge(create_router())
@@ -113,7 +114,9 @@ async fn main() -> anyhow::Result<()> {
     let actual_port = listener.local_addr()?.port();
 
     tracing::info!("🚀 NetVisor server started successfully");
-    tracing::info!("📊 Web UI: http://<your-ip>:{}", actual_port);
+    if web_external_path.is_some() {
+        tracing::info!("📊 Web UI: http://<your-ip>:{}", actual_port);
+    }
     tracing::info!("🔧 API: http://<your-ip>:{}/api", actual_port);
 
     axum::serve(listener, app).await?;

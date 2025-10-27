@@ -4,7 +4,7 @@
 	import TopologyViewer from './TopologyViewer.svelte';
 	import TopologyOptionsPanel from './options/TopologyOptionsPanel.svelte';
 	import { loadData } from '$lib/shared/utils/dataLoader';
-	import { getTopology, topologyOptions } from '../store';
+	import { getTopology } from '../store';
 	import { RefreshCcw } from 'lucide-svelte';
 	import { getHosts } from '$lib/features/hosts/store';
 	import { getServices } from '$lib/features/services/store';
@@ -13,11 +13,6 @@
 	import { SvelteFlowProvider } from '@xyflow/svelte';
 
 	const loading = loadData([getHosts, getServices, getSubnets, getTopology]);
-
-	// Watch for option changes and reload topology
-	$: if ($topologyOptions) {
-		getTopology();
-	}
 </script>
 
 <SvelteFlowProvider>

@@ -93,7 +93,10 @@
 
 		<!-- Content -->
 		{#if $optionsPanelExpanded}
-			<div class="space-y-4 border-t border-gray-700 p-3">
+			<div
+				class="space-y-4 overflow-y-auto border-t border-gray-700 p-3"
+				style="max-height: calc(100vh - 250px);"
+			>
 				<!-- Helper text -->
 				<div class="rounded bg-gray-800/50 pt-2">
 					<p class="text-tertiary text-[10px] leading-tight">
@@ -119,14 +122,18 @@
 					</select>
 				</div>
 
-				<!-- Boolean Options -->
-				<div class="space-y-3">
+				<OptionsSection title="Docker">
 					<OptionsCheckbox
 						bind:topologyOption={$topologyOptions.request_options.group_docker_bridges_by_host}
 						title="Group Docker Bridges"
 						description="Display Docker containers running on a single host in a single subnet grouping"
 					/>
-				</div>
+					<OptionsCheckbox
+						bind:topologyOption={$topologyOptions.request_options.hide_vm_title_on_docker_container}
+						title="Hide VM provider on containers"
+						description="If a docker container is running on a host that is a VM, don't indicate this on the container node"
+					/>
+				</OptionsSection>
 
 				<OptionsSection title="Left Zone">
 					<div>

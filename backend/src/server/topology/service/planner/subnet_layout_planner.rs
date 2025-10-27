@@ -77,7 +77,9 @@ impl SubnetLayoutPlanner {
         ctx: &TopologyContext,
         interface_bound_services: &Vec<&Service>,
         host: &Host,
+        subnet_type: &SubnetType,
     ) -> Option<String> {
+        // Show virtualization provider, if any
         if let Some(service) = ctx.get_host_is_virtualized_by(&host.id) {
             let host_interface_subnet_ids: Vec<Uuid> = host
                 .base
@@ -103,34 +105,39 @@ impl SubnetLayoutPlanner {
                 .cloned()
                 .collect();
 
-            // If they have one interface on a common subnet, and they both don't have multiple interfaces with the subnet
-            // Use the IP address from that interface in the header text
-            match intersection.first() {
-                Some(first) if intersection.len() == 1 => {
-                    if let Some(interface) = host
-                        .base
-                        .interfaces
-                        .iter()
-                        .find(|i| i.base.subnet_id == **first)
-                        && host_interface_subnet_ids
+            let hide_docker_bridge_vm_header = *subnet_type == SubnetType::DockerBridge
+                && ctx.options.hide_vm_title_on_docker_container;
+
+            if !hide_docker_bridge_vm_header {
+                // If they have at least one interface on a common subnet
+                // Use the IP address from that interface in the header text
+                match intersection.first() {
+                    Some(first) => {
+                        if let Some(interface) = host
+                            .base
+                            .interfaces
                             .iter()
-                            .filter(|i| i == first)
-                            .count()
-                            == 1
-                        && virtualization_service_interface_subnet_ids
-                            .iter()
-                            .filter(|i| i == first)
-                            .count()
-                            == 1
-                    {
-                        return Some(format!(
-                            "VM: {} @ {}",
-                            service.base.name, interface.base.ip_address
-                        ));
+                            .find(|i| i.base.subnet_id == **first)
+                            && host_interface_subnet_ids
+                                .iter()
+                                .filter(|i| i == first)
+                                .count()
+                                == 1
+                            && virtualization_service_interface_subnet_ids
+                                .iter()
+                                .filter(|i| i == first)
+                                .count()
+                                == 1
+                        {
+                            return Some(format!(
+                                "VM: {} @ {}",
+                                service.base.name, interface.base.ip_address
+                            ));
+                        }
+                        return Some(format!("VM: {}", service.base.name));
                     }
-                    return Some(format!("VM: {}", service.base.name));
+                    _ => return Some(format!("VM: {}", service.base.name)),
                 }
-                _ => return Some(format!("VM: {}", service.base.name)),
             }
         }
 
@@ -143,6 +150,7 @@ impl SubnetLayoutPlanner {
 
         let interface_count = host.base.interfaces.len();
 
+        // Assign a name to single-interface services with a host name different from the name of their first service
         if !first_service_name_matches_host_name && host_has_name && interface_count < 2 {
             return Some(host.base.name.clone());
         }
@@ -195,8 +203,12 @@ impl SubnetLayoutPlanner {
                 // Update source/target handles for edges
                 let edges = ChildAnchorPlanner::plan_anchors(interface.id, all_edges, ctx);
 
-                let header_text =
-                    self.determine_subnet_child_header_text(ctx, &interface_bound_services, host);
+                let header_text = self.determine_subnet_child_header_text(
+                    ctx,
+                    &interface_bound_services,
+                    host,
+                    &subnet_type,
+                );
 
                 let child = SubnetChild {
                     id: interface.id,

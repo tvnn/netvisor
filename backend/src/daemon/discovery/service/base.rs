@@ -392,7 +392,6 @@ where
         }
     }
 
-    // Fixed: Add proper error handling and response validation
     pub async fn test_snmp_service(ip: IpAddr) -> Result<Option<u16>, Error> {
         let target = format!("{}:161", ip);
         let community = b"public";
