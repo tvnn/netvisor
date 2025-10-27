@@ -1,25 +1,27 @@
 import { get, writable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import { type Node } from '@xyflow/svelte';
-import { EdgeHandle, type TopologyResponse, type TopologyRequestOptions } from './types/base';
+import { EdgeHandle, type TopologyResponse, type TopologyOptions } from './types/base';
 import { currentNetwork, networks } from '../networks/store';
 
 const OPTIONS_STORAGE_KEY = 'netvisor_topology_options';
 const EXPANDED_STORAGE_KEY = 'netvisor_topology_options_expanded_state';
 
 // Default options
-const defaultOptions: TopologyRequestOptions = {
-	group_docker_bridges_by_host: true,
-	show_gateway_as_infra_service: true,
-	infra_service_categories: ['DNS', 'ReverseProxy'],
-	show_interface_edges: true,
-	hide_service_categories: [],
-	network_ids: [],
-	edge_type: 'smoothstep'
+const defaultOptions: TopologyOptions = {
+	left_zone_title: 'Infrastructure',
+	hide_edge_types: [],
+	request_options: {
+		group_docker_bridges_by_host: true,
+		show_gateway_in_left_zone: true,
+		left_zone_service_categories: ['DNS', 'ReverseProxy'],
+		hide_service_categories: [],
+		network_ids: []
+	}
 };
 
 // Load options from localStorage or use defaults
-function loadOptionsFromStorage(): TopologyRequestOptions {
+function loadOptionsFromStorage(): TopologyOptions {
 	if (typeof window === 'undefined') return defaultOptions;
 
 	try {
@@ -36,7 +38,7 @@ function loadOptionsFromStorage(): TopologyRequestOptions {
 }
 
 // Save options to localStorage
-function saveOptionsToStorage(options: TopologyRequestOptions): void {
+function saveOptionsToStorage(options: TopologyOptions): void {
 	if (typeof window === 'undefined') return;
 
 	try {
@@ -73,7 +75,7 @@ function saveExpandedToStorage(expanded: boolean): void {
 }
 
 export const topology = writable<TopologyResponse>();
-export const topologyOptions = writable<TopologyRequestOptions>(loadOptionsFromStorage());
+export const topologyOptions = writable<TopologyOptions>(loadOptionsFromStorage());
 export const optionsPanelExpanded = writable<boolean>(loadExpandedFromStorage());
 
 // Initialize network_ids with the first network when networks are loaded
@@ -83,8 +85,8 @@ networks.subscribe(($networks) => {
 		networksInitialized = true;
 		topologyOptions.update((opts) => {
 			// Only set default if network_ids is empty
-			if (opts.network_ids.length === 0 && $networks[0]) {
-				opts.network_ids = [$networks[0].id];
+			if (opts.request_options.network_ids.length === 0 && $networks[0]) {
+				opts.request_options.network_ids = [$networks[0].id];
 			}
 			return opts;
 		});
@@ -109,7 +111,7 @@ export async function getTopology() {
 	return await api.request<TopologyResponse>('/topology', topology, (topology) => topology, {
 		method: 'POST',
 		body: JSON.stringify({
-			...options,
+			...options.request_options,
 			network_id: network.id
 		})
 	});

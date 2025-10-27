@@ -26,17 +26,13 @@
 			max="65535"
 			value={port.number}
 			on:input={handlePortNumberChange}
-			class="text-primary w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+			class="input-field"
 		/>
 	</div>
 
 	<div>
 		<div class="text-secondary mb-1 block text-xs font-medium">Protocol</div>
-		<select
-			value={port.protocol}
-			on:change={handleProtocolChange}
-			class="text-primary w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-		>
+		<select value={port.protocol} on:change={handleProtocolChange} class="input-field">
 			<option value="Tcp">TCP</option>
 			<option value="Udp">UDP</option>
 		</select>

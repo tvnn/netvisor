@@ -4,9 +4,12 @@
 		getSmoothStepPath,
 		BaseEdge,
 		EdgeLabel,
-		getBezierPath
+		getBezierPath,
+		getStraightPath
 	} from '@xyflow/svelte';
 	import { topology, topologyOptions } from '../store';
+	import type { TopologyEdge } from '../types/base';
+	import { edgeTypes } from '$lib/shared/stores/metadata';
 
 	let {
 		id,
@@ -26,6 +29,11 @@
 	}: EdgeProps = $props();
 
 	const nodes = $derived($topology.nodes);
+
+	const edgeData = data as TopologyEdge;
+	const edgeTypeMetadata = edgeTypes.getMetadata(edgeData.edge_type);
+
+	let hideEdge = $derived($topologyOptions.hide_edge_types.includes(edgeData.edge_type));
 
 	// Calculate dynamic offset for multi-hop edges
 	function calculateDynamicOffset(isMultiHop: boolean): number {
@@ -78,25 +86,35 @@
 		const isMultiHop = (data?.is_multi_hop as boolean) || false;
 		const offset = calculateDynamicOffset(isMultiHop);
 
-		return $topologyOptions.edge_type == 'smoothstep'
-			? getSmoothStepPath({
-					sourceX,
-					sourceY,
-					sourcePosition,
-					targetX,
-					targetY,
-					targetPosition,
+		const basePathProperties = {
+			sourceX,
+			sourceY,
+			sourcePosition,
+			targetX,
+			targetY,
+			targetPosition
+		};
+
+		switch (edgeTypeMetadata.edge_style) {
+			case 'straight':
+				return getStraightPath(basePathProperties);
+			case 'smoothstep':
+				return getSmoothStepPath({
+					...basePathProperties,
 					borderRadius: 10,
 					offset
-				})
-			: getBezierPath({
-					sourceX,
-					sourceY,
-					sourcePosition,
-					targetX,
-					targetY,
-					targetPosition
 				});
+			case 'bezier':
+				return getBezierPath(basePathProperties);
+			case 'simplebezier':
+				return getBezierPath(basePathProperties);
+			case 'step':
+				return getSmoothStepPath({
+					...basePathProperties,
+					borderRadius: 10,
+					offset
+				});
+		}
 	});
 
 	let labelOffsetX = $state(0);
@@ -122,23 +140,25 @@
 	}
 </script>
 
-<BaseEdge path={edgePath} {markerEnd} {markerStart} {style} {id} />
+{#if !hideEdge}
+	<BaseEdge path={edgePath} {markerEnd} {markerStart} {style} {id} />
 
-{#if label}
-	<EdgeLabel x={labelX + labelOffsetX} y={labelY + labelOffsetY} style="background: none;">
-		<div
-			class="card text-secondary nopan"
-			style="font-size: 12px; font-weight: 500; padding: 0.5rem 0.75rem; border-color: rgb(55 65 81); cursor: {isDragging
-				? 'grabbing'
-				: 'grab'};"
-			draggable="true"
-			role="button"
-			tabindex="0"
-			ondragstart={onDragStart}
-			ondrag={onDrag}
-			ondragend={onDragEnd}
-		>
-			{label}
-		</div>
-	</EdgeLabel>
+	{#if label}
+		<EdgeLabel x={labelX + labelOffsetX} y={labelY + labelOffsetY} style="background: none;">
+			<div
+				class="card text-secondary nopan"
+				style="font-size: 12px; font-weight: 500; padding: 0.5rem 0.75rem; border-color: rgb(55 65 81); cursor: {isDragging
+					? 'grabbing'
+					: 'grab'};"
+				draggable="true"
+				role="button"
+				tabindex="0"
+				ondragstart={onDragStart}
+				ondrag={onDrag}
+				ondragend={onDragEnd}
+			>
+				{label}
+			</div>
+		</EdgeLabel>
+	{/if}
 {/if}

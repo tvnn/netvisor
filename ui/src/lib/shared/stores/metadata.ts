@@ -52,6 +52,7 @@ export interface EdgeTypeMetadata {
 	is_dashed: boolean;
 	has_start_marker: boolean;
 	has_end_marker: boolean;
+	edge_style: 'straight' | 'smoothstep' | 'bezier' | 'simplebezier' | 'step';
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

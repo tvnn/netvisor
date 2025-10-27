@@ -3,9 +3,11 @@ use uuid::Uuid;
 
 use crate::server::topology::types::base::{Ixy, NodeLayout, Uxy};
 
-pub struct GridCalculator;
+pub const SUBNET_PADDING: Uxy = Uxy { x: 125, y: 125 };
+pub const NODE_PADDING: Uxy = Uxy { x: 50, y: 50 };
+pub struct PlannerUtils;
 
-impl GridCalculator {
+impl PlannerUtils {
     /// Figure out closest shape to square that can contain children
     pub fn calculate_grid_dimensions(children_count: usize) -> Uxy {
         if children_count == 0 {
@@ -26,7 +28,6 @@ impl GridCalculator {
     }
 
     /// Calculate container size from positioned nodes
-    /// CHANGED: Now takes HashMap<Uuid, NodeLayout> instead of rows
     pub fn calculate_container_size_from_layouts(
         layouts: &HashMap<Uuid, NodeLayout>,
         padding: &Uxy,
@@ -54,7 +55,7 @@ impl GridCalculator {
         Uxy { x: max_x, y: max_y }
     }
 
-    /// Legacy version for subnet positioning (still uses row-based layout)
+    /// Row based container size calculator for subnet positioning
     /// Calculate the size of a container and positions of arbitrarily-sized children in that container
     pub fn calculate_container_size(
         rows: Vec<Vec<(Uuid, NodeLayout)>>,

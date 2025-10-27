@@ -142,7 +142,7 @@
 	.input-field {
 		@apply w-full rounded-md border border-gray-600 bg-gray-700/50 px-3 py-2 text-white;
 		@apply placeholder-gray-400 transition-colors duration-150;
-		@apply focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500;
+		@apply focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500;
 		@apply disabled:cursor-not-allowed disabled:opacity-50;
 	}
 
@@ -173,7 +173,7 @@
 	}
 
 	.select-option-selected {
-		@apply border-l-2 border-purple-500 bg-purple-900/30;
+		@apply border-l-2 border-blue-500 bg-purple-900/30;
 	}
 
 	/* List items (for ListSelectItem, cards, etc) */

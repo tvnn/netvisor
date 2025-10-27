@@ -142,12 +142,8 @@
 					</div>
 				{:else if host.interfaces.length > 0}
 					<!-- Multiple interfaces - show as dropdown -->
-					<select
-						value={selectValue}
-						on:change={handleInterfaceChange}
-						class="text-primary w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-					>
-						<option value="" disabled>Select interface...</option>
+					<select value={selectValue} on:change={handleInterfaceChange} class="input-field">
+						<option class="select-option" value="" disabled>Select interface...</option>
 						{#each interfaceOptions as { iface, disabled, reason } (iface.id)}
 							<option value={iface.id} {disabled}>
 								{formatInterface(iface)}{disabled && reason ? ` - ${reason}` : ''}
@@ -172,12 +168,8 @@
 					</div>
 				{:else}
 					<!-- Always show dropdown when there are ports, so users can see disabled options -->
-					<select
-						value={binding.port_id}
-						on:change={handlePortChange}
-						class="text-primary w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-					>
-						<option value="" disabled>Select port...</option>
+					<select value={binding.port_id} on:change={handlePortChange} class="input-field">
+						<option class="select-option" value="" disabled>Select port...</option>
 						{#each portOptions as { port, disabled, reason } (port.id)}
 							<option value={port.id} {disabled}>
 								{formatPort(port)}{disabled && reason ? ` - ${reason}` : ''}

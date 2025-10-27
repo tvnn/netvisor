@@ -8,8 +8,12 @@ use crate::server::{
     subnets::types::base::SubnetType,
     topology::{
         service::{
-            anchor_analyzer::ChildEdgeAnalyzer, child_placement::ChildNodePlacement,
-            context::TopologyContext, grid_calculator::GridCalculator,
+            context::TopologyContext,
+            planner::{
+                anchor_planner::ChildAnchorPlanner,
+                child_planner::ChildNodePlanner,
+                utils::{NODE_PADDING, PlannerUtils, SUBNET_PADDING},
+            },
         },
         types::{
             base::{Ixy, NodeLayout, SubnetLayout, Uxy},
@@ -18,9 +22,6 @@ use crate::server::{
         },
     },
 };
-
-pub const SUBNET_PADDING: Uxy = Uxy { x: 125, y: 125 };
-pub const NODE_PADDING: Uxy = Uxy { x: 50, y: 50 };
 
 pub struct SubnetLayoutPlanner {
     consolidated_docker_subnets: HashMap<Uuid, Vec<Uuid>>,
@@ -174,13 +175,6 @@ impl SubnetLayoutPlanner {
                     .services
                     .iter()
                     .filter(|s| {
-                        if ctx
-                            .options
-                            .hide_service_categories
-                            .contains(&s.base.service_definition.category())
-                        {
-                            return false;
-                        }
                         // Services with a binding to the interface
                         s.base.bindings.iter().any(|b| match b.interface_id() {
                             // Service is bound to interface if ID matches
@@ -198,7 +192,8 @@ impl SubnetLayoutPlanner {
                     continue;
                 }
 
-                let edges = ChildEdgeAnalyzer::analyze_child_edges(interface.id, all_edges, ctx);
+                // Update source/target handles for edges
+                let edges = ChildAnchorPlanner::plan_anchors(interface.id, all_edges, ctx);
 
                 let header_text =
                     self.determine_subnet_child_header_text(ctx, &interface_bound_services, host);
@@ -281,14 +276,14 @@ impl SubnetLayoutPlanner {
 
         // Calculate regular nodes layout using coordinate-based system
         let (regular_child_positions, regular_grid_size) = if !regular_children.is_empty() {
-            let positions = ChildNodePlacement::calculate_anchor_based_positions(
+            let positions = ChildNodePlanner::calculate_anchor_based_positions(
                 &regular_children,
                 &NODE_PADDING,
                 ctx,
             );
 
             let container_size =
-                GridCalculator::calculate_container_size_from_layouts(&positions, &NODE_PADDING);
+                PlannerUtils::calculate_container_size_from_layouts(&positions, &NODE_PADDING);
 
             (positions, container_size)
         } else {
@@ -301,7 +296,7 @@ impl SubnetLayoutPlanner {
             0
         } else {
             // Calculate infrastructure nodes layout
-            let positions = ChildNodePlacement::calculate_anchor_based_positions(
+            let positions = ChildNodePlanner::calculate_anchor_based_positions(
                 &infrastructure_children,
                 &NODE_PADDING,
                 ctx,
@@ -315,14 +310,14 @@ impl SubnetLayoutPlanner {
         };
 
         let (infra_child_positions, infra_grid_size) = if !infrastructure_children.is_empty() {
-            let positions = ChildNodePlacement::calculate_anchor_based_positions(
+            let positions = ChildNodePlanner::calculate_anchor_based_positions(
                 &infrastructure_children,
                 &NODE_PADDING,
                 ctx,
             );
 
             let container_size =
-                GridCalculator::calculate_container_size_from_layouts(&positions, &NODE_PADDING);
+                PlannerUtils::calculate_container_size_from_layouts(&positions, &NODE_PADDING);
 
             (positions, container_size)
         } else {
@@ -391,7 +386,7 @@ impl SubnetLayoutPlanner {
     ) -> Vec<Node> {
         let subnet_grid_positions = self.calculate_subnet_grid_positions_by_layer(ctx, layouts);
         let (positions, _) =
-            GridCalculator::calculate_container_size(subnet_grid_positions, &SUBNET_PADDING);
+            PlannerUtils::calculate_container_size(subnet_grid_positions, &SUBNET_PADDING);
 
         layouts
             .iter()

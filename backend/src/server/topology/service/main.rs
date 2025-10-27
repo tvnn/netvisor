@@ -7,12 +7,13 @@ use uuid::Uuid;
 use crate::server::{
     groups::service::GroupService,
     hosts::service::HostService,
-    services::service::ServiceService,
+    services::{service::ServiceService, types::base::Service},
     subnets::service::SubnetService,
     topology::{
         service::{
             context::TopologyContext, edge_builder::EdgeBuilder,
-            optimizer::main::TopologyOptimizer, subnet_layout_planner::SubnetLayoutPlanner,
+            optimizer::main::TopologyOptimizer,
+            planner::subnet_layout_planner::SubnetLayoutPlanner,
         },
         types::{api::TopologyRequestOptions, edges::Edge, nodes::Node},
     },
@@ -52,7 +53,17 @@ impl TopologyService {
         let hosts = self.host_service.get_all_hosts(network_id).await?;
         let subnets = self.subnet_service.get_all_subnets(network_id).await?;
         let groups = self.group_service.get_all_groups(network_id).await?;
-        let services = self.service_service.get_all_services(network_id).await?;
+        let services: Vec<Service> = self
+            .service_service
+            .get_all_services(network_id)
+            .await?
+            .into_iter()
+            .filter(|s| {
+                !options
+                    .hide_service_categories
+                    .contains(&s.base.service_definition.category())
+            })
+            .collect();
 
         // Create context to avoid parameter passing
         let ctx = TopologyContext::new(&hosts, &subnets, &services, &groups, &options);
@@ -60,11 +71,10 @@ impl TopologyService {
         // Create all edges (needed for anchor analysis)
         let mut all_edges = Vec::new();
 
-        if options.show_interface_edges {
-            all_edges.extend(EdgeBuilder::create_interface_edges(&ctx));
-        }
+        all_edges.extend(EdgeBuilder::create_interface_edges(&ctx));
 
         all_edges.extend(EdgeBuilder::create_group_edges(&ctx));
+        all_edges.extend(EdgeBuilder::create_vm_host_edges(&ctx));
         let (container_edges, docker_bridge_host_subnet_id_to_group_on) =
             EdgeBuilder::create_containerized_service_edges(
                 &ctx,

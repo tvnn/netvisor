@@ -28,7 +28,7 @@
 							s.bindings.some(
 								(b) => b.interface_id == null || (iface && b.interface_id == iface.id)
 							) &&
-							!get(topologyOptions).hide_service_categories.includes(
+							!get(topologyOptions).request_options.hide_service_categories.includes(
 								serviceDefinitions.getCategory(s.service_definition)
 							)
 					);

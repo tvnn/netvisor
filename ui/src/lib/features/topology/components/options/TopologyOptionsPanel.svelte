@@ -3,31 +3,67 @@
 	import { networks } from '$lib/features/networks/store';
 	import { ChevronDown, ChevronRight, Settings } from 'lucide-svelte';
 	import OptionsCheckbox from './OptionsCheckbox.svelte';
-	import ServiceCategoryMultiSelect from './ServiceCategoryMultiSelect.svelte';
+	import OptionsMultiSelect from './OptionsMultiSelect.svelte';
+	import OptionsSection from './OptionsSection.svelte';
+	import { onMount } from 'svelte';
+	import { edgeTypes, serviceDefinitions } from '$lib/shared/stores/metadata';
+
+	// Get unique service categories
+	let serviceCategories: string[] = [];
+	let eTypes: string[] = [];
+
+	onMount(() => {
+		const serviceDefinitionItems = serviceDefinitions.getItems() || [];
+		const categoriesSet = new Set(
+			serviceDefinitionItems.map((i) => serviceDefinitions.getCategory(i.id))
+		);
+		serviceCategories = Array.from(categoriesSet)
+			.filter((c) => c)
+			.sort();
+
+		eTypes = edgeTypes.getItems().map((e) => e.id) || [];
+	});
 
 	function handleNetworkChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const selectedOptions = Array.from(target.selectedOptions).map((opt) => opt.value);
 		topologyOptions.update((opts) => {
-			opts.network_ids = selectedOptions;
+			opts.request_options.network_ids = selectedOptions;
 			return opts;
 		});
 	}
 
-	function handleInfraChange(event: Event) {
+	function handleLeftZoneCategoriesChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const selectedOptions = Array.from(target.selectedOptions).map((opt) => opt.value);
 		topologyOptions.update((opts) => {
-			opts.infra_service_categories = selectedOptions;
+			opts.request_options.left_zone_service_categories = selectedOptions;
 			return opts;
 		});
 	}
 
-	function handleHideChange(event: Event) {
+	function handleHideEdgeTypeChange(event: Event) {
 		const target = event.target as HTMLSelectElement;
 		const selectedOptions = Array.from(target.selectedOptions).map((opt) => opt.value);
 		topologyOptions.update((opts) => {
-			opts.hide_service_categories = selectedOptions;
+			opts.hide_edge_types = selectedOptions;
+			return opts;
+		});
+	}
+
+	function handleHideServiceCategoryChange(event: Event) {
+		const target = event.target as HTMLSelectElement;
+		const selectedOptions = Array.from(target.selectedOptions).map((opt) => opt.value);
+		topologyOptions.update((opts) => {
+			opts.request_options.hide_service_categories = selectedOptions;
+			return opts;
+		});
+	}
+
+	function handleLeftZoneTitleChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		topologyOptions.update((opts) => {
+			opts.left_zone_title = target.value;
 			return opts;
 		});
 	}
@@ -70,16 +106,12 @@
 					<label for="network-select" class="text-primary text-s block font-medium">
 						Networks
 					</label>
-					<select
-						id="network-select"
-						multiple
-						on:change={handleNetworkChange}
-						class="text-primary w-full rounded-md border border-gray-600 bg-gray-700 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-					>
+					<select id="network-select" multiple on:change={handleNetworkChange} class="input-field">
 						{#each $networks as network (network.id)}
 							<option
+								class="select-option"
 								value={network.id}
-								selected={$topologyOptions.network_ids.includes(network.id)}
+								selected={$topologyOptions.request_options.network_ids.includes(network.id)}
 							>
 								{network.name}{network.is_default ? ' (Default)' : ''}
 							</option>
@@ -90,37 +122,58 @@
 				<!-- Boolean Options -->
 				<div class="space-y-3">
 					<OptionsCheckbox
-						bind:topologyOption={$topologyOptions.group_docker_bridges_by_host}
+						bind:topologyOption={$topologyOptions.request_options.group_docker_bridges_by_host}
 						title="Group Docker Bridges"
 						description="Display Docker containers running on a single host in a single subnet grouping"
 					/>
-					<OptionsCheckbox
-						bind:topologyOption={$topologyOptions.show_gateway_as_infra_service}
-						title="Show Gateway as Infra"
-						description="Display gateway services in the infra section of subnets they interface with"
-					/>
-					<OptionsCheckbox
-						bind:topologyOption={$topologyOptions.show_interface_edges}
-						title="Show Interface Edges"
-						description="Show edges between interfaces that belong to the same host"
-					/>
 				</div>
 
-				<!-- Infrastructure Service Categories -->
-				<ServiceCategoryMultiSelect
-					bind:topologyOption={$topologyOptions.infra_service_categories}
-					onChange={handleInfraChange}
-					title="Infrastructure Categories"
-					description="Select service categories that should be displayed in the infra section of subnets they interface with"
-				/>
+				<OptionsSection title="Left Zone">
+					<div>
+						<span class="text-secondary block text-sm font-medium">Title</span>
+						<input
+							type="text"
+							value={$topologyOptions.left_zone_title}
+							on:input={handleLeftZoneTitleChange}
+							class="input-field"
+						/>
+						<p class="text-tertiary mt-1 text-xs">
+							Customize the label for each subnet's left zone
+						</p>
+					</div>
 
-				<!-- Hide Service Categories -->
-				<ServiceCategoryMultiSelect
-					bind:topologyOption={$topologyOptions.hide_service_categories}
-					onChange={handleHideChange}
-					title="Hide Categories"
-					description="Select service categories that should be hidden"
-				/>
+					<!-- Infrastructure Service Categories -->
+					<OptionsMultiSelect
+						bind:topologyOption={$topologyOptions.request_options.left_zone_service_categories}
+						options={serviceCategories}
+						onChange={handleLeftZoneCategoriesChange}
+						title="Categories"
+						description="Select service categories that should be displayed in the left zone of subnets they interface with"
+					/>
+
+					<OptionsCheckbox
+						bind:topologyOption={$topologyOptions.request_options.show_gateway_in_left_zone}
+						title="Show gateways in left zone"
+						description="Display gateway services in the subnet's left zone"
+					/>
+				</OptionsSection>
+
+				<OptionsSection title="Hide Stuff">
+					<OptionsMultiSelect
+						bind:topologyOption={$topologyOptions.request_options.hide_service_categories}
+						onChange={handleHideServiceCategoryChange}
+						options={serviceCategories}
+						title="Service Categories"
+						description="Select service categories that should be hidden"
+					/>
+					<OptionsMultiSelect
+						bind:topologyOption={$topologyOptions.hide_edge_types}
+						options={eTypes}
+						onChange={handleHideEdgeTypeChange}
+						title="Edge Types"
+						description="Choose which edge types you would like to hide"
+					/>
+				</OptionsSection>
 			</div>
 		{/if}
 	</div>

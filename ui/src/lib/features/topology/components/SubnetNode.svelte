@@ -7,8 +7,11 @@
 		getSubnetFromId,
 		isContainerSubnet
 	} from '$lib/features/subnets/store';
+	import { topologyOptions } from '../store';
 
 	let { id, data, selected, width, height }: NodeProps = $props();
+
+	let leftZoneTitle = $derived($topologyOptions.left_zone_title);
 
 	let subnet = getSubnetFromId(id) || createEmptySubnetFormData();
 
@@ -67,7 +70,7 @@
 				<div
 					class="text-muted absolute left-1/2 top-0.5 -translate-x-1/2 transform text-[0.5rem] font-semibold"
 				>
-					Infrastructure
+					{leftZoneTitle}
 				</div>
 			</div>
 		{/if}

@@ -6,12 +6,12 @@ use crate::server::topology::{
     types::edges::{Edge, EdgeHandle},
 };
 
-pub struct ChildEdgeAnalyzer;
+pub struct ChildAnchorPlanner;
 
-impl ChildEdgeAnalyzer {
+impl ChildAnchorPlanner {
     /// Analyze edges to determine figure out if they need to change anchor points to avoid intersecting with other nodes
     /// Returns edges
-    pub fn analyze_child_edges(
+    pub fn plan_anchors(
         interface_id: Uuid,
         edges: &mut [Edge],
         ctx: &TopologyContext,

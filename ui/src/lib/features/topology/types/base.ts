@@ -56,9 +56,13 @@ export enum EdgeHandle {
 export interface TopologyRequestOptions {
 	group_docker_bridges_by_host: boolean;
 	network_ids: string[];
-	show_gateway_as_infra_service: boolean;
-	show_interface_edges: boolean;
-	infra_service_categories: string[];
+	show_gateway_in_left_zone: boolean;
+	left_zone_service_categories: string[];
 	hide_service_categories: string[];
-	edge_type: 'smoothstep' | 'bezier';
+}
+
+export interface TopologyOptions {
+	left_zone_title: string;
+	hide_edge_types: string[];
+	request_options: TopologyRequestOptions;
 }

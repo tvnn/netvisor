@@ -101,11 +101,12 @@
 			id="target_type"
 			value={formData.target?.type || 'Interface'}
 			on:change={handleTargetTypeChange}
-			class="text-primary w-full rounded-md border border-gray-600 bg-gray-700 px-3 py-2
-              focus:outline-none focus:ring-2"
+			class="input-field"
 		>
 			{#each targetTypes as targetType (targetType.value)}
-				<option disabled={targetType.disabled} value={targetType.value}>{targetType.label}</option>
+				<option class="select-option" disabled={targetType.disabled} value={targetType.value}
+					>{targetType.label}</option
+				>
 			{/each}
 		</select>
 		<p class="text-tertiary text-xs">How should NetVisor display a link for this host?</p>

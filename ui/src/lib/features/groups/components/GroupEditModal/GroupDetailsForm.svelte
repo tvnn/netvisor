@@ -37,13 +37,9 @@
 	<label for="group_type" class="text-secondary mb-2 block text-sm font-medium">
 		Network Type
 	</label>
-	<select
-		id="group_type"
-		bind:value={formData.group_type}
-		class="text-primary w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2"
-	>
+	<select id="group_type" bind:value={formData.group_type} class="input-field">
 		{#each groupTypes.getItems() as group_type (group_type.id)}
-			<option value={group_type.id}>{group_type.name}</option>
+			<option class="select-option" value={group_type.id}>{group_type.name}</option>
 		{/each}
 	</select>
 	<p class="text-tertiary text-xs">{groupTypes.getDescription(formData.group_type)}</p>

@@ -6,6 +6,7 @@ use uuid::Uuid;
 
 use crate::server::{
     groups::types::GroupType,
+    hosts::types::virtualization::HostVirtualization,
     services::types::virtualization::ServiceVirtualization,
     subnets::types::base::SubnetTypeDiscriminants,
     topology::{
@@ -31,26 +32,14 @@ impl EdgeBuilder {
                             .windows(2)
                             .filter_map(|window| {
                                 let interface_0 = ctx.services.iter().find_map(|s| {
-                                    if ctx
-                                        .options
-                                        .hide_service_categories
-                                        .contains(&s.base.service_definition.category())
-                                    {
-                                        return None;
-                                    } else if let Some(binding) = s.get_binding(window[0]) {
+                                    if let Some(binding) = s.get_binding(window[0]) {
                                         return Some(binding.interface_id());
                                     }
                                     None
                                 });
 
                                 let interface_1 = ctx.services.iter().find_map(|s| {
-                                    if ctx
-                                        .options
-                                        .hide_service_categories
-                                        .contains(&s.base.service_definition.category())
-                                    {
-                                        return None;
-                                    } else if let Some(binding) = s.get_binding(window[1]) {
+                                    if let Some(binding) = s.get_binding(window[1]) {
                                         return Some(binding.interface_id());
                                     }
                                     None
@@ -104,6 +93,7 @@ impl EdgeBuilder {
             .collect()
     }
 
+    // Create edges to connect a host that virtualizes containers via docker to the docker bridge subnets
     pub fn create_containerized_service_edges(
         ctx: &TopologyContext,
         group_docker_bridges_by_host: bool,
@@ -134,10 +124,6 @@ impl EdgeBuilder {
                 docker_service_to_containerized_service_ids
                     .keys()
                     .contains(&s.id)
-                    && !ctx
-                        .options
-                        .hide_service_categories
-                        .contains(&s.base.service_definition.category())
             })
             .filter_map(|s| {
                 let host = ctx.get_host_by_id(s.base.host_id)?;
@@ -250,6 +236,90 @@ impl EdgeBuilder {
             .collect();
 
         (edges, docker_bridge_host_subnet_id_to_group_on)
+    }
+
+    // Create edges to connect a host that virtualizes other hosts as VMs
+    pub fn create_vm_host_edges(ctx: &TopologyContext) -> Vec<Edge> {
+        // Proxmox service interface binding that is present for a given subnet.
+        // There could be multiple host interfaces with a given subnet, we arbitrarily choose the first one so there's
+        // one clustering hub rather than multiple hubs
+        // (subnet_id, proxmox_service_id) : (interface_id)
+        let mut subnet_to_promxox_host_interface_id: HashMap<(Uuid, Uuid), Uuid> = HashMap::new();
+
+        // Hosts VMs managed by a given proxmox service
+        let mut vm_host_id_to_proxmox_service: HashMap<Uuid, Uuid> = HashMap::new();
+
+        ctx.hosts.iter().for_each(|h| {
+            if let Some(HostVirtualization::Proxmox(proxmox_virtualization)) =
+                &h.base.virtualization
+            {
+                // Create mapping between subnet and proxmox interface(s) on that subnet
+                if let Some(promxox_service) =
+                    ctx.get_service_by_id(proxmox_virtualization.service_id)
+                {
+                    promxox_service
+                        .base
+                        .bindings
+                        .iter()
+                        .filter_map(|b| b.interface_id())
+                        .for_each(|i| {
+                            if let Some(subnet) = ctx.get_subnet_from_interface_id(i)
+                                && !subnet_to_promxox_host_interface_id
+                                    .contains_key(&(subnet.id, promxox_service.id))
+                            {
+                                subnet_to_promxox_host_interface_id
+                                    .entry((subnet.id, promxox_service.id))
+                                    .insert_entry(i);
+                            }
+                        });
+                }
+
+                vm_host_id_to_proxmox_service.insert(h.id, proxmox_virtualization.service_id);
+            }
+        });
+
+        // Creates edges between interface that proxmox service has on a given subnet with interfaces that the virtualized host has on the subnet
+        ctx.hosts
+            .iter()
+            .flat_map(|h| {
+                if let Some(proxmox_service_id) = vm_host_id_to_proxmox_service.get(&h.id) {
+                    return h
+                        .base
+                        .interfaces
+                        .iter()
+                        .filter_map(|i| {
+                            if let Some(proxmox_service_interface_id) =
+                                subnet_to_promxox_host_interface_id
+                                    .get(&(i.base.subnet_id, *proxmox_service_id))
+                            {
+                                let is_multi_hop =
+                                    ctx.edge_is_multi_hop(proxmox_service_interface_id, &i.id);
+
+                                let (source_handle, target_handle) =
+                                    EdgeBuilder::determine_interface_handles(
+                                        ctx,
+                                        proxmox_service_interface_id,
+                                        &i.id,
+                                        is_multi_hop,
+                                    )?;
+
+                                return Some(Edge {
+                                    source: *proxmox_service_interface_id,
+                                    target: i.id,
+                                    edge_type: EdgeType::HostVirtualization,
+                                    label: None,
+                                    source_handle,
+                                    target_handle,
+                                    is_multi_hop,
+                                });
+                            }
+                            None
+                        })
+                        .collect();
+                }
+                Vec::new()
+            })
+            .collect()
     }
 
     /// Create interface edges (connecting multiple interfaces on the same host)

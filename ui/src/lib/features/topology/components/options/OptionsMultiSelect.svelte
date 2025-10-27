@@ -1,22 +1,9 @@
 <script lang="ts">
-	import { serviceDefinitions } from '$lib/shared/stores/metadata';
-	import { onMount } from 'svelte';
-
 	export let topologyOption: string[];
+	export let options: string[];
 	export let onChange: (event: Event) => void;
 	export let title: string;
 	export let description: string;
-
-	// Get unique service categories
-	let serviceCategories: string[] = [];
-
-	onMount(() => {
-		const items = serviceDefinitions.getItems() || [];
-		const categoriesSet = new Set(items.map((i) => serviceDefinitions.getCategory(i.id)));
-		serviceCategories = Array.from(categoriesSet)
-			.filter((c) => c)
-			.sort();
-	});
 </script>
 
 <div class="space-y-1.5">
@@ -32,9 +19,9 @@
 		on:change={onChange}
 		class="text-primary w-full rounded-md border border-gray-600 bg-gray-700 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
 	>
-		{#each serviceCategories as category (category)}
-			<option value={category} selected={topologyOption.includes(category)}>
-				{category}
+		{#each options as option (option)}
+			<option value={option} selected={topologyOption.includes(option)}>
+				{option}
 			</option>
 		{/each}
 	</select>

@@ -51,13 +51,9 @@
 	<label for="subnet_type" class="text-secondary mb-2 block text-sm font-medium">
 		Network Type
 	</label>
-	<select
-		id="subnet_type"
-		bind:value={formData.subnet_type}
-		class="text-primary w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2"
-	>
+	<select id="subnet_type" bind:value={formData.subnet_type} class="input-field">
 		{#each subnetTypes.getItems() as subnet_type (subnet_type.id)}
-			<option value={subnet_type.id}>{subnet_type.name}</option>
+			<option class="select-option" value={subnet_type.id}>{subnet_type.name}</option>
 		{/each}
 	</select>
 

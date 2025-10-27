@@ -69,9 +69,9 @@
 					<select
 						value={binding.interface_id}
 						on:change={handleInterfaceChange}
-						class="text-primary w-full rounded border border-gray-600 bg-gray-700 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+						class="input-field"
 					>
-						<option value="" disabled>Select interface...</option>
+						<option class="select-option" value="" disabled>Select interface...</option>
 						{#each interfaceOptions as { iface, disabled, reason } (iface.id)}
 							<option value={iface.id} {disabled}>
 								{formatInterface(iface)}{disabled && reason ? ` - ${reason}` : ''}

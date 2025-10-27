@@ -9,9 +9,9 @@ use crate::server::topology::{
     },
 };
 
-pub struct ChildNodePlacement;
+pub struct ChildNodePlanner;
 
-impl ChildNodePlacement {
+impl ChildNodePlanner {
     /// Calculate child positions using grid-based layout with continuous coordinates
     /// Places nodes in a grid pattern but uses actual pixel positions for overlap resolution
     pub fn calculate_anchor_based_positions(

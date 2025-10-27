@@ -34,6 +34,18 @@ pub enum EdgeHandle {
     Right,
 }
 
+#[derive(
+    Serialize, Copy, Deserialize, Debug, Clone, Eq, PartialEq, Hash, Default, IntoStaticStr,
+)]
+pub enum EdgeStyle {
+    #[default]
+    Straight,
+    SmoothStep,
+    Step,
+    Bezier,
+    SimpleBezier,
+}
+
 impl EdgeHandle {
     pub fn layout_priority(&self) -> u8 {
         match self {
@@ -51,6 +63,10 @@ impl EdgeHandle {
             EdgeHandle::Left => Ixy { x: -1, y: 0 },
             EdgeHandle::Right => Ixy { x: 1, y: 0 },
         }
+    }
+
+    pub fn is_horizontal(&self) -> bool {
+        matches!(self, EdgeHandle::Left | EdgeHandle::Right)
     }
 
     /// Determine edge handle orientations based on subnet layer and priority
@@ -274,6 +290,13 @@ impl TypeMetadataProvider for EdgeType {
     }
 
     fn metadata(&self) -> serde_json::Value {
+        let edge_style: &str = match &self {
+            EdgeType::Group(_) => EdgeStyle::SmoothStep.into(),
+            EdgeType::Interface => EdgeStyle::SmoothStep.into(),
+            EdgeType::HostVirtualization => EdgeStyle::Straight.into(),
+            EdgeType::ServiceVirtualization => EdgeStyle::SmoothStep.into(),
+        };
+
         let is_dashed = match &self {
             EdgeType::Group(_) => false,
             EdgeType::Interface => true,
@@ -294,6 +317,7 @@ impl TypeMetadataProvider for EdgeType {
             "is_dashed": is_dashed,
             "has_start_marker": has_start_marker,
             "has_end_marker": has_end_marker,
+            "edge_style": edge_style.to_lowercase()
         })
     }
 }

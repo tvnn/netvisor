@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::server::topology::service::subnet_layout_planner::NODE_PADDING;
+use crate::server::topology::service::planner::utils::NODE_PADDING;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct Uxy {

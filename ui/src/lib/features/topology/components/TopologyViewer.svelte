@@ -89,6 +89,7 @@
 							markerStart,
 							sourceHandle: edge.source_handle.toString(),
 							targetHandle: edge.target_handle.toString(),
+
 							type: 'custom',
 							label: edge.label,
 							style: `stroke: ${edgeColorHelper.rgb}; stroke-width: 2px; ${dashArray}`,

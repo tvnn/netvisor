@@ -20,30 +20,45 @@ impl OptimizerUtils {
         Self {}
     }
 
-    /// Calculate total edge length for a set of edges
-    pub fn calculate_edge_length(
-        &self,
-        nodes: &[Node],
-        edges: &[&Edge],
-        subnet_positions: &HashMap<Uuid, Ixy>,
-    ) -> f64 {
+    /// Calculate total Euclidean length of all inter-subnet edges
+    /// Only considers edges between different subnets (ignores intra-subnet edges)
+    pub fn calculate_total_edge_length(&self, nodes: &[Node], edges: &[Edge]) -> f64 {
+        let subnet_positions: HashMap<Uuid, Ixy> = nodes
+            .iter()
+            .filter_map(|n| match n.node_type {
+                NodeType::SubnetNode { .. } => Some((n.id, n.position)),
+                _ => None,
+            })
+            .collect();
+
         let node_map: HashMap<Uuid, &Node> = nodes.iter().map(|n| (n.id, n)).collect();
+
         let mut total_length = 0.0;
 
         for edge in edges {
             if let (Some(src_node), Some(tgt_node)) =
                 (node_map.get(&edge.source), node_map.get(&edge.target))
             {
-                let src_pos = self.get_absolute_node_position(src_node, subnet_positions);
-                let tgt_pos = self.get_absolute_node_position(tgt_node, subnet_positions);
+                let pos1 = self.get_absolute_node_center(src_node, &subnet_positions);
+                let pos2 = self.get_absolute_node_center(tgt_node, &subnet_positions);
 
-                let dx = (tgt_pos.x - src_pos.x) as f64;
-                let dy = (tgt_pos.y - src_pos.y) as f64;
+                let dx = pos2.x as f64 - pos1.x as f64;
+                let dy = pos2.y as f64 - pos1.y as f64;
                 total_length += (dx * dx + dy * dy).sqrt();
             }
         }
 
         total_length
+    }
+
+    pub fn calculate_median(&self, values: &mut [f64]) -> f64 {
+        values.sort_by(|a, b| a.total_cmp(b));
+        if values.len().is_multiple_of(2) {
+            let mid = values.len() / 2;
+            (values[mid - 1] + values[mid]) / 2.0
+        } else {
+            values[values.len() / 2]
+        }
     }
 
     pub fn swap_node_positions(&self, nodes: &mut [Node], node_id_1: Uuid, node_id_2: Uuid) {
@@ -169,24 +184,6 @@ impl OptimizerUtils {
 
     fn on_segment(&self, x1: f64, y1: f64, x2: f64, y2: f64, x: f64, y: f64) -> bool {
         x <= x1.max(x2) && x >= x1.min(x2) && y <= y1.max(y2) && y >= y1.min(y2)
-    }
-
-    /// Get absolute position of a node (including subnet offset)
-    pub fn get_absolute_node_position(
-        &self,
-        node: &Node,
-        subnet_positions: &HashMap<Uuid, Ixy>,
-    ) -> Ixy {
-        let mut pos = node.position;
-
-        if let NodeType::InterfaceNode { subnet_id, .. } = node.node_type
-            && let Some(subnet_pos) = subnet_positions.get(&subnet_id)
-        {
-            pos.x += subnet_pos.x;
-            pos.y += subnet_pos.y;
-        }
-
-        pos
     }
 
     /// Get absolute center point of a node (including subnet offset)

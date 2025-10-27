@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use uuid::Uuid;
 
 use crate::server::{
@@ -7,12 +9,53 @@ use crate::server::{
         base::Service, definitions::ServiceDefinitionExt, virtualization::ServiceVirtualization,
     },
     subnets::types::base::Subnet,
-    topology::types::{
-        api::TopologyRequestOptions,
-        edges::Edge,
-        nodes::{Node, NodeType},
+    topology::{
+        service::optimizer::utils::OptimizerUtils,
+        types::{
+            api::TopologyRequestOptions,
+            base::Ixy,
+            edges::Edge,
+            nodes::{Node, NodeType},
+        },
     },
 };
+
+/// Composite quality score for graph layout
+/// Lower scores are better (minimizing edge crossings and edge length)
+#[derive(Debug, Clone, Copy)]
+pub struct LayoutQuality {
+    pub total_edge_length: f64,
+    pub edge_crossings: usize,
+    /// Weighted combination: crossings are heavily penalized
+    /// Formula: (crossings * 10000) + edge_length
+    /// This ensures that reducing crossings is prioritized over reducing edge length
+    pub weighted_score: f64,
+}
+
+impl LayoutQuality {
+    pub fn new(total_edge_length: f64, edge_crossings: usize) -> Self {
+        // Crossings are weighted heavily (10000x) because they severely impact readability
+        let weighted_score = (edge_crossings as f64 * 10000.0) + total_edge_length;
+        Self {
+            total_edge_length,
+            edge_crossings,
+            weighted_score,
+        }
+    }
+
+    /// Returns true if this quality is better (lower score) than other
+    pub fn is_better_than(&self, other: &LayoutQuality) -> bool {
+        self.weighted_score < other.weighted_score
+    }
+
+    /// Returns the relative improvement as a percentage
+    pub fn improvement_percentage(&self, previous: &LayoutQuality) -> f64 {
+        if previous.weighted_score == 0.0 {
+            return 0.0;
+        }
+        ((previous.weighted_score - self.weighted_score) / previous.weighted_score) * 100.0
+    }
+}
 
 /// Central context for topology building operations
 /// Reduces parameter passing and provides helper methods
@@ -22,6 +65,7 @@ pub struct TopologyContext<'a> {
     pub services: &'a [Service],
     pub groups: &'a [Group],
     pub options: &'a TopologyRequestOptions,
+    utils: OptimizerUtils,
 }
 
 impl<'a> TopologyContext<'a> {
@@ -38,6 +82,7 @@ impl<'a> TopologyContext<'a> {
             services,
             groups,
             options,
+            utils: OptimizerUtils::new(),
         }
     }
 
@@ -156,9 +201,9 @@ impl<'a> TopologyContext<'a> {
                 if let Some(host) = self.hosts.iter().find(|h| h.id == s.base.host_id) {
                     return (self
                         .options
-                        .infra_service_categories
+                        .left_zone_service_categories
                         .contains(&s.base.service_definition.category())
-                        || (self.options.show_gateway_as_infra_service
+                        || (self.options.show_gateway_in_left_zone
                             && s.base.service_definition.is_gateway()))
                         && subnet.has_interface_with_service(host, s);
                 }
@@ -204,5 +249,41 @@ impl<'a> TopologyContext<'a> {
             .any(|id| !infra_interfaces.contains(&Some(*id)));
 
         has_infra && has_non_infra
+    }
+
+    /// Calculate overall quality score for the current graph layout
+    /// This implements a composite quality metric combining:
+    /// 1. Total edge length (aesthetic - shorter edges are cleaner)
+    /// 2. Edge crossings (critical - crossings severely hurt readability)
+    ///
+    /// Used to guide optimization and detect convergence
+    pub fn calculate_layout_quality(&self, nodes: &[Node], edges: &[Edge]) -> LayoutQuality {
+        let total_edge_length = self.utils.calculate_total_edge_length(nodes, edges);
+        let edge_crossings = self.count_edge_crossings(nodes, edges);
+
+        LayoutQuality::new(total_edge_length, edge_crossings)
+    }
+
+    /// Count the number of edge crossings in the graph
+    /// Uses geometric intersection detection on inter-subnet edges
+    /// Each pair of intersecting edges counts as one crossing
+    fn count_edge_crossings(&self, nodes: &[Node], edges: &[Edge]) -> usize {
+        let subnet_positions: HashMap<Uuid, Ixy> = nodes
+            .iter()
+            .filter_map(|n| match n.node_type {
+                NodeType::SubnetNode { .. } => Some((n.id, n.position)),
+                _ => None,
+            })
+            .collect();
+
+        let node_map: HashMap<Uuid, Node> = nodes.iter().map(|n| (n.id, n.clone())).collect();
+
+        let inter_subnet_edges: Vec<&Edge> = edges
+            .iter()
+            .filter(|e| !self.edge_is_intra_subnet(e))
+            .collect();
+
+        self.utils
+            .count_edge_crossings(&inter_subnet_edges, &node_map, &subnet_positions)
     }
 }
