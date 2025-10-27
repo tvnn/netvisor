@@ -5,6 +5,8 @@ export default defineConfig({
 	plugins: [sveltekit()],
 
 	server: {
+		host: '0.0.0.0',
+		allowedHosts: ["netvisor-dev.local"],
 		port: 5173,
 		proxy: {
 			'/api': {
