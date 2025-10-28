@@ -29,9 +29,9 @@
 	function getInitialTab(): string {
 		if (typeof window !== 'undefined') {
 			const hash = window.location.hash.substring(1); // Remove the #
-			return validTabs.includes(hash) ? hash : 'hosts';
+			return validTabs.includes(hash) ? hash : 'discovery';
 		}
-		return 'hosts';
+		return 'discovery';
 	}
 
 	function handleTabChange(tab: string) {

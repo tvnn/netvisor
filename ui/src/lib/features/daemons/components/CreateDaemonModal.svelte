@@ -81,35 +81,18 @@
 			<p class="text-tertiary text-xs">Select the network that this daemon will report data to</p>
 		{/if}
 
-		<div class="text-secondary mt-3">
-			Option 1. Run the install script, then start the daemon
-		</div>
+		<div class="text-secondary mt-3">Option 1. Run the install script, then start the daemon</div>
 
-		<CodeContainer
-			language="bash"
-			expandable={false}
-			code={installCommand}
-		/>
+		<CodeContainer language="bash" expandable={false} code={installCommand} />
 
-		<CodeContainer
-			language="bash"
-			expandable={false}
-			code={runCommand}
-		/>
+		<CodeContainer language="bash" expandable={false} code={runCommand} />
 
-		<div class="text-secondary mt-3">
-			Option 2. Run this docker-compose
-		</div>
+		<div class="text-secondary mt-3">Option 2. Run this docker-compose</div>
 
 		<CodeContainer
 			language="yaml"
 			expandable={false}
-			code={populateDockerCompose(
-				dockerTemplate,
-				serverTarget,
-				serverPort,
-				selectedNetworkId
-			)}
+			code={populateDockerCompose(dockerTemplate, serverTarget, serverPort, selectedNetworkId)}
 		/>
 	</div>
 </EditModal>

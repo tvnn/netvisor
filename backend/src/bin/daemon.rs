@@ -150,7 +150,6 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
-
     // Spawn heartbeat task in background
     tokio::spawn(async move {
         if let Err(e) = runtime_service.heartbeat().await {
