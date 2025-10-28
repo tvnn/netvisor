@@ -6,6 +6,7 @@ import { getHosts } from '../hosts/store';
 import { getSubnets } from '../subnets/store';
 import { getServices } from '../services/store';
 import { SSEClient, type SSEClient as SSEClientType } from '$lib/shared/utils/sse';
+import { getDaemons } from '../daemons/store';
 
 // session_id to latest update
 export const sessions = writable<Map<string, DiscoveryUpdatePayload>>(new Map());
@@ -37,6 +38,7 @@ export function startDiscoverySSE() {
 					getHosts();
 					getServices();
 					getSubnets();
+					getDaemons();
 					lastDiscoveredCount.set(update.session_id, currentCount);
 				}
 
@@ -47,6 +49,7 @@ export function startDiscoverySSE() {
 					getHosts();
 					getServices();
 					getSubnets();
+					getDaemons();
 
 					// Cleanup
 					setTimeout(() => {

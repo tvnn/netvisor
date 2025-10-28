@@ -8,7 +8,8 @@
 	export let service: Service | undefined = undefined;
 	export let host: Host | undefined = undefined;
 
-	$: iface = getInterfaceFromId(binding.interface_id);
+	$: ifaceStore = getInterfaceFromId(binding.interface_id);
+	$: iface = $ifaceStore;
 
 	// Create interface options with disabled state
 	$: interfaceOptions =

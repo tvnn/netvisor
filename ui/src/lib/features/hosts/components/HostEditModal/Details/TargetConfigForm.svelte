@@ -5,19 +5,23 @@
 	import type { FormType } from '$lib/shared/components/forms/types';
 	import InlineWarning from '$lib/shared/components/feedback/InlineWarning.svelte';
 	import { getBindingFromId, getServicesForHost } from '$lib/features/services/store';
-	import type { Binding } from '$lib/features/services/types/base';
 	import { BindingWithServiceDisplay } from '$lib/shared/components/forms/selection/display/BindingWithServiceDisplay.svelte';
+	import { derived, readable } from 'svelte/store';
 
 	export let form: FormType;
 	export let formData: Host;
 
-	let selectedBinding: Binding | null = null;
+	$: selectedBindingStore =
+		formData.target.type == 'ServiceBinding'
+			? getBindingFromId(formData.target.config)
+			: readable(null);
 
-	if (formData.target.type == 'ServiceBinding') {
-		selectedBinding = getBindingFromId(formData.target.config);
-	}
+	$: selectedBinding = $selectedBindingStore;
 
-	$: serviceBindings = getServicesForHost(formData.id).flatMap((s) => s.bindings);
+	$: serviceBindingsStore = derived(getServicesForHost(formData.id), ($services) =>
+		$services.flatMap((s) => s.bindings)
+	);
+	$: serviceBindings = $serviceBindingsStore;
 
 	$: hostnameField = form.getField('hostname');
 	$: has_hostname = $hostnameField ? $hostnameField.value.length > 0 : false;
@@ -66,7 +70,6 @@
 				type: 'ServiceBinding',
 				config: binding_id
 			};
-			selectedBinding = serviceBindings[0];
 		} else if (newType === 'Hostname') {
 			formData.target = {
 				type: 'Hostname'
@@ -83,13 +86,11 @@
 
 	// Handle interface selection
 	function handleServiceBindingSelect(binding_id: string) {
-		let binding = getBindingFromId(binding_id);
-		if (binding) {
-			selectedBinding = binding;
-			if (formData.target.type == 'ServiceBinding') {
-				formData.target.config = binding.id;
-			}
+		if (formData.target.type == 'ServiceBinding') {
+			formData.target.config = binding_id;
 		}
+		// Force reactivity update
+		formData = { ...formData };
 	}
 </script>
 

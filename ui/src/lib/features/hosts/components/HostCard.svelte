@@ -9,7 +9,8 @@
 	import { sessions } from '$lib/features/discovery/store';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import type { Group } from '$lib/features/groups/types/base';
-	import { getServiceById, getServicesForHostReactive } from '$lib/features/services/store';
+	import { getServiceById, getServicesForHost } from '$lib/features/services/store';
+	import { get } from 'svelte/store';
 
 	export let host: Host;
 	export let daemon: Daemon | null;
@@ -27,7 +28,7 @@
 	$: discoveryData =
 		hostIsRunningDiscovery && daemon ? getDaemonDiscoveryData(daemon.id, $sessions) : null;
 
-	$: hostServicesStore = getServicesForHostReactive(host.id);
+	$: hostServicesStore = getServicesForHost(host.id);
 	$: hostServices = $hostServicesStore;
 	$: servicesThatManageVmsIds = hostServices
 		.filter(
@@ -60,7 +61,7 @@
 	// Build card data
 	$: cardData = {
 		title: host.name,
-		link: host.target.type != 'None' ? `http://${getHostTargetString(host)}` : undefined,
+		link: host.target.type != 'None' ? `http://${get(getHostTargetString(host))}` : undefined,
 		iconColor: entities.getColorHelper('Host').icon,
 		icon:
 			serviceDefinitions.getIconComponent(hostServices[0]?.service_definition) ||
@@ -71,7 +72,8 @@
 						{
 							label: 'VM Managed By',
 							value:
-								getServiceById(host.virtualization.details.service_id)?.name || 'Unknown Service'
+								get(getServiceById(host.virtualization.details.service_id))?.name ||
+								'Unknown Service'
 						}
 					]
 				: [])

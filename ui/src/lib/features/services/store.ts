@@ -1,4 +1,4 @@
-import { writable, get, derived } from 'svelte/store';
+import { writable, get, derived, type Readable, readable } from 'svelte/store';
 import { api } from '../../shared/utils/api';
 import type { Binding, Service } from './types/base';
 import { formatPort, utcTimeZoneSentinel, uuidv4Sentinel } from '$lib/shared/utils/formatting';
@@ -6,6 +6,7 @@ import { formatInterface, getInterfaceFromId, getPortFromId, hosts } from '../ho
 import { ALL_INTERFACES, type Host } from '../hosts/types/base';
 import { groups } from '../groups/store';
 import { currentNetwork } from '../networks/store';
+import type { Subnet } from '../subnets/types/base';
 
 export const services = writable<Service[]>([]);
 
@@ -51,62 +52,72 @@ export function formatServiceLabel(service: Service | null, host: Host | null): 
 	} else if (host && !service) {
 		return host.name + ': Unknown Service';
 	} else if (!host && service) {
-		return service.name + '(Unknown Host)';
+		return service.name + ' (Unknown Host)';
 	} else {
 		return 'Unknown Service';
 	}
 }
 
-export function formatServiceLabels(service_ids: string[]) {
-	return service_ids.map((service_id) => {
-		const service = get(services).find((s) => s.id === service_id);
-		const host = service ? get(hosts).find((h) => h.id === service.host_id) : null;
+export function formatServiceLabels(
+	service_ids: string[]
+): Readable<{ id: string; label: string }[]> {
+	return derived([services, hosts], ([$services, $hosts]) => {
+		return service_ids.map((service_id) => {
+			const service = $services.find((s) => s.id === service_id);
+			const host = service ? $hosts.find((h) => h.id === service.host_id) : null;
 
-		return {
-			id: service_id,
-			label: formatServiceLabel(service || null, host || null)
-		};
+			return {
+				id: service_id,
+				label: formatServiceLabel(service || null, host || null)
+			};
+		});
 	});
 }
 
-export function getServiceById(service_id: string): Service | null {
-	return get(services).find((s) => s.id == service_id) || null;
+export function getServiceById(service_id: string): Readable<Service | null> {
+	return derived([services], ([$services]) => {
+		return $services.find((s) => s.id == service_id) || null;
+	});
 }
 
-export function getServiceHost(service_id: string): Host | null {
-	const service = get(services).find((s) => s.id == service_id);
-	if (service) {
-		const host = get(hosts).find((h) => h.id == service.host_id) || null;
-		return host;
-	}
-	return null;
-}
-
-export function getServicesForHost(host_id: string): Service[] {
-	const host = get(hosts).find((h) => h.id == host_id);
-
-	if (host) {
-		const serviceMap = new Map(get(services).map((s) => [s.id, s]));
-		return host.services.map((id) => serviceMap.get(id)).filter((s) => s != undefined);
-	} else {
-		return [];
-	}
-}
-
-export function getServicesForHostReactive(host_id: string) {
+export function getServiceHost(service_id: string): Readable<Host | null> {
 	return derived([hosts, services], ([$hosts, $services]) => {
-		const host = $hosts.find((h) => h.id === host_id);
-
-		if (host) {
-			const serviceMap = new Map($services.map((s) => [s.id, s]));
-			return host.services.map((id) => serviceMap.get(id)).filter((s) => s !== undefined);
-		} else {
-			return [];
+		const service = $services.find((s) => s.id == service_id);
+		if (service) {
+			const host = $hosts.find((h) => h.id == service.host_id) || null;
+			return host;
 		}
+		return null;
 	});
 }
 
-export function getServicesForGroupReactive(group_id: string) {
+export function getServicesForSubnet(subnet: Subnet): Readable<Service[]> {
+	return derived([services, hosts], ([$services, $hosts]) => {
+		const host_ids = $hosts
+			.filter((h) => h.interfaces.some((i) => i.subnet_id == subnet.id))
+			.map((h) => h.id);
+		const interface_ids = $hosts
+			.flatMap((h) => h.interfaces)
+			.filter((i) => i.subnet_id == subnet.id)
+			.map((i) => i.id);
+
+		return $services.filter((s) => {
+			return s.bindings.some(
+				(b) =>
+					(b.interface_id && interface_ids.includes(b.interface_id)) ||
+					(host_ids.includes(s.host_id) && b.interface_id == null)
+			);
+		});
+	});
+}
+
+export function getServicesForHost(host_id: string): Readable<Service[]> {
+	return derived([services], ([$services]) => {
+		return $services.filter((s) => s.host_id == host_id);
+	});
+}
+
+export function getServicesForGroup(group_id: string): Readable<Service[]> {
 	return derived([groups, services], ([$groups, $services]) => {
 		const group = $groups.find((g) => g.id == group_id);
 
@@ -124,13 +135,15 @@ export function getServicesForGroupReactive(group_id: string) {
 	});
 }
 
-export function serviceHasInterfaceOnSubnet(service: Service, subnetId: string): boolean {
-	const host = getServiceHost(service.id);
-	if (!host) return false;
+export function serviceHasInterfaceOnSubnet(service: Service, subnetId: string): Readable<boolean> {
+	return derived([hosts], ([$hosts]) => {
+		const host = $hosts.find((h) => h.id == service.host_id);
+		if (!host) return false;
 
-	return service.bindings.some((binding) => {
-		const iface = host.interfaces.find((iface) => iface.id === binding.interface_id);
-		return iface && iface.subnet_id === subnetId;
+		return service.bindings.some((binding) => {
+			const iface = host.interfaces.find((iface) => iface.id === binding.interface_id);
+			return iface && iface.subnet_id === subnetId;
+		});
 	});
 }
 
@@ -138,57 +151,73 @@ export function getServiceName(service: Service): string {
 	return service.name || service.service_definition;
 }
 
-export function getServicesForPort(port_id: string): Service[] {
-	const host = get(hosts).find((h) => h.ports.some((p) => p.id === port_id));
+export function getServicesForPort(port_id: string): Readable<Service[]> {
+	return derived([hosts, services], ([$hosts, $services]) => {
+		const host = $hosts.find((h) => h.ports.some((p) => p.id === port_id));
 
-	if (host) {
-		const services = getServicesForHost(host.id);
-		return services.filter((s) =>
-			s.bindings.some((b) => b.type == 'Port' && b.port_id === port_id)
-		);
-	}
-	return [];
-}
-
-export function getServicesForInterface(interface_id: string): Service[] {
-	const host = get(hosts).find((h) => h.interfaces.some((i) => i.id === interface_id));
-
-	if (host) {
-		const services = getServicesForHost(host.id);
-		return services.filter((s) => s.bindings.some((b) => b.interface_id === interface_id));
-	}
-	return [];
-}
-
-export function getServiceForBinding(binding_id: string): Service | null {
-	return get(services).find((s) => s.bindings.map((b) => b.id).includes(binding_id)) || null;
-}
-
-export function getBindingFromId(id: string): Binding | null {
-	return (
-		get(services)
-			.flatMap((s) => s.bindings)
-			.find((b) => b.id == id) || null
-	);
-}
-
-export function getBindingDisplayName(binding: Binding): string {
-	const service = getServiceForBinding(binding.id);
-	if (service) {
-		const iface = binding.interface_id ? getInterfaceFromId(binding.interface_id) : ALL_INTERFACES;
-		const host = getServiceHost(service.id);
 		if (host) {
-			switch (binding.type) {
-				case 'Interface':
-					if (iface) return formatInterface(iface);
-					break;
-				case 'Port': {
-					const port = getPortFromId(binding.port_id);
-					if (port && iface) return formatInterface(iface) + ' · ' + formatPort(port);
-					break;
+			return $services.filter(
+				(s) =>
+					s.host_id == host.id && s.bindings.some((b) => b.type == 'Port' && b.port_id === port_id)
+			);
+		}
+		return [];
+	});
+}
+
+export function getServicesForInterface(interface_id: string): Readable<Service[]> {
+	return derived([hosts, services], ([$hosts, $services]) => {
+		const host = $hosts.find((h) => h.interfaces.some((i) => i.id === interface_id));
+
+		if (host) {
+			return $services.filter(
+				(s) => s.host_id == host.id && s.bindings.some((b) => b.interface_id === interface_id)
+			);
+		}
+		return [];
+	});
+}
+
+export function getServiceForBinding(binding_id: string): Readable<Service | null> {
+	return derived([services], ([$services]) => {
+		return $services.find((s) => s.bindings.map((b) => b.id).includes(binding_id)) || null;
+	});
+}
+
+export function getBindingFromId(id: string): Readable<Binding | null> {
+	return derived([services], ([$services]) => {
+		return $services.flatMap((s) => s.bindings).find((b) => b.id == id) || null;
+	});
+}
+
+export function getBindingDisplayName(binding: Binding): Readable<string> {
+	return derived(
+		[
+			getServiceForBinding(binding.id),
+			getInterfaceFromId(binding.interface_id || ''),
+			binding.type == 'Port' ? getPortFromId(binding.port_id || '') : readable(null),
+			hosts
+		],
+		([$service, $iface, $port, $hosts]) => {
+			if ($service) {
+				const interfaceToUse = $iface || ALL_INTERFACES;
+				const host = $hosts.find((h) => h.id === $service.host_id);
+
+				if (host) {
+					switch (binding.type) {
+						case 'Interface':
+							if (interfaceToUse) return formatInterface(interfaceToUse);
+							break;
+						case 'Port': {
+							if ($port && interfaceToUse) {
+								return formatInterface(interfaceToUse) + ' · ' + formatPort($port);
+							}
+							break;
+						}
+					}
 				}
 			}
+			return 'Unknown Binding';
 		}
-	}
-	return 'Unknown Binding';
+	);
 }

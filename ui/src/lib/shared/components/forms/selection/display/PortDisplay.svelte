@@ -30,7 +30,9 @@
 							s.bindings
 								.filter((b) => b.type == 'Port' && b.port_id == port.id)
 								.map((b) => {
-									let iface = b.interface_id ? getInterfaceFromId(b.interface_id) : ALL_INTERFACES;
+									let iface = b.interface_id
+										? get(getInterfaceFromId(b.interface_id))
+										: ALL_INTERFACES;
 									if (iface) {
 										return formatInterface(iface);
 									} else {
@@ -62,6 +64,7 @@
 <script lang="ts">
 	import ListSelectItem from '../ListSelectItem.svelte';
 	import { formatInterface, getInterfaceFromId } from '$lib/features/hosts/store';
+	import { get } from 'svelte/store';
 
 	export let item: Port;
 </script>

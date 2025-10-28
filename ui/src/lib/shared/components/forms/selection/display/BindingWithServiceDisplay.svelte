@@ -5,13 +5,13 @@
 	export const BindingWithServiceDisplay: EntityDisplayComponent<Binding> = {
 		getId: (binding: Binding) => binding.id,
 		getLabel: (binding: Binding) => {
-			const service = getServiceForBinding(binding.id);
+			const service = get(getServiceForBinding(binding.id));
 			return service?.name || 'Unknown Service';
 		},
 		getDescription: (binding: Binding) => {
-			const service = getServiceForBinding(binding.id);
+			const service = get(getServiceForBinding(binding.id));
 			if (service) {
-				const host = getServiceHost(service?.id);
+				const host = get(getServiceHost(service?.id));
 				if (host) {
 					return host.name;
 				}
@@ -20,25 +20,25 @@
 			return 'Unknown Host';
 		},
 		getIcon: (binding: Binding) => {
-			const service = getServiceForBinding(binding.id);
+			const service = get(getServiceForBinding(binding.id));
 			if (!service) return entities.getIconComponent('Service');
 
 			return serviceDefinitions.getIconComponent(service.service_definition);
 		},
 		getIconColor: (binding: Binding) => {
-			const service = getServiceForBinding(binding.id);
+			const service = get(getServiceForBinding(binding.id));
 			if (!service) return 'text-secondary';
 
 			return serviceDefinitions.getColorHelper(service.service_definition).icon;
 		},
 		getTags: (binding: Binding) => {
-			const service = getServiceForBinding(binding.id);
+			const service = get(getServiceForBinding(binding.id));
 			if (!service) return [];
 
 			const tags = [];
 
 			const iface = binding.interface_id
-				? getInterfaceFromId(binding.interface_id)
+				? get(getInterfaceFromId(binding.interface_id))
 				: ALL_INTERFACES;
 
 			if (iface) {
@@ -49,7 +49,7 @@
 			}
 
 			if (binding.type == 'Port') {
-				const port = getPortFromId(binding.port_id);
+				const port = get(getPortFromId(binding.port_id));
 
 				if (port) {
 					tags.push({
@@ -63,7 +63,7 @@
 		},
 		getIsDisabled: () => false,
 		getCategory: (binding: Binding) => {
-			const service = getServiceForBinding(binding.id);
+			const service = get(getServiceForBinding(binding.id));
 			if (!service) return null;
 
 			const serviceType = serviceDefinitions.getItem(service.service_definition);
@@ -79,6 +79,7 @@
 	import { formatInterface, getInterfaceFromId, getPortFromId } from '$lib/features/hosts/store';
 	import { formatPort } from '$lib/shared/utils/formatting';
 	import type { Binding } from '$lib/features/services/types/base';
+	import { get } from 'svelte/store';
 
 	export let item: Binding;
 </script>

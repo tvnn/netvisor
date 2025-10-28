@@ -5,7 +5,7 @@
 	export const InterfaceBindingDisplay: EntityDisplayComponent<InterfaceBinding> = {
 		getId: (binding: InterfaceBinding) => binding.id,
 		getLabel: (binding: InterfaceBinding) => {
-			const iface = getInterfaceFromId(binding.interface_id);
+			const iface = get(getInterfaceFromId(binding.interface_id));
 			const interfaceFormatted = iface ? formatInterface(iface) : 'Unknown Interface';
 			return interfaceFormatted;
 		},
@@ -15,7 +15,7 @@
 		getTags: () => [],
 		getIsDisabled: () => false,
 		getCategory: (binding: InterfaceBinding) => {
-			const service = getServiceForBinding(binding.id);
+			const service = get(getServiceForBinding(binding.id));
 			if (!service) return null;
 
 			const serviceType = serviceDefinitions.getItem(service.service_definition);
@@ -48,6 +48,7 @@
 	import { Link2 } from 'lucide-svelte';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import InterfaceBindingInlineEditor from './InterfaceBindingInlineEditor.svelte';
+	import { get } from 'svelte/store';
 
 	export let item: InterfaceBinding;
 </script>

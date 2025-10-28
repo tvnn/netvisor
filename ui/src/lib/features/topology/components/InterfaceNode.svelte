@@ -4,41 +4,48 @@
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
 	import { getServicesForHost } from '$lib/features/services/store';
 	import { isContainerSubnet } from '$lib/features/subnets/store';
-	import { get } from 'svelte/store';
 	import { topologyOptions } from '../store';
 	import BaseChildNode from './BaseChildNode.svelte';
 	import type { NodeRenderData } from '../types/base';
+	import { get } from 'svelte/store';
 
 	let { data, width, height }: NodeProps = $props();
 
 	height = height ? height : 0;
 	width = width ? width : 0;
 
-	let nodeData: NodeRenderData | null = $derived(
-		data.host_id
-			? (() => {
-					const host = getHostFromId(data.host_id as string);
-					if (!host) return null;
+	let hostStore = $derived(data.host_id ? getHostFromId(data.host_id as string) : null);
+	let host = $derived(hostStore ? $hostStore : null);
 
+	let servicesForHostStore = $derived(
+		data.host_id ? getServicesForHost(data.host_id as string) : null
+	);
+	let servicesForHost = $derived(servicesForHostStore ? $servicesForHostStore : []);
+
+	// Compute nodeData reactively
+	let nodeData: NodeRenderData | null = $derived(
+		host && data.host_id
+			? (() => {
 					const iface = host.interfaces.find((i) => i.id === data.interface_id);
 
-					const servicesForHost = getServicesForHost(data.host_id as string);
-					const servicesOnInterface = servicesForHost.filter(
-						(s) =>
-							s.bindings.some(
-								(b) => b.interface_id == null || (iface && b.interface_id == iface.id)
-							) &&
-							!get(topologyOptions).request_options.hide_service_categories.includes(
-								serviceDefinitions.getCategory(s.service_definition)
+					const servicesOnInterface = servicesForHost
+						? servicesForHost.filter(
+								(s) =>
+									s.bindings.some(
+										(b) => b.interface_id == null || (iface && b.interface_id == iface.id)
+									) &&
+									!$topologyOptions.request_options.hide_service_categories.includes(
+										serviceDefinitions.getCategory(s.service_definition)
+									)
 							)
-					);
+						: [];
 
 					let bodyText: string | null = null;
 					let footerText: string | null = null;
 					let headerText: string | null = data.header ? (data.header as string) : null;
 					let showServices = servicesOnInterface.length != 0;
 
-					if (iface && !isContainerSubnet(iface?.subnet_id)) {
+					if (iface && !get(isContainerSubnet(iface?.subnet_id))) {
 						footerText = (iface.name ? iface.name + ': ' : '') + iface.ip_address;
 					}
 
@@ -53,7 +60,7 @@
 						bodyText,
 						showServices,
 						isVirtualized: host.virtualization !== null
-					};
+					} as NodeRenderData;
 				})()
 			: null
 	);

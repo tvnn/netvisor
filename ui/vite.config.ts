@@ -6,7 +6,7 @@ export default defineConfig({
 
 	server: {
 		host: '0.0.0.0',
-		allowedHosts: ["netvisor-dev.local"],
+		allowedHosts: ['netvisor-dev.local'],
 		port: 5173,
 		proxy: {
 			'/api': {

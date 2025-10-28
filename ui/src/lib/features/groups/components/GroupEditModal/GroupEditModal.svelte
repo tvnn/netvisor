@@ -4,7 +4,7 @@
 	import type { Group } from '../../types/base';
 	import ModalHeaderIcon from '$lib/shared/components/layout/ModalHeaderIcon.svelte';
 	import { entities } from '$lib/shared/stores/metadata';
-	import { getBindingFromId, services } from '$lib/features/services/store';
+	import { services } from '$lib/features/services/store';
 	import { BindingWithServiceDisplay } from '$lib/shared/components/forms/selection/display/BindingWithServiceDisplay.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import GroupDetailsForm from './GroupDetailsForm.svelte';
@@ -35,9 +35,13 @@
 	}
 
 	// Available service bindings (exclude already selected ones)
-	$: serviceBindings = $services
+	$: availableServiceBindings = $services
 		.flatMap((s) => s.bindings)
 		.filter((sb) => !formData.service_bindings.some((binding) => binding === sb.id));
+
+	$: selectedServiceBindings = $services
+		.flatMap((s) => s.bindings)
+		.filter((sb) => formData.service_bindings.some((binding) => binding === sb.id));
 
 	// Handlers for service bindings
 	function handleAdd(bindingId: string) {
@@ -127,10 +131,8 @@
 								emptyMessage="No bindings in this request path yet."
 								allowReorder={true}
 								showSearch={true}
-								options={serviceBindings}
-								items={formData.service_bindings
-									.map((b) => getBindingFromId(b))
-									.filter((b) => b !== null)}
+								options={availableServiceBindings}
+								items={selectedServiceBindings}
 								optionDisplayComponent={BindingWithServiceDisplay}
 								itemDisplayComponent={BindingWithServiceDisplay}
 								onAdd={handleAdd}

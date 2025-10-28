@@ -2,28 +2,23 @@
 	import { Edit, Trash2 } from 'lucide-svelte';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
 	import { entities, subnetTypes } from '$lib/shared/stores/metadata';
-	import { formatServiceLabels } from '$lib/features/services/store';
-	import { getSubnetServices, isContainerSubnet } from '../store';
+	import { formatServiceLabels, getServicesForSubnet } from '$lib/features/services/store';
+	import { isContainerSubnet } from '../store';
 	import type { Subnet } from '../types/base';
+	import { get } from 'svelte/store';
 
 	export let subnet: Subnet;
 	export let onEdit: (subnet: Subnet) => void = () => {};
 	export let onDelete: (subnet: Subnet) => void = () => {};
 
-	// $: dnsServices = getSubnetServices(subnet, 'is_dns_resolver');
-	// $: gatewayServices = getSubnetServices(subnet, 'is_gateway');
-	// $: reverseProxyServices = getSubnetServices(subnet, 'is_reverse_proxy');
-	$: allServices = getSubnetServices(subnet);
-
-	// $: dnsLabels = formatServiceLabels(dnsServices.map((s) => s.id));
-	// $: gatewayLabels = formatServiceLabels(gatewayServices.map((s) => s.id));
-	// $: reverseProxyLabels = formatServiceLabels(reverseProxyServices.map((s) => s.id));
-	$: serviceLabels = formatServiceLabels(allServices.map((s) => s.id));
+	$: allServices = getServicesForSubnet(subnet);
+	$: serviceLabelsStore = formatServiceLabels($allServices.map((s) => s.id));
+	$: serviceLabels = $serviceLabelsStore;
 
 	// Build card data
 	$: cardData = {
 		title: subnet.name,
-		subtitle: isContainerSubnet(subnet.id) ? '' : subnet.cidr,
+		subtitle: get(isContainerSubnet(subnet.id)) ? '' : subnet.cidr,
 		iconColor: subnetTypes.getColorHelper(subnet.subnet_type).icon,
 		icon: subnetTypes.getIconComponent(subnet.subnet_type),
 

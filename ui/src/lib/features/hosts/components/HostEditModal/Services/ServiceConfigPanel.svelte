@@ -15,6 +15,7 @@
 	import { InterfaceBindingDisplay } from '$lib/shared/components/forms/selection/display/InterfaceBindingDisplay.svelte';
 	import MatchDetails from './MatchDetails.svelte';
 	import type { Host } from '$lib/features/hosts/types/base';
+	import { get, readable, type Readable } from 'svelte/store';
 
 	export let formApi: FormApi;
 	export let formData: Host;
@@ -55,6 +56,20 @@
 	);
 
 	// Available port+interface combinations for new Port bindings
+
+	// First, get all services for all ports reactively
+	$: allPortServicesStores = formData.ports.map((port) => ({
+		portId: port.id,
+		store: getServicesForPort(port.id)
+	}));
+
+	// Subscribe to all of them
+	$: allPortServices = allPortServicesStores.map(({ portId, store }) => ({
+		portId,
+		services: store
+	}));
+
+	// Available port+interface combinations for new Port bindings
 	$: availablePortCombinations = formData.interfaces.flatMap((iface) => {
 		// Can't add Port binding if THIS service has an Interface binding on this interface
 		if (interfacesWithInterfaceBindingsThisService.has(iface.id)) {
@@ -69,8 +84,12 @@
 				);
 				if (alreadyBoundByThisService) return false;
 
-				// Check if other services have bound this port to this specific interface (or to all interfaces)
-				const otherServices = getServicesForPort(port.id).filter((s) => s.id !== service.id);
+				// Get services for this port from our reactive map
+				const servicesForPort =
+					allPortServices.find((p) => p.portId === port.id)?.services ||
+					(readable([]) as Readable<Service[]>);
+				const otherServices = get(servicesForPort).filter((s) => s.id !== service.id);
+
 				const boundByOtherService = otherServices.some((s) =>
 					s.bindings.some(
 						(b) =>

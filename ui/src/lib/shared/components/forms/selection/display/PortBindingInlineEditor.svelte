@@ -4,6 +4,7 @@
 	import { getServicesForPort } from '$lib/features/services/store';
 	import type { PortBinding, Service } from '$lib/features/services/types/base';
 	import { formatPort } from '$lib/shared/utils/formatting';
+	import { get } from 'svelte/store';
 
 	export let binding: PortBinding;
 	export let onUpdate: (updates: Partial<PortBinding>) => void = () => {};
@@ -18,7 +19,7 @@
 	// Check if this port+interface combination conflicts with existing bindings
 	function getConflictingService(portId: string, interfaceId: string | null): Service | null {
 		// Check OTHER services
-		const otherServices = getServicesForPort(portId)
+		const otherServices = get(getServicesForPort(portId))
 			.filter((s) => s.id !== service?.id)
 			.filter(isServiceWithPortBindings);
 

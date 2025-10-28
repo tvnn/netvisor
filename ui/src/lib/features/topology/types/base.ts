@@ -1,4 +1,6 @@
 import type { Service } from '$lib/features/services/types/base';
+import type { ColorStyle } from '$lib/shared/utils/styling';
+import type { IconComponent } from '$lib/shared/utils/types';
 
 export interface NodeBase {
 	id: string;
@@ -27,6 +29,13 @@ export interface NodeRenderData {
 	showServices: boolean;
 	isVirtualized: boolean;
 	services: Service[];
+}
+
+export interface SubnetRenderData {
+	headerText: string;
+	cidr: string;
+	IconComponent: IconComponent;
+	colorHelper: ColorStyle;
 }
 
 export interface TopologyEdge extends Record<string, unknown> {

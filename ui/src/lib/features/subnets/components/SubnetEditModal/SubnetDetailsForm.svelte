@@ -8,6 +8,7 @@
 	import TextArea from '$lib/shared/components/forms/input/TextArea.svelte';
 	import { isContainerSubnet } from '../../store';
 	import type { Subnet } from '../../types/base';
+	import { get } from 'svelte/store';
 
 	export let formApi: FormApi;
 	export let formData: Subnet;
@@ -40,7 +41,7 @@
 		label="CIDR"
 		id="name"
 		{formApi}
-		disabled={!!isContainerSubnet(formData.id)}
+		disabled={!!get(isContainerSubnet(formData.id))}
 		placeholder="192.168.1.0/24"
 		helpText="Network address and prefix length (e.g., 192.168.1.0/24)"
 		required={true}

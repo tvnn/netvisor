@@ -1,11 +1,6 @@
 <script lang="ts" context="module">
-	import { isContainerSubnet, subnets } from '$lib/features/subnets/store';
+	import { getSubnetFromId, isContainerSubnet } from '$lib/features/subnets/store';
 	import { get } from 'svelte/store';
-
-	// Helper function to find subnet by ID
-	function findSubnetById(subnetId: string) {
-		return get(subnets).find((s) => s.id === subnetId) || null;
-	}
 
 	export const InterfaceDisplay: EntityDisplayComponent<Interface> = {
 		getId: (iface: Interface) => iface.id,
@@ -22,9 +17,9 @@
 		getIcon: () => entities.getIconComponent('Interface'),
 		getIconColor: () => entities.getColorHelper('Interface').icon,
 		getTags: (iface: Interface) => {
-			const subnet = findSubnetById(iface.subnet_id);
+			const subnet = get(getSubnetFromId(iface.subnet_id));
 			const tags = [];
-			if (subnet && !isContainerSubnet(subnet.id)) {
+			if (subnet && !get(isContainerSubnet(subnet.id))) {
 				tags.push({
 					label: subnet.cidr,
 					color: entities.getColorHelper('Subnet').string

@@ -5,9 +5,9 @@
 	export const PortBindingDisplay: EntityDisplayComponent<PortBinding> = {
 		getId: (binding: PortBinding) => binding.id,
 		getLabel: (binding: PortBinding) => {
-			const port = getPortFromId(binding.port_id);
+			const port = get(getPortFromId(binding.port_id));
 			const iface = binding.interface_id
-				? getInterfaceFromId(binding.interface_id)
+				? get(getInterfaceFromId(binding.interface_id))
 				: ALL_INTERFACES;
 			const portFormatted = port ? formatPort(port) : 'Unknown Port';
 			const interfaceFormatted = iface ? formatInterface(iface) : 'Unknown Interface';
@@ -19,7 +19,7 @@
 		getTags: () => [],
 		getIsDisabled: () => false,
 		getCategory: (binding: PortBinding) => {
-			const service = getServiceForBinding(binding.id);
+			const service = get(getServiceForBinding(binding.id));
 			if (!service) return null;
 
 			const serviceType = serviceDefinitions.getItem(service.service_definition);
@@ -53,6 +53,7 @@
 	import { Link2 } from 'lucide-svelte';
 	import { ALL_INTERFACES, type Host } from '$lib/features/hosts/types/base';
 	import Layer4BindingInlineEditor from './PortBindingInlineEditor.svelte';
+	import { get } from 'svelte/store';
 
 	export let item: PortBinding;
 </script>

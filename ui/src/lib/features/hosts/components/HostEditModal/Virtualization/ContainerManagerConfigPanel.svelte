@@ -4,6 +4,7 @@
 	import { ServiceDisplay } from '$lib/shared/components/forms/selection/display/ServiceDisplay.svelte';
 	import ListManager from '$lib/shared/components/forms/selection/ListManager.svelte';
 	import { serviceDefinitions } from '$lib/shared/stores/metadata';
+	import { get } from 'svelte/store';
 
 	export let service: Service;
 	export let onChange: (updatedService: Service) => void;
@@ -25,7 +26,7 @@
 
 	function handleAddContainer(serviceId: string) {
 		let services = getServicesForHost(service.host_id);
-		let containerizedService = services.find((s) => s.id == serviceId);
+		let containerizedService = get(services).find((s) => s.id == serviceId);
 
 		if (containerizedService) {
 			containerizedService.virtualization = {

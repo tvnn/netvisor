@@ -13,6 +13,7 @@
 	import PortsDisplay from './Ports/PortsForm.svelte';
 	import VirtualizationForm from './Virtualization/VirtualizationForm.svelte';
 	import { SvelteMap } from 'svelte/reactivity';
+	import { get } from 'svelte/store';
 
 	export let host: Host | null = null;
 	export let isOpen = false;
@@ -113,7 +114,7 @@
 	function resetForm() {
 		formData = host ? { ...host } : createEmptyHostFormData();
 		if (host && host.id) {
-			currentHostServices = getServicesForHost(host.id);
+			currentHostServices = get(getServicesForHost(host.id));
 		} else {
 			currentHostServices = [];
 		}
@@ -130,7 +131,8 @@
 		}
 
 		for (const updatedHost of vmManagedHostUpdates.values()) {
-			const hostServices = getServicesForHost(updatedHost.id);
+			const hostServicesStore = getServicesForHost(updatedHost.id);
+			const hostServices = get(hostServicesStore);
 			promises.push(onUpdate({ host: updatedHost, services: hostServices }));
 		}
 

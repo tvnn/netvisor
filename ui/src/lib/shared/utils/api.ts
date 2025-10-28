@@ -82,13 +82,14 @@ class ApiClient {
 
 		const baseUrl = window.location.origin; // e.g., "http://localhost:60072" or "https://netvisor.example.com"
 
-		const url = env.PUBLIC_SERVER_HOSTNAME === 'default'
-			? new URL(`/api${endpoint}`, baseUrl)
-			: new URL(
-				`/api${endpoint}`,
-				`${window.location.protocol}//${env.PUBLIC_SERVER_HOSTNAME}${env.PUBLIC_SERVER_PORT ? `:${env.PUBLIC_SERVER_PORT}` : ''}`
-			);
-			
+		const url =
+			env.PUBLIC_SERVER_HOSTNAME === 'default'
+				? new URL(`/api${endpoint}`, baseUrl)
+				: new URL(
+						`/api${endpoint}`,
+						`${window.location.protocol}//${env.PUBLIC_SERVER_HOSTNAME}${env.PUBLIC_SERVER_PORT ? `:${env.PUBLIC_SERVER_PORT}` : ''}`
+					);
+
 		const baseErrorMessage = `Failed to ${method} from ${endpoint}`;
 
 		if (!url) {

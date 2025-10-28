@@ -1,4 +1,4 @@
-import { get, writable } from 'svelte/store';
+import { derived, get, writable, type Readable } from 'svelte/store';
 import type { AllInterfaces, Host, HostWithServicesRequest, Interface, Port } from './types/base';
 import { api } from '../../shared/utils/api';
 import { pushSuccess } from '$lib/shared/stores/feedback';
@@ -51,7 +51,7 @@ export async function deleteHost(id: string) {
 }
 
 export async function consolidateHosts(destination_host_id: string, other_host_id: string) {
-	const other_host_name = getHostFromId(other_host_id)?.name;
+	const other_host_name = get(getHostFromId(other_host_id))?.name;
 
 	return await api.request<Host, Host[]>(
 		`/hosts/${destination_host_id}/consolidate/${other_host_id}`,
@@ -87,22 +87,27 @@ export function createEmptyHostFormData(): Host {
 	};
 }
 
-export function getHostTargetString(host: Host): string | null {
-	switch (host.target.type) {
-		case 'ServiceBinding': {
-			const binding = getBindingFromId(host.target.config);
-			if (binding) {
-				return getBindingDisplayName(binding);
+export function getHostTargetString(host: Host): Readable<string> {
+	return derived(
+		[getBindingFromId(host.target.type === 'ServiceBinding' ? host.target.config : '')],
+		([$binding]) => {
+			switch (host.target.type) {
+				case 'ServiceBinding': {
+					if ($binding) {
+						return get(getBindingDisplayName($binding));
+					}
+					return 'Unknown Binding';
+				}
+				case 'None': {
+					return 'None';
+				}
+				case 'Hostname': {
+					if (host.hostname.length > 0) return host.hostname;
+					return 'Unknown Binding';
+				}
 			}
-			return 'Unknown Binding';
 		}
-		case 'None': {
-			return 'None';
-		}
-		case 'Hostname': {
-			return host.hostname;
-		}
-	}
+	);
 }
 
 export function formatInterface(i: Interface | AllInterfaces): string {
@@ -110,26 +115,32 @@ export function formatInterface(i: Interface | AllInterfaces): string {
 	return isContainerSubnet(i.subnet_id) ? i.name : (i.name ? i.name + ': ' : '') + i.ip_address;
 }
 
-export function getHostFromId(id: string): Host | undefined {
-	return get(hosts).find((h) => h.id == id);
+export function getHostFromId(id: string): Readable<Host | null> {
+	return derived([hosts], ([$hosts]) => {
+		return $hosts.find((h) => h.id == id) || null;
+	});
 }
 
-export function getInterfaceFromId(id: string): Interface | undefined {
-	for (const host of get(hosts)) {
-		const iface = host.interfaces.find((i) => i.id == id);
-		if (iface != undefined) {
-			return iface;
+export function getInterfaceFromId(id: string): Readable<Interface | null> {
+	return derived([hosts], ([$hosts]) => {
+		for (const host of $hosts) {
+			const iface = host.interfaces.find((i) => i.id == id);
+			if (iface) {
+				return iface;
+			}
 		}
-	}
-	return undefined;
+		return null;
+	});
 }
 
-export function getPortFromId(id: string): Port | undefined {
-	for (const host of get(hosts)) {
-		const port = host.ports.find((p) => p.id == id);
-		if (port != undefined) {
-			return port;
+export function getPortFromId(id: string): Readable<Port | null> {
+	return derived([hosts], ([$hosts]) => {
+		for (const host of $hosts) {
+			const port = host.ports.find((i) => i.id == id);
+			if (port) {
+				return port;
+			}
 		}
-	}
-	return undefined;
+		return null;
+	});
 }

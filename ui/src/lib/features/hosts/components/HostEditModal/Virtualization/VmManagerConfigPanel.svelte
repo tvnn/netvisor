@@ -25,7 +25,8 @@
 	);
 
 	function handleAddVm(vmId: string) {
-		let host = getHostFromId(vmId);
+		const hostStore = getHostFromId(vmId);
+		let host = get(hostStore);
 		if (host) {
 			host.virtualization = {
 				type: 'Proxmox',

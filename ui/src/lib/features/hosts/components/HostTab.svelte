@@ -12,7 +12,7 @@
 	import { consolidateHosts, createHost, deleteHost, getHosts, hosts, updateHost } from '../store';
 	import { getGroups, groups } from '$lib/features/groups/store';
 	import { loadData } from '$lib/shared/utils/dataLoader';
-	import { getServiceForBinding, getServices } from '$lib/features/services/store';
+	import { getServices, services } from '$lib/features/services/store';
 	import { getSubnets } from '$lib/features/subnets/store';
 
 	const loading = loadData([getHosts, getGroups, getServices, getSubnets, getDaemons]);
@@ -33,7 +33,8 @@
 		$hosts.map((host) => {
 			const foundGroups = $groups.filter((g) => {
 				return g.service_bindings.some((b) => {
-					let service = getServiceForBinding(b);
+					// Use $services instead of getServiceForBinding to maintain reactivity
+					let service = $services.find((s) => s.bindings.map((sb) => sb.id).includes(b));
 					if (service) return host.services.includes(service.id);
 					return false;
 				});
@@ -42,6 +43,7 @@
 			return [host.id, foundGroups];
 		})
 	);
+
 	function handleCreateHost() {
 		editingHost = null;
 		showHostEditor = true;
