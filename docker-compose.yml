@@ -1,3 +1,4 @@
+# Editing these env vars will apply them to daemon, server, and UI. Recommend doing this over editing for each container.
 x-netvisor-env: &netvisor-env
   NETVISOR_LOG_LEVEL: ${NETVISOR_LOG_LEVEL:-info}
   NETVISOR_SERVER_PORT: ${NETVISOR_SERVER_PORT:-60072}

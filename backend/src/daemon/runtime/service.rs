@@ -41,30 +41,34 @@ impl DaemonRuntimeService {
         loop {
             interval_timer.tick().await;
 
-            let response = self
-                .client
-                .put(format!(
-                    "{}/api/daemons/{}/heartbeat",
-                    server_target, daemon_id
-                ))
-                .send()
-                .await?;
+            if self.config_store.get_network_id().await?.is_some() {
+                let response = self
+                    .client
+                    .put(format!(
+                        "{}/api/daemons/{}/heartbeat",
+                        server_target, daemon_id
+                    ))
+                    .send()
+                    .await?;
 
-            tracing::info!("💓 Heartbeat sent successfully");
+                tracing::info!("💓 Heartbeat sent successfully");
 
-            if !response.status().is_success() {
-                let api_response: ApiResponse<()> = response.json().await?;
+                if !response.status().is_success() {
+                    let api_response: ApiResponse<()> = response.json().await?;
 
-                if !api_response.success {
-                    let error_msg = api_response
-                        .error
-                        .unwrap_or_else(|| "Unknown error".to_string());
-                    tracing::warn!("    ❤️‍🩹 Heartbeat failed: {}", error_msg);
+                    if !api_response.success {
+                        let error_msg = api_response
+                            .error
+                            .unwrap_or_else(|| "Unknown error".to_string());
+                        tracing::warn!("    ❤️‍🩹 Heartbeat failed: {}", error_msg);
+                    }
                 }
-            }
 
-            if let Err(e) = self.config_store.update_heartbeat().await {
-                tracing::warn!("Failed to update heartbeat timestamp: {}", e);
+                if let Err(e) = self.config_store.update_heartbeat().await {
+                    tracing::warn!("Failed to update heartbeat timestamp: {}", e);
+                }
+            } else {
+                tracing::warn!("network_id not set, skipping heartbeat");
             }
         }
     }
@@ -78,13 +82,6 @@ impl DaemonRuntimeService {
     ) -> Result<()> {
         // Ensure network_id is stored
         self.config_store.set_network_id(network_id).await?;
-
-        // Spawn heartbeat task in background
-        // tokio::spawn(async move {
-        //     if let Err(e) = self.heartbeat().await {
-        //         tracing::warn!("Failed to update heartbeat timestamp: {}", e);
-        //     }
-        // });
 
         tracing::info!("Verifying server connectivity...");
         let server_endpoint = self.config_store.get_server_endpoint().await?;

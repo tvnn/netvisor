@@ -14,7 +14,7 @@ pub trait DaemonStorage: Send + Sync {
     async fn get_by_id(&self, id: &Uuid) -> Result<Option<Daemon>>;
     async fn get_by_host_id(&self, host_id: &Uuid) -> Result<Option<Daemon>>;
     async fn get_all(&self, network_id: &Uuid) -> Result<Vec<Daemon>>;
-    async fn update(&self, group: &Daemon) -> Result<()>;
+    async fn update(&self, group: &Daemon) -> Result<Daemon>;
     async fn delete(&self, id: &Uuid) -> Result<()>;
 }
 
@@ -96,7 +96,7 @@ impl DaemonStorage for PostgresDaemonStorage {
         Ok(daemons)
     }
 
-    async fn update(&self, daemon: &Daemon) -> Result<()> {
+    async fn update(&self, daemon: &Daemon) -> Result<Daemon> {
         let ip_str = serde_json::to_string(&daemon.base.ip)?;
 
         sqlx::query(
@@ -110,11 +110,11 @@ impl DaemonStorage for PostgresDaemonStorage {
         .bind(daemon.base.host_id)
         .bind(ip_str)
         .bind(daemon.base.port as i32)
-        .bind(chrono::Utc::now())
+        .bind(daemon.last_seen)
         .execute(&self.pool)
         .await?;
 
-        Ok(())
+        Ok(daemon.clone())
     }
 
     async fn delete(&self, id: &Uuid) -> Result<()> {

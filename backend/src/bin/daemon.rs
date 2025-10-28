@@ -150,6 +150,14 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
+
+    // Spawn heartbeat task in background
+    tokio::spawn(async move {
+        if let Err(e) = runtime_service.heartbeat().await {
+            tracing::warn!("Failed to update heartbeat timestamp: {}", e);
+        }
+    });
+
     // 7. Keep process alive
     tokio::signal::ctrl_c().await?;
     Ok(())

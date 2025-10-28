@@ -53,7 +53,7 @@ impl DaemonService {
     /// Update daemon heartbeat
     pub async fn receive_heartbeat(&self, mut daemon: Daemon) -> Result<Daemon> {
         daemon.last_seen = chrono::Utc::now();
-        self.daemon_storage.update(&daemon).await?;
+        let daemon = self.daemon_storage.update(&daemon).await?;
         Ok(daemon)
     }
 
