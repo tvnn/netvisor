@@ -12,16 +12,15 @@
 
 	let selectedNetworkId: string = $networks[0].id;
 
-	const baseUrl = window.location.origin; // e.g., "http://localhost:60072" or "https://netvisor.example.com"
+	const baseUrl = window.location.origin;
+	const parsedUrl = new URL(baseUrl);
 
 	const serverTarget =
-		env.PUBLIC_SERVER_HOSTNAME === 'default'
-			? new URL(baseUrl).hostname
-			: env.PUBLIC_SERVER_HOSTNAME;
+		env.PUBLIC_SERVER_HOSTNAME && env.PUBLIC_SERVER_HOSTNAME !== 'default'
+			? env.PUBLIC_SERVER_HOSTNAME
+			: parsedUrl.hostname;
 
-	const serverPort = env.PUBLIC_SERVER_PORT
-		? env.PUBLIC_SERVER_PORT
-		: new URL(baseUrl).port || '60072';
+	const serverPort = env.PUBLIC_SERVER_PORT || parsedUrl.port || '60072';
 
 	let colorHelper = entities.getColorHelper('Daemon');
 
@@ -88,7 +87,7 @@
 			expandable={false}
 			code={populateDockerCompose(
 				dockerTemplate,
-				serverTarget.toString(),
+				serverTarget,
 				serverPort,
 				selectedNetworkId
 			)}
