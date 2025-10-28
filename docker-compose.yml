@@ -55,7 +55,7 @@ services:
       <<: *netvisor-env
       NETVISOR_DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-password}@postgres:5432/netvisor
       NETVISOR_WEB_EXTERNAL_PATH: ${NETVISOR_WEB_EXTERNAL_PATH:-/app/static}
-      NETVISOR_INTEGRATED_DAEMON_URL: http://localhost:${NETVISOR_DAEMON_PORT:-60073}
+      NETVISOR_INTEGRATED_DAEMON_URL: http://172.17.0.1:${NETVISOR_DAEMON_PORT:-60073}
     volumes:
       - ./data:/data
       - ui-build:/app/static:ro
