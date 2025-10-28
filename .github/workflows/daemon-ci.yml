@@ -56,3 +56,15 @@ jobs:
       
       - name: Build daemon (release)
         run: cargo build --release --bin daemon --target x86_64-unknown-linux-musl
+      
+      - name: Prepare binary
+        run: |
+          cp target/x86_64-unknown-linux-musl/release/daemon ../netvisor-daemon_x86-64-musl
+          chmod +x ../netvisor-daemon_x86-64-musl
+      
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: netvisor-daemon_x86-64-musl
+          path: netvisor-daemon_x86-64-musl
+          retention-days: 7
