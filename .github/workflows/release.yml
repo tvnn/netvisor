@@ -101,6 +101,9 @@ jobs:
       - name: Get release version
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Copy daemon compose template
+        run: cp docker-compose.daemon.yml ui/src/lib/templates/
       
       - name: Build and push UI image
         uses: docker/build-push-action@v5
