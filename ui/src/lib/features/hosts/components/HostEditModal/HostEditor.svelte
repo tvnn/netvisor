@@ -159,7 +159,7 @@
 	}
 
 	function handleFormCancel() {
-		if (isEditing) {
+		if (isEditing || currentTabIndex == 0) {
 			onClose();
 		} else {
 			previousTab();
@@ -173,7 +173,7 @@
 			? 'Create Host'
 			: 'Next';
 	$: cancelLabel = isEditing ? 'Cancel' : 'Previous';
-	$: showCancel = isEditing ? true : activeTab !== 'details';
+	$: showCancel = isEditing ? true : currentTabIndex !== 0;
 </script>
 
 <EditModal
@@ -183,8 +183,9 @@
 	{deleting}
 	{saveLabel}
 	{cancelLabel}
+	{showCancel}
 	onSave={handleFormSubmit}
-	onCancel={showCancel ? handleFormCancel : null}
+	onCancel={handleFormCancel}
 	onDelete={isEditing ? handleDelete : null}
 	size="full"
 	let:formApi

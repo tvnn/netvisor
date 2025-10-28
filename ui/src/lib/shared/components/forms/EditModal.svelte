@@ -9,6 +9,7 @@
 	export let onCancel: (() => void) | null = null;
 	export let saveLabel: string = 'Save';
 	export let showSave: boolean = true;
+	export let showCancel: boolean = true;
 	export let cancelLabel: string = 'Cancel';
 	export let disableSave: boolean = false;
 	export let size: 'sm' | 'md' | 'lg' | 'xl' | 'full' = 'lg';
@@ -97,7 +98,7 @@
 
 			<!-- Cancel and Save buttons -->
 			<div class="flex items-center gap-3">
-				{#if onCancel}
+				{#if showCancel}
 					<button
 						type="button"
 						disabled={loading || deleting}
