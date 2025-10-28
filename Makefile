@@ -46,26 +46,26 @@ dump-db:
 
 dev-server:
 	@export DATABASE_URL="postgresql://postgres:password@localhost:5432/netvisor" && \
-	cd backend && cargo run --bin server -- --log-level debug
+	cd backend && cargo run --bin server -- --log-level debug --integrated-daemon-url http://localhost:60073
 
 dev-daemon:
-	cd backend && cargo run --bin daemon -- --server-target 127.0.0.1 --server-port 60072 --log-level debug
+	cd backend && cargo run --bin daemon -- --server-target http://127.0.0.1 --server-port 60072 --log-level debug
 
 dev-ui:
 	cd ui && npm run dev
 
 dev-container:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+	docker compose -f docker-compose.dev.yml up
 
 dev-container-rebuild:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build --force-recreate
+	docker compose -f docker-compose.dev.yml up --build --force-recreate
 
 dev-container-rebuild-clean:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+	docker compose -f docker-compose.dev.yml build --no-cache
+	docker compose -f docker-compose.dev.yml up
 
 dev-down:
-	docker compose -f docker-compose.yml -f docker-compose.dev.yml down --volumes --rmi all
+	docker compose -f docker-compose.dev.yml down --volumes --rmi all
 
 build:
 	@echo "Building server Docker image..."

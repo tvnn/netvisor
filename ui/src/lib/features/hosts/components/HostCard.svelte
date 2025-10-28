@@ -1,32 +1,18 @@
 <script lang="ts">
-	import { Edit, Radar, Replace, Trash2 } from 'lucide-svelte';
+	import { Edit, Replace, Trash2 } from 'lucide-svelte';
 	import { formatInterface, getHostTargetString, hosts } from '../store';
 	import type { Host } from '../types/base';
 	import GenericCard from '$lib/shared/components/data/GenericCard.svelte';
-	import type { Daemon } from '$lib/features/daemons/types/base';
-	import { getDaemonIsRunningDiscovery, getDaemonDiscoveryData } from '$lib/features/daemons/store';
-	import DaemonDiscoveryStatus from '$lib/features/discovery/DaemonDiscoveryStatus.svelte';
-	import { sessions } from '$lib/features/discovery/store';
 	import { entities, serviceDefinitions } from '$lib/shared/stores/metadata';
 	import type { Group } from '$lib/features/groups/types/base';
 	import { getServiceById, getServicesForHost } from '$lib/features/services/store';
 	import { get } from 'svelte/store';
 
 	export let host: Host;
-	export let daemon: Daemon | null;
 	export let hostGroups: Group[] = [];
 	export let onEdit: (host: Host) => void = () => {};
 	export let onDelete: (host: Host) => void = () => {};
-	export let onDiscovery: (daemon: Daemon) => void = () => {};
 	export let onConsolidate: (host: Host) => void = () => {};
-	export let discoveryIsRunning: boolean;
-
-	$: hostIsRunningDiscovery =
-		discoveryIsRunning && daemon !== null
-			? getDaemonIsRunningDiscovery(daemon.id, $sessions)
-			: false;
-	$: discoveryData =
-		hostIsRunningDiscovery && daemon ? getDaemonDiscoveryData(daemon.id, $sessions) : null;
 
 	$: hostServicesStore = getServicesForHost(host.id);
 	$: hostServices = $hostServicesStore;
@@ -143,7 +129,7 @@
 						color: entities.getColorHelper('Interface').string
 					};
 				}),
-				emptyText: 'No subnets assigned'
+				emptyText: 'No interfaces'
 			}
 		],
 
@@ -154,43 +140,17 @@
 				class: 'btn-icon-danger',
 				onClick: () => onDelete(host)
 			},
-			...(daemon == null
-				? [
-						{
-							label: 'Consolidate',
-							icon: Replace,
-							onClick: () => onConsolidate(host)
-						}
-					]
-				: []),
-			...(daemon !== null
-				? [
-						{
-							label: 'Run Discovery',
-							icon: Radar,
-							class: hostIsRunningDiscovery ? 'btn-icon-success' : 'btn-icon',
-							onClick: !hostIsRunningDiscovery ? () => onDiscovery(daemon) : () => {},
-							animation: hostIsRunningDiscovery ? 'animate-spin' : '',
-							disabled: hostIsRunningDiscovery
-						}
-					]
-				: []),
+			{
+				label: 'Consolidate',
+				icon: Replace,
+				onClick: () => onConsolidate(host)
+			},
 			{
 				label: 'Edit Host',
 				icon: Edit,
 				onClick: () => onEdit(host)
 			}
-		],
-
-		// Add footer when discovery is running
-		footerComponent: hostIsRunningDiscovery && daemon ? DaemonDiscoveryStatus : null,
-		footerProps:
-			hostIsRunningDiscovery && daemon
-				? {
-						daemon,
-						discoveryData
-					}
-				: {}
+		]
 	};
 </script>
 

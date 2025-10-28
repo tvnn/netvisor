@@ -1,9 +1,17 @@
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
 use crate::daemon::{
     shared::{services::DaemonServiceFactory, storage::ConfigStore},
     utils::base::PlatformDaemonUtils,
 };
+
+#[derive(Serialize, Deserialize)]
+pub struct InitializeDaemonRequest {
+    pub network_id: Uuid,
+}
 
 pub struct DaemonAppState {
     pub config: Arc<ConfigStore>,

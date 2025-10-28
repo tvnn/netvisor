@@ -15,6 +15,7 @@ use uuid::Uuid;
 pub struct CliArgs {
     pub server_target: Option<String>,
     pub server_port: Option<u16>,
+    pub network_id: Option<Uuid>,
     pub daemon_port: Option<u16>,
     pub name: Option<String>,
     pub bind_address: Option<String>,
@@ -89,6 +90,9 @@ impl AppConfig {
         // Add CLI overrides (highest priority) - only if explicitly provided
         if let Some(server_target) = cli_args.server_target {
             figment = figment.merge(("server_target", server_target));
+        }
+        if let Some(network_id) = cli_args.network_id {
+            figment = figment.merge(("network_id", network_id));
         }
         if let Some(server_port) = cli_args.server_port {
             figment = figment.merge(("server_port", server_port));
@@ -239,7 +243,7 @@ impl ConfigStore {
         let config = self.config.read().await;
 
         if let Some(ip) = &config.server_target {
-            Ok(format!("http://{}:{}", ip, config.server_port))
+            Ok(format!("{}:{}", ip, config.server_port))
         } else {
             Err(Error::msg("No IP configured for server"))
         }

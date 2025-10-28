@@ -150,7 +150,13 @@ impl Host {
     }
 
     pub fn get_first_non_docker_bridge_interface(&self, subnets: &[Subnet]) -> Option<&Interface> {
-        self.base.interfaces.iter().find(|i| subnets.iter().find(|s| s.id == i.base.subnet_id).map(|s| !s.is_docker_bridge_subnet()).unwrap_or(false))
+        self.base.interfaces.iter().find(|i| {
+            subnets
+                .iter()
+                .find(|s| s.id == i.base.subnet_id)
+                .map(|s| !s.is_docker_bridge_subnet())
+                .unwrap_or(false)
+        })
     }
 
     pub fn get_port(&self, port_id: &Uuid) -> Option<&Port> {

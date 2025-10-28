@@ -3,9 +3,10 @@
 	import type { Subnet } from '$lib/features/subnets/types/base';
 	import type { Host } from '$lib/features/hosts/types/base';
 	import { formatId, formatTimestamp } from '$lib/shared/utils/formatting';
-	import { Calendar, Clock, Hash, ChevronDown, ChevronRight } from 'lucide-svelte';
+	import { Calendar, Clock, Hash } from 'lucide-svelte';
 	import type { Service } from '$lib/features/services/types/base';
 	import { pushWarning } from '$lib/shared/stores/feedback';
+	import CodeContainer from '../data/CodeContainer.svelte';
 
 	export let entities: (Group | Host | Subnet | Service | null)[] = [null];
 	export let showSummary: boolean = true;
@@ -13,8 +14,6 @@
 	let id = entities.length == 1 ? entities[0]?.id : null;
 	let createdAt = entities.length == 1 ? entities[0]?.created_at : null;
 	let updatedAt = entities.length == 1 ? entities[0]?.updated_at : null;
-
-	let isJsonExpanded = false;
 
 	const isSecureContext =
 		window.isSecureContext ||
@@ -31,20 +30,6 @@
 			}
 		}
 	}
-
-	// Copy JSON to clipboard
-	async function copyJson() {
-		if (!entities) return;
-		try {
-			await navigator.clipboard.writeText(JSON.stringify(entities, null, 2));
-		} catch (error) {
-			pushWarning('Failed to copy JSON to clipboard: ' + error);
-		}
-	}
-
-	function toggleJson() {
-		isJsonExpanded = !isJsonExpanded;
-	}
 </script>
 
 <div class="border-t border-gray-700 pt-6">
@@ -57,17 +42,19 @@
 						<div class="flex-shrink-0">
 							<Hash class="text-tertiary h-5 w-5" />
 						</div>
-						<div class="min-w-0 flex-1">
-							<p class="text-secondary text-sm font-medium">ID</p>
-							<button
-								type="button"
-								class="text-tertiary hover:text-primary block max-w-full cursor-pointer truncate font-mono text-sm transition-colors"
-								title={`${id} (Click to copy)`}
-								on:click={copyId}
-							>
-								{formatId(id)}
-							</button>
-						</div>
+						{#if isSecureContext}
+							<div class="min-w-0 flex-1">
+								<p class="text-secondary text-sm font-medium">ID</p>
+								<button
+									type="button"
+									class="text-tertiary hover:text-primary block max-w-full cursor-pointer truncate font-mono text-sm transition-colors"
+									title={`${id} (Click to copy)`}
+									on:click={copyId}
+								>
+									{formatId(id)}
+								</button>
+							</div>
+						{/if}
 					</div>
 				{/if}
 
@@ -105,37 +92,7 @@
 
 		<!-- JSON Entity Section -->
 		{#if entities.length > 0}
-			<div>
-				<button type="button" class="btn-icon" on:click={toggleJson}>
-					{#if isJsonExpanded}
-						<ChevronDown class="h-4 w-4" />
-					{:else}
-						<ChevronRight class="h-4 w-4" />
-					{/if}
-					<span class="ml-1">JSON</span>
-				</button>
-
-				{#if isJsonExpanded}
-					<div class="relative mt-3">
-						{#if isSecureContext}
-							<div class="absolute right-2 top-2 z-10">
-								<button
-									type="button"
-									class="btn-icon"
-									title="Copy JSON to clipboard"
-									on:click={copyJson}
-								>
-									Copy
-								</button>
-							</div>
-						{/if}
-						<pre
-							class="overflow-auto rounded-md border border-gray-600 bg-gray-900 p-4 font-mono text-sm text-gray-300"><code
-								>{JSON.stringify(entities, null, 2)}</code
-							></pre>
-					</div>
-				{/if}
-			</div>
+			<CodeContainer expandable={true} expanded={false} code={JSON.stringify(entities, null, 2)} />
 		{/if}
 	</div>
 </div>

@@ -1,0 +1,57 @@
+<script lang="ts">
+	import { pushWarning } from '$lib/shared/stores/feedback';
+	import { ChevronDown, ChevronRight } from 'lucide-svelte';
+	import Prism from '@magidoc/plugin-svelte-prismjs';
+	import 'prismjs/components/prism-yaml';
+	import 'prismjs/components/prism-json';
+	import 'prismjs/themes/prism-twilight.css';
+
+	export let code: string;
+	export let expandable: boolean = true;
+	export let expanded: boolean = true;
+	export let language: string = 'json';
+
+	// Copy JSON to clipboard
+	async function copyJson() {
+		try {
+			await navigator.clipboard.writeText(code);
+		} catch (error) {
+			pushWarning('Failed to copy to clipboard: ' + error);
+		}
+	}
+
+	const isSecureContext =
+		window.isSecureContext ||
+		window.location.hostname === 'localhost' ||
+		window.location.hostname === '127.0.0.1';
+
+	function toggleJson() {
+		expanded = !expanded;
+	}
+</script>
+
+<div>
+	{#if expandable}
+		<button type="button" class="btn-icon" on:click={toggleJson}>
+			{#if expanded}
+				<ChevronDown class="h-4 w-4" />
+			{:else}
+				<ChevronRight class="h-4 w-4" />
+			{/if}
+			<span class="ml-1">JSON</span>
+		</button>
+	{/if}
+
+	{#if expanded}
+		<div class="relative mt-3">
+			{#if isSecureContext}
+				<div class="absolute right-2 top-2 z-10">
+					<button type="button" class="btn-icon" title="Copy JSON to clipboard" on:click={copyJson}>
+						Copy
+					</button>
+				</div>
+			{/if}
+			<Prism {language} source={code} showLineNumbers showCopyButton />
+		</div>
+	{/if}
+</div>

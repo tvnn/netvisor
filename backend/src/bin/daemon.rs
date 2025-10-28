@@ -1,7 +1,6 @@
 use axum::{Router, http::Method};
 use clap::Parser;
 use netvisor::daemon::{
-    discovery::service::{base::Discovery, self_report::SelfReportDiscovery},
     runtime::types::DaemonAppState,
     shared::{
         handlers::create_router,
@@ -16,6 +15,7 @@ use tower_http::{
     trace::TraceLayer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use uuid::Uuid;
 
 #[derive(Parser)]
 #[command(name = "netvisor-daemon")]
@@ -28,6 +28,10 @@ struct Cli {
     /// Server port
     #[arg(long)]
     server_port: Option<u16>,
+
+    /// Network ID to join
+    #[arg(long)]
+    network_id: Option<String>,
 
     /// Daemon listen port
     #[arg(short, long)]
@@ -66,6 +70,7 @@ impl From<Cli> for CliArgs {
             daemon_port: cli.daemon_port,
             name: cli.name,
             bind_address: cli.bind_address,
+            network_id: cli.network_id.and_then(|s| Uuid::parse_str(&s).ok()),
             log_level: cli.log_level,
             heartbeat_interval: cli.heartbeat_interval,
             concurrent_scans: cli.concurrent_scans,
@@ -75,29 +80,10 @@ impl From<Cli> for CliArgs {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing::info!("🤖 NetVisor daemon starting");
-
-    // Parse CLI and convert to CliArgs
+    // Parse CLI and load config
     let cli = Cli::parse();
     let cli_args = CliArgs::from(cli);
-
-    // Load unified configuration
     let config = AppConfig::load(cli_args)?;
-    let (_, path) = AppConfig::get_config_path()?;
-    let path_str = path
-        .to_str()
-        .unwrap_or("Config path could not be converted to string");
-
-    // Initialize unified storage with full config
-    let config_store = Arc::new(ConfigStore::new(path.clone(), config.clone()));
-    let utils = PlatformDaemonUtils::new();
-
-    let daemon_id = config_store.get_id().await?;
-    let has_docker_client = utils.get_own_docker_socket().await?;
-    let server_addr = &config_store.get_server_endpoint().await?;
-
-    let state = DaemonAppState::new(config_store, utils).await?;
-    let runtime_service = state.services.runtime_service.clone();
 
     // Initialize tracing
     tracing_subscriber::registry()
@@ -108,57 +94,24 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    tracing::info!("Server at {}", server_addr);
+    tracing::info!("🤖 NetVisor daemon starting");
 
-    // Get or register daemon ID
-    if let Some(existing_id) = runtime_service.config_store.get_host_id().await? {
-        tracing::info!("Existing host ID, already registered: {}", existing_id);
-    } else {
-        tracing::info!("Registering with server...");
+    let (_, path) = AppConfig::get_config_path()?;
+    let path_str = path
+        .to_str()
+        .unwrap_or("Config path could not be converted to string");
 
-        let network_id = match runtime_service.config_store.get_network_id().await? {
-            Some(network_id) => network_id,
-            None => {
-                tracing::info!("No network ID provided, getting default network ID from server...");
-                let network_id = runtime_service.get_default_network().await?.id;
-                let _ = runtime_service
-                    .config_store
-                    .set_network_id(network_id)
-                    .await;
-                network_id
-            }
-        };
+    // Initialize unified storage with full config
+    let config_store = Arc::new(ConfigStore::new(path.clone(), config.clone()));
+    let utils = PlatformDaemonUtils::new();
 
-        // Create self as host, register with server, and save daemon ID
-        let discovery = Discovery::new(
-            state.services.discovery_service.clone(),
-            state.services.discovery_manager.clone(),
-            SelfReportDiscovery::default(),
-        );
-        discovery.run_self_report_discovery().await?;
+    let server_addr = &config_store.get_server_endpoint().await?;
+    let network_id = &config_store.get_network_id().await?;
 
-        let host_id = runtime_service
-            .config_store
-            .get_host_id()
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Host ID not set after self-report"))?;
-
-        runtime_service
-            .register_with_server(host_id, daemon_id, network_id)
-            .await?;
-
-        if has_docker_client {
-            discovery.run_self_report_docker_discovery().await?;
-        }
-    };
-
-    tracing::info!("Daemon ID: {}", daemon_id);
-
-    tokio::spawn(async move {
-        if let Err(e) = runtime_service.heartbeat().await {
-            tracing::warn!("Failed to update heartbeat timestamp: {}", e);
-        }
-    });
+    let state = DaemonAppState::new(config_store, utils).await?;
+    let runtime_service = state.services.runtime_service.clone();
+    let discovery_service = state.services.discovery_service.clone();
+    let discovery_manager = state.services.discovery_manager.clone();
 
     // Create HTTP server with config values
     let api_router = create_router().with_state(state);
@@ -177,10 +130,27 @@ async fn main() -> anyhow::Result<()> {
     let bind_addr = format!("{}:{}", config.bind_address, config.daemon_port);
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
 
+    // Spawn server in background
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
     tracing::info!("🌐 Listening on: {}", bind_addr);
     tracing::info!("📁 Config file: {:?}", path_str);
+    tracing::info!("🔗 Server at {}", server_addr);
 
-    axum::serve(listener, app).await?;
+    if let Some(network_id) = network_id {
+        tracing::info!("Network ID available: {}", network_id);
+        runtime_service
+            .initialize_services(*network_id, discovery_service, discovery_manager)
+            .await?;
+    } else {
+        tracing::info!(
+            "No network ID - waiting for request to hit /api/initialize with network_id..."
+        );
+    }
 
+    // 7. Keep process alive
+    tokio::signal::ctrl_c().await?;
     Ok(())
 }

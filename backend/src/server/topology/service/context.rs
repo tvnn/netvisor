@@ -126,11 +126,15 @@ impl<'a> TopologyContext<'a> {
     }
 
     pub fn interface_will_have_node(&self, interface_id: &Uuid) -> bool {
-        !self.get_services_bound_to_interface(*interface_id).is_empty()
+        !self
+            .get_services_bound_to_interface(*interface_id)
+            .is_empty()
     }
 
     pub fn service_will_have_node(&self, service_id: &Uuid) -> bool {
-        self.get_service_by_id(*service_id).map(|s| !s.base.bindings.is_empty()).unwrap_or(true)
+        self.get_service_by_id(*service_id)
+            .map(|s| !s.base.bindings.is_empty())
+            .unwrap_or(true)
     }
 
     pub fn edge_is_intra_subnet(&self, edge: &Edge) -> bool {

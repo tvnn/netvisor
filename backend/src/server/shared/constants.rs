@@ -5,6 +5,9 @@ use crate::server::shared::types::metadata::{EntityMetadataProvider, HasId};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumDiscriminants, EnumIter, IntoStaticStr)]
 #[strum_discriminants(derive(Display))]
 pub enum Entity {
+    Discovery,
+    Daemon,
+
     Host,
     Service,
     Port,
@@ -32,6 +35,9 @@ impl HasId for Entity {
 impl EntityMetadataProvider for Entity {
     fn color(&self) -> &'static str {
         match self {
+            Entity::Daemon => "green",
+            Entity::Discovery => "green",
+
             Entity::Host => "blue",
             Entity::Service => "purple",
             Entity::Interface => "cyan",
@@ -54,6 +60,8 @@ impl EntityMetadataProvider for Entity {
 
     fn icon(&self) -> &'static str {
         match self {
+            Entity::Daemon => "SatelliteDish",
+            Entity::Discovery => "Radar",
             Entity::Host => "Server",
             Entity::Service => "Layers",
             Entity::Interface => "Binary",

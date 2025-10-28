@@ -3,8 +3,8 @@
 
 	export const DaemonDisplay: EntityDisplayComponent<Daemon> = {
 		getId: (daemon: Daemon) => daemon.id,
-		getLabel: (daemon: Daemon) => getDaemonHost(daemon.id)?.name || 'Unknown Daemon',
-		getDescription: (daemon: Daemon) => getDaemonHost(daemon.id)?.description || '',
+		getLabel: (daemon: Daemon) => get(getHostFromId(daemon.host_id))?.name || 'Unknown Daemon',
+		getDescription: (daemon: Daemon) => get(getHostFromId(daemon.host_id))?.description || '',
 		getIcon: () => entities.getIconComponent('Daemon'),
 		getIconColor: () => entities.getColorHelper('Daemon').icon,
 		getTags: () => [],
@@ -17,7 +17,8 @@
 	import type { EntityDisplayComponent } from '../types';
 	import ListSelectItem from '../ListSelectItem.svelte';
 	import type { Daemon } from '$lib/features/daemons/types/base';
-	import { getDaemonHost } from '$lib/features/daemons/store';
+	import { getHostFromId } from '$lib/features/hosts/store';
+	import { get } from 'svelte/store';
 
 	export let item: Daemon;
 </script>

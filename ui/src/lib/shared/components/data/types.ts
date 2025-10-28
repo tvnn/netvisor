@@ -1,4 +1,4 @@
-import type { HelpCircle } from 'lucide-svelte';
+import type { IconComponent } from '$lib/shared/utils/types';
 import type { Component } from 'svelte';
 
 export interface TagProps {
@@ -10,7 +10,7 @@ export interface TagProps {
 
 export interface CardAction {
 	label: string;
-	icon: typeof HelpCircle; // Svelte component
+	icon: IconComponent; // Svelte component
 	class?: string;
 	onClick: () => void;
 	disabled?: boolean;

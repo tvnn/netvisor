@@ -7,10 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
 
 use crate::server::discovery::manager::DiscoverySessionManager;
-use crate::server::{
-    shared::{services::ServiceFactory, types::storage::StorageFactory},
-    users::types::{User, UserBase},
-};
+use crate::server::shared::{services::ServiceFactory, types::storage::StorageFactory};
 
 /// CLI arguments structure (for figment integration)
 #[derive(Debug)]
@@ -19,6 +16,7 @@ pub struct CliArgs {
     pub log_level: Option<String>,
     pub rust_log: Option<String>,
     pub database_url: Option<String>,
+    pub integrated_daemon_url: Option<String>,
 }
 
 /// Flattened server configuration struct
@@ -42,6 +40,9 @@ pub struct ServerConfig {
 
     /// Whether to seed a test user, used for headless integration testing
     pub seed_test_user: bool,
+
+    /// URL for daemon running in same docker stack or in other local context
+    pub integrated_daemon_url: Option<String>,
 }
 
 impl Default for ServerConfig {
@@ -53,6 +54,7 @@ impl Default for ServerConfig {
             database_url: "postgresql://postgres:password@localhost:5432/netvisor".to_string(),
             web_external_path: None,
             seed_test_user: false,
+            integrated_daemon_url: None,
         }
     }
 }
@@ -77,6 +79,9 @@ impl ServerConfig {
         }
         if let Some(database_url) = cli_args.database_url {
             figment = figment.merge(("database_url", database_url));
+        }
+        if let Some(integrated_daemon_url) = cli_args.integrated_daemon_url {
+            figment = figment.merge(("integrated_daemon_url", integrated_daemon_url));
         }
 
         let config: ServerConfig = figment
@@ -104,14 +109,7 @@ impl AppState {
         discovery_manager: DiscoverySessionManager,
     ) -> Result<Arc<Self>, Error> {
         let storage = StorageFactory::new(&config.database_url()).await?;
-        let services = ServiceFactory::new(&storage).await?;
-
-        if config.seed_test_user {
-            services
-                .user_service
-                .create_user(User::new(UserBase::default()))
-                .await?;
-        }
+        let services = ServiceFactory::new(&storage, config.integrated_daemon_url.clone()).await?;
 
         Ok(Arc::new(Self {
             config,

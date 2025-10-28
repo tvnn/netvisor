@@ -112,7 +112,9 @@ export function getHostTargetString(host: Host): Readable<string> {
 
 export function formatInterface(i: Interface | AllInterfaces): string {
 	if (i.id == null) return i.name;
-	return isContainerSubnet(i.subnet_id) ? i.name : (i.name ? i.name + ': ' : '') + i.ip_address;
+	return get(isContainerSubnet(i.subnet_id))
+		? i.name
+		: (i.name ? i.name + ': ' : '') + i.ip_address;
 }
 
 export function getHostFromId(id: string): Readable<Host | null> {

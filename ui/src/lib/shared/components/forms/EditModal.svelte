@@ -8,6 +8,7 @@
 	export let onSave: (() => void) | null = null;
 	export let onCancel: (() => void) | null = null;
 	export let saveLabel: string = 'Save';
+	export let showSave: boolean = true;
 	export let cancelLabel: string = 'Cancel';
 	export let disableSave: boolean = false;
 	export let size: 'sm' | 'md' | 'lg' | 'xl' | 'full' = 'lg';
@@ -107,14 +108,16 @@
 					</button>
 				{/if}
 
-				<button
-					type="button"
-					disabled={actualDisableSave}
-					on:click={handleFormSubmit}
-					class="btn-primary"
-				>
-					{loading ? 'Saving...' : saveLabel}
-				</button>
+				{#if showSave}
+					<button
+						type="button"
+						disabled={actualDisableSave}
+						on:click={handleFormSubmit}
+						class="btn-primary"
+					>
+						{loading ? 'Saving...' : saveLabel}
+					</button>
+				{/if}
 			</div>
 		</div>
 	</svelte:fragment>

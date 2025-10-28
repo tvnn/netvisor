@@ -4,6 +4,7 @@ use netvisor::server::{
     config::{AppState, CliArgs, ServerConfig},
     discovery::manager::DiscoverySessionManager,
     shared::handlers::create_router,
+    users::types::{User, UserBase},
 };
 use tower::ServiceBuilder;
 use tower_http::{
@@ -32,6 +33,10 @@ struct Cli {
     /// Override database path
     #[arg(long)]
     database_url: Option<String>,
+
+    /// Override integrated daemon url
+    #[arg(long)]
+    integrated_daemon_url: Option<String>,
 }
 
 impl From<Cli> for CliArgs {
@@ -41,6 +46,7 @@ impl From<Cli> for CliArgs {
             log_level: cli.log_level,
             rust_log: cli.rust_log,
             database_url: cli.database_url,
+            integrated_daemon_url: cli.integrated_daemon_url,
         }
     }
 }
@@ -55,6 +61,8 @@ async fn main() -> anyhow::Result<()> {
     // Load configuration using figment
     let config = ServerConfig::load(cli_args)?;
     let listen_addr = format!("0.0.0.0:{}", &config.server_port);
+    let seed_test_user = config.seed_test_user;
+    let web_external_path = config.web_external_path.clone();
 
     // Initialize tracing
     tracing_subscriber::registry()
@@ -67,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Create app state
     let state = AppState::new(config, DiscoverySessionManager::new()).await?;
-    let web_external_path = state.config.web_external_path.clone();
+    let user_service = state.services.user_service.clone();
 
     // Create discovery cleanup task
     let cleanup_state = state.clone();
@@ -119,7 +127,18 @@ async fn main() -> anyhow::Result<()> {
     }
     tracing::info!("🔧 API: http://<your-ip>:{}/api", actual_port);
 
-    axum::serve(listener, app).await?;
+    // Spawn server in background
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    if seed_test_user {
+        user_service
+            .create_user(User::new(UserBase::default()))
+            .await?;
+    }
+
+    tokio::signal::ctrl_c().await?;
 
     Ok(())
 }

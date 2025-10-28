@@ -17,12 +17,13 @@
 	import { pushError } from '$lib/shared/stores/feedback';
 	import { getNetworks } from '$lib/features/networks/store';
 	import { startDiscoverySSE } from '$lib/features/discovery/store';
+	import DiscoveryTab from '$lib/features/daemons/components/DiscoveryTab.svelte';
 
 	let activeTab = 'hosts';
 	let appInitialized = false;
 
 	// Valid tab names for validation
-	const validTabs = ['hosts', 'subnets', 'groups', 'topology'];
+	const validTabs = ['discovery', 'hosts', 'subnets', 'groups', 'topology'];
 
 	// Function to get initial tab from URL hash
 	function getInitialTab(): string {
@@ -112,6 +113,8 @@
 			<div class="p-8">
 				{#if !appInitialized}
 					<Loading />
+				{:else if activeTab === 'discovery'}
+					<DiscoveryTab />
 				{:else if activeTab === 'hosts'}
 					<HostTab />
 				{:else if activeTab === 'subnets'}

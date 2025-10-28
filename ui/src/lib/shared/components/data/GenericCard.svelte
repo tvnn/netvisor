@@ -42,7 +42,7 @@
 	<!-- Content - grows to fill available space -->
 	<div class="flex-grow space-y-3">
 		<!-- Basic info sections -->
-		{#each sections as section (section.value)}
+		{#each sections as section, i ((section.value, i))}
 			<div class="text-sm">
 				<span class="text-secondary">{section.label}:</span>
 				<span class="text-tertiary ml-2">{section.value}</span>
@@ -58,7 +58,7 @@
 							<span class="text-secondary">{list.label}:</span>
 						{/if}
 						{#if list.items.length > 0}
-							{#each list.items as item (item.id)}
+							{#each list.items as item, i ((item.id, i))}
 								<div class="flex items-center justify-between">
 									<div class="flex items-center space-x-2">
 										<Tag

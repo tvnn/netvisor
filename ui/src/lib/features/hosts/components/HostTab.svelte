@@ -4,9 +4,7 @@
 	import TabHeader from '$lib/shared/components/layout/TabHeader.svelte';
 	import Loading from '$lib/shared/components/feedback/Loading.svelte';
 	import EmptyState from '$lib/shared/components/layout/EmptyState.svelte';
-	import { getDaemons, hostDaemonMap } from '$lib/features/daemons/store';
-	import type { Daemon } from '$lib/features/daemons/types/base';
-	import { initiateDiscovery, sessions } from '$lib/features/discovery/store';
+	import { getDaemons } from '$lib/features/daemons/store';
 	import HostEditor from './HostEditModal/HostEditor.svelte';
 	import HostConsolidationModal from './HostConsolidationModal.svelte';
 	import { consolidateHosts, createHost, deleteHost, getHosts, hosts, updateHost } from '../store';
@@ -22,8 +20,6 @@
 
 	let otherHost: Host | null = null;
 	let showHostConsolidationModal = false;
-
-	$: discoveryIsRunning = $sessions.size > 0;
 
 	$: sortedHosts = [...$hosts].sort((a, b) =>
 		a.created_at.localeCompare(b.created_at, undefined, { sensitivity: 'base' })
@@ -52,10 +48,6 @@
 	function handleEditHost(host: Host) {
 		editingHost = host;
 		showHostEditor = true;
-	}
-
-	function handleRunDiscovery(daemon: Daemon) {
-		initiateDiscovery({ daemon_id: daemon.id });
 	}
 
 	function handleStartConsolidate(host: Host) {
@@ -129,12 +121,9 @@
 			{#each sortedHosts as host (host.id)}
 				<HostCard
 					{host}
-					daemon={$hostDaemonMap.get(host.id) || null}
 					hostGroups={hostGroups.get(host.id)}
-					{discoveryIsRunning}
 					onEdit={handleEditHost}
 					onDelete={handleDeleteHost}
-					onDiscovery={handleRunDiscovery}
 					onConsolidate={handleStartConsolidate}
 				/>
 			{/each}
