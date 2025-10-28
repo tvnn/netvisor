@@ -3,16 +3,13 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::server::{
-    hosts::types::base::Host,
-    services::types::base::Service,
-    subnets::types::base::SubnetType,
-    topology::{
+    hosts::types::{base::Host, interfaces::Interface}, services::{definitions::docker_daemon::Docker, types::base::Service}, shared::types::metadata::HasId, subnets::types::base::SubnetType, topology::{
         service::{
             context::TopologyContext,
             planner::{
                 anchor_planner::ChildAnchorPlanner,
                 child_planner::ChildNodePlanner,
-                utils::{NODE_PADDING, PlannerUtils, SUBNET_PADDING},
+                utils::{PlannerUtils, NODE_PADDING, SUBNET_PADDING},
             },
         },
         types::{
@@ -20,7 +17,7 @@ use crate::server::{
             edges::Edge,
             nodes::{Node, NodeType, SubnetChild},
         },
-    },
+    }
 };
 
 pub struct SubnetLayoutPlanner {
@@ -79,7 +76,8 @@ impl SubnetLayoutPlanner {
         host: &Host,
         subnet_type: &SubnetType,
     ) -> Option<String> {
-        // Show virtualization provider, if any
+        
+        // P1: Show virtualization provider, if any
         if let Some(service) = ctx.get_host_is_virtualized_by(&host.id) {
             let host_interface_subnet_ids: Vec<Uuid> = host
                 .base
@@ -141,17 +139,52 @@ impl SubnetLayoutPlanner {
             }
         }
 
+        let host_has_name = host.base.name != "Unknown Device" && !host.base.name.is_empty();
+
+        // P2: Assign a name to docker containers whose host will not have a node
+        if *subnet_type == SubnetType::DockerBridge {
+            let docker_service = host.base.services
+                .iter()
+                .find_map(|s| {
+                    if let Some(service) = ctx.get_service_by_id(*s) && service.base.service_definition.id() == Docker.id(){
+                        return Some(service);
+                    }
+                    None
+                });
+
+            let docker_service_will_have_node = docker_service.map(|s| !s.base.bindings.is_empty()).unwrap_or(false);
+
+            let header_text = if host_has_name {
+                Some("Docker @ ".to_owned() + &host.base.name.clone())
+            } else {
+                // Generate a label from non-docker interface, if there is one
+                host.base.interfaces
+                    .iter()
+                    .find(|i| {
+                        ctx.get_subnet_from_interface_id(i.id).map(|s| s.base.subnet_type != SubnetType::DockerBridge).unwrap_or(false)
+                    })
+                    .map(|i| "Docker @ ".to_owned() + &i.base.ip_address.to_string())
+            };
+
+            if !docker_service_will_have_node {
+                return header_text
+            }
+        }
+       
+        // P3: Show host if it differs from the first service name + isn't shown via interface edges
         let first_service_name_matches_host_name = match interface_bound_services.first() {
             Some(first_service) => first_service.base.name == host.base.name,
             None => false,
         };
 
-        let host_has_name = host.base.name != "Unknown Device" && !host.base.name.is_empty();
+        // Count of other interfaces that will actually have a node (ie services on that interface > 0)
+        // so an interface edge will be created
+        let interfaces_with_node: Vec<&Interface> = host.base.interfaces.iter().filter(|i| {
+            !ctx.get_services_bound_to_interface(i.id).is_empty()
+        })
+        .collect();
 
-        let interface_count = host.base.interfaces.len();
-
-        // Assign a name to single-interface services with a host name different from the name of their first service
-        if !first_service_name_matches_host_name && host_has_name && interface_count < 2 {
+        if !first_service_name_matches_host_name && host_has_name && interfaces_with_node.len() < 2 {
             return Some(host.base.name.clone());
         }
 

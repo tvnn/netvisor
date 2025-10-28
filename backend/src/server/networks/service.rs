@@ -47,7 +47,6 @@ impl NetworkService {
 
     pub async fn get_default_network(&self, user_id: &Uuid) -> Result<Option<Network>> {
         let all_networks = self.get_all_networks(user_id).await?;
-        tracing::info!("{:?}", all_networks);
         Ok(all_networks
             .into_iter()
             .find(|n| n.base.is_default && n.base.user_id == *user_id))

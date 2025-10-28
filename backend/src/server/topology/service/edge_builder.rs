@@ -46,7 +46,7 @@ impl EdgeBuilder {
                                 });
 
                                 if let (Some(Some(interface_0)), Some(Some(interface_1))) =
-                                    (interface_0, interface_1)
+                                    (interface_0, interface_1) && ctx.interface_will_have_node(&interface_0) && ctx.interface_will_have_node(&interface_1)
                                 {
                                     let is_multi_hop =
                                         ctx.edge_is_multi_hop(&interface_0, &interface_1);
@@ -179,15 +179,17 @@ impl EdgeBuilder {
                                 .entry(host.id)
                                 .or_insert(*first_subnet_id);
 
-                            return vec![Edge {
-                                source: origin_interface.id,
-                                target: *first_subnet_id,
-                                edge_type: EdgeType::ServiceVirtualization,
-                                label: Some(format!("{} on {}", s.base.name, host.base.name)),
-                                source_handle,
-                                target_handle,
-                                is_multi_hop,
-                            }];
+                            if ctx.interface_will_have_node(&origin_interface.id) && ctx.interface_will_have_node(&first_subnet_id) {
+                                return vec![Edge {
+                                    source: origin_interface.id,
+                                    target: *first_subnet_id,
+                                    edge_type: EdgeType::ServiceVirtualization,
+                                    label: Some(format!("{} @ {}", s.base.name, host.base.name)),
+                                    source_handle,
+                                    target_handle,
+                                    is_multi_hop,
+                                }];
+                            }
                         }
                     }
                 } else {
@@ -217,16 +219,19 @@ impl EdgeBuilder {
                                     &container_binding_interface_id,
                                     is_multi_hop,
                                 )?;
-
-                            Some(Edge {
-                                source: origin_interface.id,
-                                target: container_binding_interface_id,
-                                edge_type: EdgeType::ServiceVirtualization,
-                                label: Some(format!("{} on {}", s.base.name, host.base.name)),
-                                source_handle,
-                                target_handle,
-                                is_multi_hop,
-                            })
+                            
+                            if ctx.interface_will_have_node(&origin_interface.id) && ctx.interface_will_have_node(&container_binding_interface_id) {
+                                return Some(Edge {
+                                    source: origin_interface.id,
+                                    target: container_binding_interface_id,
+                                    edge_type: EdgeType::ServiceVirtualization,
+                                    label: Some(format!("{} on {}", s.base.name, host.base.name)),
+                                    source_handle,
+                                    target_handle,
+                                    is_multi_hop,
+                                });
+                            }   
+                            None
                         })
                         .collect();
                 }
@@ -290,7 +295,7 @@ impl EdgeBuilder {
                         .filter_map(|i| {
                             if let Some(proxmox_service_interface_id) =
                                 subnet_to_promxox_host_interface_id
-                                    .get(&(i.base.subnet_id, *proxmox_service_id))
+                                    .get(&(i.base.subnet_id, *proxmox_service_id)) && ctx.interface_will_have_node(proxmox_service_interface_id)
                             {
                                 let is_multi_hop =
                                     ctx.edge_is_multi_hop(proxmox_service_interface_id, &i.id);
@@ -331,7 +336,7 @@ impl EdgeBuilder {
                     host.base
                         .interfaces
                         .iter()
-                        .filter(|interface| interface.id != origin_interface.id)
+                        .filter(|interface| interface.id != origin_interface.id && ctx.interface_will_have_node(&interface.id) && ctx.interface_will_have_node(&origin_interface.id))
                         .filter_map(|interface| {
                             let source_subnet =
                                 ctx.get_subnet_by_id(origin_interface.base.subnet_id);
