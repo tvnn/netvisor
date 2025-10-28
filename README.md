@@ -78,48 +78,31 @@ The server collects data from the daemon(s) and generates the topology visualiza
 
 ### 2. Load the UI
 
-Navigate to `<your-ip>:60072` (or whichever port you set it to) to load the UI and initialize a new network with seed data.
+Navigate to `http://<your-ip>:60072` (or whichever port you configured) to load the UI.
 
-### 3. Install the Daemon  
+On first load, the UI will automatically:
+- Create your user account
+- Initialize a default network
+- Start the integrated daemon (if running the full docker-compose stack)
 
-The daemon scans the network and requires access to host network interfaces.
+The integrated daemon will automatically begin reporting to your network once initialization is complete.
 
-**Linux**: Can run in Docker with `--network host` and `--privileged` flags, or as a binary directly on the host.
+### 3. Deploy Additional Daemons (Optional)
 
-**Mac/Windows**: Docker Desktop does not support host networking, so the daemon must run as a binary directly on the host (not containerized).
+To scan from multiple network vantage points (e.g., different VLANs or remote locations):
 
-#### Linux (Docker - Recommended)
+1. Navigate to the **Discover** tab in the UI
+2. Click **"Create New Daemon"**
+3. Copy the generated docker-compose or installation command
+4. Run it on your target host
 
-Make sure to replace YOUR_SERVER_IP
+Each daemon will automatically connect to your server and begin reporting discovered hosts and services.
 
-```bash
-curl -O https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/docker-compose.daemon.yml && \
-NETVISOR_SERVER_TARGET=YOUR_SERVER_IP docker compose -f docker-compose.daemon.yml up -d
-```
-
-or, run the contents of `docker-compose.daemon.yml`
-
-#### Linux / Mac / Windows (Binary)
-
-```bash
-curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/install.sh | bash
-```
-
-### 3. Connect Daemon to Server
-
-If you installed the daemon as a binary (not using Docker), run:
-
-```bash
-netvisor-daemon --server-target YOUR_SERVER_IP --server-port 60072
-```
-
-If you used the Docker command above, the daemon is already connected and running.
+You can also do this at any point after running discovery with the integrated daemon.
 
 ## Discovery
 
 ### Docker
-
-
 
 If the host running the daemon is also running Docker, the daemon automatically detects containerized services by connecting to the Docker socket. This provides enhanced service discovery including:
 - Container names and metadata
@@ -131,10 +114,10 @@ If the host running the daemon is also running Docker, the daemon automatically 
 
 ### Network Scanning
 
-Once you connect a daemon to the server, a host will be created with a discovery button. Click to start discovery.
+Once you have a daemon up and running, it will be available in the Discover tab. Click the Discovery button to start network scanning.
 
 <p align="center">
-  <img src="./media/discovery_host.png" width="400" alt="Run Discovery">
+  <img src="./media/discovery.png" width="400" alt="Run Discovery">
 </p>
 
 The NetVisor Daemon discovers hosts on your network by scanning all IPv4 addresses on subnets that the host it runs on has a network interface with. For each IP on the network, the daemon:
@@ -215,6 +198,8 @@ Both the server and daemon support multiple configuration methods with the follo
 | Log Level | `--log-level` | `NETVISOR_LOG_LEVEL` | `log_level` | `info` | Logging verbosity (`trace`, `debug`, `info`, `warn`, `error`) |
 | Heartbeat Interval | `--heartbeat-interval` | `NETVISOR_HEARTBEAT_INTERVAL` | `heartbeat_interval` | `30` | Seconds between heartbeat updates to the server |
 | Concurrent Scans | `--concurrent-scans` | `NETVISOR_CONCURRENT_SCANS` | `concurrent_scans` | `15` | Maximum number of hosts to scan in parallel during discovery |
+| Network ID | `--network-id` | `NETVISOR_NETWORK_ID` | `network_id` | `None` | Network ID to report discoveries to (auto-assigned for integrated daemon) |
+
 
 #### Configuration File Location
 
@@ -269,10 +254,21 @@ The UI supports the following configuration options for API connectivity:
 
 ## Troubleshooting
 
-### CONCURRENT_SCANS is too high for this system
-This env var controls concurrent network scan operations. If too high, the system running the daemon will run out of memory.
+### Error: CONCURRENT_SCANS is too high for this system
+
+The CONCURRENT_SCANS env var controls concurrent network scan operations. If too high, the system running the daemon will run out of memory.
 
 You can control this using the environment variable `NETVISOR_CONCURRENT_SCANS`.
+
+### Integrated Daemon Not Initializing
+
+If the integrated daemon (included in docker-compose.yml) fails to initialize after loading the UI:
+
+1. **Check daemon logs**: `docker logs netvisor-daemon`
+2. **Verify server is accessible**: The daemon must be able to reach the server. If using the default docker-compose, this should work automatically.
+3. **Check network configuration**: Ensure the daemon's `NETVISOR_INTEGRATED_DAEMON_URL` environment variable is correctly set in the server service (default: `http://172.17.0.1:60073`)
+
+For most setups, the default configuration should work. If you're using a custom Docker network, you may need to adjust the gateway IP.
 
 - **Recommended ranges**:
   - Low-resource systems (Raspberry Pi): 5-10
@@ -318,7 +314,13 @@ NetVisor stores all data locally in a SQLite database on your server. No data is
 
 ### Are VLANs supported?
 
-Yes, you can collect information from hosts on multiple vlans by using multiple Daemon deployments. Simply install a daemon on a host that interfaces with each vlan you want to include in the visualization. You will probably need to use the [Consolidate](#consolidating-hosts) feature to combine IPs which are detected as distinct hosts.
+Yes, you can collect information from hosts on multiple VLANs by deploying multiple daemons:
+
+1. Go to the **Discover** tab in the UI
+2. Click **"Create New Daemon"** 
+3. Deploy the generated daemon on a host connected to each VLAN you want to scan
+
+You may need to use the [Consolidate](#consolidating-hosts) feature to merge hosts that appear on multiple VLANs with different IP addresses.
 
 ### Is IPv6 supported?
 

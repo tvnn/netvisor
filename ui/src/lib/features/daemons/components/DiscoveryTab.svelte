@@ -9,8 +9,9 @@
 	import { getNetworks } from '$lib/features/networks/store';
 	import DaemonCard from './DaemonCard.svelte';
 	import CreateDaemonModal from './CreateDaemonModal.svelte';
+	import { getHosts } from '$lib/features/hosts/store';
 
-	const loading = loadData([getNetworks, getDaemons]);
+	const loading = loadData([getNetworks, getDaemons, getHosts]);
 
 	let showCreateDaemonModal = false;
 
