@@ -4,6 +4,7 @@
 	import Prism from '@magidoc/plugin-svelte-prismjs';
 	import 'prismjs/components/prism-yaml';
 	import 'prismjs/components/prism-json';
+	import 'prismjs/components/prism-bash';
 	import 'prismjs/themes/prism-twilight.css';
 
 	export let code: string;
@@ -51,7 +52,7 @@
 					</button>
 				</div>
 			{/if}
-			<Prism {language} source={code} showLineNumbers showCopyButton />
+			<Prism {language} source={code} showLineNumbers={true} showCopyButton />
 		</div>
 	{/if}
 </div>

@@ -22,7 +22,8 @@
 
 	const serverPort = env.PUBLIC_SERVER_PORT || parsedUrl.port || '60072';
 
-	let colorHelper = entities.getColorHelper('Daemon');
+	const installCommand = `curl -sSL https://raw.githubusercontent.com/mayanayza/netvisor/refs/heads/main/install.sh | bash`;
+	const runCommand = `netvisor-daemon --server-target ${serverTarget} --server-port ${serverPort} --network-id ${selectedNetworkId}`;
 
 	function populateDockerCompose(
 		template: string,
@@ -47,6 +48,8 @@
 			})
 			.join('\n');
 	}
+
+	let colorHelper = entities.getColorHelper('Daemon');
 </script>
 
 <EditModal
@@ -79,7 +82,23 @@
 		{/if}
 
 		<div class="text-secondary mt-3">
-			Run this docker-compose on any host that can reach the specified server target
+			Option 1. Run the install script, then start the daemon
+		</div>
+
+		<CodeContainer
+			language="bash"
+			expandable={false}
+			code={installCommand}
+		/>
+
+		<CodeContainer
+			language="bash"
+			expandable={false}
+			code={runCommand}
+		/>
+
+		<div class="text-secondary mt-3">
+			Option 2. Run this docker-compose
 		</div>
 
 		<CodeContainer
