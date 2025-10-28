@@ -66,6 +66,10 @@ impl Subnet {
         }
     }
 
+    pub fn is_docker_bridge_subnet(&self) -> bool {
+        self.base.subnet_type == SubnetType::DockerBridge
+    }
+
     pub fn from_discovery(
         interface_name: String,
         ip_network: &IpNetwork,

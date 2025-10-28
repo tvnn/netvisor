@@ -1,6 +1,7 @@
 use crate::server::discovery::types::base::EntitySource;
 use crate::server::hosts::types::virtualization::HostVirtualization;
 use crate::server::shared::types::api::deserialize_empty_string_as_none;
+use crate::server::subnets::types::base::Subnet;
 use crate::server::{
     hosts::types::ports::Port,
     hosts::types::{interfaces::Interface, targets::HostTarget},
@@ -146,6 +147,10 @@ impl Host {
             Some(id) => self.base.interfaces.iter().find(|i| &i.id == id),
             None => None,
         }
+    }
+
+    pub fn get_first_non_docker_bridge_interface(&self, subnets: &[Subnet]) -> Option<&Interface> {
+        self.base.interfaces.iter().find(|i| subnets.iter().find(|s| s.id == i.base.subnet_id).map(|s| !s.is_docker_bridge_subnet()).unwrap_or(false))
     }
 
     pub fn get_port(&self, port_id: &Uuid) -> Option<&Port> {

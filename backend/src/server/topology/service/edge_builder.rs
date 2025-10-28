@@ -8,7 +8,7 @@ use crate::server::{
     groups::types::GroupType,
     hosts::types::virtualization::HostVirtualization,
     services::types::virtualization::ServiceVirtualization,
-    subnets::types::base::SubnetTypeDiscriminants,
+    subnets::types::base::{SubnetType, SubnetTypeDiscriminants},
     topology::{
         service::context::TopologyContext,
         types::{
@@ -127,7 +127,7 @@ impl EdgeBuilder {
             })
             .filter_map(|s| {
                 let host = ctx.get_host_by_id(s.base.host_id)?;
-                let origin_interface = host.base.interfaces.first()?;
+                let origin_interface = host.get_first_non_docker_bridge_interface(&ctx.subnets)?;
                 Some((s, host, origin_interface))
             })
             .flat_map(|(s, host, origin_interface)| {
@@ -137,8 +137,7 @@ impl EdgeBuilder {
                     .iter()
                     .filter_map(|i| ctx.get_subnet_by_id(i.base.subnet_id))
                     .filter_map(|s| {
-                        if s.base.subnet_type.discriminant()
-                            == SubnetTypeDiscriminants::DockerBridge
+                        if s.base.subnet_type == SubnetType::DockerBridge
                         {
                             return Some(s.id);
                         }
@@ -179,7 +178,7 @@ impl EdgeBuilder {
                                 .entry(host.id)
                                 .or_insert(*first_subnet_id);
 
-                            if ctx.interface_will_have_node(&origin_interface.id) && ctx.interface_will_have_node(&first_subnet_id) {
+                            if ctx.interface_will_have_node(&origin_interface.id) {
                                 return vec![Edge {
                                     source: origin_interface.id,
                                     target: *first_subnet_id,

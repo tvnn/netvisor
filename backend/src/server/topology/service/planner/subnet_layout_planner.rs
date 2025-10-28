@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::server::{
-    hosts::types::{base::Host, interfaces::Interface}, services::{definitions::docker_daemon::Docker, types::base::Service}, shared::types::metadata::HasId, subnets::types::base::SubnetType, topology::{
+    hosts::types::{base::Host, interfaces::Interface}, services::{types::base::Service}, subnets::types::base::SubnetType, topology::{
         service::{
             context::TopologyContext,
             planner::{
@@ -142,17 +142,14 @@ impl SubnetLayoutPlanner {
         let host_has_name = host.base.name != "Unknown Device" && !host.base.name.is_empty();
 
         // P2: Assign a name to docker containers whose host will not have a node
+        // Docker container edges are routed to host origin interface, but not if
         if *subnet_type == SubnetType::DockerBridge {
-            let docker_service = host.base.services
-                .iter()
-                .find_map(|s| {
-                    if let Some(service) = ctx.get_service_by_id(*s) && service.base.service_definition.id() == Docker.id(){
-                        return Some(service);
-                    }
-                    None
-                });
 
-            let docker_service_will_have_node = docker_service.map(|s| !s.base.bindings.is_empty()).unwrap_or(false);
+            let origin_interface_will_have_node = if let Some(origin_interface) = host.get_first_non_docker_bridge_interface(&ctx.subnets) {
+                ctx.interface_will_have_node(&origin_interface.id)
+            } else {
+                false
+            };
 
             let header_text = if host_has_name {
                 Some("Docker @ ".to_owned() + &host.base.name.clone())
@@ -166,7 +163,7 @@ impl SubnetLayoutPlanner {
                     .map(|i| "Docker @ ".to_owned() + &i.base.ip_address.to_string())
             };
 
-            if !docker_service_will_have_node {
+            if !origin_interface_will_have_node {
                 return header_text
             }
         }
